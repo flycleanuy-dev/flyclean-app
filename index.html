@@ -1,0 +1,1038 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-title" content="FlyClean"/>
+<title>FlyClean — Panel Operario</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&display=swap');
+
+  :root {
+    --bg: #0a0a0a;
+    --card: #141414;
+    --border: #1f1f1f;
+    --border2: #2a2a2a;
+    --text: #ffffff;
+    --text2: #aaaaaa;
+    --text3: #555555;
+    --green: #22c55e;
+    --green-dark: #052e16;
+    --green-mid: #14532d;
+    --green-light: #86efac;
+    --blue: #3b82f6;
+    --blue-dark: #0f172a;
+    --amber: #f59e0b;
+    --amber-dark: #1c1007;
+    --purple: #a78bfa;
+    --purple-dark: #1e1b4b;
+    --orange: #f97316;
+    --red: #ef4444;
+    --radius: 14px;
+    --radius-sm: 10px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    max-width: 430px;
+    margin: 0 auto;
+    position: relative;
+  }
+
+  /* ── SCREENS ── */
+  .screen { display: none; flex-direction: column; min-height: 100vh; }
+  .screen.active { display: flex; }
+
+  /* ── LOADER ── */
+  #screen-loading {
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+  }
+  .spinner {
+    width: 36px; height: 36px;
+    border: 3px solid var(--border);
+    border-top-color: var(--green);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loader-text { color: var(--text3); font-size: 14px; }
+
+  /* ── LOGIN ── */
+  #screen-login { align-items: center; justify-content: center; padding: 32px 24px; }
+  .login-logo { font-size: 48px; margin-bottom: 12px; }
+  .login-title { font-size: 26px; font-weight: 700; color: var(--green); margin-bottom: 4px; }
+  .login-sub { font-size: 14px; color: var(--text3); margin-bottom: 40px; }
+  .login-label { font-size: 12px; color: var(--text3); font-weight: 600; letter-spacing: 1px; margin-bottom: 12px; align-self: flex-start; width: 100%; }
+  .user-card {
+    width: 100%; background: var(--card); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 16px 20px;
+    display: flex; align-items: center; gap: 14px;
+    cursor: pointer; transition: border-color 0.15s, background 0.15s;
+    margin-bottom: 10px;
+  }
+  .user-card:active { background: var(--green-dark); border-color: var(--green); }
+  .user-avatar { font-size: 28px; }
+  .user-name { font-size: 15px; font-weight: 600; }
+  .user-role { font-size: 12px; color: var(--text3); margin-top: 2px; }
+  .user-arrow { margin-left: auto; color: var(--text3); font-size: 18px; }
+
+  /* ── HEADER ── */
+  .header {
+    padding: 20px 20px 14px;
+    border-bottom: 1px solid var(--border);
+    display: flex; justify-content: space-between; align-items: center;
+    position: sticky; top: 0; background: var(--bg); z-index: 10;
+  }
+  .header-logo { font-size: 16px; font-weight: 700; color: var(--green); }
+  .header-user { font-size: 11px; color: var(--text3); background: var(--card); padding: 5px 12px; border-radius: 20px; cursor: pointer; }
+  .back-btn { background: transparent; border: none; color: var(--text2); font-size: 14px; cursor: pointer; font-family: 'DM Sans', sans-serif; padding: 4px 0; }
+
+  /* ── SERVICES LIST ── */
+  .services-header { padding: 20px 20px 8px; }
+  .services-title { font-size: 20px; font-weight: 700; }
+  .services-sub { font-size: 13px; color: var(--text3); margin-top: 4px; }
+  .services-list { padding: 8px 16px 32px; display: flex; flex-direction: column; gap: 10px; }
+
+  .service-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 16px;
+    cursor: pointer; transition: border-color 0.15s;
+    position: relative;
+  }
+  .service-card:active { border-color: var(--green); }
+  .service-card.urgente { border-left: 3px solid var(--amber); }
+
+  .service-estado {
+    display: inline-flex; align-items: center;
+    padding: 3px 10px; border-radius: 20px;
+    font-size: 11px; font-weight: 600; margin-bottom: 10px;
+  }
+  .estado-pendiente { background: rgba(85,85,85,0.2); color: #888; }
+  .estado-asignado { background: rgba(59,130,246,0.15); color: var(--blue); }
+  .estado-en-curso { background: rgba(167,139,250,0.15); color: var(--purple); }
+  .estado-completado { background: rgba(34,197,94,0.15); color: var(--green); }
+
+  .service-nombre { font-size: 15px; font-weight: 600; margin-bottom: 10px; line-height: 1.3; }
+  .service-meta { display: flex; flex-wrap: wrap; gap: 8px; }
+  .service-tag {
+    font-size: 11px; color: var(--text3);
+    background: var(--bg); padding: 3px 8px;
+    border-radius: 6px;
+  }
+  .service-jornada-badge {
+    font-size: 11px; color: var(--purple); font-weight: 500;
+    margin-top: 8px;
+  }
+
+  .empty-state { padding: 60px 24px; text-align: center; }
+  .empty-icon { font-size: 48px; margin-bottom: 16px; }
+  .empty-title { font-size: 18px; font-weight: 600; margin-bottom: 8px; }
+  .empty-text { font-size: 14px; color: var(--text3); line-height: 1.6; }
+  .refresh-btn {
+    margin-top: 20px; padding: 12px 24px;
+    background: var(--card); border: 1px solid var(--border2);
+    border-radius: var(--radius-sm); color: var(--text2);
+    font-size: 13px; font-weight: 500; cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+  }
+
+  /* ── SERVICE DETAIL ── */
+  .detail-header {
+    padding: 16px 20px 14px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 12px;
+  }
+  .detail-title { font-size: 15px; font-weight: 600; flex: 1; }
+
+  .progress-bar { height: 3px; background: var(--border); }
+  .progress-fill { height: 100%; background: var(--green); transition: width 0.4s ease; }
+
+  .steps-container { flex: 1; overflow-y: auto; padding-bottom: 100px; }
+
+  /* Step nav pills */
+  .step-nav {
+    display: flex; padding: 12px 16px; gap: 6px; overflow-x: auto;
+    scrollbar-width: none; border-bottom: 1px solid var(--border);
+  }
+  .step-nav::-webkit-scrollbar { display: none; }
+  .step-pill {
+    flex-shrink: 0; width: 28px; height: 28px;
+    border-radius: 50%; font-size: 11px; font-weight: 600;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; transition: all 0.15s;
+    border: 1.5px solid var(--border2); color: var(--text3); background: var(--card);
+  }
+  .step-pill.done { background: var(--green-dark); border-color: var(--green); color: var(--green); }
+  .step-pill.active { background: var(--green); border-color: var(--green); color: #000; }
+
+  /* Step content */
+  .step-content { padding: 20px 16px; }
+  .step-title { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
+  .step-sub { font-size: 13px; color: var(--text3); margin-bottom: 20px; }
+
+  /* Info block */
+  .info-block { background: var(--card); border-radius: var(--radius-sm); padding: 14px; margin-bottom: 16px; }
+  .info-row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--border); }
+  .info-row:last-child { border-bottom: none; }
+  .info-label { font-size: 12px; color: var(--text3); }
+  .info-val { font-size: 12px; font-weight: 500; color: var(--text2); max-width: 60%; text-align: right; }
+
+  /* Timestamp blocks */
+  .ts-recorded { background: var(--green-dark); border: 1px solid rgba(34,197,94,0.3); border-radius: var(--radius-sm); padding: 14px; margin-bottom: 12px; }
+  .ts-label { font-size: 11px; color: var(--green-light); margin-bottom: 4px; }
+  .ts-value { font-size: 16px; font-weight: 600; color: var(--green); }
+
+  /* Hint callout */
+  .hint { border-radius: var(--radius-sm); padding: 12px 14px; margin-bottom: 16px; font-size: 13px; line-height: 1.5; }
+  .hint-amber { background: var(--amber-dark); color: var(--amber); border-left: 3px solid var(--amber); }
+  .hint-green { background: var(--green-dark); color: var(--green-light); border-left: 3px solid var(--green); }
+  .hint-blue { background: var(--blue-dark); color: #93c5fd; border-left: 3px solid var(--blue); }
+  .hint-gray { background: var(--card); color: var(--text2); border-left: 3px solid var(--border2); }
+
+  /* Checklist */
+  .check-count { font-size: 12px; color: var(--text3); text-align: right; margin-bottom: 10px; }
+  .check-item {
+    display: flex; align-items: flex-start; gap: 12px;
+    padding: 10px 12px; border-radius: var(--radius-sm);
+    margin-bottom: 4px; cursor: pointer; transition: background 0.1s;
+    border: 1px solid transparent;
+  }
+  .check-item.checked { background: var(--green-dark); border-color: rgba(34,197,94,0.2); }
+  .checkbox {
+    width: 22px; height: 22px; border-radius: 6px; flex-shrink: 0;
+    border: 2px solid var(--border2); display: flex; align-items: center;
+    justify-content: center; font-size: 13px; font-weight: 700; color: #000;
+    transition: all 0.15s; margin-top: 1px;
+  }
+  .check-item.checked .checkbox { background: var(--green); border-color: var(--green); }
+  .check-label { font-size: 13px; line-height: 1.5; color: var(--text2); flex: 1; }
+  .check-item.checked .check-label { color: var(--green-light); text-decoration: line-through; }
+
+  /* Textarea & inputs */
+  .form-label { font-size: 12px; color: var(--text3); font-weight: 600; margin-bottom: 6px; letter-spacing: 0.3px; }
+  textarea, input[type="number"], input[type="text"] {
+    width: 100%; background: var(--card); border: 1px solid var(--border2);
+    border-radius: var(--radius-sm); color: var(--text); font-size: 14px;
+    padding: 12px 14px; font-family: 'DM Sans', sans-serif; resize: none;
+    transition: border-color 0.15s;
+  }
+  textarea:focus, input:focus { outline: none; border-color: var(--green); }
+  .field-group { margin-bottom: 16px; }
+
+  /* Radio options */
+  .radio-group { display: flex; flex-direction: column; gap: 8px; }
+  .radio-opt {
+    padding: 12px 14px; border-radius: var(--radius-sm);
+    border: 1px solid var(--border2); background: var(--card);
+    font-size: 14px; cursor: pointer; transition: all 0.15s;
+  }
+  .radio-opt.selected { background: var(--green-dark); border-color: var(--green); color: var(--green-light); }
+
+  /* Clima options */
+  .clima-group { display: flex; flex-direction: column; gap: 8px; }
+  .clima-opt {
+    padding: 12px 14px; border-radius: var(--radius-sm);
+    border: 1px solid var(--border2); background: var(--card);
+    font-size: 14px; cursor: pointer; transition: all 0.15s;
+  }
+  .clima-opt.green.selected { background: rgba(34,197,94,0.15); border-color: var(--green); color: var(--green); }
+  .clima-opt.yellow.selected { background: rgba(245,158,11,0.15); border-color: var(--amber); color: var(--amber); }
+  .clima-opt.red.selected { background: rgba(239,68,68,0.15); border-color: var(--red); color: var(--red); }
+
+  /* Summary */
+  .summary-card { background: var(--card); border-radius: var(--radius); padding: 16px; margin-bottom: 16px; }
+  .summary-title { font-size: 13px; font-weight: 600; color: var(--text3); letter-spacing: 0.5px; margin-bottom: 12px; }
+  .summary-row { display: flex; justify-content: space-between; padding: 7px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+  .summary-row:last-child { border-bottom: none; }
+  .summary-key { color: var(--text3); }
+  .summary-val { color: var(--text2); font-weight: 500; max-width: 60%; text-align: right; }
+
+  /* Bottom action bar */
+  .bottom-bar {
+    position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+    width: 100%; max-width: 430px;
+    padding: 12px 16px 24px;
+    background: linear-gradient(to top, var(--bg) 60%, transparent);
+    display: flex; gap: 10px;
+  }
+  .btn-main {
+    flex: 1; padding: 15px; border-radius: var(--radius); border: none;
+    font-size: 15px; font-weight: 700; cursor: pointer;
+    font-family: 'DM Sans', sans-serif; transition: opacity 0.15s;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .btn-main:active { opacity: 0.8; }
+  .btn-green { background: var(--green); color: #000; }
+  .btn-amber { background: var(--amber); color: #000; }
+  .btn-purple { background: var(--purple); color: #000; }
+  .btn-orange { background: var(--orange); color: #fff; }
+  .btn-red { background: var(--red); color: #fff; }
+  .btn-gray { background: var(--card); color: var(--text2); border: 1px solid var(--border2); }
+
+  .btn-secondary {
+    padding: 15px 20px; border-radius: var(--radius); border: 1px solid var(--border2);
+    background: var(--card); color: var(--text2);
+    font-size: 15px; font-weight: 600; cursor: pointer;
+    font-family: 'DM Sans', sans-serif; transition: opacity 0.15s;
+  }
+  .btn-secondary:active { opacity: 0.7; }
+
+  /* Done screen */
+  #screen-done { align-items: center; justify-content: center; padding: 32px 24px; text-align: center; }
+  .done-icon { font-size: 72px; margin-bottom: 20px; }
+  .done-title { font-size: 24px; font-weight: 700; color: var(--green); margin-bottom: 8px; }
+  .done-sub { font-size: 14px; color: var(--text3); margin-bottom: 32px; line-height: 1.6; }
+  .done-stats { background: var(--card); border-radius: var(--radius); padding: 16px; width: 100%; margin-bottom: 24px; }
+  .done-stat-row { display: flex; justify-content: space-between; padding: 7px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+  .done-stat-row:last-child { border-bottom: none; }
+
+  /* Photo placeholder */
+  .photo-area {
+    background: var(--card); border: 2px dashed var(--border2);
+    border-radius: var(--radius); padding: 24px;
+    text-align: center; margin-bottom: 12px;
+  }
+  .photo-icon { font-size: 32px; margin-bottom: 8px; }
+  .photo-text { font-size: 13px; color: var(--text3); }
+  .photo-note { font-size: 11px; color: var(--text3); margin-top: 6px; background: var(--bg); padding: 6px 10px; border-radius: 6px; }
+
+  /* Saving indicator */
+  .saving-bar {
+    position: fixed; top: 0; left: 50%; transform: translateX(-50%);
+    width: 100%; max-width: 430px;
+    background: var(--green); color: #000;
+    font-size: 12px; font-weight: 600; text-align: center; padding: 6px;
+    z-index: 100; transition: opacity 0.3s;
+    opacity: 0; pointer-events: none;
+  }
+  .saving-bar.visible { opacity: 1; }
+
+  /* Error banner */
+  .error-banner {
+    margin: 12px 16px; padding: 12px 14px;
+    background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3);
+    border-radius: var(--radius-sm); color: var(--red); font-size: 13px; display: none;
+  }
+  .error-banner.visible { display: block; }
+</style>
+</head>
+<body>
+
+<div class="saving-bar" id="savingBar">✓ Guardado en Notion</div>
+
+<!-- LOADING -->
+<div class="screen active" id="screen-loading">
+  <div class="spinner"></div>
+  <div class="loader-text">Conectando con FlyClean...</div>
+</div>
+
+<!-- LOGIN -->
+<div class="screen" id="screen-login">
+  <div class="login-logo">🚁</div>
+  <div class="login-title">FlyClean</div>
+  <div class="login-sub">Panel Operario</div>
+  <div class="login-label">¿QUIÉN ERES?</div>
+  <div id="users-list" style="width:100%"></div>
+</div>
+
+<!-- SERVICES LIST -->
+<div class="screen" id="screen-services">
+  <div class="header">
+    <div>
+      <div class="header-logo">🚁 FlyClean</div>
+    </div>
+    <div class="header-user" id="header-user-name" onclick="logout()">Salir ↩</div>
+  </div>
+  <div class="services-header">
+    <div class="services-title">Mis servicios</div>
+    <div class="services-sub" id="services-sub">Cargando...</div>
+  </div>
+  <div class="error-banner" id="error-banner">
+    No se pudo conectar con Notion. Verificá tu conexión.
+  </div>
+  <div class="services-list" id="services-list">
+    <div style="text-align:center;padding:40px 0">
+      <div class="spinner" style="margin:0 auto"></div>
+    </div>
+  </div>
+</div>
+
+<!-- SERVICE DETAIL -->
+<div class="screen" id="screen-detail">
+  <div class="detail-header">
+    <button class="back-btn" onclick="goBack()">← Volver</button>
+    <div class="detail-title" id="detail-title">Servicio</div>
+  </div>
+  <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+  <div class="step-nav" id="step-nav"></div>
+  <div class="steps-container">
+    <div class="step-content" id="step-content"></div>
+  </div>
+  <div class="bottom-bar" id="bottom-bar"></div>
+</div>
+
+<!-- DONE -->
+<div class="screen" id="screen-done">
+  <div class="done-icon">🏁</div>
+  <div class="done-title">¡Servicio cerrado!</div>
+  <div class="done-sub">Todos los datos se guardaron en Notion automáticamente.</div>
+  <div class="done-stats" id="done-stats"></div>
+  <button class="btn-main btn-green" style="width:100%;max-width:300px" onclick="finishAndGoBack()">Ver mis servicios →</button>
+</div>
+
+<script>
+// ─────────────────────────────────────────────
+// CONFIG — usando tu Notion real
+// ─────────────────────────────────────────────
+const DB_ID = '2fbc8a03-5c4f-445c-8516-71dd9b2eea78';
+const USERS = [
+  {
+    id: 'cc532d5c-047c-4425-88d2-62065fe49c12',
+    name: 'Diego Laxalt',
+    role: '🎯 Dirección / Test',
+    emoji: '👨‍✈️'
+  }
+];
+
+const CHECKLIST_PRE = [
+  '✈️ Permiso de operador vigente verificado',
+  '🌤️ Meteorología consultada y apta para volar',
+  '📡 Índice KP verificado en SpaceWeatherLive (≤ 4)',
+  '🗺️ Ruta de vuelo definida y revisada',
+  '🚁 Drone inspeccionado (sin daños visibles)',
+  '🔋 Baterías del drone al 100%',
+  '🎮 Batería del mando cargada',
+  '🌀 Hélices revisadas (sin roturas)',
+  '💪 Brazos desplegados y asegurados (x4)',
+  '🔩 Soporte de lanza colocado y fijado',
+  '⚡ Patas del drone instaladas (x2)',
+  '💧 Manguera desenrollada, lanza y pico ajustado',
+  '🔌 Encendido: mando primero → drone → enlace OK',
+  '🛰️ Satélites verificados (mínimo 10)',
+  '⬜ Zona de despegue libre (radio 2m)',
+  '🧪 Vuelo de prueba a 3m — estabilidad OK'
+];
+
+const CHECKLIST_POST = [
+  '💧 Agua cortada con drone a +3m del área trabajada',
+  '🛬 Drone aterrizado en zona segura',
+  '📦 Equipo desmontado y guardado correctamente',
+  '🧹 Zona limpia, sin rastros de operación',
+  '📸 Fotos post-servicio tomadas (mínimo 2)',
+  '🤝 Cliente notificado del trabajo realizado',
+  '✅ Resultado marcado en Notion'
+];
+
+const STEPS = [
+  { id: 'inicio', label: 'INICIAR', icon: '▶' },
+  { id: 'checklist_pre', label: 'PRE', icon: '✅' },
+  { id: 'fotos_antes', label: 'FOTOS', icon: '📸' },
+  { id: 'inicio_efectivo', label: 'INICIO EF.', icon: '🕐' },
+  { id: 'ejecucion', label: 'TRABAJO', icon: '🚁' },
+  { id: 'cierre_efectivo', label: 'CIERRE EF.', icon: '⏹' },
+  { id: 'checklist_post', label: 'POST', icon: '✅' },
+  { id: 'fotos_despues', label: 'FOTOS', icon: '📸' },
+  { id: 'observaciones', label: 'NOTAS', icon: '📝' },
+  { id: 'cerrar', label: 'CERRAR', icon: '🏁' }
+];
+
+// ─────────────────────────────────────────────
+// STATE
+// ─────────────────────────────────────────────
+let currentUser = null;
+let currentService = null;
+let currentStep = 0;
+let serviceState = {};
+
+function resetServiceState() {
+  serviceState = {
+    horaInicio: null,
+    horaInicioEfectivo: null,
+    horaCierreEfectivo: null,
+    checklistPre: {},
+    checklistPost: {},
+    notasPost: '',
+    avance: '',
+    resultado: '',
+    clima: '',
+    isSaving: false
+  };
+}
+
+// ─────────────────────────────────────────────
+// NOTION API
+// ─────────────────────────────────────────────
+async function callNotion(endpoint, method = 'GET', body = null) {
+  const response = await fetch('/api/notion', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ endpoint, method, body })
+  });
+  if (!response.ok) throw new Error('API error ' + response.status);
+  return response.json();
+}
+
+async function getMyServices(userId) {
+  const data = await callNotion(`databases/${DB_ID}/query`, 'POST', {
+    filter: {
+      and: [
+        { property: 'Operario(s)', people: { contains: userId } },
+        {
+          or: [
+            { property: 'Estado', select: { equals: '📋 Pendiente' } },
+            { property: 'Estado', select: { equals: '🔄 Asignado' } },
+            { property: 'Estado', select: { equals: '✈️ En curso' } }
+          ]
+        }
+      ]
+    },
+    sorts: [{ property: 'Fecha programada', direction: 'ascending' }]
+  });
+  return data.results || [];
+}
+
+async function updateServiceProps(pageId, properties) {
+  return callNotion(`pages/${pageId}`, 'PATCH', { properties });
+}
+
+// ─────────────────────────────────────────────
+// SCREENS
+// ─────────────────────────────────────────────
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-' + id).classList.add('active');
+}
+
+function showSaving() {
+  const bar = document.getElementById('savingBar');
+  bar.classList.add('visible');
+  setTimeout(() => bar.classList.remove('visible'), 2000);
+}
+
+// ─────────────────────────────────────────────
+// LOGIN
+// ─────────────────────────────────────────────
+function renderLogin() {
+  const list = document.getElementById('users-list');
+  list.innerHTML = USERS.map(u => `
+    <div class="user-card" onclick="selectUser('${u.id}', '${u.name}', '${u.role}', '${u.emoji}')">
+      <span class="user-avatar">${u.emoji}</span>
+      <div>
+        <div class="user-name">${u.name}</div>
+        <div class="user-role">${u.role}</div>
+      </div>
+      <span class="user-arrow">→</span>
+    </div>
+  `).join('');
+}
+
+async function selectUser(id, name, role, emoji) {
+  currentUser = { id, name, role, emoji };
+  localStorage.setItem('fc_user', JSON.stringify(currentUser));
+  await loadServices();
+}
+
+function logout() {
+  localStorage.removeItem('fc_user');
+  currentUser = null;
+  showScreen('login');
+}
+
+// ─────────────────────────────────────────────
+// SERVICES
+// ─────────────────────────────────────────────
+async function loadServices() {
+  showScreen('services');
+  document.getElementById('header-user-name').textContent = (currentUser.emoji + ' ' + currentUser.name.split(' ')[0]);
+  document.getElementById('services-sub').textContent = 'Cargando servicios...';
+  document.getElementById('services-list').innerHTML = '<div style="text-align:center;padding:40px 0"><div class="spinner" style="margin:0 auto"></div></div>';
+  document.getElementById('error-banner').classList.remove('visible');
+
+  try {
+    const services = await getMyServices(currentUser.id);
+    renderServices(services);
+  } catch (err) {
+    document.getElementById('error-banner').classList.add('visible');
+    document.getElementById('services-sub').textContent = 'Error al cargar';
+    document.getElementById('services-list').innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">⚠️</div>
+        <div class="empty-title">No se pudo conectar</div>
+        <div class="empty-text">Verificá tu conexión a internet y que la app esté bien configurada.</div>
+        <button class="refresh-btn" onclick="loadServices()">Reintentar</button>
+      </div>`;
+  }
+}
+
+function getEstadoClass(estado) {
+  if (estado.includes('Pendiente')) return 'estado-pendiente';
+  if (estado.includes('Asignado')) return 'estado-asignado';
+  if (estado.includes('curso')) return 'estado-en-curso';
+  if (estado.includes('Completado')) return 'estado-completado';
+  return 'estado-pendiente';
+}
+
+function renderServices(services) {
+  const sub = document.getElementById('services-sub');
+  const list = document.getElementById('services-list');
+
+  if (services.length === 0) {
+    sub.textContent = 'Sin servicios asignados';
+    list.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">🚁</div>
+        <div class="empty-title">No hay servicios asignados</div>
+        <div class="empty-text">Pedile al coordinador que te asigne un servicio en Notion. Los servicios aparecen aquí cuando el coordinador te los asigna.</div>
+        <button class="refresh-btn" onclick="loadServices()">🔄 Actualizar</button>
+      </div>`;
+    return;
+  }
+
+  sub.textContent = `${services.length} servicio${services.length > 1 ? 's' : ''} asignado${services.length > 1 ? 's' : ''}`;
+
+  list.innerHTML = services.map((s, i) => {
+    const props = s.properties;
+    const nombre = props['Nombre del servicio']?.title?.[0]?.plain_text || 'Sin nombre';
+    const estado = props['Estado']?.select?.name || '📋 Pendiente';
+    const fecha = props['Fecha programada']?.date?.start || '';
+    const tipo = props['Tipo de servicio']?.select?.name || '';
+    const pais = props['País']?.select?.name || '';
+    const tipoReg = props['Tipo de registro']?.select?.name || '';
+    const jornadaN = props['Jornada N°']?.number;
+    const isJornada = tipoReg.includes('Jornada');
+
+    const fechaFmt = fecha ? new Date(fecha + 'T00:00:00').toLocaleDateString('es-UY', { day: 'numeric', month: 'short' }) : '';
+
+    return `
+      <div class="service-card ${estado.includes('Pendiente') ? '' : ''}" onclick="openService(${i})" data-idx="${i}">
+        <div class="service-estado ${getEstadoClass(estado)}">${estado}</div>
+        <div class="service-nombre">${nombre}</div>
+        <div class="service-meta">
+          ${fechaFmt ? `<span class="service-tag">📅 ${fechaFmt}</span>` : ''}
+          ${tipo ? `<span class="service-tag">${tipo}</span>` : ''}
+          ${pais ? `<span class="service-tag">${pais}</span>` : ''}
+        </div>
+        ${isJornada && jornadaN ? `<div class="service-jornada-badge">📅 Jornada ${jornadaN}</div>` : ''}
+      </div>`;
+  }).join('');
+
+  // Store services globally for access
+  window._services = services;
+}
+
+// ─────────────────────────────────────────────
+// SERVICE DETAIL
+// ─────────────────────────────────────────────
+function openService(idx) {
+  currentService = window._services[idx];
+  currentStep = 0;
+  resetServiceState();
+
+  const nombre = currentService.properties['Nombre del servicio']?.title?.[0]?.plain_text || 'Servicio';
+  document.getElementById('detail-title').textContent = nombre;
+
+  renderStepNav();
+  renderStep();
+  showScreen('detail');
+}
+
+function goBack() {
+  showScreen('services');
+}
+
+function renderStepNav() {
+  const nav = document.getElementById('step-nav');
+  nav.innerHTML = STEPS.map((s, i) => {
+    let cls = '';
+    if (i < currentStep) cls = 'done';
+    else if (i === currentStep) cls = 'active';
+    return `<div class="step-pill ${cls}" onclick="goToStep(${i})">${i < currentStep ? '✓' : i + 1}</div>`;
+  }).join('');
+
+  const fill = Math.round(((currentStep) / STEPS.length) * 100);
+  document.getElementById('progress-fill').style.width = fill + '%';
+}
+
+function goToStep(idx) {
+  if (idx <= currentStep) { currentStep = idx; renderStepNav(); renderStep(); }
+}
+
+function nextStep() {
+  if (currentStep < STEPS.length - 1) {
+    currentStep++;
+    renderStepNav();
+    renderStep();
+    document.querySelector('.steps-container').scrollTop = 0;
+  }
+}
+
+function renderStep() {
+  const step = STEPS[currentStep];
+  const props = currentService.properties;
+  const nombre = props['Nombre del servicio']?.title?.[0]?.plain_text || '';
+  const fecha = props['Fecha programada']?.date?.start || '';
+  const tipo = props['Tipo de servicio']?.select?.name || '';
+  const pais = props['País']?.select?.name || '';
+  const tipoReg = props['Tipo de registro']?.select?.name || '';
+  const m2 = props['m² aproximados']?.number || '';
+  const fechaFmt = fecha ? new Date(fecha + 'T00:00:00').toLocaleDateString('es-UY', { weekday: 'long', day: 'numeric', month: 'long' }) : 'Sin fecha';
+
+  const content = document.getElementById('step-content');
+  const bar = document.getElementById('bottom-bar');
+
+  // ── STEP 0: INICIAR ──
+  if (step.id === 'inicio') {
+    content.innerHTML = `
+      <div class="step-title">▶ Iniciar servicio</div>
+      <div class="step-sub">Revisá los datos antes de arrancar</div>
+      <div class="hint hint-blue">📌 Esta información fue cargada por el coordinador. Solo lectura.</div>
+      <div class="info-block">
+        <div class="info-row"><span class="info-label">📋 Nombre</span><span class="info-val">${nombre}</span></div>
+        <div class="info-row"><span class="info-label">📅 Fecha</span><span class="info-val">${fechaFmt}</span></div>
+        <div class="info-row"><span class="info-label">🪟 Tipo</span><span class="info-val">${tipo}</span></div>
+        <div class="info-row"><span class="info-label">🌎 País</span><span class="info-val">${pais}</span></div>
+        ${m2 ? `<div class="info-row"><span class="info-label">📐 m² aprox.</span><span class="info-val">${m2} m²</span></div>` : ''}
+        <div class="info-row"><span class="info-label">📋 Tipo de registro</span><span class="info-val">${tipoReg}</span></div>
+      </div>
+      ${serviceState.horaInicio ? `<div class="ts-recorded"><div class="ts-label">✅ Servicio iniciado a las</div><div class="ts-value">${serviceState.horaInicio}</div></div>` : ''}
+    `;
+
+    if (!serviceState.horaInicio) {
+      bar.innerHTML = `<button class="btn-main btn-green" onclick="iniciarServicio()">▶ INICIAR SERVICIO</button>`;
+    } else {
+      bar.innerHTML = `<button class="btn-main btn-green" onclick="nextStep()">Continuar al checklist →</button>`;
+    }
+  }
+
+  // ── STEP 1: CHECKLIST PRE ──
+  else if (step.id === 'checklist_pre') {
+    const done = Object.values(serviceState.checklistPre).filter(Boolean).length;
+    content.innerHTML = `
+      <div class="step-title">✅ Checklist PRE-vuelo</div>
+      <div class="step-sub">Completá cada ítem ANTES de despegar</div>
+      <div class="hint hint-green">🟢 Los 16 ítems son obligatorios antes de iniciar vuelo.</div>
+      <div class="check-count">${done} / ${CHECKLIST_PRE.length} completados</div>
+      ${CHECKLIST_PRE.map((item, i) => `
+        <div class="check-item ${serviceState.checklistPre[i] ? 'checked' : ''}" onclick="toggleCheck('pre', ${i})">
+          <div class="checkbox">${serviceState.checklistPre[i] ? '✓' : ''}</div>
+          <span class="check-label">${item}</span>
+        </div>`).join('')}
+      <div style="height:20px"></div>
+    `;
+    bar.innerHTML = `
+      <button class="btn-secondary" onclick="goToStep(0)">← Atrás</button>
+      <button class="btn-main btn-green" onclick="nextStep()">Continuar →</button>
+    `;
+  }
+
+  // ── STEP 2: FOTOS ANTES ──
+  else if (step.id === 'fotos_antes') {
+    content.innerHTML = `
+      <div class="step-title">📸 Fotos ANTES del trabajo</div>
+      <div class="step-sub">Mínimo 2 fotos del estado inicial</div>
+      <div class="hint hint-amber">📷 Mostrá el área completa a trabajar antes de empezar.</div>
+      <div class="photo-area">
+        <div class="photo-icon">📷</div>
+        <div class="photo-text">Subida de fotos</div>
+        <div class="photo-note">La función de fotos se activa en la próxima versión.<br>Por ahora subí las fotos directamente en Notion.</div>
+      </div>
+    `;
+    bar.innerHTML = `
+      <button class="btn-secondary" onclick="goToStep(1)">← Atrás</button>
+      <button class="btn-main btn-green" onclick="nextStep()">Continuar →</button>
+    `;
+  }
+
+  // ── STEP 3: INICIO EFECTIVO ──
+  else if (step.id === 'inicio_efectivo') {
+    content.innerHTML = `
+      <div class="step-title">🕐 Inicio Efectivo</div>
+      <div class="step-sub">Tocá cuando empiece la operativa real</div>
+      <div class="hint hint-amber">🟠 Este botón registra el momento exacto en que el drone empieza a trabajar.</div>
+      ${serviceState.horaInicioEfectivo
+        ? `<div class="ts-recorded"><div class="ts-label">✅ Inicio efectivo registrado</div><div class="ts-value">${serviceState.horaInicioEfectivo}</div></div>`
+        : `<button class="btn-main btn-purple" style="margin-top:20px" onclick="registrarInicioEfectivo()">🕐 REGISTRAR INICIO EFECTIVO</button>`
+      }
+    `;
+    bar.innerHTML = `
+      <button class="btn-secondary" onclick="goToStep(2)">← Atrás</button>
+      <button class="btn-main btn-green" onclick="nextStep()">Continuar →</button>
+    `;
+  }
+
+  // ── STEP 4: EJECUCIÓN ──
+  else if (step.id === 'ejecucion') {
+    content.innerHTML = `
+      <div class="step-title">🚁 En ejecución</div>
+      <div class="step-sub">El trabajo está en curso</div>
+      <div class="hint hint-green">✈️ Estás volando. Cuando termines la operativa efectiva, avanzá al cierre.</div>
+      ${serviceState.horaInicioEfectivo ? `<div class="ts-recorded"><div class="ts-label">🕐 Inicio efectivo</div><div class="ts-value">${serviceState.horaInicioEfectivo}</div></div>` : ''}
+      <div style="text-align:center;padding:40px 0;font-size:64px">🚁</div>
+    `;
+    bar.innerHTML = `
+      <button class="btn-secondary" onclick="goToStep(3)">← Atrás</button>
+      <button class="btn-main btn-orange" onclick="nextStep()">Terminar operativa →</button>
+    `;
+  }
+
+  // ── STEP 5: CIERRE EFECTIVO ──
+  else if (step.id === 'cierre_efectivo') {
+    content.innerHTML = `
+      <div class="step-title">⏹ Cierre Efectivo</div>
+      <div class="step-sub">Tocá cuando el drone aterrice</div>
+      <div class="hint hint-amber">🟠 Registra el tiempo efectivo de trabajo. El cálculo se hace automático en Notion.</div>
+      ${serviceState.horaInicioEfectivo ? `<div class="ts-recorded"><div class="ts-label">🕐 Inicio efectivo</div><div class="ts-value">${serviceState.horaInicioEfectivo}</div></div>` : ''}
+      ${serviceState.horaCierreEfectivo
+        ? `<div class="ts-recorded"><div class="ts-label">✅ Cierre efectivo registrado</div><div class="ts-value">${serviceState.horaCierreEfectivo}</div></div>`
+        : `<button class="btn-main btn-orange" style="margin-top:16px" onclick="registrarCierreEfectivo()">⏹ REGISTRAR CIERRE EFECTIVO</button>`
+      }
+    `;
+    bar.innerHTML = `
+      <button class="btn-secondary" onclick="goToStep(4)">← Atrás</button>
+      <button class="btn-main btn-green" onclick="nextStep()">Continuar →</button>
+    `;
+  }
+
+  // ── STEP 6: CHECKLIST POST ──
+  else if (step.id === 'checklist_post') {
+    const done = Object.values(serviceState.checklistPost).filter(Boolean).length;
+    content.innerHTML = `
+      <div class="step-title">✅ Checklist POST-servicio</div>
+      <div class="step-sub">No te vayas sin completar todos los ítems</div>
+      <div class="hint hint-blue">🔵 Completá cada ítem ANTES de retirarte del lugar.</div>
+      <div class="check-count">${done} / ${CHECKLIST_POST.length} completados</div>
+      ${CHECKLIST_POST.map((item, i) => `
+        <div class="check-item ${serviceState.checklistPost[i] ? 'checked' : ''}" onclick="toggleCheck('post', ${i})">
+          <div class="checkbox">${serviceState.checklistPost[i] ? '✓' : ''}</div>
+          <span class="check-label">${item}</span>
+        </div>`).join('')}
+      <div style="height:20px"></div>
+    `;
+    bar.innerHTML = `
+      <button class="btn-secondary" onclick="goToStep(5)">← Atrás</button>
+      <button class="btn-main btn-green" onclick="nextStep()">Continuar →</button>
+    `;
+  }
+
+  // ── STEP 7: FOTOS DESPUÉS ──
+  else if (step.id === 'fotos_despues') {
+    content.innerHTML = `
+      <div class="step-title">📸 Fotos DESPUÉS del trabajo</div>
+      <div class="step-sub">Mínimo 2 fotos del resultado final</div>
+      <div class="hint hint-amber">📷 Mostrá claramente el trabajo terminado.</div>
+      <div class="photo-area">
+        <div class="photo-icon">📷</div>
+        <div class="photo-text">Subida de fotos</div>
+        <div class="photo-note">La función de fotos se activa en la próxima versión.<br>Por ahora subí las fotos directamente en Notion.</div>
+      </div>
+    `;
+    bar.innerHTML = `
+      <button class="btn-secondary" onclick="goToStep(6)">← Atrás</button>
+      <button class="btn-main btn-green" onclick="nextStep()">Continuar →</button>
+    `;
+  }
+
+  // ── STEP 8: OBSERVACIONES ──
+  else if (step.id === 'observaciones') {
+    content.innerHTML = `
+      <div class="step-title">📝 Observaciones y datos finales</div>
+      <div class="step-sub">Completá antes de cerrar el servicio</div>
+
+      <div class="field-group">
+        <div class="form-label">📝 NOTAS POST-SERVICIO</div>
+        <textarea rows="3" placeholder="¿Hubo algo inusual? ¿Dificultades? ¿Algo que dirección deba saber?" id="notas-input" oninput="serviceState.notasPost=this.value">${serviceState.notasPost}</textarea>
+      </div>
+
+      <div class="field-group">
+        <div class="form-label">💯 % DE AVANCE COMPLETADO</div>
+        <input type="number" min="0" max="100" placeholder="Ej: 100" id="avance-input" value="${serviceState.avance}" oninput="serviceState.avance=this.value"/>
+      </div>
+
+      <div class="field-group">
+        <div class="form-label">🏁 RESULTADO</div>
+        <div class="radio-group">
+          ${['✅ Exitoso', '⚠️ Con incidencia', '❌ Fallido'].map(r => `
+            <div class="radio-opt ${serviceState.resultado === r ? 'selected' : ''}" onclick="selectResultado('${r}')">${r}</div>
+          `).join('')}
+        </div>
+      </div>
+
+      <div class="field-group">
+        <div class="form-label">🌤️ CONDICIÓN CLIMÁTICA</div>
+        <div class="clima-group">
+          <div class="clima-opt green ${serviceState.clima === '🟢 Óptima KP 0-2' ? 'selected' : ''}" onclick="selectClima('🟢 Óptima KP 0-2')">🟢 Óptima — KP 0-2</div>
+          <div class="clima-opt yellow ${serviceState.clima === '🟡 Precaución KP 2-4' ? 'selected' : ''}" onclick="selectClima('🟡 Precaución KP 2-4')">🟡 Precaución — KP 2-4</div>
+          <div class="clima-opt red ${serviceState.clima === '🔴 Suspendido +KP4' ? 'selected' : ''}" onclick="selectClima('🔴 Suspendido +KP4')">🔴 Suspendido — KP +4</div>
+        </div>
+      </div>
+      <div style="height:20px"></div>
+    `;
+    bar.innerHTML = `
+      <button class="btn-secondary" onclick="goToStep(7)">← Atrás</button>
+      <button class="btn-main btn-green" onclick="nextStep()">Continuar →</button>
+    `;
+  }
+
+  // ── STEP 9: CERRAR ──
+  else if (step.id === 'cerrar') {
+    const preCount = Object.values(serviceState.checklistPre).filter(Boolean).length;
+    const postCount = Object.values(serviceState.checklistPost).filter(Boolean).length;
+
+    content.innerHTML = `
+      <div class="step-title">🏁 Cerrar servicio</div>
+      <div class="step-sub">Revisá todo antes de confirmar</div>
+      <div class="hint hint-green">✅ Al cerrar, todos los datos se guardan automáticamente en Notion.</div>
+
+      <div class="summary-card">
+        <div class="summary-title">RESUMEN DEL SERVICIO</div>
+        <div class="summary-row"><span class="summary-key">🕐 Hora de inicio</span><span class="summary-val">${serviceState.horaInicio || '—'}</span></div>
+        <div class="summary-row"><span class="summary-key">⚡ Inicio efectivo</span><span class="summary-val">${serviceState.horaInicioEfectivo || '—'}</span></div>
+        <div class="summary-row"><span class="summary-key">⏹ Cierre efectivo</span><span class="summary-val">${serviceState.horaCierreEfectivo || '—'}</span></div>
+        <div class="summary-row"><span class="summary-key">✅ Checklist pre</span><span class="summary-val">${preCount} / ${CHECKLIST_PRE.length}</span></div>
+        <div class="summary-row"><span class="summary-key">✅ Checklist post</span><span class="summary-val">${postCount} / ${CHECKLIST_POST.length}</span></div>
+        <div class="summary-row"><span class="summary-key">💯 Avance</span><span class="summary-val">${serviceState.avance ? serviceState.avance + '%' : '—'}</span></div>
+        <div class="summary-row"><span class="summary-key">🏁 Resultado</span><span class="summary-val">${serviceState.resultado || '—'}</span></div>
+        <div class="summary-row"><span class="summary-key">🌤️ Clima</span><span class="summary-val">${serviceState.clima || '—'}</span></div>
+      </div>
+      <div style="height:20px"></div>
+    `;
+    bar.innerHTML = `
+      <button class="btn-secondary" onclick="goToStep(8)">← Atrás</button>
+      <button class="btn-main btn-red" onclick="cerrarServicio()">🏁 CERRAR EN NOTION</button>
+    `;
+  }
+}
+
+// ─────────────────────────────────────────────
+// ACTIONS
+// ─────────────────────────────────────────────
+function isoNow() { return new Date().toISOString(); }
+function timeNow() { return new Date().toLocaleTimeString('es-UY', { hour: '2-digit', minute: '2-digit' }); }
+
+async function iniciarServicio() {
+  serviceState.horaInicio = timeNow();
+  try {
+    await updateServiceProps(currentService.id, {
+      'Estado': { select: { name: '✈️ En curso' } },
+      'Hora Inicio': { date: { start: isoNow(), is_datetime: true } }
+    });
+    showSaving();
+  } catch (e) { console.warn('Error al guardar inicio:', e); }
+  renderStep();
+}
+
+async function registrarInicioEfectivo() {
+  serviceState.horaInicioEfectivo = timeNow();
+  try {
+    await updateServiceProps(currentService.id, {
+      'Hora Inicio Efectivo': { date: { start: isoNow(), is_datetime: true } }
+    });
+    showSaving();
+  } catch (e) { console.warn('Error al guardar inicio efectivo:', e); }
+  renderStep();
+}
+
+async function registrarCierreEfectivo() {
+  serviceState.horaCierreEfectivo = timeNow();
+  try {
+    await updateServiceProps(currentService.id, {
+      'Hora Fin Efectivo': { date: { start: isoNow(), is_datetime: true } }
+    });
+    showSaving();
+  } catch (e) { console.warn('Error al guardar cierre efectivo:', e); }
+  renderStep();
+}
+
+function toggleCheck(list, idx) {
+  const key = list === 'pre' ? 'checklistPre' : 'checklistPost';
+  serviceState[key][idx] = !serviceState[key][idx];
+  renderStep();
+}
+
+function selectResultado(val) {
+  serviceState.resultado = val;
+  renderStep();
+}
+
+function selectClima(val) {
+  serviceState.clima = val;
+  renderStep();
+}
+
+async function cerrarServicio() {
+  const btn = document.querySelector('.btn-red');
+  if (btn) { btn.textContent = '⏳ Guardando en Notion...'; btn.disabled = true; }
+
+  const properties = {
+    'Estado': { select: { name: '✅ Completado' } },
+    'Hora Fin': { date: { start: isoNow(), is_datetime: true } }
+  };
+
+  if (serviceState.notasPost) {
+    properties['Notas post-servicio'] = { rich_text: [{ text: { content: serviceState.notasPost } }] };
+  }
+  if (serviceState.avance) {
+    properties['% de avance'] = { number: parseFloat(serviceState.avance) };
+  }
+  if (serviceState.resultado) {
+    properties['Resultado'] = { select: { name: serviceState.resultado } };
+  }
+  if (serviceState.clima) {
+    properties['Condición climática'] = { select: { name: serviceState.clima } };
+  }
+
+  try {
+    await updateServiceProps(currentService.id, properties);
+    showDoneScreen();
+  } catch (e) {
+    if (btn) { btn.textContent = '🏁 CERRAR EN NOTION'; btn.disabled = false; }
+    alert('Error al guardar. Verificá tu conexión e intentá de nuevo.');
+  }
+}
+
+function showDoneScreen() {
+  const preCount = Object.values(serviceState.checklistPre).filter(Boolean).length;
+  const postCount = Object.values(serviceState.checklistPost).filter(Boolean).length;
+
+  document.getElementById('done-stats').innerHTML = `
+    <div class="done-stat-row"><span style="color:var(--text3)">Inicio</span><span>${serviceState.horaInicio || '—'}</span></div>
+    <div class="done-stat-row"><span style="color:var(--text3)">Inicio efectivo</span><span>${serviceState.horaInicioEfectivo || '—'}</span></div>
+    <div class="done-stat-row"><span style="color:var(--text3)">Cierre efectivo</span><span>${serviceState.horaCierreEfectivo || '—'}</span></div>
+    <div class="done-stat-row"><span style="color:var(--text3)">Resultado</span><span>${serviceState.resultado || '—'}</span></div>
+    <div class="done-stat-row"><span style="color:var(--text3)">Checklists</span><span>${preCount}/${CHECKLIST_PRE.length} · ${postCount}/${CHECKLIST_POST.length}</span></div>
+  `;
+  showScreen('done');
+}
+
+async function finishAndGoBack() {
+  await loadServices();
+}
+
+// ─────────────────────────────────────────────
+// INIT
+// ─────────────────────────────────────────────
+async function init() {
+  renderLogin();
+  const saved = localStorage.getItem('fc_user');
+  if (saved) {
+    try {
+      currentUser = JSON.parse(saved);
+      await loadServices();
+      return;
+    } catch (e) { localStorage.removeItem('fc_user'); }
+  }
+  showScreen('login');
+}
+
+init();
+</script>
+</body>
+</html>
