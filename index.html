@@ -1301,7 +1301,7 @@ async function renderCoordPropuestas() {
       filter: {
         and: [
           { property: 'Estado pipeline', select: { does_not_equal: '❌ Rechazada' } },
-          { property: 'Estado pipeline', select: { does_not_equal: '💤 Sin respuesta' } }
+          { property: 'Estado pipeline', select: { does_not_equal: '😶 Sin respuesta' } }
         ]
       },
       sorts: [{ property: 'Última interacción', direction: 'descending' }]
