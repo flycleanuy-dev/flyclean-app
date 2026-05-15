@@ -425,6 +425,47 @@
   }
   .error-banner.visible { display: block; }
 
+  /* ── CEO DASHBOARD ── */
+  .ceo-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px 10px; border-bottom: 1px solid var(--border); background: var(--bg); position: sticky; top: 0; z-index: 10; }
+  .ceo-back-btn { background: none; border: none; color: var(--text2); font-size: 20px; cursor: pointer; padding: 0 8px 0 0; line-height: 1; }
+  .ceo-brand { font-size: 14px; font-weight: 700; color: var(--green); }
+  .ceo-user-tag { font-size: 12px; color: var(--text3); }
+  .ceo-country-tabs { display: flex; gap: 6px; padding: 10px 14px 0; background: var(--bg); }
+  .ceo-country-tab { padding: 5px 12px; border-radius: 20px; border: 1px solid var(--border2); font-size: 12px; font-weight: 600; cursor: pointer; color: var(--text3); background: var(--bg); font-family: 'DM Sans', sans-serif; transition: all 0.15s; }
+  .ceo-country-tab.active { background: var(--green-dark); border-color: var(--green); color: var(--green); }
+  .ceo-tab-bar { display: flex; border-bottom: 1px solid var(--border); background: var(--bg); }
+  .ceo-tab { flex: 1; padding: 10px 4px; text-align: center; font-size: 11px; font-weight: 600; color: var(--text3); cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.15s; }
+  .ceo-tab.active { color: var(--green); border-bottom-color: var(--green); }
+  .ceo-content { flex: 1; overflow-y: auto; padding-bottom: 40px; }
+  .metric-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 14px 16px 0; }
+  .metric-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 16px 14px; }
+  .metric-label { font-size: 10px; font-weight: 700; color: var(--text3); letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 8px; }
+  .metric-value { font-size: 24px; font-weight: 800; color: var(--text); line-height: 1; }
+  .metric-sub { font-size: 11px; color: var(--text3); margin-top: 4px; }
+  .metric-icon { font-size: 20px; margin-bottom: 6px; }
+  .ceo-section-title { font-size: 11px; font-weight: 700; color: var(--text3); letter-spacing: 0.5px; text-transform: uppercase; padding: 16px 16px 8px; }
+  .ceo-service-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 14px; margin: 0 16px 8px; }
+  .ceo-service-name { font-size: 14px; font-weight: 600; margin-bottom: 6px; }
+  .ceo-service-meta { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
+  .finance-month-nav { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; }
+  .finance-month-label { font-size: 15px; font-weight: 700; color: var(--text); text-transform: capitalize; }
+  .finance-summary { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; padding: 0 16px 16px; }
+  .finance-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px 10px; text-align: center; }
+  .finance-card-label { font-size: 10px; color: var(--text3); font-weight: 600; margin-bottom: 4px; }
+  .finance-card-value { font-size: 16px; font-weight: 800; }
+  .finance-card-value.ingreso { color: var(--green); }
+  .finance-card-value.gasto { color: var(--red); }
+  .finance-card-value.balance.pos { color: var(--green); }
+  .finance-card-value.balance.neg { color: var(--red); }
+  .finance-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 16px; border-bottom: 1px solid var(--border); }
+  .finance-row-label { font-size: 13px; color: var(--text2); }
+  .finance-row-value { font-size: 13px; font-weight: 600; }
+  .equipo-card { display: flex; align-items: center; gap: 14px; padding: 14px 16px; border-bottom: 1px solid var(--border); }
+  .equipo-emoji { font-size: 28px; }
+  .equipo-name { font-size: 14px; font-weight: 600; }
+  .equipo-role { font-size: 12px; color: var(--text3); margin-top: 2px; }
+  .equipo-country { font-size: 11px; color: var(--text3); margin-left: auto; }
+
   /* ── COUNTRY SELECTOR ── */
   .country-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; padding: 32px 20px; background: var(--bg); }
   .country-logo { font-size: 48px; margin-bottom: 8px; }
@@ -554,7 +595,10 @@
 <div class="screen" id="screen-coordinator">
   <div class="coord-header">
     <div class="coord-logo" id="coord-logo-title">🚁 FlyClean — Coordinador</div>
-    <div class="coord-user" id="coord-user-name" onclick="logout()">Salir ↩</div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <button id="coord-ceo-btn" onclick="goToCEOFromCoord()" style="display:none;background:none;border:1px solid var(--border2);border-radius:8px;color:var(--text2);font-size:11px;font-weight:600;padding:5px 10px;cursor:pointer;font-family:'DM Sans',sans-serif">📊 CEO</button>
+      <div class="coord-user" id="coord-user-name" onclick="logout()">Salir ↩</div>
+    </div>
   </div>
   <div class="coord-tab-bar">
     <div class="coord-tab active" id="ctab-servicios" onclick="setCoordTab('servicios')">📋 Servicios</div>
@@ -616,6 +660,24 @@
   </div>
 </div>
 
+<div class="screen" id="screen-ceo">
+  <div class="ceo-header">
+    <button class="ceo-back-btn" id="ceo-back-btn" onclick="backFromCEO()">←</button>
+    <div class="ceo-brand" id="ceo-brand-title">📊 FlyClean</div>
+    <div class="ceo-user-tag" id="ceo-user-name">CEO</div>
+  </div>
+  <div class="ceo-country-tabs" id="ceo-country-tabs"></div>
+  <div class="ceo-tab-bar">
+    <div class="ceo-tab active" id="ceotab-metricas" onclick="setCEOTab('metricas')">📊 Métricas</div>
+    <div class="ceo-tab" id="ceotab-servicios" onclick="setCEOTab('servicios')">📋 Servicios</div>
+    <div class="ceo-tab" id="ceotab-finanzas" onclick="setCEOTab('finanzas')">💰 Finanzas</div>
+    <div class="ceo-tab" id="ceotab-equipo" onclick="setCEOTab('equipo')">👥 Equipo</div>
+  </div>
+  <div class="ceo-content" id="ceo-content">
+    <div style="text-align:center;padding:40px 0"><div class="spinner" style="margin:0 auto"></div></div>
+  </div>
+</div>
+
 <div class="screen" id="screen-detail">
   <div class="detail-header">
     <button class="back-btn" onclick="goBack()">← Volver</button>
@@ -651,7 +713,10 @@ const USERS = [
   { id: 'coord-brasil',      name: 'Coordinador Brasil', role: '🔧 Coordinador', emoji: '👷',  pin: '1234', notionId: null, country: 'Brasil' },
   { id: 'operario-brasil-1', name: 'Operario Brasil',    role: '🛠️ Operario',    emoji: '👨‍🔧', pin: '1234', notionId: null, country: 'Brasil' },
   { id: 'coord-panama',      name: 'Coordinador Panamá', role: '🔧 Coordinador', emoji: '👷',  pin: '1234', notionId: null, country: 'Panamá' },
-  { id: 'operario-panama-1', name: 'Operario Panamá',    role: '🛠️ Operario',    emoji: '👨‍🔧', pin: '1234', notionId: null, country: 'Panamá' }
+  { id: 'operario-panama-1', name: 'Operario Panamá',    role: '🛠️ Operario',    emoji: '👨‍🔧', pin: '1234', notionId: null, country: 'Panamá' },
+  { id: 'eduardo-cabral',   name: 'Eduardo Cabral',     role: '👔 CEO',          emoji: '🧑‍💼', pin: '9999', notionId: null, country: 'Uruguay' },
+  { id: 'ceo-brasil',       name: 'CEO Brasil',         role: '👔 CEO',          emoji: '🧑‍💼', pin: '1234', notionId: null, country: 'Brasil' },
+  { id: 'ceo-panama',       name: 'CEO Panamá',         role: '👔 CEO',          emoji: '🧑‍💼', pin: '1234', notionId: null, country: 'Panamá' }
 ];
 
 const COUNTRY_NOTION_MAP = {
@@ -661,10 +726,24 @@ const COUNTRY_NOTION_MAP = {
 };
 
 function getCountryFilter() {
-  const isGlobal = currentUser?.role?.includes('Dirección');
+  const isGlobal = currentUser?.role?.includes('Dirección') ||
+                   (currentUser?.role === '👔 CEO' && currentUser?.country === 'Uruguay');
   if (isGlobal) return null;
   const notionVal = COUNTRY_NOTION_MAP[selectedCountry];
   return notionVal ? { property: 'País', select: { equals: notionVal } } : null;
+}
+
+function getCEOFilter() {
+  if (ceoViewCountry === 'all') return null;
+  const notionVal = COUNTRY_NOTION_MAP[ceoViewCountry];
+  return notionVal ? { property: 'País', select: { equals: notionVal } } : null;
+}
+
+const COUNTRY_FINANCE_MAP = { 'Uruguay': '🇺🇾 UY', 'Brasil': '🇧🇷 BR' };
+function getCEOFinanceFilter() {
+  if (ceoViewCountry === 'all') return null;
+  const val = COUNTRY_FINANCE_MAP[ceoViewCountry];
+  return val ? { property: 'País', select: { equals: val } } : null;
 }
 
 const CHECKLIST_PRE = [
@@ -714,6 +793,9 @@ const STEPS = [
 // ─────────────────────────────────────────────
 let selectedCountry = 'Uruguay';
 let currentUser = null;
+let activeCEOTab = 'metricas';
+let ceoViewCountry = 'all';
+let ceoMonthOffset = 0;
 let currentService = null;
 let currentStep = 0;
 let serviceState = {};
@@ -903,6 +985,8 @@ async function pinConfirm() {
   localStorage.setItem('fc_user', JSON.stringify(currentUser));
   if (pinUser.role === '🔧 Coordinador' || pinUser.role === '🎯 Dirección') {
     await loadCoordinator();
+  } else if (pinUser.role === '👔 CEO') {
+    await loadCEO();
   } else {
     await loadServices();
   }
@@ -1434,6 +1518,230 @@ async function finishAndGoBack() {
 // ─────────────────────────────────────────────
 // COORDINATOR
 // ─────────────────────────────────────────────
+// ─────────────────────────────────────────────
+// CEO DASHBOARD
+// ─────────────────────────────────────────────
+async function loadCEO() {
+  showScreen('ceo');
+  document.getElementById('ceo-user-name').textContent = currentUser.emoji + ' ' + currentUser.name.split(' ')[0];
+  const flagMap = { 'Uruguay': '🇺🇾', 'Brasil': '🇧🇷', 'Panamá': '🇵🇦' };
+  document.getElementById('ceo-brand-title').textContent = `📊 FlyClean ${flagMap[currentUser.country] || ''} — CEO`;
+  ceoViewCountry = (currentUser.country === 'Uruguay') ? 'all' : currentUser.country;
+  ceoMonthOffset = 0;
+  activeCEOTab = 'metricas';
+  ['metricas','servicios','finanzas','equipo'].forEach(t =>
+    document.getElementById('ceotab-' + t).classList.toggle('active', t === 'metricas')
+  );
+  renderCEOCountryTabs();
+  await renderCEOMetricas();
+}
+
+function renderCEOCountryTabs() {
+  const container = document.getElementById('ceo-country-tabs');
+  const isGlobalCEO = currentUser.country === 'Uruguay';
+  if (!isGlobalCEO) { container.innerHTML = ''; return; }
+  const options = [['all','🌎 Todos'],['Uruguay','🇺🇾 UY'],['Brasil','🇧🇷 BR'],['Panamá','🇵🇦 PA']];
+  container.innerHTML = options.map(([val, label]) =>
+    `<button class="ceo-country-tab ${ceoViewCountry === val ? 'active' : ''}" onclick="setCEOCountry('${val}')">${label}</button>`
+  ).join('');
+}
+
+async function setCEOCountry(country) {
+  ceoViewCountry = country;
+  renderCEOCountryTabs();
+  if (activeCEOTab === 'metricas') await renderCEOMetricas();
+  else if (activeCEOTab === 'servicios') await renderCEOServicios();
+  else if (activeCEOTab === 'finanzas') await renderCEOFinanzas();
+  else renderCEOEquipo();
+}
+
+async function setCEOTab(tab) {
+  activeCEOTab = tab;
+  ['metricas','servicios','finanzas','equipo'].forEach(t =>
+    document.getElementById('ceotab-' + t).classList.toggle('active', t === tab)
+  );
+  if (tab === 'metricas') await renderCEOMetricas();
+  else if (tab === 'servicios') await renderCEOServicios();
+  else if (tab === 'finanzas') await renderCEOFinanzas();
+  else renderCEOEquipo();
+}
+
+function backFromCEO() {
+  if (currentUser.role.includes('Dirección')) {
+    showScreen('coordinator');
+  } else {
+    logout();
+  }
+}
+
+function goToCEOFromCoord() {
+  loadCEO();
+}
+
+async function renderCEOMetricas() {
+  const content = document.getElementById('ceo-content');
+  content.innerHTML = '<div style="text-align:center;padding:40px 0"><div class="spinner" style="margin:0 auto"></div></div>';
+  try {
+    const cf = getCEOFilter();
+    const fcf = getCEOFinanceFilter();
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+    const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+
+    const ingFilter = { and: [ ...(fcf ? [fcf] : []), { property: 'Fecha', date: { on_or_after: monthStart } }, { property: 'Fecha', date: { on_or_before: monthEnd } } ] };
+    const svcFilter = { and: [ ...(cf ? [cf] : []), { property: 'Estado', select: { equals: '✅ Completado' } } ] };
+    const propFilter = { and: [ ...(cf ? [cf] : []), { property: 'Estado pipeline', select: { does_not_equal: '❌ Rechazada' } }, { property: 'Estado pipeline', select: { does_not_equal: '😶 Sin respuesta' } } ] };
+    const contactFilter = cf ? { and: [cf, { property: 'Estado', select: { equals: '✅ Cliente activo' } }] } : { property: 'Estado', select: { equals: '✅ Cliente activo' } };
+
+    const [ingData, svcData, propData, contactData] = await Promise.all([
+      callNotion('databases/d1e15376e83a408a8a52f47da33c249a/query', 'POST', { filter: ingFilter }),
+      callNotion('databases/ccaf276c-7f6a-460c-aeb3-d2800deab2e5/query', 'POST', { filter: svcFilter }),
+      callNotion('databases/2c0a4257-f429-4941-b994-dfebc1098633/query', 'POST', { filter: propFilter }),
+      callNotion('databases/250115612de74e0582366549bbe5e389/query', 'POST', { filter: contactFilter })
+    ]);
+
+    let svcResults = svcData.results || [];
+    if (cf) {
+      const notionVal = COUNTRY_NOTION_MAP[ceoViewCountry];
+      svcResults = svcResults.filter(s => s.properties?.['País']?.select?.name === notionVal);
+    }
+    svcResults = svcResults.filter(s => {
+      const fecha = s.properties?.['Fecha programada']?.date?.start || '';
+      return fecha >= monthStart && fecha <= monthEnd;
+    });
+
+    const ingresos = (ingData.results || []).reduce((sum, r) => sum + (r.properties?.['Monto USD']?.number || 0), 0);
+    const svcCount = svcResults.length;
+    const propCount = (propData.results || []).length;
+    const clientCount = (contactData.results || []).length;
+    const monthName = now.toLocaleDateString('es-UY', { month: 'long', year: 'numeric' });
+
+    content.innerHTML = `<div class="metric-grid">
+      <div class="metric-card"><div class="metric-icon">💰</div><div class="metric-label">Ingresos del mes</div><div class="metric-value">$${ingresos.toLocaleString('es-UY',{minimumFractionDigits:0,maximumFractionDigits:0})}</div><div class="metric-sub">USD · ${monthName}</div></div>
+      <div class="metric-card"><div class="metric-icon">✅</div><div class="metric-label">Servicios completados</div><div class="metric-value">${svcCount}</div><div class="metric-sub">este mes</div></div>
+      <div class="metric-card"><div class="metric-icon">💼</div><div class="metric-label">Propuestas activas</div><div class="metric-value">${propCount}</div><div class="metric-sub">en pipeline</div></div>
+      <div class="metric-card"><div class="metric-icon">👥</div><div class="metric-label">Clientes activos</div><div class="metric-value">${clientCount}</div><div class="metric-sub">en CRM</div></div>
+    </div>`;
+  } catch (e) {
+    content.innerHTML = `<div class="coord-empty">Error al cargar métricas.<br><small>${e.message}</small></div>`;
+  }
+}
+
+async function renderCEOServicios() {
+  const content = document.getElementById('ceo-content');
+  content.innerHTML = '<div style="text-align:center;padding:40px 0"><div class="spinner" style="margin:0 auto"></div></div>';
+  try {
+    const cf = getCEOFilter();
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+    const dateFilter = { property: 'Fecha programada', date: { on_or_after: monthStart } };
+    const data = await callNotion('databases/ccaf276c-7f6a-460c-aeb3-d2800deab2e5/query', 'POST', {
+      filter: cf ? { and: [cf, dateFilter] } : dateFilter,
+      sorts: [{ property: 'Fecha programada', direction: 'descending' }]
+    });
+    let results = data.results || [];
+    if (cf) {
+      const notionVal = COUNTRY_NOTION_MAP[ceoViewCountry];
+      results = results.filter(s => s.properties?.['País']?.select?.name === notionVal);
+    }
+    if (!results.length) { content.innerHTML = '<div class="coord-empty">Sin servicios este mes.</div>'; return; }
+    const ESTADO_CLASS = { '✅ Completado': 'estado-completado', '✈️ En curso': 'estado-en-curso', '🔄 Asignado': 'estado-asignado' };
+    const paiFlag = { '🇺🇾 Uruguay': '🇺🇾', '🇧🇷 Brasil': '🇧🇷', '🇵🇦 Panamá': '🇵🇦' };
+    content.innerHTML = '<div class="ceo-section-title">SERVICIOS DEL MES</div>' + results.map(s => {
+      const props = s.properties || {};
+      const nombre = props['Nombre del servicio']?.title?.[0]?.plain_text || 'Sin nombre';
+      const estado = props['Estado']?.select?.name || '';
+      const tipo = props['Tipo de servicio']?.select?.name || '';
+      const fecha = props['Fecha programada']?.date?.start || '';
+      const pais = props['País']?.select?.name || '';
+      const operario = props['Operario App']?.select?.name || (props['Operario(s)']?.people?.[0]?.name || '');
+      const fechaFmt = fecha ? new Date(fecha + 'T00:00:00').toLocaleDateString('es-UY', { day:'numeric', month:'short' }) : '';
+      return `<div class="ceo-service-card">
+        <div class="ceo-service-name">${nombre} ${paiFlag[pais] || ''}</div>
+        <div class="ceo-service-meta">
+          <span class="service-estado ${ESTADO_CLASS[estado] || 'estado-pendiente'}">${estado}</span>
+          ${tipo ? `<span class="coord-tag">${tipo}</span>` : ''}
+          ${fechaFmt ? `<span class="coord-tag">📅 ${fechaFmt}</span>` : ''}
+          ${operario ? `<span class="coord-tag">👤 ${operario}</span>` : ''}
+        </div>
+      </div>`;
+    }).join('');
+  } catch (e) {
+    content.innerHTML = `<div class="coord-empty">Error al cargar servicios.<br><small>${e.message}</small></div>`;
+  }
+}
+
+function getCEOMonthRange() {
+  const now = new Date();
+  const base = new Date(now.getFullYear(), now.getMonth() + ceoMonthOffset, 1);
+  return {
+    start: base.toISOString().split('T')[0],
+    end: new Date(base.getFullYear(), base.getMonth() + 1, 0).toISOString().split('T')[0],
+    label: base.toLocaleDateString('es-UY', { month: 'long', year: 'numeric' })
+  };
+}
+
+async function renderCEOFinanzas() {
+  const content = document.getElementById('ceo-content');
+  content.innerHTML = '<div style="text-align:center;padding:40px 0"><div class="spinner" style="margin:0 auto"></div></div>';
+  try {
+    const fcf = getCEOFinanceFilter();
+    const { start, end, label } = getCEOMonthRange();
+    const dateFilter = (extra) => ({ and: [ ...(extra ? [extra] : []), { property: 'Fecha', date: { on_or_after: start } }, { property: 'Fecha', date: { on_or_before: end } } ] });
+    const [ingData, gasData] = await Promise.all([
+      callNotion('databases/d1e15376e83a408a8a52f47da33c249a/query', 'POST', { filter: dateFilter(fcf) }),
+      callNotion('databases/1e20cdabad5d41528d070ed2f6e9dad3/query', 'POST', { filter: dateFilter(fcf) })
+    ]);
+    const ingresos = (ingData.results || []).reduce((s, r) => s + (r.properties?.['Monto USD']?.number || 0), 0);
+    const gastos   = (gasData.results || []).reduce((s, r) => s + (r.properties?.['Monto USD']?.number || 0), 0);
+    const balance  = ingresos - gastos;
+    const fmt = (n) => '$' + Math.abs(n).toLocaleString('es-UY', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+    const gasByCateg = {};
+    (gasData.results || []).forEach(r => { const cat = r.properties?.['Categoría']?.select?.name || 'Otros'; gasByCateg[cat] = (gasByCateg[cat] || 0) + (r.properties?.['Monto USD']?.number || 0); });
+    const ingByTipo = {};
+    (ingData.results || []).forEach(r => { const tipo = r.properties?.['Tipo']?.select?.name || 'Otros'; ingByTipo[tipo] = (ingByTipo[tipo] || 0) + (r.properties?.['Monto USD']?.number || 0); });
+    content.innerHTML =
+      `<div class="finance-month-nav">
+        <button class="month-nav-btn" onclick="changeCEOMonth(-1)">‹</button>
+        <div class="finance-month-label">${label}</div>
+        <button class="month-nav-btn" onclick="changeCEOMonth(1)">›</button>
+      </div>
+      <div class="finance-summary">
+        <div class="finance-card"><div class="finance-card-label">INGRESOS</div><div class="finance-card-value ingreso">${fmt(ingresos)}</div></div>
+        <div class="finance-card"><div class="finance-card-label">GASTOS</div><div class="finance-card-value gasto">${fmt(gastos)}</div></div>
+        <div class="finance-card"><div class="finance-card-label">BALANCE</div><div class="finance-card-value balance ${balance >= 0 ? 'pos' : 'neg'}">${balance < 0 ? '-' : ''}${fmt(balance)}</div></div>
+      </div>
+      <div class="ceo-section-title">INGRESOS POR TIPO</div>
+      ${Object.entries(ingByTipo).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<div class="finance-row"><span class="finance-row-label">${k}</span><span class="finance-row-value" style="color:var(--green)">${fmt(v)}</span></div>`).join('') || '<div class="coord-empty" style="padding:12px 16px;font-size:13px">Sin ingresos registrados</div>'}
+      <div class="ceo-section-title">GASTOS POR CATEGORÍA</div>
+      ${Object.entries(gasByCateg).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<div class="finance-row"><span class="finance-row-label">${k}</span><span class="finance-row-value" style="color:var(--red)">${fmt(v)}</span></div>`).join('') || '<div class="coord-empty" style="padding:12px 16px;font-size:13px">Sin gastos registrados</div>'}`;
+  } catch (e) {
+    content.innerHTML = `<div class="coord-empty">Error al cargar finanzas.<br><small>${e.message}</small></div>`;
+  }
+}
+
+async function changeCEOMonth(delta) {
+  ceoMonthOffset += delta;
+  await renderCEOFinanzas();
+}
+
+function renderCEOEquipo() {
+  const content = document.getElementById('ceo-content');
+  const isGlobal = ceoViewCountry === 'all';
+  const flagMap = { 'Uruguay': '🇺🇾', 'Brasil': '🇧🇷', 'Panamá': '🇵🇦' };
+  const users = isGlobal ? USERS : USERS.filter(u => u.country === ceoViewCountry);
+  const grouped = {};
+  users.forEach(u => { if (!grouped[u.country]) grouped[u.country] = []; grouped[u.country].push(u); });
+  content.innerHTML = Object.entries(grouped).map(([country, members]) =>
+    `<div class="ceo-section-title">${flagMap[country] || ''} ${country.toUpperCase()}</div>` +
+    members.map(u => `<div class="equipo-card">
+      <div class="equipo-emoji">${u.emoji}</div>
+      <div><div class="equipo-name">${u.name}</div><div class="equipo-role">${u.role}</div></div>
+      ${isGlobal ? `<div class="equipo-country">${flagMap[u.country] || ''}</div>` : ''}
+    </div>`).join('')
+  ).join('');
+}
+
 async function loadCoordinator() {
   showScreen('coordinator');
   document.getElementById('coord-user-name').textContent = currentUser.emoji + ' ' + currentUser.name.split(' ')[0];
@@ -1441,6 +1749,8 @@ async function loadCoordinator() {
   const flag = flagMap[selectedCountry] || '';
   const rolLabel = currentUser.role.includes('Dirección') ? 'Dirección' : 'Coordinador';
   document.getElementById('coord-logo-title').textContent = `🚁 FlyClean ${flag} — ${rolLabel}`;
+  const ceoBtnEl = document.getElementById('coord-ceo-btn');
+  if (ceoBtnEl) ceoBtnEl.style.display = currentUser.role.includes('Dirección') ? 'block' : 'none';
   _operarioOptions = null;
   activeCoordTab = 'servicios';
   ['servicios', 'propuestas'].forEach(t => {
