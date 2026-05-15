@@ -936,7 +936,7 @@ async function iniciarServicio() {
   try {
     await updateServiceProps(currentService.id, {
       'Estado': { select: { name: '✈️ En curso' } },
-      'Hora Inicio': { date: { start: isoNow(), is_datetime: true } }
+      'Hora Inicio': { date: { start: isoNow()} }
     });
     showSaving();
   } catch (e) { console.warn('Error al guardar inicio:', e); }
@@ -947,7 +947,7 @@ async function registrarInicioEfectivo() {
   serviceState.horaInicioEfectivo = timeNow();
   try {
     await updateServiceProps(currentService.id, {
-      'Hora Inicio Efectivo': { date: { start: isoNow(), is_datetime: true } }
+      'Hora Inicio Efectivo': { date: { start: isoNow()} }
     });
     showSaving();
   } catch (e) { console.warn('Error al guardar inicio efectivo:', e); }
@@ -958,7 +958,7 @@ async function registrarCierreEfectivo() {
   serviceState.horaCierreEfectivo = timeNow();
   try {
     await updateServiceProps(currentService.id, {
-      'Hora Fin Efectivo': { date: { start: isoNow(), is_datetime: true } }
+      'Hora Fin Efectivo': { date: { start: isoNow()} }
     });
     showSaving();
   } catch (e) { console.warn('Error al guardar cierre efectivo:', e); }
@@ -987,7 +987,7 @@ async function cerrarServicio() {
 
   const properties = {
     'Estado': { select: { name: '✅ Completado' } },
-    'Hora Fin': { date: { start: isoNow(), is_datetime: true } }
+    'Hora Fin': { date: { start: isoNow()} }
   };
 
   if (serviceState.notasPost) {
