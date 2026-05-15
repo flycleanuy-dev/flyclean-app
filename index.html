@@ -944,13 +944,30 @@ function renderStep() {
 
   // ── STEP 3: INICIO EFECTIVO ──
   else if (step.id === 'inicio_efectivo') {
+    const climaOpts = [
+      { val: '🟢 Óptima Viento 0 a 20kmh', label: '🟢 Óptima — Viento 0-20 km/h', cls: 'green' },
+      { val: '🟡 Precaución Viento 20 a 25kmh', label: '🟡 Precaución — Viento 20-25 km/h', cls: 'yellow' },
+      { val: '🔴 Suspendido 25 a 50kmh', label: '🔴 Suspendido — Viento +25 km/h', cls: 'red' },
+      { val: '🟢 Óptima KP 0-2', label: '🟢 Óptima — KP 0-2', cls: 'green' },
+      { val: '🟡 Precaución KP 2-4', label: '🟡 Precaución — KP 2-4', cls: 'yellow' },
+      { val: '🔴 Suspendido +KP4', label: '🔴 Suspendido — KP +4', cls: 'red' },
+    ];
     content.innerHTML = `
       <div class="step-title">🕐 Inicio Efectivo</div>
-      <div class="step-sub">Tocá cuando empiece la operativa real</div>
-      <div class="hint hint-amber">🟠 Este botón registra el momento exacto en que el drone empieza a trabajar.</div>
+      <div class="step-sub">Confirmá el clima y registrá el inicio de operativa</div>
+
+      <div class="field-group">
+        <div class="form-label">🌤️ CONDICIÓN CLIMÁTICA</div>
+        <div class="hint hint-blue" style="margin-bottom:10px">Seleccioná la condición actual antes de iniciar.</div>
+        <div class="clima-group">
+          ${climaOpts.map(o => `<div class="clima-opt ${o.cls} ${serviceState.clima === o.val ? 'selected' : ''}" onclick="selectClima('${o.val}')">${o.label}</div>`).join('')}
+        </div>
+      </div>
+
+      <div class="hint hint-amber" style="margin-top:12px">🟠 Este botón registra el momento exacto en que el drone empieza a trabajar.</div>
       ${serviceState.horaInicioEfectivo
         ? `<div class="ts-recorded"><div class="ts-label">✅ Inicio efectivo registrado</div><div class="ts-value">${serviceState.horaInicioEfectivo}</div></div>`
-        : `<button class="btn-main btn-purple" style="margin-top:20px" onclick="registrarInicioEfectivo()">🕐 REGISTRAR INICIO EFECTIVO</button>`
+        : `<button class="btn-main btn-purple" style="margin-top:16px" onclick="registrarInicioEfectivo()">🕐 REGISTRAR INICIO EFECTIVO</button>`
       }
     `;
     bar.innerHTML = `
@@ -1033,6 +1050,9 @@ function renderStep() {
 
   // ── STEP 8: OBSERVACIONES ──
   else if (step.id === 'observaciones') {
+    const jornadaN = currentService?.properties?.['Jornada N°']?.number;
+    const tipoReg = currentService?.properties?.['Tipo de registro']?.select?.name || '';
+    const isJornada = (jornadaN != null) || tipoReg.includes('Jornada');
     content.innerHTML = `
       <div class="step-title">📝 Observaciones y datos finales</div>
       <div class="step-sub">Completá antes de cerrar el servicio</div>
@@ -1042,10 +1062,14 @@ function renderStep() {
         <textarea rows="3" placeholder="¿Hubo algo inusual? ¿Dificultades? ¿Algo que dirección deba saber?" id="notas-input" oninput="serviceState.notasPost=this.value">${serviceState.notasPost}</textarea>
       </div>
 
+      ${isJornada ? `
       <div class="field-group">
-        <div class="form-label">💯 % DE AVANCE COMPLETADO</div>
-        <input type="number" min="0" max="100" placeholder="Ej: 100" id="avance-input" value="${serviceState.avance}" oninput="serviceState.avance=this.value"/>
+        <div class="form-label">📊 % DE AVANCE DE HOY</div>
+        <div class="hint hint-blue" style="margin-bottom:10px">¿Qué porcentaje del trabajo total se completó en esta jornada?</div>
+        <input type="number" min="0" max="100" placeholder="Ej: 40" id="avance-input" value="${serviceState.avance}" oninput="serviceState.avance=this.value" style="font-size:18px;text-align:center;font-weight:700"/>
+        <div style="font-size:12px;color:var(--text3);text-align:center;margin-top:6px">0% = sin avance · 100% = trabajo completado</div>
       </div>
+      ` : ''}
 
       <div class="field-group">
         <div class="form-label">🏁 RESULTADO</div>
@@ -1053,15 +1077,6 @@ function renderStep() {
           ${['✅ Exitoso', '⚠️ Con incidencia', '❌ Fallido'].map(r => `
             <div class="radio-opt ${serviceState.resultado === r ? 'selected' : ''}" onclick="selectResultado('${r}')">${r}</div>
           `).join('')}
-        </div>
-      </div>
-
-      <div class="field-group">
-        <div class="form-label">🌤️ CONDICIÓN CLIMÁTICA</div>
-        <div class="clima-group">
-          <div class="clima-opt green ${serviceState.clima === '🟢 Óptima KP 0-2' ? 'selected' : ''}" onclick="selectClima('🟢 Óptima KP 0-2')">🟢 Óptima — KP 0-2</div>
-          <div class="clima-opt yellow ${serviceState.clima === '🟡 Precaución KP 2-4' ? 'selected' : ''}" onclick="selectClima('🟡 Precaución KP 2-4')">🟡 Precaución — KP 2-4</div>
-          <div class="clima-opt red ${serviceState.clima === '🔴 Suspendido +KP4' ? 'selected' : ''}" onclick="selectClima('🔴 Suspendido +KP4')">🔴 Suspendido — KP +4</div>
         </div>
       </div>
       <div style="height:20px"></div>
@@ -1175,6 +1190,11 @@ async function cerrarServicio() {
   }
   if (serviceState.clima) {
     properties['Condición climática'] = { multi_select: [{ name: serviceState.clima }] };
+  }
+  const jornadaN = currentService?.properties?.['Jornada N°']?.number;
+  const tipoReg = currentService?.properties?.['Tipo de registro']?.select?.name || '';
+  if (((jornadaN != null) || tipoReg.includes('Jornada')) && serviceState.avance !== '') {
+    properties['% de avance'] = { number: parseFloat(serviceState.avance) };
   }
 
   try {
