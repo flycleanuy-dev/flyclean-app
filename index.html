@@ -642,6 +642,7 @@ let activeCoordTab = 'servicios';
 let selectedCoordDay = null;
 let coordMonthOffset = 0;
 let _coordAllServices = [];
+let _operarioOptions = null;
 let _coordAllProps = [];
 let editingService = null;
 let editState = {};
@@ -1334,6 +1335,7 @@ async function finishAndGoBack() {
 async function loadCoordinator() {
   showScreen('coordinator');
   document.getElementById('coord-user-name').textContent = currentUser.emoji + ' ' + currentUser.name.split(' ')[0];
+  _operarioOptions = null;
   activeCoordTab = 'servicios';
   ['servicios', 'propuestas'].forEach(t => {
     document.getElementById('ctab-' + t).classList.toggle('active', t === 'servicios');
@@ -1440,7 +1442,45 @@ function coordServiceCard(s) {
   </div>`;
 }
 
-function openEditSheet(pageId) {
+async function fetchOperarioOptions() {
+  if (_operarioOptions !== null) return _operarioOptions;
+  try {
+    const data = await callNotion('databases/ccaf276c-7f6a-460c-aeb3-d2800deab2e5', 'GET');
+    _operarioOptions = (data.properties?.['Operario App']?.select?.options || []).map(o => o.name);
+  } catch (e) {
+    _operarioOptions = USERS.map(u => u.name);
+  }
+  return _operarioOptions;
+}
+
+function renderOperarioBtns(current) {
+  const options = _operarioOptions || USERS.map(u => u.name);
+  document.getElementById('edit-operario-btns').innerHTML =
+    `<button class="operario-btn ${!current ? 'active' : ''}" onclick="selectEditOperario(null,this)">— Sin asignar</button>` +
+    options.map(name => `<button class="operario-btn ${current === name ? 'active' : ''}" onclick="selectEditOperario('${name.replace(/'/g,"\\'")}',this)">${name}</button>`).join('') +
+    `<button class="operario-btn" style="border-style:dashed;color:var(--green);font-weight:600" onclick="showNewOperarioInput()">+ Nuevo operario</button>` +
+    `<div id="new-op-wrap" style="display:none;gap:6px;margin-top:2px">
+      <input id="new-op-input" type="text" class="edit-date-input" placeholder="Nombre completo" style="margin-bottom:0"/>
+      <button onclick="confirmNewOperario()" style="width:100%;padding:10px;background:var(--green-dark);border:1px solid var(--green);border-radius:var(--radius-sm);color:var(--green);font-weight:700;font-family:inherit;font-size:13px;cursor:pointer">Agregar y seleccionar</button>
+    </div>`;
+}
+
+function showNewOperarioInput() {
+  const wrap = document.getElementById('new-op-wrap');
+  if (wrap) { wrap.style.display = 'flex'; wrap.style.flexDirection = 'column'; document.getElementById('new-op-input')?.focus(); }
+}
+
+function confirmNewOperario() {
+  const input = document.getElementById('new-op-input');
+  const name = input?.value.trim();
+  if (!name) return;
+  if (!_operarioOptions) _operarioOptions = [];
+  if (!_operarioOptions.includes(name)) _operarioOptions.push(name);
+  editState.operario = name;
+  renderOperarioBtns(name);
+}
+
+async function openEditSheet(pageId) {
   editingService = _coordAllServices.find(s => s.id === pageId);
   if (!editingService) return;
   const props = editingService.properties || {};
@@ -1457,14 +1497,12 @@ function openEditSheet(pageId) {
   document.getElementById('edit-estado-btns').innerHTML = estados.map(e =>
     `<button class="estado-btn ${editState.estado === e ? 'active' : ''}" onclick="selectEditEstado('${e}')">${e}</button>`
   ).join('');
-  const validUsers = USERS.filter(u => !u.id.includes('PENDING'));
-  document.getElementById('edit-operario-btns').innerHTML =
-    `<button class="operario-btn ${!editState.operario ? 'active' : ''}" onclick="selectEditOperario(null, this)">— Sin asignar</button>` +
-    validUsers.map(u => `<button class="operario-btn ${editState.operario === u.name ? 'active' : ''}" onclick="selectEditOperario('${u.name}', this)">${u.emoji} ${u.name}</button>`).join('');
   document.getElementById('edit-fecha').value = fecha;
   document.getElementById('edit-save-btn').textContent = '💾 GUARDAR EN NOTION';
   document.getElementById('edit-save-btn').disabled = false;
   document.getElementById('edit-overlay').classList.add('open');
+  await fetchOperarioOptions();
+  renderOperarioBtns(operarioActual);
 }
 
 function overlayClick(e) { if (e.target.id === 'edit-overlay') closeEditSheet(); }
@@ -1473,9 +1511,9 @@ function selectEditEstado(estado) {
   editState.estado = estado;
   document.querySelectorAll('.estado-btn').forEach(b => b.classList.toggle('active', b.textContent.trim() === estado));
 }
-function selectEditOperario(userId, el) {
-  editState.operario = userId;
-  document.querySelectorAll('.operario-btn').forEach(b => b.classList.remove('active'));
+function selectEditOperario(name, el) {
+  editState.operario = name;
+  document.querySelectorAll('#edit-operario-btns .operario-btn').forEach(b => b.classList.remove('active'));
   if (el) el.classList.add('active');
 }
 async function saveServiceEdit() {
