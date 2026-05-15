@@ -1588,13 +1588,17 @@ async function renderCEOMetricas() {
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
     const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
 
-    const ingFilter = { and: [ ...(fcf ? [fcf] : []), { property: 'Fecha', date: { on_or_after: monthStart } }, { property: 'Fecha', date: { on_or_before: monthEnd } } ] };
-    const svcFilter = { and: [ ...(cf ? [cf] : []), { property: 'Estado', select: { equals: '✅ Completado' } } ] };
-    const propFilter = { and: [ ...(cf ? [cf] : []), { property: 'Estado pipeline', select: { does_not_equal: '❌ Rechazada' } }, { property: 'Estado pipeline', select: { does_not_equal: '😶 Sin respuesta' } } ] };
+    const yearStart = now.getFullYear() + '-01-01';
+    const yearEnd   = now.getFullYear() + '-12-31';
+    const ingFilter     = { and: [ ...(fcf ? [fcf] : []), { property: 'Fecha', date: { on_or_after: monthStart } }, { property: 'Fecha', date: { on_or_before: monthEnd } } ] };
+    const ingYearFilter = { and: [ ...(fcf ? [fcf] : []), { property: 'Fecha', date: { on_or_after: yearStart } }, { property: 'Fecha', date: { on_or_before: yearEnd } } ] };
+    const svcFilter     = { and: [ ...(cf ? [cf] : []), { property: 'Estado', select: { equals: '✅ Completado' } } ] };
+    const propFilter    = { and: [ ...(cf ? [cf] : []), { property: 'Estado pipeline', select: { does_not_equal: '❌ Rechazada' } }, { property: 'Estado pipeline', select: { does_not_equal: '😶 Sin respuesta' } } ] };
     const contactFilter = cf ? { and: [cf, { property: 'Estado', select: { equals: '✅ Cliente activo' } }] } : { property: 'Estado', select: { equals: '✅ Cliente activo' } };
 
-    const [ingData, svcData, propData, contactData] = await Promise.all([
+    const [ingData, ingYearData, svcData, propData, contactData] = await Promise.all([
       callNotion('databases/d1e15376e83a408a8a52f47da33c249a/query', 'POST', { filter: ingFilter }),
+      callNotion('databases/d1e15376e83a408a8a52f47da33c249a/query', 'POST', { filter: ingYearFilter }),
       callNotion('databases/ccaf276c-7f6a-460c-aeb3-d2800deab2e5/query', 'POST', { filter: svcFilter }),
       callNotion('databases/2c0a4257-f429-4941-b994-dfebc1098633/query', 'POST', { filter: propFilter }),
       callNotion('databases/250115612de74e0582366549bbe5e389/query', 'POST', { filter: contactFilter })
@@ -1610,17 +1614,20 @@ async function renderCEOMetricas() {
       return fecha >= monthStart && fecha <= monthEnd;
     });
 
-    const ingresos = (ingData.results || []).reduce((sum, r) => sum + (r.properties?.['Monto USD']?.number || 0), 0);
-    const svcCount = svcResults.length;
-    const propCount = (propData.results || []).length;
-    const clientCount = (contactData.results || []).length;
-    const monthName = now.toLocaleDateString('es-UY', { month: 'long', year: 'numeric' });
+    const ingresos     = (ingData.results     || []).reduce((sum, r) => sum + (r.properties?.['Monto USD']?.number || 0), 0);
+    const ingresosAnio = (ingYearData.results  || []).reduce((sum, r) => sum + (r.properties?.['Monto USD']?.number || 0), 0);
+    const svcCount     = svcResults.length;
+    const propCount    = (propData.results     || []).length;
+    const clientCount  = (contactData.results  || []).length;
+    const monthName    = now.toLocaleDateString('es-UY', { month: 'long', year: 'numeric' });
+    const fmtUSD = (n) => '$' + n.toLocaleString('es-UY', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 
     content.innerHTML = `<div class="metric-grid">
-      <div class="metric-card"><div class="metric-icon">💰</div><div class="metric-label">Ingresos del mes</div><div class="metric-value">$${ingresos.toLocaleString('es-UY',{minimumFractionDigits:0,maximumFractionDigits:0})}</div><div class="metric-sub">USD · ${monthName}</div></div>
+      <div class="metric-card"><div class="metric-icon">💰</div><div class="metric-label">Ingresos del mes</div><div class="metric-value">${fmtUSD(ingresos)}</div><div class="metric-sub">USD · ${monthName}</div></div>
       <div class="metric-card"><div class="metric-icon">✅</div><div class="metric-label">Servicios completados</div><div class="metric-value">${svcCount}</div><div class="metric-sub">este mes</div></div>
       <div class="metric-card"><div class="metric-icon">💼</div><div class="metric-label">Propuestas activas</div><div class="metric-value">${propCount}</div><div class="metric-sub">en pipeline</div></div>
       <div class="metric-card"><div class="metric-icon">👥</div><div class="metric-label">Clientes activos</div><div class="metric-value">${clientCount}</div><div class="metric-sub">en CRM</div></div>
+      <div class="metric-card" style="grid-column:1/-1;border-color:var(--green-mid)"><div class="metric-icon">📈</div><div class="metric-label">Ingresos del año ${now.getFullYear()}</div><div class="metric-value" style="color:var(--green)">${fmtUSD(ingresosAnio)}</div><div class="metric-sub">USD acumulado enero–${now.toLocaleDateString('es-UY',{month:'long'})}</div></div>
     </div>`;
   } catch (e) {
     content.innerHTML = `<div class="coord-empty">Error al cargar métricas.<br><small>${e.message}</small></div>`;
@@ -1730,16 +1737,21 @@ function renderCEOEquipo() {
   const isGlobal = ceoViewCountry === 'all';
   const flagMap = { 'Uruguay': '🇺🇾', 'Brasil': '🇧🇷', 'Panamá': '🇵🇦' };
   const users = isGlobal ? USERS : USERS.filter(u => u.country === ceoViewCountry);
+  if (!users.length) { content.innerHTML = '<div class="coord-empty">Sin usuarios.</div>'; return; }
   const grouped = {};
   users.forEach(u => { if (!grouped[u.country]) grouped[u.country] = []; grouped[u.country].push(u); });
-  content.innerHTML = Object.entries(grouped).map(([country, members]) =>
-    `<div class="ceo-section-title">${flagMap[country] || ''} ${country.toUpperCase()}</div>` +
-    members.map(u => `<div class="equipo-card">
-      <div class="equipo-emoji">${u.emoji}</div>
-      <div><div class="equipo-name">${u.name}</div><div class="equipo-role">${u.role}</div></div>
-      ${isGlobal ? `<div class="equipo-country">${flagMap[u.country] || ''}</div>` : ''}
-    </div>`).join('')
-  ).join('');
+  let html = '';
+  for (const [country, members] of Object.entries(grouped)) {
+    html += '<div class="ceo-section-title">' + (flagMap[country] || '') + ' ' + country.toUpperCase() + '</div>';
+    for (const u of members) {
+      const countryTag = isGlobal ? '<div class="equipo-country">' + (flagMap[u.country] || '') + '</div>' : '';
+      html += '<div class="equipo-card">' +
+        '<div class="equipo-emoji">' + u.emoji + '</div>' +
+        '<div><div class="equipo-name">' + u.name + '</div><div class="equipo-role">' + u.role + '</div></div>' +
+        countryTag + '</div>';
+    }
+  }
+  content.innerHTML = html;
 }
 
 async function loadCoordinator() {
