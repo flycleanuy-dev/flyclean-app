@@ -424,6 +424,20 @@
     border-radius: var(--radius-sm); color: var(--red); font-size: 13px; display: none;
   }
   .error-banner.visible { display: block; }
+
+  /* ── COUNTRY SELECTOR ── */
+  .country-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; padding: 32px 20px; background: var(--bg); }
+  .country-logo { font-size: 48px; margin-bottom: 8px; }
+  .country-brand { font-size: 26px; font-weight: 800; color: var(--text); letter-spacing: -0.5px; margin-bottom: 6px; }
+  .country-tagline { font-size: 13px; color: var(--text3); margin-bottom: 40px; }
+  .country-cards { display: flex; flex-direction: column; gap: 14px; width: 100%; max-width: 340px; }
+  .country-card { display: flex; align-items: center; gap: 18px; padding: 20px 22px; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); cursor: pointer; transition: all 0.15s; }
+  .country-card:active { border-color: var(--green); background: var(--green-dark); transform: scale(0.98); }
+  .country-card-flag { font-size: 36px; line-height: 1; }
+  .country-card-info { flex: 1; }
+  .country-card-name { font-size: 17px; font-weight: 700; color: var(--text); }
+  .country-card-sub { font-size: 12px; color: var(--text3); margin-top: 2px; }
+  .country-card-arrow { font-size: 18px; color: var(--text3); }
 </style>
 </head>
 <body>
@@ -437,12 +451,47 @@
 </div>
 
 <!-- LOGIN -->
+<div class="screen" id="screen-country">
+  <div class="country-screen">
+    <div class="country-logo">🚁</div>
+    <div class="country-brand">FlyClean</div>
+    <div class="country-tagline">Seleccioná tu región para continuar</div>
+    <div class="country-cards">
+      <div class="country-card" onclick="selectCountry('Uruguay')">
+        <div class="country-card-flag">🇺🇾</div>
+        <div class="country-card-info">
+          <div class="country-card-name">FlyClean Uruguay</div>
+          <div class="country-card-sub">Punta del Este · Montevideo</div>
+        </div>
+        <div class="country-card-arrow">›</div>
+      </div>
+      <div class="country-card" onclick="selectCountry('Brasil')">
+        <div class="country-card-flag">🇧🇷</div>
+        <div class="country-card-info">
+          <div class="country-card-name">FlyClean Brasil</div>
+          <div class="country-card-sub">Porto Alegre · São Paulo</div>
+        </div>
+        <div class="country-card-arrow">›</div>
+      </div>
+      <div class="country-card" onclick="selectCountry('Panamá')">
+        <div class="country-card-flag">🇵🇦</div>
+        <div class="country-card-info">
+          <div class="country-card-name">FlyClean Panamá</div>
+          <div class="country-card-sub">Ciudad de Panamá</div>
+        </div>
+        <div class="country-card-arrow">›</div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="screen" id="screen-login">
   <div class="login-logo">🚁</div>
   <div class="login-title">FlyClean</div>
   <div class="login-sub">Panel Operario</div>
   <div class="login-label">¿QUIÉN ERES?</div>
   <div id="users-list" style="width:100%"></div>
+  <button onclick="backToCountry()" style="background:none;border:none;color:var(--text3);font-size:12px;font-family:'DM Sans',sans-serif;cursor:pointer;margin-top:24px;padding:8px">‹ Cambiar región</button>
 </div>
 
 <!-- SERVICES LIST -->
@@ -504,7 +553,7 @@
 <!-- SERVICE DETAIL -->
 <div class="screen" id="screen-coordinator">
   <div class="coord-header">
-    <div class="coord-logo">🚁 FlyClean — Coordinador</div>
+    <div class="coord-logo" id="coord-logo-title">🚁 FlyClean — Coordinador</div>
     <div class="coord-user" id="coord-user-name" onclick="logout()">Salir ↩</div>
   </div>
   <div class="coord-tab-bar">
@@ -595,39 +644,28 @@
 // ─────────────────────────────────────────────
 const DB_ID = 'ccaf276c-7f6a-460c-aeb3-d2800deab2e5';
 const USERS = [
-  {
-    id: 'diego-laxalt',
-    name: 'Diego Laxalt',
-    role: '🎯 Dirección',
-    emoji: '👨‍✈️',
-    pin: '1234',
-    notionId: '69fce11a-3828-4780-ba22-af79a887b9e3'
-  },
-  {
-    id: 'federico-maciel',
-    name: 'Federico Maciel',
-    role: '🔧 Coordinador',
-    emoji: '👷',
-    pin: '5678',
-    notionId: null
-  },
-  {
-    id: 'juan-pablo',
-    name: 'Juan Pablo',
-    role: '🛠️ Operario',
-    emoji: '👨‍🔧',
-    pin: '1234',
-    notionId: null
-  },
-  {
-    id: 'francisco-rocha',
-    name: 'Francisco Rocha',
-    role: '🛠️ Operario',
-    emoji: '🧑‍🔧',
-    pin: '1234',
-    notionId: null
-  }
+  { id: 'diego-laxalt',      name: 'Diego Laxalt',       role: '🎯 Dirección',   emoji: '👨‍✈️', pin: '1234', notionId: '69fce11a-3828-4780-ba22-af79a887b9e3', country: 'Uruguay' },
+  { id: 'federico-maciel',   name: 'Federico Maciel',    role: '🔧 Coordinador', emoji: '👷',  pin: '5678', notionId: null, country: 'Uruguay' },
+  { id: 'juan-pablo',        name: 'Juan Pablo',         role: '🛠️ Operario',    emoji: '👨‍🔧', pin: '1234', notionId: null, country: 'Uruguay' },
+  { id: 'francisco-rocha',   name: 'Francisco Rocha',    role: '🛠️ Operario',    emoji: '🧑‍🔧', pin: '1234', notionId: null, country: 'Uruguay' },
+  { id: 'coord-brasil',      name: 'Coordinador Brasil', role: '🔧 Coordinador', emoji: '👷',  pin: '1234', notionId: null, country: 'Brasil' },
+  { id: 'operario-brasil-1', name: 'Operario Brasil',    role: '🛠️ Operario',    emoji: '👨‍🔧', pin: '1234', notionId: null, country: 'Brasil' },
+  { id: 'coord-panama',      name: 'Coordinador Panamá', role: '🔧 Coordinador', emoji: '👷',  pin: '1234', notionId: null, country: 'Panamá' },
+  { id: 'operario-panama-1', name: 'Operario Panamá',    role: '🛠️ Operario',    emoji: '👨‍🔧', pin: '1234', notionId: null, country: 'Panamá' }
 ];
+
+const COUNTRY_NOTION_MAP = {
+  'Uruguay': '🇺🇾 Uruguay',
+  'Brasil':  '🇧🇷 Brasil',
+  'Panamá':  '🇵🇦 Panamá'
+};
+
+function getCountryFilter() {
+  const isGlobal = currentUser?.role?.includes('Dirección');
+  if (isGlobal) return null;
+  const notionVal = COUNTRY_NOTION_MAP[selectedCountry];
+  return notionVal ? { property: 'País', select: { equals: notionVal } } : null;
+}
 
 const CHECKLIST_PRE = [
   '✈️ Permiso de operador vigente verificado',
@@ -674,6 +712,7 @@ const STEPS = [
 // ─────────────────────────────────────────────
 // STATE
 // ─────────────────────────────────────────────
+let selectedCountry = 'Uruguay';
 let currentUser = null;
 let currentService = null;
 let currentStep = 0;
@@ -793,9 +832,21 @@ function showSaving() {
 // ─────────────────────────────────────────────
 // LOGIN
 // ─────────────────────────────────────────────
+function selectCountry(country) {
+  selectedCountry = country;
+  localStorage.setItem('fc_country', country);
+  renderLogin();
+  showScreen('login');
+}
+
+function backToCountry() {
+  showScreen('country');
+}
+
 function renderLogin() {
   const list = document.getElementById('users-list');
-  list.innerHTML = USERS.map(u => `
+  const countryUsers = USERS.filter(u => u.country === selectedCountry);
+  list.innerHTML = countryUsers.map(u => `
     <div class="user-card" onclick="selectUser('${u.id}')">
       <span class="user-avatar">${u.emoji}</span>
       <div>
@@ -847,7 +898,7 @@ async function pinConfirm() {
   }
   currentUser = { id: pinUser.id, name: pinUser.name, role: pinUser.role, emoji: pinUser.emoji };
   localStorage.setItem('fc_user', JSON.stringify(currentUser));
-  if (pinUser.role === '🔧 Coordinador') {
+  if (pinUser.role === '🔧 Coordinador' || pinUser.role === '🎯 Dirección') {
     await loadCoordinator();
   } else {
     await loadServices();
@@ -879,6 +930,7 @@ function setCoordTab(tab) {
 function logout() {
   localStorage.removeItem('fc_user');
   currentUser = null;
+  renderLogin();
   showScreen('login');
 }
 
@@ -1382,6 +1434,10 @@ async function finishAndGoBack() {
 async function loadCoordinator() {
   showScreen('coordinator');
   document.getElementById('coord-user-name').textContent = currentUser.emoji + ' ' + currentUser.name.split(' ')[0];
+  const flagMap = { 'Uruguay': '🇺🇾', 'Brasil': '🇧🇷', 'Panamá': '🇵🇦' };
+  const flag = flagMap[selectedCountry] || '';
+  const rolLabel = currentUser.role.includes('Dirección') ? 'Dirección' : 'Coordinador';
+  document.getElementById('coord-logo-title').textContent = `🚁 FlyClean ${flag} — ${rolLabel}`;
   _operarioOptions = null;
   activeCoordTab = 'servicios';
   ['servicios', 'propuestas'].forEach(t => {
@@ -1590,16 +1646,22 @@ async function renderCoordServicios() {
   document.getElementById('coord-week-strip').style.display = 'flex';
   try {
     const { start, end } = getCoordMonthRange();
+    const cf = getCountryFilter();
+    const filter = {
+      or: [
+        { and: [
+          ...(cf ? [cf] : []),
+          { property: 'Fecha programada', date: { on_or_after: start } },
+          { property: 'Fecha programada', date: { on_or_before: end } }
+        ]},
+        ...(cf
+          ? [{ and: [cf, { property: 'Fecha programada', date: { is_empty: true } }] }]
+          : [{ property: 'Fecha programada', date: { is_empty: true } }]
+        )
+      ]
+    };
     const data = await callNotion('databases/ccaf276c-7f6a-460c-aeb3-d2800deab2e5/query', 'POST', {
-      filter: {
-        or: [
-          { and: [
-            { property: 'Fecha programada', date: { on_or_after: start } },
-            { property: 'Fecha programada', date: { on_or_before: end } }
-          ]},
-          { property: 'Fecha programada', date: { is_empty: true } }
-        ]
-      },
+      filter,
       sorts: [{ property: 'Fecha programada', direction: 'ascending' }]
     });
     _coordAllServices = data.results || [];
@@ -1759,9 +1821,10 @@ async function renderCoordContactos() {
   const content = document.getElementById('coord-content');
   content.innerHTML = '<div style="text-align:center;padding:40px 0"><div class="spinner" style="margin:0 auto"></div></div>';
   try {
-    const data = await callNotion('databases/250115612de74e0582366549bbe5e389/query', 'POST', {
-      sorts: [{ property: 'Nombre / Empresa', direction: 'ascending' }]
-    });
+    const cf = getCountryFilter();
+    const queryBody = { sorts: [{ property: 'Nombre / Empresa', direction: 'ascending' }] };
+    if (cf) queryBody.filter = cf;
+    const data = await callNotion('databases/250115612de74e0582366549bbe5e389/query', 'POST', queryBody);
     _coordAllContacts = data.results || [];
     renderContactList(_coordAllContacts);
   } catch (e) {
@@ -1964,13 +2027,14 @@ async function renderCoordPropuestas() {
   const content = document.getElementById('coord-content');
   content.innerHTML = '<div style="text-align:center;padding:40px 0"><div class="spinner" style="margin:0 auto"></div></div>';
   try {
+    const cf = getCountryFilter();
+    const andConditions = [
+      { property: 'Estado pipeline', select: { does_not_equal: '❌ Rechazada' } },
+      { property: 'Estado pipeline', select: { does_not_equal: '😶 Sin respuesta' } }
+    ];
+    if (cf) andConditions.push(cf);
     const data = await callNotion('databases/2c0a4257-f429-4941-b994-dfebc1098633/query', 'POST', {
-      filter: {
-        and: [
-          { property: 'Estado pipeline', select: { does_not_equal: '❌ Rechazada' } },
-          { property: 'Estado pipeline', select: { does_not_equal: '😶 Sin respuesta' } }
-        ]
-      },
+      filter: { and: andConditions },
       sorts: [{ property: 'Última interacción', direction: 'descending' }]
     });
 
@@ -2019,6 +2083,13 @@ async function renderCoordPropuestas() {
 // INIT
 // ─────────────────────────────────────────────
 async function init() {
+  const savedCountry = localStorage.getItem('fc_country');
+  if (savedCountry) {
+    selectedCountry = savedCountry;
+  } else {
+    showScreen('country');
+    return;
+  }
   renderLogin();
   const saved = localStorage.getItem('fc_user');
   if (saved) {
