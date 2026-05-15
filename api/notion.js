@@ -17,7 +17,7 @@ export default async function handler(req, res) {
       method,
       headers: {
         Authorization: `Bearer ${token}`,
-        'Notion-Version': '2022-06-28',
+        'Notion-Version': '2025-09-03',
         'Content-Type': 'application/json',
       },
       body: body ? JSON.stringify(body) : undefined,
