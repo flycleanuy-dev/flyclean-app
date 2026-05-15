@@ -363,6 +363,11 @@
   .nueva-prop-btn { width: 100%; padding: 13px; background: var(--green-dark); border: 1px solid var(--green); border-radius: var(--radius-sm); color: var(--green); font-size: 14px; font-weight: 700; cursor: pointer; font-family: 'DM Sans', sans-serif; transition: all 0.15s; }
   .nueva-prop-btn:active { background: var(--green); color: #000; }
   /* Week strip */
+  .month-nav { display: none; align-items: center; justify-content: space-between; padding: 8px 16px 4px; background: var(--bg); }
+  .month-nav.visible { display: flex; }
+  .month-nav-label { font-size: 13px; font-weight: 700; color: var(--text); text-transform: capitalize; }
+  .month-nav-btn { background: none; border: 1px solid var(--border2); border-radius: 8px; color: var(--text2); font-size: 16px; width: 32px; height: 32px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+  .month-nav-btn:active { background: var(--border); }
   .week-strip { display: flex; gap: 6px; padding: 10px 14px; border-bottom: 1px solid var(--border); overflow-x: auto; scrollbar-width: none; background: var(--bg); }
   .week-strip::-webkit-scrollbar { display: none; }
   .day-pill { flex: 0 0 44px; text-align: center; padding: 8px 4px 6px; border-radius: 10px; cursor: pointer; border: 1px solid var(--border); transition: all 0.15s; }
@@ -491,6 +496,11 @@
   <div class="coord-tab-bar">
     <div class="coord-tab active" id="ctab-servicios" onclick="setCoordTab('servicios')">📋 Servicios</div>
     <div class="coord-tab" id="ctab-propuestas" onclick="setCoordTab('propuestas')">💼 Propuestas</div>
+  </div>
+  <div class="month-nav" id="coord-month-nav">
+    <button class="month-nav-btn" onclick="changeCoordMonth(-1)">‹</button>
+    <div class="month-nav-label" id="coord-month-label"></div>
+    <button class="month-nav-btn" onclick="changeCoordMonth(1)">›</button>
   </div>
   <div class="week-strip" id="coord-week-strip"></div>
   <div class="coord-content" id="coord-content">
@@ -630,6 +640,7 @@ let activeTab = 'ordenes';
 let _allServices = [];
 let activeCoordTab = 'servicios';
 let selectedCoordDay = null;
+let coordMonthOffset = 0;
 let _coordAllServices = [];
 let _coordAllProps = [];
 let editingService = null;
@@ -811,6 +822,8 @@ function setCoordTab(tab) {
   });
   const strip = document.getElementById('coord-week-strip');
   strip.style.display = tab === 'servicios' ? 'flex' : 'none';
+  const monthNav = document.getElementById('coord-month-nav');
+  if (monthNav) monthNav.classList.toggle('visible', tab === 'servicios');
   if (tab === 'servicios') renderCoordServicios();
   else renderCoordPropuestas();
 }
@@ -1328,15 +1341,28 @@ async function loadCoordinator() {
   await renderCoordServicios();
 }
 
+function getCoordMonthRange() {
+  const now = new Date();
+  const base = new Date(now.getFullYear(), now.getMonth() + coordMonthOffset, 1);
+  const start = base.toISOString().split('T')[0];
+  const end = new Date(base.getFullYear(), base.getMonth() + 1, 0).toISOString().split('T')[0];
+  const label = base.toLocaleDateString('es-UY', { month: 'long', year: 'numeric' });
+  return { start, end, label, base };
+}
+
 function renderWeekStrip(services) {
   const strip = document.getElementById('coord-week-strip');
   if (!strip) return;
+  const { start, end, label, base } = getCoordMonthRange();
+  const daysInMonth = new Date(base.getFullYear(), base.getMonth() + 1, 0).getDate();
   const today = new Date(); today.setHours(0,0,0,0);
-  const days = Array.from({length: 7}, (_, i) => { const d = new Date(today); d.setDate(today.getDate() + i); return d; });
+  const todayISO = today.toISOString().split('T')[0];
   const serviceDates = {};
   services.forEach(s => { const f = s.properties?.['Fecha programada']?.date?.start; if (f) serviceDates[f] = (serviceDates[f] || 0) + 1; });
   const dayNames = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
-  const todayISO = today.toISOString().split('T')[0];
+  const monthNav = document.getElementById('coord-month-nav');
+  if (monthNav) { monthNav.classList.add('visible'); document.getElementById('coord-month-label').textContent = label; }
+  const days = Array.from({length: daysInMonth}, (_, i) => new Date(base.getFullYear(), base.getMonth(), i + 1));
   strip.innerHTML = days.map(d => {
     const iso = d.toISOString().split('T')[0];
     const isActive = selectedCoordDay === iso;
@@ -1352,6 +1378,15 @@ function renderWeekStrip(services) {
     <div class="day-pill-num" style="font-size:11px;margin-top:4px">▼</div>
     <div class="day-pill-dot"></div>
   </div>`;
+  if (selectedCoordDay && selectedCoordDay !== 'all' && (selectedCoordDay < start || selectedCoordDay > end)) {
+    selectedCoordDay = 'all';
+  }
+}
+
+function changeCoordMonth(delta) {
+  coordMonthOffset += delta;
+  selectedCoordDay = 'all';
+  renderCoordServicios();
 }
 
 function setCoordDay(day) {
@@ -1362,26 +1397,28 @@ function setCoordDay(day) {
 
 function renderCoordList() {
   const content = document.getElementById('coord-content');
-  let services = selectedCoordDay && selectedCoordDay !== 'all'
-    ? _coordAllServices.filter(s => (s.properties?.['Fecha programada']?.date?.start || '') === selectedCoordDay)
-    : [..._coordAllServices].sort((a, b) => {
-        const fa = a.properties?.['Fecha programada']?.date?.start || 'z';
-        const fb = b.properties?.['Fecha programada']?.date?.start || 'z';
-        return fa.localeCompare(fb);
-      });
-  if (!services.length) { content.innerHTML = '<div class="coord-empty">Sin servicios para este día.</div>'; return; }
   const todayISO = new Date().toISOString().split('T')[0];
-  if (!selectedCoordDay || selectedCoordDay === 'all') {
-    const groups = {};
-    services.forEach(s => { const f = s.properties?.['Fecha programada']?.date?.start || 'Sin fecha'; if (!groups[f]) groups[f] = []; groups[f].push(s); });
-    content.innerHTML = Object.entries(groups).map(([fecha, items]) => {
-      const isToday = fecha === todayISO;
-      const dateLabel = fecha === 'Sin fecha' ? 'Sin fecha' : new Date(fecha + 'T00:00:00').toLocaleDateString('es-UY', { weekday: 'long', day: 'numeric', month: 'short' });
-      return `<div class="day-group"><div class="day-label ${isToday ? 'today' : ''}">${isToday ? '📅 HOY — ' : ''}${dateLabel}</div>${items.map(s => coordServiceCard(s)).join('')}</div>`;
-    }).join('');
-  } else {
-    content.innerHTML = '<div style="height:8px"></div>' + services.map(s => coordServiceCard(s)).join('');
+  if (selectedCoordDay && selectedCoordDay !== 'all') {
+    const dayServices = _coordAllServices.filter(s => (s.properties?.['Fecha programada']?.date?.start || '') === selectedCoordDay);
+    if (!dayServices.length) { content.innerHTML = '<div class="coord-empty">Sin servicios para este día.</div>'; return; }
+    content.innerHTML = '<div style="height:8px"></div>' + dayServices.map(s => coordServiceCard(s)).join('');
+    return;
   }
+  const withDate = [..._coordAllServices.filter(s => s.properties?.['Fecha programada']?.date?.start)]
+    .sort((a, b) => (a.properties['Fecha programada'].date.start).localeCompare(b.properties['Fecha programada'].date.start));
+  const sinFecha = _coordAllServices.filter(s => !s.properties?.['Fecha programada']?.date?.start);
+  if (!withDate.length && !sinFecha.length) { content.innerHTML = '<div class="coord-empty">Sin servicios este mes.</div>'; return; }
+  const groups = {};
+  withDate.forEach(s => { const f = s.properties['Fecha programada'].date.start; if (!groups[f]) groups[f] = []; groups[f].push(s); });
+  let html = Object.entries(groups).map(([fecha, items]) => {
+    const isToday = fecha === todayISO;
+    const dateLabel = new Date(fecha + 'T00:00:00').toLocaleDateString('es-UY', { weekday: 'long', day: 'numeric', month: 'short' });
+    return `<div class="day-group"><div class="day-label ${isToday ? 'today' : ''}">${isToday ? '📅 HOY — ' : ''}${dateLabel}</div>${items.map(s => coordServiceCard(s)).join('')}</div>`;
+  }).join('');
+  if (sinFecha.length) {
+    html += `<div class="day-group"><div class="day-label" style="color:var(--amber)">📅 Sin programar (${sinFecha.length})</div>${sinFecha.map(s => coordServiceCard(s)).join('')}</div>`;
+  }
+  content.innerHTML = html || '<div class="coord-empty">Sin servicios este mes.</div>';
 }
 
 function coordServiceCard(s) {
@@ -1467,11 +1504,21 @@ async function renderCoordServicios() {
   content.innerHTML = '<div style="text-align:center;padding:40px 0"><div class="spinner" style="margin:0 auto"></div></div>';
   document.getElementById('coord-week-strip').style.display = 'flex';
   try {
+    const { start, end } = getCoordMonthRange();
     const data = await callNotion('databases/ccaf276c-7f6a-460c-aeb3-d2800deab2e5/query', 'POST', {
+      filter: {
+        or: [
+          { and: [
+            { property: 'Fecha programada', date: { on_or_after: start } },
+            { property: 'Fecha programada', date: { on_or_before: end } }
+          ]},
+          { property: 'Fecha programada', date: { is_empty: true } }
+        ]
+      },
       sorts: [{ property: 'Fecha programada', direction: 'ascending' }]
     });
     _coordAllServices = data.results || [];
-    if (!selectedCoordDay) selectedCoordDay = new Date().toISOString().split('T')[0];
+    if (!selectedCoordDay) selectedCoordDay = 'all';
     renderWeekStrip(_coordAllServices);
     renderCoordList();
   } catch (e) {
