@@ -332,6 +332,35 @@
   @keyframes shake { 0%,100%{transform:translateX(0)} 20%,60%{transform:translateX(-8px)} 40%,80%{transform:translateX(8px)} }
   .pin-dots.shake { animation: shake 0.4s ease; }
 
+  /* ── COORDINATOR ── */
+  #screen-coordinator { flex-direction: column; }
+  .coord-header { padding: 16px 20px 12px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; background: var(--bg); z-index: 10; }
+  .coord-logo { font-size: 15px; font-weight: 700; color: var(--green); }
+  .coord-user { font-size: 11px; color: var(--text3); background: var(--card); padding: 5px 12px; border-radius: 20px; cursor: pointer; }
+  .coord-tab-bar { display: flex; border-bottom: 1px solid var(--border); background: var(--bg); }
+  .coord-tab { flex: 1; padding: 12px 8px; text-align: center; font-size: 13px; font-weight: 600; color: var(--text3); cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.15s; }
+  .coord-tab.active { color: var(--green); border-bottom-color: var(--green); }
+  .coord-content { flex: 1; overflow-y: auto; padding-bottom: 32px; }
+  .day-group { margin: 16px 16px 0; }
+  .day-label { font-size: 11px; font-weight: 700; color: var(--text3); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 8px; padding: 0 4px; }
+  .day-label.today { color: var(--green); }
+  .coord-service-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px 14px; margin-bottom: 8px; }
+  .coord-service-name { font-size: 14px; font-weight: 600; margin-bottom: 6px; }
+  .coord-service-meta { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .coord-tag { font-size: 11px; color: var(--text3); background: var(--bg); padding: 2px 7px; border-radius: 5px; }
+  .coord-ops { font-size: 11px; color: var(--text2); margin-top: 6px; }
+  .prop-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 14px; margin: 8px 16px 0; }
+  .prop-nombre { font-size: 14px; font-weight: 600; margin-bottom: 6px; }
+  .prop-meta { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 4px; }
+  .prop-estado { font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 20px; background: rgba(59,130,246,0.15); color: var(--blue); }
+  .prop-estado.aceptada { background: rgba(34,197,94,0.15); color: var(--green); }
+  .prop-estado.negociando { background: rgba(245,158,11,0.15); color: var(--amber); }
+  .prop-estado.enviada { background: rgba(167,139,250,0.15); color: var(--purple); }
+  .prop-dias { font-size: 12px; color: var(--text3); margin-top: 2px; }
+  .prop-dias.alert { color: var(--amber); font-weight: 600; }
+  .prop-importe { font-size: 13px; font-weight: 600; color: var(--green); }
+  .coord-empty { padding: 40px 24px; text-align: center; color: var(--text3); font-size: 14px; }
+
   /* ── TABS ── */
   .tab-bar { display: flex; border-bottom: 1px solid var(--border); background: var(--bg); }
   .tab-btn { flex: 1; padding: 12px 8px; text-align: center; font-size: 13px; font-weight: 600; color: var(--text3); cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.15s; user-select: none; }
@@ -422,6 +451,20 @@
 </div>
 
 <!-- SERVICE DETAIL -->
+<div class="screen" id="screen-coordinator">
+  <div class="coord-header">
+    <div class="coord-logo">🚁 FlyClean — Coordinador</div>
+    <div class="coord-user" id="coord-user-name" onclick="logout()">Salir ↩</div>
+  </div>
+  <div class="coord-tab-bar">
+    <div class="coord-tab active" id="ctab-servicios" onclick="setCoordTab('servicios')">📋 Servicios</div>
+    <div class="coord-tab" id="ctab-propuestas" onclick="setCoordTab('propuestas')">💼 Propuestas</div>
+  </div>
+  <div class="coord-content" id="coord-content">
+    <div style="text-align:center;padding:40px 0"><div class="spinner" style="margin:0 auto"></div></div>
+  </div>
+</div>
+
 <div class="screen" id="screen-detail">
   <div class="detail-header">
     <button class="back-btn" onclick="goBack()">← Volver</button>
@@ -517,6 +560,7 @@ let currentStep = 0;
 let serviceState = {};
 let activeTab = 'ordenes';
 let _allServices = [];
+let activeCoordTab = 'servicios';
 let pinBuffer = '';
 let pinUser = null;
 
@@ -656,7 +700,11 @@ async function pinConfirm() {
   }
   currentUser = { id: pinUser.id, name: pinUser.name, role: pinUser.role, emoji: pinUser.emoji };
   localStorage.setItem('fc_user', JSON.stringify(currentUser));
-  await loadServices();
+  if (pinUser.role === '🔧 Coordinador') {
+    await loadCoordinator();
+  } else {
+    await loadServices();
+  }
 }
 
 function setTab(tab) {
@@ -665,6 +713,15 @@ function setTab(tab) {
     document.getElementById('tab-' + t).classList.toggle('active', t === tab);
   });
   renderServices(_allServices);
+}
+
+function setCoordTab(tab) {
+  activeCoordTab = tab;
+  ['servicios', 'propuestas'].forEach(t => {
+    document.getElementById('ctab-' + t).classList.toggle('active', t === tab);
+  });
+  if (tab === 'servicios') renderCoordServicios();
+  else renderCoordPropuestas();
 }
 
 function logout() {
@@ -711,7 +768,9 @@ function renderServices(services) {
   _allServices = services;
   services = _allServices.filter(s => {
     const tipoReg = s.properties?.['Tipo de registro']?.select?.name || '';
-    return activeTab === 'jornadas' ? tipoReg.includes('Jornada') : !tipoReg.includes('Jornada');
+    const jornadaN = s.properties?.['Jornada N°']?.number;
+    const isJornada = (jornadaN != null) || tipoReg.includes('Jornada');
+    return activeTab === 'jornadas' ? isJornada : !isJornada;
   });
   const sub = document.getElementById('services-sub');
   const list = document.getElementById('services-list');
@@ -1143,6 +1202,145 @@ function showDoneScreen() {
 
 async function finishAndGoBack() {
   await loadServices();
+}
+
+// ─────────────────────────────────────────────
+// COORDINATOR
+// ─────────────────────────────────────────────
+async function loadCoordinator() {
+  showScreen('coordinator');
+  document.getElementById('coord-user-name').textContent = currentUser.emoji + ' ' + currentUser.name.split(' ')[0];
+  activeCoordTab = 'servicios';
+  ['servicios', 'propuestas'].forEach(t => {
+    document.getElementById('ctab-' + t).classList.toggle('active', t === 'servicios');
+  });
+  await renderCoordServicios();
+}
+
+async function renderCoordServicios() {
+  const content = document.getElementById('coord-content');
+  content.innerHTML = '<div style="text-align:center;padding:40px 0"><div class="spinner" style="margin:0 auto"></div></div>';
+  try {
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    const nextWeek = new Date(today);
+    nextWeek.setDate(today.getDate() + 8);
+    const todayStr = today.toISOString().split('T')[0];
+    const nextWeekStr = nextWeek.toISOString().split('T')[0];
+
+    const data = await callNotion('databases/ccaf276c-7f6a-460c-aeb3-d2800deab2e5/query', 'POST', {
+      filter: {
+        and: [
+          { property: 'Fecha programada', date: { on_or_after: todayStr } },
+          { property: 'Fecha programada', date: { before: nextWeekStr } },
+          { or: [
+            { property: 'Estado', select: { equals: '📋 Pendiente' } },
+            { property: 'Estado', select: { equals: '🔄 Asignado' } },
+            { property: 'Estado', select: { equals: '✈️ En curso' } }
+          ]}
+        ]
+      },
+      sorts: [{ property: 'Fecha programada', direction: 'ascending' }]
+    });
+
+    const services = data.results || [];
+    if (!services.length) {
+      content.innerHTML = '<div class="coord-empty">Sin servicios programados para los próximos 7 días.</div>';
+      return;
+    }
+
+    const groups = {};
+    services.forEach(s => {
+      const fecha = s.properties?.['Fecha programada']?.date?.start || 'Sin fecha';
+      if (!groups[fecha]) groups[fecha] = [];
+      groups[fecha].push(s);
+    });
+
+    const todayISO = today.toISOString().split('T')[0];
+    content.innerHTML = Object.entries(groups).map(([fecha, items]) => {
+      const isToday = fecha === todayISO;
+      const dateLabel = fecha === 'Sin fecha' ? 'Sin fecha' :
+        new Date(fecha + 'T00:00:00').toLocaleDateString('es-UY', { weekday: 'long', day: 'numeric', month: 'short' });
+
+      const cards = items.map(s => {
+        const props = s.properties || {};
+        const nombre = props['Nombre del servicio']?.title?.[0]?.plain_text || 'Sin nombre';
+        const estado = props['Estado']?.select?.name || '';
+        const tipo = props['Tipo de servicio']?.select?.name || '';
+        const ops = (props['Operario(s)']?.people || []).map(p => p.name).join(', ') || '— sin asignar';
+        const jornadaN = props['Jornada N°']?.number;
+        const tipoReg = props['Tipo de registro']?.select?.name || '';
+        const esJornada = jornadaN != null || tipoReg.includes('Jornada');
+        const estadoClass = estado.includes('En curso') ? 'estado-en-curso' :
+          estado.includes('Asignado') ? 'estado-asignado' : 'estado-pendiente';
+        return `<div class="coord-service-card">
+          <div class="coord-service-name">${nombre}${esJornada && jornadaN ? ' <span style="color:var(--purple);font-size:12px">J${jornadaN}</span>' : ''}</div>
+          <div class="coord-service-meta">
+            <span class="service-estado ${estadoClass}">${estado}</span>
+            ${tipo ? `<span class="coord-tag">${tipo}</span>` : ''}
+          </div>
+          <div class="coord-ops">👤 ${ops}</div>
+        </div>`;
+      }).join('');
+
+      return `<div class="day-group">
+        <div class="day-label ${isToday ? 'today' : ''}">${isToday ? '📅 HOY — ' : ''}${dateLabel}</div>
+        ${cards}
+      </div>`;
+    }).join('');
+  } catch (e) {
+    content.innerHTML = `<div class="coord-empty">Error al cargar servicios.<br><small>${e.message}</small></div>`;
+  }
+}
+
+async function renderCoordPropuestas() {
+  const content = document.getElementById('coord-content');
+  content.innerHTML = '<div style="text-align:center;padding:40px 0"><div class="spinner" style="margin:0 auto"></div></div>';
+  try {
+    const data = await callNotion('databases/2c0a4257-f429-4941-b994-dfebc1098633/query', 'POST', {
+      filter: {
+        and: [
+          { property: 'Estado pipeline', select: { does_not_equal: '❌ Rechazada' } },
+          { property: 'Estado pipeline', select: { does_not_equal: '💤 Sin respuesta' } }
+        ]
+      },
+      sorts: [{ property: 'Última interacción', direction: 'descending' }]
+    });
+
+    const list = data.results || [];
+    if (!list.length) {
+      content.innerHTML = '<div class="coord-empty">Sin propuestas activas.</div>';
+      return;
+    }
+
+    content.innerHTML = '<div style="height:8px"></div>' + list.map(p => {
+      const props = p.properties || {};
+      const nombre = props['Nombre de propuesta']?.title?.[0]?.plain_text || 'Sin nombre';
+      const estado = props['Estado pipeline']?.select?.name || '—';
+      const pais = props['País']?.select?.name || '';
+      const importe = props['Importe estimado']?.number;
+      const dias = props['Días sin respuesta']?.formula?.number ?? null;
+      const ultimaInteraccion = props['Última interacción']?.date?.start || '';
+      const ultimaFmt = ultimaInteraccion ? new Date(ultimaInteraccion + 'T00:00:00').toLocaleDateString('es-UY', { day: 'numeric', month: 'short' }) : '';
+      const estadoClass = estado.includes('Aceptada') ? 'aceptada' :
+        estado.includes('Negociando') ? 'negociando' :
+        estado.toLowerCase().includes('enviada') ? 'enviada' : '';
+
+      return `<div class="prop-card">
+        <div class="prop-nombre">${nombre}</div>
+        <div class="prop-meta">
+          <span class="prop-estado ${estadoClass}">${estado}</span>
+          ${pais ? `<span class="coord-tag">${pais}</span>` : ''}
+          ${importe ? `<span class="prop-importe">$${importe.toLocaleString()}</span>` : ''}
+        </div>
+        <div class="prop-dias ${dias != null && dias > 14 ? 'alert' : ''}">
+          ${ultimaFmt ? `Última interacción: ${ultimaFmt}` : ''}${dias != null ? ` · ${dias} días sin respuesta` : ''}
+        </div>
+      </div>`;
+    }).join('');
+  } catch (e) {
+    content.innerHTML = `<div class="coord-empty">Error al cargar propuestas.<br><small>${e.message}</small></div>`;
+  }
 }
 
 // ─────────────────────────────────────────────
