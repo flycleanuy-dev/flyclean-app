@@ -315,6 +315,28 @@
   }
   .saving-bar.visible { opacity: 1; }
 
+  /* ── PIN ── */
+  #screen-pin { align-items: center; justify-content: center; padding: 32px 24px; }
+  .pin-header { text-align: center; margin-bottom: 28px; width: 100%; }
+  .pin-user-emoji { font-size: 48px; margin-bottom: 8px; }
+  .pin-user-name { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+  .pin-sub { font-size: 13px; color: var(--text3); }
+  .pin-dots { display: flex; gap: 18px; justify-content: center; margin: 20px 0 8px; }
+  .pin-dot { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--border2); background: transparent; transition: all 0.15s; }
+  .pin-dot.filled { background: var(--green); border-color: var(--green); }
+  .pin-error { color: var(--red); font-size: 13px; text-align: center; min-height: 20px; margin-bottom: 12px; }
+  .pin-pad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; width: 100%; max-width: 280px; }
+  .pin-key { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; font-size: 20px; font-weight: 600; cursor: pointer; text-align: center; transition: all 0.1s; user-select: none; -webkit-user-select: none; }
+  .pin-key:active { background: var(--green-dark); border-color: var(--green); color: var(--green); transform: scale(0.95); }
+  .pin-back-btn { margin-top: 24px; background: none; border: none; color: var(--text3); font-size: 13px; cursor: pointer; font-family: 'DM Sans', sans-serif; }
+  @keyframes shake { 0%,100%{transform:translateX(0)} 20%,60%{transform:translateX(-8px)} 40%,80%{transform:translateX(8px)} }
+  .pin-dots.shake { animation: shake 0.4s ease; }
+
+  /* ── TABS ── */
+  .tab-bar { display: flex; border-bottom: 1px solid var(--border); background: var(--bg); }
+  .tab-btn { flex: 1; padding: 12px 8px; text-align: center; font-size: 13px; font-weight: 600; color: var(--text3); cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.15s; user-select: none; }
+  .tab-btn.active { color: var(--green); border-bottom-color: var(--green); }
+
   /* Error banner */
   .error-banner {
     margin: 12px 16px; padding: 12px 14px;
@@ -344,12 +366,46 @@
 </div>
 
 <!-- SERVICES LIST -->
+<div class="screen" id="screen-pin">
+  <div class="pin-header">
+    <div class="pin-user-emoji" id="pin-emoji">👤</div>
+    <div class="pin-user-name" id="pin-name">Nombre</div>
+    <div class="pin-sub">Ingresá tu PIN de 4 dígitos</div>
+  </div>
+  <div class="pin-dots" id="pin-dots">
+    <div class="pin-dot" id="pd0"></div>
+    <div class="pin-dot" id="pd1"></div>
+    <div class="pin-dot" id="pd2"></div>
+    <div class="pin-dot" id="pd3"></div>
+  </div>
+  <div class="pin-error" id="pin-error"></div>
+  <div class="pin-pad">
+    <div class="pin-key" onclick="pinPress('1')">1</div>
+    <div class="pin-key" onclick="pinPress('2')">2</div>
+    <div class="pin-key" onclick="pinPress('3')">3</div>
+    <div class="pin-key" onclick="pinPress('4')">4</div>
+    <div class="pin-key" onclick="pinPress('5')">5</div>
+    <div class="pin-key" onclick="pinPress('6')">6</div>
+    <div class="pin-key" onclick="pinPress('7')">7</div>
+    <div class="pin-key" onclick="pinPress('8')">8</div>
+    <div class="pin-key" onclick="pinPress('9')">9</div>
+    <div class="pin-key" onclick="pinDelete()">⌫</div>
+    <div class="pin-key" onclick="pinPress('0')">0</div>
+    <div class="pin-key" onclick="pinConfirm()">✓</div>
+  </div>
+  <button class="pin-back-btn" onclick="showScreen('login')">← Cambiar usuario</button>
+</div>
+
 <div class="screen" id="screen-services">
   <div class="header">
     <div>
       <div class="header-logo">🚁 FlyClean</div>
     </div>
     <div class="header-user" id="header-user-name" onclick="logout()">Salir ↩</div>
+  </div>
+  <div class="tab-bar">
+    <div class="tab-btn active" id="tab-ordenes" onclick="setTab('ordenes')">📋 Órdenes</div>
+    <div class="tab-btn" id="tab-jornadas" onclick="setTab('jornadas')">📅 Jornadas</div>
   </div>
   <div class="services-header">
     <div class="services-title">Mis servicios</div>
@@ -390,15 +446,23 @@
 
 <script>
 // ─────────────────────────────────────────────
-// CONFIG — usando tu Notion real
+// CONFIG
 // ─────────────────────────────────────────────
 const DB_ID = 'ccaf276c-7f6a-460c-aeb3-d2800deab2e5';
 const USERS = [
   {
     id: '69fce11a-3828-4780-ba22-af79a887b9e3',
     name: 'Diego Laxalt',
-    role: '🎯 Dirección / Test',
-    emoji: '👨‍✈️'
+    role: '🎯 Dirección',
+    emoji: '👨‍✈️',
+    pin: '1234'
+  },
+  {
+    id: 'PENDING_FEDERICO_ID',
+    name: 'Federico Maciel',
+    role: '🔧 Coordinador',
+    emoji: '👷',
+    pin: '5678'
   }
 ];
 
@@ -451,6 +515,10 @@ let currentUser = null;
 let currentService = null;
 let currentStep = 0;
 let serviceState = {};
+let activeTab = 'ordenes';
+let _allServices = [];
+let pinBuffer = '';
+let pinUser = null;
 
 function resetServiceState() {
   serviceState = {
@@ -537,7 +605,7 @@ function showSaving() {
 function renderLogin() {
   const list = document.getElementById('users-list');
   list.innerHTML = USERS.map(u => `
-    <div class="user-card" onclick="selectUser('${u.id}', '${u.name}', '${u.role}', '${u.emoji}')">
+    <div class="user-card" onclick="selectUser('${u.id}')">
       <span class="user-avatar">${u.emoji}</span>
       <div>
         <div class="user-name">${u.name}</div>
@@ -548,10 +616,55 @@ function renderLogin() {
   `).join('');
 }
 
-async function selectUser(id, name, role, emoji) {
-  currentUser = { id, name, role, emoji };
+function selectUser(userId) {
+  pinUser = USERS.find(u => u.id === userId);
+  if (!pinUser) return;
+  document.getElementById('pin-emoji').textContent = pinUser.emoji;
+  document.getElementById('pin-name').textContent = pinUser.name;
+  pinBuffer = '';
+  updatePinDots();
+  document.getElementById('pin-error').textContent = '';
+  showScreen('pin');
+}
+
+function pinPress(digit) {
+  if (pinBuffer.length >= 4) return;
+  pinBuffer += digit;
+  updatePinDots();
+  if (pinBuffer.length === 4) setTimeout(pinConfirm, 100);
+}
+
+function pinDelete() {
+  if (pinBuffer.length > 0) { pinBuffer = pinBuffer.slice(0, -1); updatePinDots(); }
+}
+
+function updatePinDots() {
+  for (let i = 0; i < 4; i++) {
+    document.getElementById('pd' + i).classList.toggle('filled', i < pinBuffer.length);
+  }
+}
+
+async function pinConfirm() {
+  if (pinBuffer !== pinUser.pin) {
+    pinBuffer = '';
+    updatePinDots();
+    document.getElementById('pin-error').textContent = 'PIN incorrecto. Intentá de nuevo.';
+    const dots = document.getElementById('pin-dots');
+    dots.classList.add('shake');
+    setTimeout(() => dots.classList.remove('shake'), 400);
+    return;
+  }
+  currentUser = { id: pinUser.id, name: pinUser.name, role: pinUser.role, emoji: pinUser.emoji };
   localStorage.setItem('fc_user', JSON.stringify(currentUser));
   await loadServices();
+}
+
+function setTab(tab) {
+  activeTab = tab;
+  ['ordenes', 'jornadas'].forEach(t => {
+    document.getElementById('tab-' + t).classList.toggle('active', t === tab);
+  });
+  renderServices(_allServices);
 }
 
 function logout() {
@@ -595,6 +708,11 @@ function getEstadoClass(estado) {
 }
 
 function renderServices(services) {
+  _allServices = services;
+  services = _allServices.filter(s => {
+    const tipoReg = s.properties?.['Tipo de registro']?.select?.name || '';
+    return activeTab === 'jornadas' ? tipoReg.includes('Jornada') : !tipoReg.includes('Jornada');
+  });
   const sub = document.getElementById('services-sub');
   const list = document.getElementById('services-list');
 
@@ -1035,9 +1153,17 @@ async function init() {
   const saved = localStorage.getItem('fc_user');
   if (saved) {
     try {
-      currentUser = JSON.parse(saved);
-      await loadServices();
-      return;
+      const u = JSON.parse(saved);
+      pinUser = USERS.find(p => p.id === u.id);
+      if (pinUser) {
+        document.getElementById('pin-emoji').textContent = pinUser.emoji;
+        document.getElementById('pin-name').textContent = pinUser.name;
+        pinBuffer = '';
+        updatePinDots();
+        document.getElementById('pin-error').textContent = '';
+        showScreen('pin');
+        return;
+      }
     } catch (e) { localStorage.removeItem('fc_user'); }
   }
   showScreen('login');
