@@ -981,7 +981,7 @@ async function pinConfirm() {
     setTimeout(() => dots.classList.remove('shake'), 400);
     return;
   }
-  currentUser = { id: pinUser.id, name: pinUser.name, role: pinUser.role, emoji: pinUser.emoji };
+  currentUser = { id: pinUser.id, name: pinUser.name, role: pinUser.role, emoji: pinUser.emoji, country: pinUser.country };
   localStorage.setItem('fc_user', JSON.stringify(currentUser));
   if (pinUser.role === '🔧 Coordinador' || pinUser.role === '🎯 Dirección') {
     await loadCoordinator();
