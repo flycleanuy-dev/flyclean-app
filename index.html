@@ -360,6 +360,36 @@
   .prop-dias.alert { color: var(--amber); font-weight: 600; }
   .prop-importe { font-size: 13px; font-weight: 600; color: var(--green); }
   .coord-empty { padding: 40px 24px; text-align: center; color: var(--text3); font-size: 14px; }
+  /* Week strip */
+  .week-strip { display: flex; gap: 6px; padding: 10px 14px; border-bottom: 1px solid var(--border); overflow-x: auto; scrollbar-width: none; background: var(--bg); }
+  .week-strip::-webkit-scrollbar { display: none; }
+  .day-pill { flex: 0 0 44px; text-align: center; padding: 8px 4px 6px; border-radius: 10px; cursor: pointer; border: 1px solid var(--border); transition: all 0.15s; }
+  .day-pill-name { font-size: 10px; color: var(--text3); font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; }
+  .day-pill-num { font-size: 16px; font-weight: 700; margin: 2px 0; }
+  .day-pill-dot { height: 6px; display: flex; justify-content: center; align-items: center; gap: 2px; }
+  .day-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--green); }
+  .day-pill.active { background: var(--green-dark); border-color: var(--green); }
+  .day-pill.active .day-pill-name, .day-pill.active .day-pill-num { color: var(--green); }
+  .day-pill.is-today .day-pill-num { color: var(--green); }
+  /* Edit overlay */
+  .edit-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 100; display: none; align-items: flex-end; justify-content: center; }
+  .edit-overlay.open { display: flex; }
+  .edit-sheet { background: var(--card); border-radius: 20px 20px 0 0; width: 100%; max-width: 430px; padding: 0 0 32px; max-height: 85vh; overflow-y: auto; }
+  .edit-sheet-handle { width: 36px; height: 4px; border-radius: 2px; background: var(--border2); margin: 12px auto 16px; }
+  .edit-sheet-header { padding: 0 20px 12px; border-bottom: 1px solid var(--border); }
+  .edit-sheet-title { font-size: 15px; font-weight: 700; }
+  .edit-sheet-sub { font-size: 12px; color: var(--text3); margin-top: 3px; }
+  .edit-section { padding: 16px 20px 0; }
+  .edit-section-label { font-size: 11px; font-weight: 700; color: var(--text3); letter-spacing: 1px; margin-bottom: 10px; }
+  .estado-btns { display: flex; flex-wrap: wrap; gap: 8px; }
+  .estado-btn { padding: 8px 12px; border-radius: 20px; border: 1px solid var(--border); font-size: 12px; font-weight: 600; cursor: pointer; background: var(--bg); color: var(--text2); transition: all 0.15s; }
+  .estado-btn.active { background: var(--green-dark); border-color: var(--green); color: var(--green); }
+  .operario-btns { display: flex; flex-direction: column; gap: 8px; }
+  .operario-btn { padding: 12px 14px; border-radius: var(--radius-sm); border: 1px solid var(--border); font-size: 13px; font-weight: 500; cursor: pointer; background: var(--bg); color: var(--text2); transition: all 0.15s; text-align: left; display: flex; align-items: center; gap: 10px; font-family: 'DM Sans', sans-serif; }
+  .operario-btn.active { background: var(--green-dark); border-color: var(--green); color: var(--green); }
+  .edit-date-input { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); font-size: 15px; font-family: 'DM Sans', sans-serif; padding: 12px 14px; width: 100%; box-sizing: border-box; }
+  .edit-save-btn { margin: 20px 20px 0; width: calc(100% - 40px); padding: 16px; background: var(--green); border: none; border-radius: var(--radius); color: #000; font-size: 15px; font-weight: 700; cursor: pointer; font-family: 'DM Sans', sans-serif; display: block; }
+  .edit-save-btn:disabled { background: var(--border2); color: var(--text3); cursor: not-allowed; }
 
   /* ── TABS ── */
   .tab-bar { display: flex; border-bottom: 1px solid var(--border); background: var(--bg); }
@@ -460,8 +490,31 @@
     <div class="coord-tab active" id="ctab-servicios" onclick="setCoordTab('servicios')">📋 Servicios</div>
     <div class="coord-tab" id="ctab-propuestas" onclick="setCoordTab('propuestas')">💼 Propuestas</div>
   </div>
+  <div class="week-strip" id="coord-week-strip"></div>
   <div class="coord-content" id="coord-content">
     <div style="text-align:center;padding:40px 0"><div class="spinner" style="margin:0 auto"></div></div>
+  </div>
+  <div class="edit-overlay" id="edit-overlay" onclick="overlayClick(event)">
+    <div class="edit-sheet" id="edit-sheet">
+      <div class="edit-sheet-handle"></div>
+      <div class="edit-sheet-header">
+        <div class="edit-sheet-title" id="edit-sheet-title">Editar servicio</div>
+        <div class="edit-sheet-sub" id="edit-sheet-sub"></div>
+      </div>
+      <div class="edit-section">
+        <div class="edit-section-label">ESTADO</div>
+        <div class="estado-btns" id="edit-estado-btns"></div>
+      </div>
+      <div class="edit-section">
+        <div class="edit-section-label">OPERARIO ASIGNADO</div>
+        <div class="operario-btns" id="edit-operario-btns"></div>
+      </div>
+      <div class="edit-section">
+        <div class="edit-section-label">FECHA PROGRAMADA</div>
+        <input type="date" class="edit-date-input" id="edit-fecha" onchange="editState.fecha=this.value"/>
+      </div>
+      <button class="edit-save-btn" id="edit-save-btn" onclick="saveServiceEdit()">💾 GUARDAR EN NOTION</button>
+    </div>
   </div>
 </div>
 
@@ -561,6 +614,10 @@ let serviceState = {};
 let activeTab = 'ordenes';
 let _allServices = [];
 let activeCoordTab = 'servicios';
+let selectedCoordDay = null;
+let _coordAllServices = [];
+let editingService = null;
+let editState = {};
 let pinBuffer = '';
 let pinUser = null;
 
@@ -720,6 +777,8 @@ function setCoordTab(tab) {
   ['servicios', 'propuestas'].forEach(t => {
     document.getElementById('ctab-' + t).classList.toggle('active', t === tab);
   });
+  const strip = document.getElementById('coord-week-strip');
+  strip.style.display = tab === 'servicios' ? 'flex' : 'none';
   if (tab === 'servicios') renderCoordServicios();
   else renderCoordPropuestas();
 }
@@ -1237,79 +1296,146 @@ async function loadCoordinator() {
   await renderCoordServicios();
 }
 
+function renderWeekStrip(services) {
+  const strip = document.getElementById('coord-week-strip');
+  if (!strip) return;
+  const today = new Date(); today.setHours(0,0,0,0);
+  const days = Array.from({length: 7}, (_, i) => { const d = new Date(today); d.setDate(today.getDate() + i); return d; });
+  const serviceDates = {};
+  services.forEach(s => { const f = s.properties?.['Fecha programada']?.date?.start; if (f) serviceDates[f] = (serviceDates[f] || 0) + 1; });
+  const dayNames = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+  const todayISO = today.toISOString().split('T')[0];
+  strip.innerHTML = days.map(d => {
+    const iso = d.toISOString().split('T')[0];
+    const isActive = selectedCoordDay === iso;
+    const isToday = iso === todayISO;
+    const count = serviceDates[iso] || 0;
+    return `<div class="day-pill ${isActive ? 'active' : ''} ${isToday ? 'is-today' : ''}" onclick="setCoordDay('${iso}')">
+      <div class="day-pill-name">${dayNames[d.getDay()]}</div>
+      <div class="day-pill-num">${d.getDate()}</div>
+      <div class="day-pill-dot">${count > 0 ? '<div class="day-dot"></div>' + (count > 1 ? '<div class="day-dot"></div>' : '') : ''}</div>
+    </div>`;
+  }).join('') + `<div class="day-pill ${selectedCoordDay === 'all' ? 'active' : ''}" onclick="setCoordDay('all')" style="flex:0 0 52px">
+    <div class="day-pill-name">TODO</div>
+    <div class="day-pill-num" style="font-size:11px;margin-top:4px">▼</div>
+    <div class="day-pill-dot"></div>
+  </div>`;
+}
+
+function setCoordDay(day) {
+  selectedCoordDay = day;
+  renderWeekStrip(_coordAllServices);
+  renderCoordList();
+}
+
+function renderCoordList() {
+  const content = document.getElementById('coord-content');
+  let services = selectedCoordDay && selectedCoordDay !== 'all'
+    ? _coordAllServices.filter(s => (s.properties?.['Fecha programada']?.date?.start || '') === selectedCoordDay)
+    : [..._coordAllServices].sort((a, b) => {
+        const fa = a.properties?.['Fecha programada']?.date?.start || 'z';
+        const fb = b.properties?.['Fecha programada']?.date?.start || 'z';
+        return fa.localeCompare(fb);
+      });
+  if (!services.length) { content.innerHTML = '<div class="coord-empty">Sin servicios para este día.</div>'; return; }
+  const todayISO = new Date().toISOString().split('T')[0];
+  if (!selectedCoordDay || selectedCoordDay === 'all') {
+    const groups = {};
+    services.forEach(s => { const f = s.properties?.['Fecha programada']?.date?.start || 'Sin fecha'; if (!groups[f]) groups[f] = []; groups[f].push(s); });
+    content.innerHTML = Object.entries(groups).map(([fecha, items]) => {
+      const isToday = fecha === todayISO;
+      const dateLabel = fecha === 'Sin fecha' ? 'Sin fecha' : new Date(fecha + 'T00:00:00').toLocaleDateString('es-UY', { weekday: 'long', day: 'numeric', month: 'short' });
+      return `<div class="day-group"><div class="day-label ${isToday ? 'today' : ''}">${isToday ? '📅 HOY — ' : ''}${dateLabel}</div>${items.map(s => coordServiceCard(s)).join('')}</div>`;
+    }).join('');
+  } else {
+    content.innerHTML = '<div style="height:8px"></div>' + services.map(s => coordServiceCard(s)).join('');
+  }
+}
+
+function coordServiceCard(s) {
+  const props = s.properties || {};
+  const nombre = props['Nombre del servicio']?.title?.[0]?.plain_text || 'Sin nombre';
+  const estado = props['Estado']?.select?.name || '';
+  const tipo = props['Tipo de servicio']?.select?.name || '';
+  const ops = (props['Operario(s)']?.people || []).map(p => p.name).join(', ') || '— sin asignar';
+  const jornadaN = props['Jornada N°']?.number;
+  const tipoReg = props['Tipo de registro']?.select?.name || '';
+  const esJornada = jornadaN != null || tipoReg.includes('Jornada');
+  const estadoClass = estado.includes('Completado') ? 'estado-completado' : estado.includes('En curso') ? 'estado-en-curso' : estado.includes('Asignado') ? 'estado-asignado' : 'estado-pendiente';
+  return `<div class="coord-service-card" style="cursor:pointer" onclick="openEditSheet('${s.id}')">
+    <div class="coord-service-name">${nombre}${esJornada && jornadaN != null ? ` <span style="color:var(--purple);font-size:12px">J${jornadaN}</span>` : ''}</div>
+    <div class="coord-service-meta"><span class="service-estado ${estadoClass}">${estado}</span>${tipo ? `<span class="coord-tag">${tipo}</span>` : ''}</div>
+    <div class="coord-ops">👤 ${ops}</div>
+  </div>`;
+}
+
+function openEditSheet(pageId) {
+  editingService = _coordAllServices.find(s => s.id === pageId);
+  if (!editingService) return;
+  const props = editingService.properties || {};
+  const nombre = props['Nombre del servicio']?.title?.[0]?.plain_text || 'Sin nombre';
+  const fecha = props['Fecha programada']?.date?.start || '';
+  const estadoActual = props['Estado']?.select?.name || '';
+  const opsActuales = (props['Operario(s)']?.people || []).map(p => p.id);
+  editState = { estado: estadoActual, operario: opsActuales[0] || null, fecha };
+  document.getElementById('edit-sheet-title').textContent = nombre;
+  document.getElementById('edit-sheet-sub').textContent = fecha ? new Date(fecha + 'T00:00:00').toLocaleDateString('es-UY', { weekday: 'long', day: 'numeric', month: 'long' }) : 'Sin fecha programada';
+  const estados = ['📋 Pendiente', '🔄 Asignado', '✈️ En curso', '✅ Completado', '❌ Cancelado'];
+  document.getElementById('edit-estado-btns').innerHTML = estados.map(e =>
+    `<button class="estado-btn ${editState.estado === e ? 'active' : ''}" onclick="selectEditEstado('${e}')">${e}</button>`
+  ).join('');
+  const validUsers = USERS.filter(u => !u.id.includes('PENDING'));
+  document.getElementById('edit-operario-btns').innerHTML =
+    `<button class="operario-btn ${!editState.operario ? 'active' : ''}" onclick="selectEditOperario(null, this)">— Sin asignar</button>` +
+    validUsers.map(u => `<button class="operario-btn ${editState.operario === u.id ? 'active' : ''}" onclick="selectEditOperario('${u.id}', this)">${u.emoji} ${u.name}</button>`).join('');
+  document.getElementById('edit-fecha').value = fecha;
+  document.getElementById('edit-save-btn').textContent = '💾 GUARDAR EN NOTION';
+  document.getElementById('edit-save-btn').disabled = false;
+  document.getElementById('edit-overlay').classList.add('open');
+}
+
+function overlayClick(e) { if (e.target.id === 'edit-overlay') closeEditSheet(); }
+function closeEditSheet() { document.getElementById('edit-overlay').classList.remove('open'); editingService = null; }
+function selectEditEstado(estado) {
+  editState.estado = estado;
+  document.querySelectorAll('.estado-btn').forEach(b => b.classList.toggle('active', b.textContent.trim() === estado));
+}
+function selectEditOperario(userId, el) {
+  editState.operario = userId;
+  document.querySelectorAll('.operario-btn').forEach(b => b.classList.remove('active'));
+  if (el) el.classList.add('active');
+}
+async function saveServiceEdit() {
+  const btn = document.getElementById('edit-save-btn');
+  btn.textContent = '⏳ Guardando...'; btn.disabled = true;
+  try {
+    const props = {};
+    if (editState.estado) props['Estado'] = { select: { name: editState.estado } };
+    if (editState.fecha) props['Fecha programada'] = { date: { start: editState.fecha } };
+    props['Operario(s)'] = editState.operario ? { people: [{ object: 'user', id: editState.operario }] } : { people: [] };
+    await updateServiceProps(editingService.id, props);
+    closeEditSheet();
+    await renderCoordServicios();
+  } catch (e) {
+    btn.textContent = '💾 GUARDAR EN NOTION'; btn.disabled = false;
+    alert('Error al guardar: ' + e.message);
+  }
+}
+
 async function renderCoordServicios() {
   const content = document.getElementById('coord-content');
   content.innerHTML = '<div style="text-align:center;padding:40px 0"><div class="spinner" style="margin:0 auto"></div></div>';
+  document.getElementById('coord-week-strip').style.display = 'flex';
   try {
-    const today = new Date();
-    today.setHours(0,0,0,0);
-    const nextWeek = new Date(today);
-    nextWeek.setDate(today.getDate() + 8);
-    const todayStr = today.toISOString().split('T')[0];
-    const nextWeekStr = nextWeek.toISOString().split('T')[0];
-
     const data = await callNotion('databases/ccaf276c-7f6a-460c-aeb3-d2800deab2e5/query', 'POST', {
-      filter: {
-        and: [
-          { property: 'Fecha programada', date: { on_or_after: todayStr } },
-          { property: 'Fecha programada', date: { before: nextWeekStr } },
-          { or: [
-            { property: 'Estado', select: { equals: '📋 Pendiente' } },
-            { property: 'Estado', select: { equals: '🔄 Asignado' } },
-            { property: 'Estado', select: { equals: '✈️ En curso' } }
-          ]}
-        ]
-      },
       sorts: [{ property: 'Fecha programada', direction: 'ascending' }]
     });
-
-    const services = data.results || [];
-    if (!services.length) {
-      content.innerHTML = '<div class="coord-empty">Sin servicios programados para los próximos 7 días.</div>';
-      return;
-    }
-
-    const groups = {};
-    services.forEach(s => {
-      const fecha = s.properties?.['Fecha programada']?.date?.start || 'Sin fecha';
-      if (!groups[fecha]) groups[fecha] = [];
-      groups[fecha].push(s);
-    });
-
-    const todayISO = today.toISOString().split('T')[0];
-    content.innerHTML = Object.entries(groups).map(([fecha, items]) => {
-      const isToday = fecha === todayISO;
-      const dateLabel = fecha === 'Sin fecha' ? 'Sin fecha' :
-        new Date(fecha + 'T00:00:00').toLocaleDateString('es-UY', { weekday: 'long', day: 'numeric', month: 'short' });
-
-      const cards = items.map(s => {
-        const props = s.properties || {};
-        const nombre = props['Nombre del servicio']?.title?.[0]?.plain_text || 'Sin nombre';
-        const estado = props['Estado']?.select?.name || '';
-        const tipo = props['Tipo de servicio']?.select?.name || '';
-        const ops = (props['Operario(s)']?.people || []).map(p => p.name).join(', ') || '— sin asignar';
-        const jornadaN = props['Jornada N°']?.number;
-        const tipoReg = props['Tipo de registro']?.select?.name || '';
-        const esJornada = jornadaN != null || tipoReg.includes('Jornada');
-        const estadoClass = estado.includes('En curso') ? 'estado-en-curso' :
-          estado.includes('Asignado') ? 'estado-asignado' : 'estado-pendiente';
-        return `<div class="coord-service-card">
-          <div class="coord-service-name">${nombre}${esJornada && jornadaN ? ' <span style="color:var(--purple);font-size:12px">J${jornadaN}</span>' : ''}</div>
-          <div class="coord-service-meta">
-            <span class="service-estado ${estadoClass}">${estado}</span>
-            ${tipo ? `<span class="coord-tag">${tipo}</span>` : ''}
-          </div>
-          <div class="coord-ops">👤 ${ops}</div>
-        </div>`;
-      }).join('');
-
-      return `<div class="day-group">
-        <div class="day-label ${isToday ? 'today' : ''}">${isToday ? '📅 HOY — ' : ''}${dateLabel}</div>
-        ${cards}
-      </div>`;
-    }).join('');
+    _coordAllServices = data.results || [];
+    if (!selectedCoordDay) selectedCoordDay = new Date().toISOString().split('T')[0];
+    renderWeekStrip(_coordAllServices);
+    renderCoordList();
   } catch (e) {
-    content.innerHTML = `<div class="coord-empty">Error al cargar servicios.<br><small>${e.message}</small></div>`;
+    content.innerHTML = `<div class="coord-empty">Error al cargar.<br><small>${e.message}</small></div>`;
   }
 }
 
