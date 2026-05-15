@@ -1740,42 +1740,99 @@ function getCEOMonthRange() {
   };
 }
 
+function buildFinanceChart(ingByMonth, gasByMonth, year, activeMonth) {
+  const months = Array.from({length:12}, (_, i) => year + '-' + String(i+1).padStart(2,'0'));
+  const ingVals = months.map(m => ingByMonth[m] || 0);
+  const gasVals = months.map(m => gasByMonth[m] || 0);
+  const maxVal  = Math.max(...ingVals, ...gasVals, 1);
+  const W=360, H=150, PL=36, PR=8, PT=10, PB=28;
+  const cW = W-PL-PR, cH = H-PT-PB;
+  const colW = cW/12, bW = colW*0.33;
+  const MN = ['E','F','M','A','M','J','J','A','S','O','N','D'];
+  const fmtY = v => v >= 1000 ? (v/1000).toFixed(0)+'k' : v.toFixed(0);
+
+  let s = '<svg viewBox="0 0 ' + W + ' ' + H + '" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;padding:0 0 4px">';
+
+  // Grid lines + Y labels
+  for (let i = 0; i <= 4; i++) {
+    const y = PT + cH*(1 - i/4);
+    s += '<line x1="' + PL + '" y1="' + y + '" x2="' + (W-PR) + '" y2="' + y + '" stroke="#1f1f1f" stroke-width="1"/>';
+    if (i > 0) s += '<text x="' + (PL-3) + '" y="' + (y+3) + '" text-anchor="end" font-size="7.5" fill="#444444" font-family="DM Sans,sans-serif">' + fmtY(maxVal*i/4) + '</text>';
+  }
+
+  // Bars
+  months.forEach((m, i) => {
+    const x  = PL + i*colW;
+    const iH = (ingVals[i]/maxVal)*cH;
+    const gH = (gasVals[i]/maxVal)*cH;
+    const isActive = m === activeMonth;
+    const bgOpacity = isActive ? '0.18' : '0';
+    if (isActive) s += '<rect x="' + (x+1) + '" y="' + PT + '" width="' + (colW-2) + '" height="' + cH + '" fill="white" fill-opacity="' + bgOpacity + '" rx="2"/>';
+    // income bar
+    if (iH > 0) s += '<rect x="' + (x+colW/2-bW-1) + '" y="' + (PT+cH-iH) + '" width="' + bW + '" height="' + iH + '" fill="#22c55e" rx="2" fill-opacity="' + (isActive?'1':'0.75') + '"/>';
+    // expense bar
+    if (gH > 0) s += '<rect x="' + (x+colW/2+1) + '" y="' + (PT+cH-gH) + '" width="' + bW + '" height="' + gH + '" fill="#ef4444" rx="2" fill-opacity="' + (isActive?'1':'0.75') + '"/>';
+    // month label
+    s += '<text x="' + (x+colW/2) + '" y="' + (H-PB+11) + '" text-anchor="middle" font-size="7.5" fill="' + (isActive?'#ffffff':'#444444') + '" font-family="DM Sans,sans-serif">' + MN[i] + '</text>';
+  });
+
+  // Legend
+  s += '<rect x="' + PL + '" y="' + (H-PB+16) + '" width="7" height="7" fill="#22c55e" rx="1"/>';
+  s += '<text x="' + (PL+9) + '" y="' + (H-PB+22) + '" font-size="7.5" fill="#888" font-family="DM Sans,sans-serif">Ingresos</text>';
+  s += '<rect x="' + (PL+55) + '" y="' + (H-PB+16) + '" width="7" height="7" fill="#ef4444" rx="1"/>';
+  s += '<text x="' + (PL+64) + '" y="' + (H-PB+22) + '" font-size="7.5" fill="#888" font-family="DM Sans,sans-serif">Gastos</text>';
+  s += '<text x="' + (W-PR) + '" y="' + (H-PB+22) + '" text-anchor="end" font-size="7.5" fill="#444" font-family="DM Sans,sans-serif">' + year + '</text>';
+
+  s += '</svg>';
+  return s;
+}
+
 async function renderCEOFinanzas() {
   const content = document.getElementById('ceo-content');
   content.innerHTML = '<div style="text-align:center;padding:40px 0"><div class="spinner" style="margin:0 auto"></div></div>';
   try {
     const fcf = getCEOFinanceFilter();
     const { start, end, label } = getCEOMonthRange();
-    const dateFilter = (extra) => ({ and: [ ...(extra ? [extra] : []), { property: 'Fecha', date: { on_or_after: start } }, { property: 'Fecha', date: { on_or_before: end } } ] });
-    const [ingData, gasData] = await Promise.all([
-      callNotion('databases/d1e15376e83a408a8a52f47da33c249a/query', 'POST', { filter: dateFilter(fcf) }),
-      callNotion('databases/1e20cdabad5d41528d070ed2f6e9dad3/query', 'POST', { filter: dateFilter(fcf) })
+    const now = new Date();
+    const yearStart = now.getFullYear() + '-01-01';
+    const yearEnd   = now.getFullYear() + '-12-31';
+    const mkFilter  = (s, e, extra) => ({ and: [ ...(extra ? [extra] : []), { property: 'Fecha', date: { on_or_after: s } }, { property: 'Fecha', date: { on_or_before: e } } ] });
+
+    const [ingData, gasData, ingYear, gasYear] = await Promise.all([
+      callNotion('databases/d1e15376e83a408a8a52f47da33c249a/query', 'POST', { filter: mkFilter(start, end, fcf) }),
+      callNotion('databases/1e20cdabad5d41528d070ed2f6e9dad3/query', 'POST', { filter: mkFilter(start, end, fcf) }),
+      callNotion('databases/d1e15376e83a408a8a52f47da33c249a/query', 'POST', { filter: mkFilter(yearStart, yearEnd, fcf) }),
+      callNotion('databases/1e20cdabad5d41528d070ed2f6e9dad3/query', 'POST', { filter: mkFilter(yearStart, yearEnd, fcf) })
     ]);
-    const ingresos = (ingData.results || []).reduce((s, r) => s + (r.properties?.['Monto USD']?.number || 0), 0);
-    const gastos   = (gasData.results || []).reduce((s, r) => s + (r.properties?.['Monto USD']?.number || 0), 0);
+
+    // Group annual data by month for chart
+    const ingByMonth = {}, gasByMonth = {};
+    (ingYear.results || []).forEach(r => { const m = (r.properties?.['Fecha']?.date?.start || '').substring(0,7); if (m) ingByMonth[m] = (ingByMonth[m]||0) + (r.properties?.['Monto USD']?.number||0); });
+    (gasYear.results || []).forEach(r => { const m = (r.properties?.['Fecha']?.date?.start || '').substring(0,7); if (m) gasByMonth[m] = (gasByMonth[m]||0) + (r.properties?.['Monto USD']?.number||0); });
+
+    // Monthly totals
+    const ingresos = (ingData.results||[]).reduce((s,r) => s + (r.properties?.['Monto USD']?.number||0), 0);
+    const gastos   = (gasData.results||[]).reduce((s,r) => s + (r.properties?.['Monto USD']?.number||0), 0);
     const balance  = ingresos - gastos;
-    const fmt = (n) => '$' + Math.abs(n).toLocaleString('es-UY', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-    const gasByCateg = {};
-    (gasData.results || []).forEach(r => { const cat = r.properties?.['Categoría']?.select?.name || 'Otros'; gasByCateg[cat] = (gasByCateg[cat] || 0) + (r.properties?.['Monto USD']?.number || 0); });
-    const ingByTipo = {};
-    (ingData.results || []).forEach(r => { const tipo = r.properties?.['Tipo']?.select?.name || 'Otros'; ingByTipo[tipo] = (ingByTipo[tipo] || 0) + (r.properties?.['Monto USD']?.number || 0); });
+    const fmt = n => '$' + Math.abs(n).toLocaleString('es-UY', {minimumFractionDigits:0,maximumFractionDigits:0});
+    const gasByCateg = {}, ingByTipo = {};
+    (gasData.results||[]).forEach(r => { const k = r.properties?.['Categoría']?.select?.name||'Otros'; gasByCateg[k]=(gasByCateg[k]||0)+(r.properties?.['Monto USD']?.number||0); });
+    (ingData.results||[]).forEach(r => { const k = r.properties?.['Tipo']?.select?.name||'Otros'; ingByTipo[k]=(ingByTipo[k]||0)+(r.properties?.['Monto USD']?.number||0); });
+
     content.innerHTML =
-      `<div class="finance-month-nav">
-        <button class="month-nav-btn" onclick="changeCEOMonth(-1)">‹</button>
-        <div class="finance-month-label">${label}</div>
-        <button class="month-nav-btn" onclick="changeCEOMonth(1)">›</button>
-      </div>
-      <div class="finance-summary">
-        <div class="finance-card"><div class="finance-card-label">INGRESOS</div><div class="finance-card-value ingreso">${fmt(ingresos)}</div></div>
-        <div class="finance-card"><div class="finance-card-label">GASTOS</div><div class="finance-card-value gasto">${fmt(gastos)}</div></div>
-        <div class="finance-card"><div class="finance-card-label">BALANCE</div><div class="finance-card-value balance ${balance >= 0 ? 'pos' : 'neg'}">${balance < 0 ? '-' : ''}${fmt(balance)}</div></div>
-      </div>
-      <div class="ceo-section-title">INGRESOS POR TIPO</div>
-      ${Object.entries(ingByTipo).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<div class="finance-row"><span class="finance-row-label">${k}</span><span class="finance-row-value" style="color:var(--green)">${fmt(v)}</span></div>`).join('') || '<div class="coord-empty" style="padding:12px 16px;font-size:13px">Sin ingresos registrados</div>'}
-      <div class="ceo-section-title">GASTOS POR CATEGORÍA</div>
-      ${Object.entries(gasByCateg).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<div class="finance-row"><span class="finance-row-label">${k}</span><span class="finance-row-value" style="color:var(--red)">${fmt(v)}</span></div>`).join('') || '<div class="coord-empty" style="padding:12px 16px;font-size:13px">Sin gastos registrados</div>'}`;
+      '<div style="padding:12px 14px 4px">' + buildFinanceChart(ingByMonth, gasByMonth, now.getFullYear(), start.substring(0,7)) + '</div>' +
+      '<div class="finance-month-nav"><button class="month-nav-btn" onclick="changeCEOMonth(-1)">‹</button><div class="finance-month-label">' + label + '</div><button class="month-nav-btn" onclick="changeCEOMonth(1)">›</button></div>' +
+      '<div class="finance-summary">' +
+        '<div class="finance-card"><div class="finance-card-label">INGRESOS</div><div class="finance-card-value ingreso">' + fmt(ingresos) + '</div></div>' +
+        '<div class="finance-card"><div class="finance-card-label">GASTOS</div><div class="finance-card-value gasto">' + fmt(gastos) + '</div></div>' +
+        '<div class="finance-card"><div class="finance-card-label">BALANCE</div><div class="finance-card-value balance ' + (balance>=0?'pos':'neg') + '">' + (balance<0?'-':'') + fmt(balance) + '</div></div>' +
+      '</div>' +
+      '<div class="ceo-section-title">INGRESOS POR TIPO</div>' +
+      (Object.entries(ingByTipo).sort((a,b)=>b[1]-a[1]).map(([k,v])=>'<div class="finance-row"><span class="finance-row-label">'+k+'</span><span class="finance-row-value" style="color:var(--green)">'+fmt(v)+'</span></div>').join('') || '<div class="coord-empty" style="padding:12px 16px;font-size:13px">Sin ingresos registrados</div>') +
+      '<div class="ceo-section-title">GASTOS POR CATEGORÍA</div>' +
+      (Object.entries(gasByCateg).sort((a,b)=>b[1]-a[1]).map(([k,v])=>'<div class="finance-row"><span class="finance-row-label">'+k+'</span><span class="finance-row-value" style="color:var(--red)">'+fmt(v)+'</span></div>').join('') || '<div class="coord-empty" style="padding:12px 16px;font-size:13px">Sin gastos registrados</div>');
   } catch (e) {
-    content.innerHTML = `<div class="coord-empty">Error al cargar finanzas.<br><small>${e.message}</small></div>`;
+    content.innerHTML = '<div class="coord-empty">Error al cargar finanzas.<br><small>' + e.message + '</small></div>';
   }
 }
 
