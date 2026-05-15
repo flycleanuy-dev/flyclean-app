@@ -392,7 +392,7 @@
 // ─────────────────────────────────────────────
 // CONFIG — usando tu Notion real
 // ─────────────────────────────────────────────
-const DB_ID = '2fbc8a03-5c4f-445c-8516-71dd9b2eea78';
+const DB_ID = 'ccaf276c-7f6a-460c-aeb3-d2800deab2e5';
 const USERS = [
   {
     id: 'cc532d5c-047c-4425-88d2-62065fe49c12',
@@ -496,7 +496,21 @@ async function getMyServices(userId) {
     },
     sorts: [{ property: 'Fecha programada', direction: 'ascending' }]
   });
-  return data.results || [];
+
+  const validStates = ['📋 Pendiente', '🔄 Asignado', '✈️ En curso'];
+  let results = (data.results || []).filter(r => {
+    const estado = r.properties?.['Estado']?.select?.name || '';
+    const operarios = r.properties?.['Operario(s)']?.people || [];
+    return validStates.includes(estado) && operarios.some(p => p.id === userId);
+  });
+
+  results.sort((a, b) => {
+    const a1 = a.properties?.['Fecha programada']?.date?.start || '';
+    const b1 = b.properties?.['Fecha programada']?.date?.start || '';
+    return a1.localeCompare(b1);
+  });
+
+  return results;
 }
 
 async function updateServiceProps(pageId, properties) {
