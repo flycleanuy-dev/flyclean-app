@@ -1567,7 +1567,7 @@ async function renderCoordServicios() {
 function openNewPropSheet() {
   propSheetMode = 'create';
   editingProp = null;
-  propEditState = { nombre: '', estado: '🆕 Nuevo lead', pais: '🇺🇾 Uruguay', tipo: '', aprobacion: '⏳ Pendiente', importe: '', fechaEnvio: '', ultimaInt: new Date().toISOString().split('T')[0], obs: '' };
+  propEditState = { nombre: '', estado: '🆕 Nuevo lead', pais: '🇺🇾 Uruguay', tipo: '', aprobacion: '⏳ Pendiente', importe: '', fechaEnvio: '', ultimaInt: new Date().toISOString().split('T')[0], obs: '', fechaServicio: '' };
 
   document.getElementById('prop-sheet-title').textContent = 'Nueva Propuesta';
   document.getElementById('prop-sheet-sub').textContent = 'Se creará en Notion al guardar';
@@ -1597,7 +1597,12 @@ function openNewPropSheet() {
     `<div class="edit-section"><div class="edit-section-label">ÚLTIMA INTERACCIÓN</div>
       <input type="date" class="edit-date-input" value="${propEditState.ultimaInt}" onchange="propEditState.ultimaInt=this.value"/></div>` +
     `<div class="edit-section" style="padding-bottom:0"><div class="edit-section-label">OBSERVACIONES</div>
-      <textarea class="edit-date-input" rows="3" style="resize:none;height:80px" placeholder="Notas sobre la propuesta..." oninput="propEditState.obs=this.value"></textarea></div>`;
+      <textarea class="edit-date-input" rows="3" style="resize:none;height:80px" placeholder="Notas sobre la propuesta..." oninput="propEditState.obs=this.value"></textarea></div>` +
+    `<div class="edit-section" style="background:var(--green-dark);border:1px solid var(--green);border-radius:var(--radius-sm);margin-top:4px">
+      <div class="edit-section-label" style="color:var(--green)">📅 FECHA DEL SERVICIO</div>
+      <div style="font-size:11px;color:var(--green-light);margin-bottom:8px">Si el estado es ✅ Aceptada y ponés fecha, se crea el servicio automáticamente en el tab Servicios.</div>
+      <input type="date" class="edit-date-input" onchange="propEditState.fechaServicio=this.value" style="border-color:var(--green)"/>
+    </div>`;
 
   const btn = document.getElementById('prop-save-btn');
   btn.textContent = '✨ CREAR EN NOTION';
@@ -1684,6 +1689,16 @@ async function savePropEdit() {
       if (propEditState.ultimaInt) props['Última interacción'] = { date: { start: propEditState.ultimaInt } };
       if (propEditState.obs) props['Observaciones'] = { rich_text: [{ text: { content: propEditState.obs } }] };
       await callNotion('pages', 'POST', { parent: { database_id: '2c0a4257-f429-4941-b994-dfebc1098633' }, properties: props });
+      if (propEditState.estado === '✅ Aceptada' && propEditState.fechaServicio) {
+        await callNotion('pages', 'POST', {
+          parent: { database_id: 'ccaf276c-7f6a-460c-aeb3-d2800deab2e5' },
+          properties: {
+            'Nombre del servicio': { title: [{ text: { content: propEditState.nombre.trim() } }] },
+            'Fecha programada': { date: { start: propEditState.fechaServicio } },
+            'Estado': { select: { name: '📋 Pendiente' } }
+          }
+        });
+      }
     } else {
       const props = {};
       if (propEditState.estado) props['Estado pipeline'] = { select: { name: propEditState.estado } };
