@@ -349,6 +349,20 @@
   .coord-service-meta { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
   .coord-tag { font-size: 11px; color: var(--text3); background: var(--bg); padding: 2px 7px; border-radius: 5px; }
   .coord-ops { font-size: 11px; color: var(--text2); margin-top: 6px; }
+  .contact-search-wrap { padding: 10px 16px 0; }
+  .contact-search { width: 100%; padding: 10px 14px; background: var(--card); border: 1px solid var(--border2); border-radius: var(--radius-sm); color: var(--text); font-size: 14px; font-family: 'DM Sans', sans-serif; outline: none; }
+  .contact-search:focus { border-color: var(--green); }
+  .contact-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 14px; margin: 8px 16px 0; cursor: pointer; }
+  .contact-card:active { border-color: var(--green); }
+  .contact-name { font-size: 14px; font-weight: 600; margin-bottom: 6px; }
+  .contact-badges { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 6px; }
+  .contact-estado { font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 20px; background: rgba(59,130,246,0.12); color: var(--blue); }
+  .contact-estado.activo { background: rgba(34,197,94,0.12); color: var(--green); }
+  .contact-estado.inactivo { background: rgba(85,85,85,0.3); color: var(--text3); }
+  .contact-detail { font-size: 12px; color: var(--text2); margin-top:3px; }
+  .multi-toggle-grid { display: flex; flex-wrap: wrap; gap: 7px; }
+  .multi-toggle-btn { padding: 8px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border); font-size: 12px; font-weight: 500; cursor: pointer; background: var(--bg); color: var(--text2); font-family: 'DM Sans', sans-serif; transition: all 0.15s; }
+  .multi-toggle-btn.active { background: var(--green-dark); border-color: var(--green); color: var(--green); }
   .prop-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 14px; margin: 8px 16px 0; }
   .prop-nombre { font-size: 14px; font-weight: 600; margin-bottom: 6px; }
   .prop-meta { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 4px; }
@@ -496,6 +510,7 @@
   <div class="coord-tab-bar">
     <div class="coord-tab active" id="ctab-servicios" onclick="setCoordTab('servicios')">📋 Servicios</div>
     <div class="coord-tab" id="ctab-propuestas" onclick="setCoordTab('propuestas')">💼 Propuestas</div>
+    <div class="coord-tab" id="ctab-contactos" onclick="setCoordTab('contactos')">👥 Contactos</div>
   </div>
   <div class="month-nav" id="coord-month-nav">
     <button class="month-nav-btn" onclick="changeCoordMonth(-1)">‹</button>
@@ -537,6 +552,17 @@
       </div>
       <div id="prop-sheet-body"></div>
       <button class="edit-save-btn" id="prop-save-btn" onclick="savePropEdit()">💾 GUARDAR EN NOTION</button>
+    </div>
+  </div>
+  <div class="edit-overlay" id="contact-overlay" onclick="contactOverlayClick(event)">
+    <div class="edit-sheet" id="contact-sheet">
+      <div class="edit-sheet-handle"></div>
+      <div class="edit-sheet-header">
+        <div class="edit-sheet-title" id="contact-sheet-title">Contacto</div>
+        <div class="edit-sheet-sub" id="contact-sheet-sub"></div>
+      </div>
+      <div id="contact-sheet-body"></div>
+      <button class="edit-save-btn" id="contact-save-btn" onclick="saveContactEdit()">💾 GUARDAR EN NOTION</button>
     </div>
   </div>
 </div>
@@ -660,6 +686,10 @@ let coordMonthOffset = 0;
 let _coordAllServices = [];
 let _operarioOptions = null;
 let _coordAllProps = [];
+let _coordAllContacts = [];
+let editingContact = null;
+let contactSheetMode = 'edit';
+let contactEditState = {};
 let editingService = null;
 let editState = {};
 let editingProp = null;
@@ -834,7 +864,7 @@ function setTab(tab) {
 
 function setCoordTab(tab) {
   activeCoordTab = tab;
-  ['servicios', 'propuestas'].forEach(t => {
+  ['servicios', 'propuestas', 'contactos'].forEach(t => {
     document.getElementById('ctab-' + t).classList.toggle('active', t === tab);
   });
   const strip = document.getElementById('coord-week-strip');
@@ -842,7 +872,8 @@ function setCoordTab(tab) {
   const monthNav = document.getElementById('coord-month-nav');
   if (monthNav) monthNav.classList.toggle('visible', tab === 'servicios');
   if (tab === 'servicios') renderCoordServicios();
-  else renderCoordPropuestas();
+  else if (tab === 'propuestas') renderCoordPropuestas();
+  else renderCoordContactos();
 }
 
 function logout() {
@@ -1716,6 +1747,214 @@ async function savePropEdit() {
     await renderCoordPropuestas();
   } catch (e) {
     btn.textContent = propSheetMode === 'create' ? '✨ CREAR EN NOTION' : '💾 GUARDAR EN NOTION';
+    btn.disabled = false;
+    alert('Error al guardar: ' + e.message);
+  }
+}
+
+// ─────────────────────────────────────────────
+// CONTACTOS
+// ─────────────────────────────────────────────
+async function renderCoordContactos() {
+  const content = document.getElementById('coord-content');
+  content.innerHTML = '<div style="text-align:center;padding:40px 0"><div class="spinner" style="margin:0 auto"></div></div>';
+  try {
+    const data = await callNotion('databases/250115612de74e0582366549bbe5e389/query', 'POST', {
+      sorts: [{ property: 'Nombre / Empresa', direction: 'ascending' }]
+    });
+    _coordAllContacts = data.results || [];
+    renderContactList(_coordAllContacts);
+  } catch (e) {
+    content.innerHTML = `<div class="coord-empty">Error al cargar contactos.<br><small>${e.message}</small></div>`;
+  }
+}
+
+function renderContactList(contacts) {
+  const content = document.getElementById('coord-content');
+  const searchVal = document.getElementById('contact-search-input')?.value?.toLowerCase() || '';
+  const filtered = searchVal
+    ? contacts.filter(c => (c.properties?.['Nombre / Empresa']?.title?.[0]?.plain_text || '').toLowerCase().includes(searchVal))
+    : contacts;
+
+  const listHTML = filtered.length
+    ? filtered.map(c => coordContactCard(c)).join('')
+    : '<div class="coord-empty" style="margin-top:0">Sin resultados.</div>';
+
+  content.innerHTML =
+    `<div class="contact-search-wrap"><input class="contact-search" id="contact-search-input" type="text" placeholder="🔍  Buscar contacto..." oninput="filterContacts(this.value)" value="${searchVal}"/></div>` +
+    `<div style="padding:10px 16px 0"><button class="nueva-prop-btn" onclick="openNewContactSheet()">+ Nuevo Contacto</button></div>` +
+    `<div style="height:4px"></div>` + listHTML;
+}
+
+function filterContacts(val) {
+  const lower = val.toLowerCase();
+  const filtered = lower
+    ? _coordAllContacts.filter(c => {
+        const nombre = (c.properties?.['Nombre / Empresa']?.title?.[0]?.plain_text || '').toLowerCase();
+        const ciudad = (c.properties?.['Ciudad / Zona']?.rich_text?.[0]?.plain_text || '').toLowerCase();
+        return nombre.includes(lower) || ciudad.includes(lower);
+      })
+    : _coordAllContacts;
+  const content = document.getElementById('coord-content');
+  const existing = content.querySelectorAll('.contact-card, .coord-empty');
+  existing.forEach(el => el.remove());
+  const html = filtered.length
+    ? filtered.map(c => coordContactCard(c)).join('')
+    : '<div class="coord-empty" style="margin-top:8px">Sin resultados.</div>';
+  content.insertAdjacentHTML('beforeend', html);
+}
+
+function coordContactCard(c) {
+  const props = c.properties || {};
+  const nombre = props['Nombre / Empresa']?.title?.[0]?.plain_text || 'Sin nombre';
+  const estado = props['Estado']?.select?.name || '';
+  const tipo = props['Tipo de cliente']?.select?.name || '';
+  const pais = props['País']?.select?.name || '';
+  const tel = props['Teléfono / WhatsApp']?.phone_number || '';
+  const email = props['Email']?.email || '';
+  const servicios = (props['Servicio de interés']?.multi_select || []).map(s => s.name).join(' · ');
+  const estadoClass = estado.includes('activo') ? 'activo' : estado.includes('Inactivo') ? 'inactivo' : '';
+  return `<div class="contact-card" onclick="openContactSheet('${c.id}')">
+    <div class="contact-name">${nombre}</div>
+    <div class="contact-badges">
+      ${estado ? `<span class="contact-estado ${estadoClass}">${estado}</span>` : ''}
+      ${tipo ? `<span class="coord-tag">${tipo}</span>` : ''}
+      ${pais ? `<span class="coord-tag">${pais}</span>` : ''}
+    </div>
+    ${servicios ? `<div class="contact-detail">🛠 ${servicios}</div>` : ''}
+    ${tel ? `<div class="contact-detail">📞 ${tel}</div>` : ''}
+    ${email ? `<div class="contact-detail">✉️ ${email}</div>` : ''}
+  </div>`;
+}
+
+function buildContactSheetBody(mode) {
+  const s = contactEditState;
+  const ESTADOS = ['🆕 Lead', '✅ Cliente activo', '⏸️ Inactivo'];
+  const TIPOS = ['🏢 Administración', '🏗️ Constructora', '🏠 Particular'];
+  const PAISES = ['🇺🇾 Uruguay', '🇧🇷 Brasil', '🇵🇦 Panamá', '🇬🇹 Guatemala'];
+  const CANALES = ['💬 WhatsApp', '📱 Redes sociales', '🤝 Recomendación', '🚶 Captación proactiva', '📧 Email'];
+  const SERVICIOS = ['🏢 Fachada', '🪟 Vidrios', '☀️ Paneles solares'];
+
+  function btnGroup(label, key, options) {
+    return `<div class="edit-section"><div class="edit-section-label">${label}</div><div class="estado-btns">${
+      options.map(o => `<button class="estado-btn ${s[key] === o ? 'active' : ''}" onclick="contactSetField('${key}',this,'${o.replace(/'/g,"\\'")}')">${o}</button>`).join('')
+    }</div></div>`;
+  }
+
+  function multiGroup(label, key, options) {
+    const arr = s[key] || [];
+    return `<div class="edit-section"><div class="edit-section-label">${label}</div><div class="multi-toggle-grid">${
+      options.map(o => `<button class="multi-toggle-btn ${arr.includes(o) ? 'active' : ''}" onclick="contactToggleMulti('${key}',this,'${o.replace(/'/g,"\\'")}')">${o}</button>`).join('')
+    }</div></div>`;
+  }
+
+  return (mode === 'create'
+    ? `<div class="edit-section"><div class="edit-section-label">NOMBRE / EMPRESA *</div>
+        <input type="text" class="edit-date-input" placeholder="Ej: Torre del Parque" value="${s.nombre || ''}" oninput="contactEditState.nombre=this.value" style="font-size:14px"/></div>`
+    : '') +
+    btnGroup('ESTADO', 'estado', ESTADOS) +
+    btnGroup('TIPO DE CLIENTE', 'tipo', TIPOS) +
+    btnGroup('PAÍS', 'pais', PAISES) +
+    btnGroup('CANAL DE CAPTACIÓN', 'canal', CANALES) +
+    multiGroup('SERVICIO DE INTERÉS', 'servicios', SERVICIOS) +
+    `<div class="edit-section"><div class="edit-section-label">TELÉFONO / WHATSAPP</div>
+      <input type="tel" class="edit-date-input" placeholder="+598 9X XXX XXX" value="${s.tel || ''}" oninput="contactEditState.tel=this.value"/></div>` +
+    `<div class="edit-section"><div class="edit-section-label">EMAIL</div>
+      <input type="email" class="edit-date-input" placeholder="contacto@empresa.com" value="${s.email || ''}" oninput="contactEditState.email=this.value"/></div>` +
+    `<div class="edit-section"><div class="edit-section-label">CIUDAD / ZONA</div>
+      <input type="text" class="edit-date-input" placeholder="Ej: Punta del Este" value="${s.ciudad || ''}" oninput="contactEditState.ciudad=this.value"/></div>` +
+    `<div class="edit-section"><div class="edit-section-label">INTERLOCUTOR</div>
+      <input type="text" class="edit-date-input" placeholder="Nombre del encargado" value="${s.interlocutor || ''}" oninput="contactEditState.interlocutor=this.value"/></div>` +
+    `<div class="edit-section" style="padding-bottom:0"><div class="edit-section-label">NOTAS</div>
+      <textarea class="edit-date-input" rows="3" style="resize:none;height:80px" placeholder="Observaciones..." oninput="contactEditState.notas=this.value">${s.notas || ''}</textarea></div>`;
+}
+
+function openContactSheet(pageId) {
+  contactSheetMode = 'edit';
+  editingContact = _coordAllContacts.find(c => c.id === pageId);
+  if (!editingContact) return;
+  const props = editingContact.properties || {};
+  contactEditState = {
+    estado: props['Estado']?.select?.name || '',
+    tipo: props['Tipo de cliente']?.select?.name || '',
+    pais: props['País']?.select?.name || '',
+    canal: props['Canal de captación']?.select?.name || '',
+    servicios: (props['Servicio de interés']?.multi_select || []).map(s => s.name),
+    tel: props['Teléfono / WhatsApp']?.phone_number || '',
+    email: props['Email']?.email || '',
+    ciudad: props['Ciudad / Zona']?.rich_text?.[0]?.plain_text || '',
+    interlocutor: props['Interlocutor']?.rich_text?.[0]?.plain_text || '',
+    notas: props['Notas']?.rich_text?.[0]?.plain_text || ''
+  };
+  const nombre = props['Nombre / Empresa']?.title?.[0]?.plain_text || 'Sin nombre';
+  document.getElementById('contact-sheet-title').textContent = nombre;
+  document.getElementById('contact-sheet-sub').textContent = contactEditState.tipo || 'Contacto';
+  document.getElementById('contact-sheet-body').innerHTML = buildContactSheetBody('edit');
+  const btn = document.getElementById('contact-save-btn');
+  btn.textContent = '💾 GUARDAR EN NOTION'; btn.disabled = false;
+  document.getElementById('contact-overlay').classList.add('open');
+}
+
+function openNewContactSheet() {
+  contactSheetMode = 'create';
+  editingContact = null;
+  contactEditState = { nombre: '', estado: '🆕 Lead', tipo: '', pais: '🇺🇾 Uruguay', canal: '', servicios: [], tel: '', email: '', ciudad: '', interlocutor: '', notas: '' };
+  document.getElementById('contact-sheet-title').textContent = 'Nuevo Contacto';
+  document.getElementById('contact-sheet-sub').textContent = 'Se creará en Notion al guardar';
+  document.getElementById('contact-sheet-body').innerHTML = buildContactSheetBody('create');
+  const btn = document.getElementById('contact-save-btn');
+  btn.textContent = '✨ CREAR EN NOTION'; btn.disabled = false;
+  document.getElementById('contact-overlay').classList.add('open');
+}
+
+function contactSetField(key, el, val) {
+  contactEditState[key] = val;
+  el.closest('.estado-btns').querySelectorAll('.estado-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+}
+
+function contactToggleMulti(key, el, val) {
+  const arr = contactEditState[key] || [];
+  const idx = arr.indexOf(val);
+  if (idx === -1) arr.push(val); else arr.splice(idx, 1);
+  contactEditState[key] = arr;
+  el.classList.toggle('active', arr.includes(val));
+}
+
+function contactOverlayClick(e) { if (e.target.id === 'contact-overlay') closeContactSheet(); }
+function closeContactSheet() { document.getElementById('contact-overlay').classList.remove('open'); editingContact = null; }
+
+async function saveContactEdit() {
+  const btn = document.getElementById('contact-save-btn');
+  btn.textContent = '⏳ Guardando...'; btn.disabled = true;
+  try {
+    const s = contactEditState;
+    const props = {};
+    if (s.estado) props['Estado'] = { select: { name: s.estado } };
+    if (s.tipo) props['Tipo de cliente'] = { select: { name: s.tipo } };
+    if (s.pais) props['País'] = { select: { name: s.pais } };
+    if (s.canal) props['Canal de captación'] = { select: { name: s.canal } };
+    props['Servicio de interés'] = { multi_select: s.servicios.map(n => ({ name: n })) };
+    props['Teléfono / WhatsApp'] = { phone_number: s.tel || null };
+    props['Email'] = { email: s.email || null };
+    props['Ciudad / Zona'] = { rich_text: s.ciudad ? [{ text: { content: s.ciudad } }] : [] };
+    props['Interlocutor'] = { rich_text: s.interlocutor ? [{ text: { content: s.interlocutor } }] : [] };
+    props['Notas'] = { rich_text: s.notas ? [{ text: { content: s.notas } }] : [] };
+
+    if (contactSheetMode === 'create') {
+      if (!s.nombre.trim()) {
+        btn.textContent = '✨ CREAR EN NOTION'; btn.disabled = false;
+        alert('El nombre es obligatorio.'); return;
+      }
+      props['Nombre / Empresa'] = { title: [{ text: { content: s.nombre.trim() } }] };
+      await callNotion('pages', 'POST', { parent: { database_id: '250115612de74e0582366549bbe5e389' }, properties: props });
+    } else {
+      await updateServiceProps(editingContact.id, props);
+    }
+    closeContactSheet();
+    await renderCoordContactos();
+  } catch (e) {
+    btn.textContent = contactSheetMode === 'create' ? '✨ CREAR EN NOTION' : '💾 GUARDAR EN NOTION';
     btn.disabled = false;
     alert('Error al guardar: ' + e.message);
   }
