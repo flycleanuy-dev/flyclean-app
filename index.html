@@ -516,6 +516,17 @@
       <button class="edit-save-btn" id="edit-save-btn" onclick="saveServiceEdit()">💾 GUARDAR EN NOTION</button>
     </div>
   </div>
+  <div class="edit-overlay" id="prop-overlay" onclick="propOverlayClick(event)">
+    <div class="edit-sheet" id="prop-sheet">
+      <div class="edit-sheet-handle"></div>
+      <div class="edit-sheet-header">
+        <div class="edit-sheet-title" id="prop-sheet-title">Propuesta</div>
+        <div class="edit-sheet-sub" id="prop-sheet-sub"></div>
+      </div>
+      <div id="prop-sheet-body"></div>
+      <button class="edit-save-btn" id="prop-save-btn" onclick="savePropEdit()">💾 GUARDAR EN NOTION</button>
+    </div>
+  </div>
 </div>
 
 <div class="screen" id="screen-detail">
@@ -618,8 +629,11 @@ let _allServices = [];
 let activeCoordTab = 'servicios';
 let selectedCoordDay = null;
 let _coordAllServices = [];
+let _coordAllProps = [];
 let editingService = null;
 let editState = {};
+let editingProp = null;
+let propEditState = {};
 let pinBuffer = '';
 let pinUser = null;
 
@@ -1462,6 +1476,87 @@ async function renderCoordServicios() {
   }
 }
 
+function openPropSheet(pageId) {
+  editingProp = _coordAllProps.find(p => p.id === pageId);
+  if (!editingProp) return;
+  const props = editingProp.properties || {};
+  const nombre = props['Nombre de propuesta']?.title?.[0]?.plain_text || 'Sin nombre';
+  const estado = props['Estado pipeline']?.select?.name || '';
+  const pais = props['País']?.select?.name || '';
+  const tipo = props['Tipo']?.select?.name || '';
+  const aprobacion = props['Aprobación interna']?.select?.name || '';
+  const importe = props['Importe estimado']?.number ?? '';
+  const fechaEnvio = props['Fecha de envío']?.date?.start || '';
+  const ultimaInt = props['Última interacción']?.date?.start || '';
+  const obs = props['Observaciones']?.rich_text?.[0]?.plain_text || '';
+
+  propEditState = { estado, pais, tipo, aprobacion, importe, fechaEnvio, ultimaInt, obs };
+
+  document.getElementById('prop-sheet-title').textContent = nombre;
+  document.getElementById('prop-sheet-sub').textContent = pais || 'Propuesta / Presupuesto';
+
+  const PIPELINE = ['🆕 Nuevo lead','📞 Contactado','🔍 Relevamiento','⏳ En preparación','✅ Aprobada internamente','📤 Enviada al cliente','🤝 Negociando','✅ Aceptada','❌ Rechazada','😶 Sin respuesta','🔄 Reactivo'];
+  const PAISES = ['🇺🇾 Uruguay','🇧🇷 Brasil','🇵🇦 Panamá','🇬🇹 Guatemala'];
+  const TIPOS = ['📌 Puntual','🔄 Recurrente'];
+  const APROBACIONES = ['⏳ Pendiente','✅ Aprobada','🔁 Revisar'];
+
+  function btnGroup(label, key, options) {
+    return `<div class="edit-section"><div class="edit-section-label">${label}</div><div class="estado-btns">${
+      options.map(o => `<button class="estado-btn ${propEditState[key] === o ? 'active' : ''}" onclick="propSetField('${key}',this,'${o.replace(/'/g,"\\'")}')">${o}</button>`).join('')
+    }</div></div>`;
+  }
+
+  document.getElementById('prop-sheet-body').innerHTML =
+    btnGroup('ESTADO PIPELINE', 'estado', PIPELINE) +
+    btnGroup('PAÍS', 'pais', PAISES) +
+    btnGroup('TIPO', 'tipo', TIPOS) +
+    btnGroup('APROBACIÓN INTERNA', 'aprobacion', APROBACIONES) +
+    `<div class="edit-section"><div class="edit-section-label">IMPORTE ESTIMADO (USD)</div>
+      <input type="number" class="edit-date-input" value="${importe}" placeholder="Ej: 5000" step="100" oninput="propEditState.importe=this.value"/></div>` +
+    `<div class="edit-section"><div class="edit-section-label">FECHA DE ENVÍO</div>
+      <input type="date" class="edit-date-input" value="${fechaEnvio}" onchange="propEditState.fechaEnvio=this.value"/></div>` +
+    `<div class="edit-section"><div class="edit-section-label">ÚLTIMA INTERACCIÓN</div>
+      <input type="date" class="edit-date-input" value="${ultimaInt}" onchange="propEditState.ultimaInt=this.value"/></div>` +
+    `<div class="edit-section" style="padding-bottom:0"><div class="edit-section-label">OBSERVACIONES</div>
+      <textarea class="edit-date-input" rows="3" style="resize:none;height:80px" placeholder="Notas sobre la propuesta..." oninput="propEditState.obs=this.value">${obs}</textarea></div>`;
+
+  const btn = document.getElementById('prop-save-btn');
+  btn.textContent = '💾 GUARDAR EN NOTION';
+  btn.disabled = false;
+  document.getElementById('prop-overlay').classList.add('open');
+}
+
+function propSetField(key, el, val) {
+  propEditState[key] = val;
+  el.closest('.estado-btns').querySelectorAll('.estado-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+}
+
+function propOverlayClick(e) { if (e.target.id === 'prop-overlay') closePropSheet(); }
+function closePropSheet() { document.getElementById('prop-overlay').classList.remove('open'); editingProp = null; }
+
+async function savePropEdit() {
+  const btn = document.getElementById('prop-save-btn');
+  btn.textContent = '⏳ Guardando...'; btn.disabled = true;
+  try {
+    const props = {};
+    if (propEditState.estado) props['Estado pipeline'] = { select: { name: propEditState.estado } };
+    if (propEditState.pais) props['País'] = { select: { name: propEditState.pais } };
+    if (propEditState.tipo) props['Tipo'] = { select: { name: propEditState.tipo } };
+    if (propEditState.aprobacion) props['Aprobación interna'] = { select: { name: propEditState.aprobacion } };
+    if (propEditState.importe !== '') props['Importe estimado'] = { number: parseFloat(propEditState.importe) || null };
+    if (propEditState.fechaEnvio) props['Fecha de envío'] = { date: { start: propEditState.fechaEnvio } };
+    if (propEditState.ultimaInt) props['Última interacción'] = { date: { start: propEditState.ultimaInt } };
+    props['Observaciones'] = { rich_text: propEditState.obs ? [{ text: { content: propEditState.obs } }] : [] };
+    await updateServiceProps(editingProp.id, props);
+    closePropSheet();
+    await renderCoordPropuestas();
+  } catch (e) {
+    btn.textContent = '💾 GUARDAR EN NOTION'; btn.disabled = false;
+    alert('Error al guardar: ' + e.message);
+  }
+}
+
 async function renderCoordPropuestas() {
   const content = document.getElementById('coord-content');
   content.innerHTML = '<div style="text-align:center;padding:40px 0"><div class="spinner" style="margin:0 auto"></div></div>';
@@ -1476,13 +1571,13 @@ async function renderCoordPropuestas() {
       sorts: [{ property: 'Última interacción', direction: 'descending' }]
     });
 
-    const list = data.results || [];
-    if (!list.length) {
+    _coordAllProps = data.results || [];
+    if (!_coordAllProps.length) {
       content.innerHTML = '<div class="coord-empty">Sin propuestas activas.</div>';
       return;
     }
 
-    content.innerHTML = '<div style="height:8px"></div>' + list.map(p => {
+    content.innerHTML = '<div style="height:8px"></div>' + _coordAllProps.map(p => {
       const props = p.properties || {};
       const nombre = props['Nombre de propuesta']?.title?.[0]?.plain_text || 'Sin nombre';
       const estado = props['Estado pipeline']?.select?.name || '—';
@@ -1495,7 +1590,7 @@ async function renderCoordPropuestas() {
         estado.includes('Negociando') ? 'negociando' :
         estado.toLowerCase().includes('enviada') ? 'enviada' : '';
 
-      return `<div class="prop-card">
+      return `<div class="prop-card" style="cursor:pointer" onclick="openPropSheet('${p.id}')">
         <div class="prop-nombre">${nombre}</div>
         <div class="prop-meta">
           <span class="prop-estado ${estadoClass}">${estado}</span>
@@ -1505,6 +1600,7 @@ async function renderCoordPropuestas() {
         <div class="prop-dias ${dias != null && dias > 14 ? 'alert' : ''}">
           ${ultimaFmt ? `Última interacción: ${ultimaFmt}` : ''}${dias != null ? ` · ${dias} días sin respuesta` : ''}
         </div>
+        <div style="font-size:11px;color:var(--text3);margin-top:4px">Tap para editar →</div>
       </div>`;
     }).join('');
   } catch (e) {
