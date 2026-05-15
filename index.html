@@ -1664,7 +1664,13 @@ async function renderCoordServicios() {
       filter,
       sorts: [{ property: 'Fecha programada', direction: 'ascending' }]
     });
-    _coordAllServices = data.results || [];
+    let allSvcs = data.results || [];
+    const cf2 = getCountryFilter();
+    if (cf2) {
+      const notionVal = COUNTRY_NOTION_MAP[selectedCountry];
+      allSvcs = allSvcs.filter(s => s.properties?.['País']?.select?.name === notionVal);
+    }
+    _coordAllServices = allSvcs;
     if (!selectedCoordDay) selectedCoordDay = 'all';
     renderWeekStrip(_coordAllServices);
     renderCoordList();
