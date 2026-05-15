@@ -792,14 +792,17 @@ async function getMyServices(userId) {
   });
 
   const validStates = ['📋 Pendiente', '🔄 Asignado', '✈️ En curso'];
+  const userCountryNotion = COUNTRY_NOTION_MAP[user?.country] || null;
   let results = (data.results || []).filter(r => {
     const props = r.properties || {};
     const estado = props['Estado']?.select?.name || '';
     const operarioApp = props['Operario App']?.select?.name || '';
     const operarios = props['Operario(s)']?.people || [];
+    const paisServicio = props['País']?.select?.name || null;
     const esAsignado = operarioApp === userName ||
       (legacyId && operarios.some(p => p.id === legacyId));
-    return validStates.includes(estado) && esAsignado;
+    const paisOk = userCountryNotion ? paisServicio === userCountryNotion : true;
+    return validStates.includes(estado) && esAsignado && paisOk;
   });
 
   results.sort((a, b) => {
