@@ -547,18 +547,20 @@
 const DB_ID = 'ccaf276c-7f6a-460c-aeb3-d2800deab2e5';
 const USERS = [
   {
-    id: '69fce11a-3828-4780-ba22-af79a887b9e3',
+    id: 'diego-laxalt',
     name: 'Diego Laxalt',
     role: '🎯 Dirección',
     emoji: '👨‍✈️',
-    pin: '1234'
+    pin: '1234',
+    notionId: '69fce11a-3828-4780-ba22-af79a887b9e3'
   },
   {
-    id: 'PENDING_FEDERICO_ID',
+    id: 'federico-maciel',
     name: 'Federico Maciel',
     role: '🔧 Coordinador',
     emoji: '👷',
-    pin: '5678'
+    pin: '5678',
+    notionId: null
   }
 ];
 
@@ -650,10 +652,19 @@ async function callNotion(endpoint, method = 'GET', body = null) {
 }
 
 async function getMyServices(userId) {
+  const user = USERS.find(u => u.id === userId);
+  const userName = user?.name || '';
+  const legacyId = user?.notionId || '';
+
   const data = await callNotion(`databases/${DB_ID}/query`, 'POST', {
     filter: {
       and: [
-        { property: 'Operario(s)', people: { contains: userId } },
+        {
+          or: [
+            { property: 'Operario App', select: { equals: userName } },
+            ...(legacyId ? [{ property: 'Operario(s)', people: { contains: legacyId } }] : [])
+          ]
+        },
         {
           or: [
             { property: 'Estado', select: { equals: '📋 Pendiente' } },
@@ -668,9 +679,13 @@ async function getMyServices(userId) {
 
   const validStates = ['📋 Pendiente', '🔄 Asignado', '✈️ En curso'];
   let results = (data.results || []).filter(r => {
-    const estado = r.properties?.['Estado']?.select?.name || '';
-    const operarios = r.properties?.['Operario(s)']?.people || [];
-    return validStates.includes(estado) && operarios.some(p => p.id === userId);
+    const props = r.properties || {};
+    const estado = props['Estado']?.select?.name || '';
+    const operarioApp = props['Operario App']?.select?.name || '';
+    const operarios = props['Operario(s)']?.people || [];
+    const esAsignado = operarioApp === userName ||
+      (legacyId && operarios.some(p => p.id === legacyId));
+    return validStates.includes(estado) && esAsignado;
   });
 
   results.sort((a, b) => {
@@ -1357,7 +1372,9 @@ function coordServiceCard(s) {
   const nombre = props['Nombre del servicio']?.title?.[0]?.plain_text || 'Sin nombre';
   const estado = props['Estado']?.select?.name || '';
   const tipo = props['Tipo de servicio']?.select?.name || '';
-  const ops = (props['Operario(s)']?.people || []).map(p => p.name).join(', ') || '— sin asignar';
+  const operarioAppName = props['Operario App']?.select?.name || '';
+  const legacyOpsNames = (props['Operario(s)']?.people || []).map(p => p.name).join(', ');
+  const ops = operarioAppName || legacyOpsNames || '— sin asignar';
   const jornadaN = props['Jornada N°']?.number;
   const tipoReg = props['Tipo de registro']?.select?.name || '';
   const esJornada = jornadaN != null || tipoReg.includes('Jornada');
@@ -1376,8 +1393,10 @@ function openEditSheet(pageId) {
   const nombre = props['Nombre del servicio']?.title?.[0]?.plain_text || 'Sin nombre';
   const fecha = props['Fecha programada']?.date?.start || '';
   const estadoActual = props['Estado']?.select?.name || '';
-  const opsActuales = (props['Operario(s)']?.people || []).map(p => p.id);
-  editState = { estado: estadoActual, operario: opsActuales[0] || null, fecha };
+  const operarioApp = props['Operario App']?.select?.name || '';
+  const legacyOps = (props['Operario(s)']?.people || []).map(p => p.name);
+  const operarioActual = operarioApp || legacyOps[0] || null;
+  editState = { estado: estadoActual, operario: operarioActual, fecha };
   document.getElementById('edit-sheet-title').textContent = nombre;
   document.getElementById('edit-sheet-sub').textContent = fecha ? new Date(fecha + 'T00:00:00').toLocaleDateString('es-UY', { weekday: 'long', day: 'numeric', month: 'long' }) : 'Sin fecha programada';
   const estados = ['📋 Pendiente', '🔄 Asignado', '✈️ En curso', '✅ Completado', '❌ Cancelado'];
@@ -1387,7 +1406,7 @@ function openEditSheet(pageId) {
   const validUsers = USERS.filter(u => !u.id.includes('PENDING'));
   document.getElementById('edit-operario-btns').innerHTML =
     `<button class="operario-btn ${!editState.operario ? 'active' : ''}" onclick="selectEditOperario(null, this)">— Sin asignar</button>` +
-    validUsers.map(u => `<button class="operario-btn ${editState.operario === u.id ? 'active' : ''}" onclick="selectEditOperario('${u.id}', this)">${u.emoji} ${u.name}</button>`).join('');
+    validUsers.map(u => `<button class="operario-btn ${editState.operario === u.name ? 'active' : ''}" onclick="selectEditOperario('${u.name}', this)">${u.emoji} ${u.name}</button>`).join('');
   document.getElementById('edit-fecha').value = fecha;
   document.getElementById('edit-save-btn').textContent = '💾 GUARDAR EN NOTION';
   document.getElementById('edit-save-btn').disabled = false;
@@ -1412,7 +1431,11 @@ async function saveServiceEdit() {
     const props = {};
     if (editState.estado) props['Estado'] = { select: { name: editState.estado } };
     if (editState.fecha) props['Fecha programada'] = { date: { start: editState.fecha } };
-    props['Operario(s)'] = editState.operario ? { people: [{ object: 'user', id: editState.operario }] } : { people: [] };
+    props['Operario App'] = editState.operario ? { select: { name: editState.operario } } : { select: null };
+    const userForOp = editState.operario ? USERS.find(u => u.name === editState.operario) : null;
+    if (userForOp?.notionId) {
+      props['Operario(s)'] = { people: [{ object: 'user', id: userForOp.notionId }] };
+    }
     await updateServiceProps(editingService.id, props);
     closeEditSheet();
     await renderCoordServicios();
@@ -1498,7 +1521,9 @@ async function init() {
   if (saved) {
     try {
       const u = JSON.parse(saved);
-      pinUser = USERS.find(p => p.id === u.id);
+      pinUser = USERS.find(p => p.id === u.id) ||
+                USERS.find(p => p.notionId === u.id) ||
+                USERS.find(p => p.name === u.name);
       if (pinUser) {
         document.getElementById('pin-emoji').textContent = pinUser.emoji;
         document.getElementById('pin-name').textContent = pinUser.name;
