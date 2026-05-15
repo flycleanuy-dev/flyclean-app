@@ -1533,6 +1533,9 @@ async function loadCEO() {
     document.getElementById('ceotab-' + t).classList.toggle('active', t === 'metricas')
   );
   renderCEOCountryTabs();
+  // Métricas has its own sub-tabs — hide global tabs on load
+  const globalTabs = document.getElementById('ceo-country-tabs');
+  if (globalTabs) globalTabs.style.display = 'none';
   await renderCEOMetricas();
 }
 
@@ -1560,6 +1563,9 @@ async function setCEOTab(tab) {
   ['metricas','servicios','finanzas','equipo'].forEach(t =>
     document.getElementById('ceotab-' + t).classList.toggle('active', t === tab)
   );
+  // Global country tabs: hidden while in Métricas (it has its own sub-tabs)
+  const globalTabs = document.getElementById('ceo-country-tabs');
+  if (globalTabs) globalTabs.style.display = tab === 'metricas' ? 'none' : '';
   if (tab === 'metricas') await renderCEOMetricas();
   else if (tab === 'servicios') await renderCEOServicios();
   else if (tab === 'finanzas') await renderCEOFinanzas();
@@ -1582,55 +1588,79 @@ async function renderCEOMetricas() {
   const content = document.getElementById('ceo-content');
   content.innerHTML = '<div style="text-align:center;padding:40px 0"><div class="spinner" style="margin:0 auto"></div></div>';
   try {
-    const cf = getCEOFilter();
+    const isUruguayCEO = currentUser.country === 'Uruguay';
+    const cf  = getCEOFilter();
     const fcf = getCEOFinanceFilter();
     const now = new Date();
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
-    const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+    const monthEnd   = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+    const yearStart  = now.getFullYear() + '-01-01';
+    const yearEnd    = now.getFullYear() + '-12-31';
+    const monthName  = now.toLocaleDateString('es-UY', { month: 'long', year: 'numeric' });
 
-    const yearStart = now.getFullYear() + '-01-01';
-    const yearEnd   = now.getFullYear() + '-12-31';
     const ingFilter     = { and: [ ...(fcf ? [fcf] : []), { property: 'Fecha', date: { on_or_after: monthStart } }, { property: 'Fecha', date: { on_or_before: monthEnd } } ] };
-    const ingYearFilter = { and: [ ...(fcf ? [fcf] : []), { property: 'Fecha', date: { on_or_after: yearStart } }, { property: 'Fecha', date: { on_or_before: yearEnd } } ] };
-    const svcFilter     = { and: [ ...(cf ? [cf] : []), { property: 'Estado', select: { equals: '✅ Completado' } } ] };
+    const gasFilter     = { and: [ ...(fcf ? [fcf] : []), { property: 'Fecha', date: { on_or_after: monthStart } }, { property: 'Fecha', date: { on_or_before: monthEnd } } ] };
+    const ingYearFilter = { and: [ ...(fcf ? [fcf] : []), { property: 'Fecha', date: { on_or_after: yearStart  } }, { property: 'Fecha', date: { on_or_before: yearEnd   } } ] };
+    const svcCompFilter = { and: [ ...(cf ? [cf] : []), { property: 'Estado', select: { equals: '✅ Completado' } } ] };
+    const svcActivoFilter = { and: [ ...(cf ? [cf] : []), { or: [ { property: 'Estado', select: { equals: '✈️ En curso' } }, { property: 'Estado', select: { equals: '🔄 Asignado' } } ] } ] };
     const propFilter    = { and: [ ...(cf ? [cf] : []), { property: 'Estado pipeline', select: { does_not_equal: '❌ Rechazada' } }, { property: 'Estado pipeline', select: { does_not_equal: '😶 Sin respuesta' } } ] };
     const contactFilter = cf ? { and: [cf, { property: 'Estado', select: { equals: '✅ Cliente activo' } }] } : { property: 'Estado', select: { equals: '✅ Cliente activo' } };
 
-    const [ingData, ingYearData, svcData, propData, contactData] = await Promise.all([
+    const [ingData, gasData, ingYearData, svcCompData, svcActivoData, propData, contactData] = await Promise.all([
       callNotion('databases/d1e15376e83a408a8a52f47da33c249a/query', 'POST', { filter: ingFilter }),
+      callNotion('databases/1e20cdabad5d41528d070ed2f6e9dad3/query', 'POST', { filter: gasFilter }),
       callNotion('databases/d1e15376e83a408a8a52f47da33c249a/query', 'POST', { filter: ingYearFilter }),
-      callNotion('databases/ccaf276c-7f6a-460c-aeb3-d2800deab2e5/query', 'POST', { filter: svcFilter }),
+      callNotion('databases/ccaf276c-7f6a-460c-aeb3-d2800deab2e5/query', 'POST', { filter: svcCompFilter }),
+      callNotion('databases/ccaf276c-7f6a-460c-aeb3-d2800deab2e5/query', 'POST', { filter: svcActivoFilter }),
       callNotion('databases/2c0a4257-f429-4941-b994-dfebc1098633/query', 'POST', { filter: propFilter }),
       callNotion('databases/250115612de74e0582366549bbe5e389/query', 'POST', { filter: contactFilter })
     ]);
 
-    let svcResults = svcData.results || [];
-    if (cf) {
+    // Servicios: apply client-side country filter (search API fallback ignores server filter)
+    const applyCountryFilter = (results) => {
+      if (!cf) return results;
       const notionVal = COUNTRY_NOTION_MAP[ceoViewCountry];
-      svcResults = svcResults.filter(s => s.properties?.['País']?.select?.name === notionVal);
+      return results.filter(s => s.properties?.['País']?.select?.name === notionVal);
+    };
+    let svcComp   = applyCountryFilter(svcCompData.results || []).filter(s => { const f = s.properties?.['Fecha programada']?.date?.start || ''; return f >= monthStart && f <= monthEnd; });
+    let svcActivo = applyCountryFilter(svcActivoData.results || []);
+
+    const ingresos     = (ingData.results    || []).reduce((s, r) => s + (r.properties?.['Monto USD']?.number || 0), 0);
+    const gastos       = (gasData.results    || []).reduce((s, r) => s + (r.properties?.['Monto USD']?.number || 0), 0);
+    const ingresosAnio = (ingYearData.results || []).reduce((s, r) => s + (r.properties?.['Monto USD']?.number || 0), 0);
+    const balance      = ingresos - gastos;
+    const svcCount     = svcComp.length;
+    const svcActivos   = svcActivo.length;
+    const propCount    = (propData.results    || []).length;
+    const clientCount  = (contactData.results || []).length;
+    const fmtUSD = (n) => '$' + Math.abs(n).toLocaleString('es-UY', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+    const balSign = balance >= 0 ? '' : '-';
+    const balColor = balance >= 0 ? 'var(--green)' : 'var(--red)';
+
+    // Sub-tabs (only for Uruguay CEO)
+    let subTabsHTML = '';
+    if (isUruguayCEO) {
+      const opts = [['all','🌎 Global'],['Uruguay','🇺🇾 Uruguay'],['Brasil','🇧🇷 Brasil'],['Panamá','🇵🇦 Panamá']];
+      subTabsHTML = '<div style="display:flex;gap:6px;padding:12px 16px 0;flex-wrap:wrap">' +
+        opts.map(([val, label]) => '<button class="ceo-country-tab ' + (ceoViewCountry === val ? 'active' : '') + '" onclick="setCEOCountry(\'' + val + '\')">' + label + '</button>').join('') +
+        '</div>';
     }
-    svcResults = svcResults.filter(s => {
-      const fecha = s.properties?.['Fecha programada']?.date?.start || '';
-      return fecha >= monthStart && fecha <= monthEnd;
-    });
 
-    const ingresos     = (ingData.results     || []).reduce((sum, r) => sum + (r.properties?.['Monto USD']?.number || 0), 0);
-    const ingresosAnio = (ingYearData.results  || []).reduce((sum, r) => sum + (r.properties?.['Monto USD']?.number || 0), 0);
-    const svcCount     = svcResults.length;
-    const propCount    = (propData.results     || []).length;
-    const clientCount  = (contactData.results  || []).length;
-    const monthName    = now.toLocaleDateString('es-UY', { month: 'long', year: 'numeric' });
-    const fmtUSD = (n) => '$' + n.toLocaleString('es-UY', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+    const countryLabel = ceoViewCountry === 'all' ? 'Todos los países' : ceoViewCountry;
 
-    content.innerHTML = `<div class="metric-grid">
-      <div class="metric-card"><div class="metric-icon">💰</div><div class="metric-label">Ingresos del mes</div><div class="metric-value">${fmtUSD(ingresos)}</div><div class="metric-sub">USD · ${monthName}</div></div>
-      <div class="metric-card"><div class="metric-icon">✅</div><div class="metric-label">Servicios completados</div><div class="metric-value">${svcCount}</div><div class="metric-sub">este mes</div></div>
-      <div class="metric-card"><div class="metric-icon">💼</div><div class="metric-label">Propuestas activas</div><div class="metric-value">${propCount}</div><div class="metric-sub">en pipeline</div></div>
-      <div class="metric-card"><div class="metric-icon">👥</div><div class="metric-label">Clientes activos</div><div class="metric-value">${clientCount}</div><div class="metric-sub">en CRM</div></div>
-      <div class="metric-card" style="grid-column:1/-1;border-color:var(--green-mid)"><div class="metric-icon">📈</div><div class="metric-label">Ingresos del año ${now.getFullYear()}</div><div class="metric-value" style="color:var(--green)">${fmtUSD(ingresosAnio)}</div><div class="metric-sub">USD acumulado enero–${now.toLocaleDateString('es-UY',{month:'long'})}</div></div>
-    </div>`;
+    content.innerHTML = subTabsHTML +
+      '<div class="metric-grid">' +
+        '<div class="metric-card"><div class="metric-icon">💰</div><div class="metric-label">Ingresos del mes</div><div class="metric-value">' + fmtUSD(ingresos) + '</div><div class="metric-sub">USD · ' + monthName + '</div></div>' +
+        '<div class="metric-card"><div class="metric-icon">💸</div><div class="metric-label">Gastos del mes</div><div class="metric-value" style="color:var(--red)">' + fmtUSD(gastos) + '</div><div class="metric-sub">USD · ' + monthName + '</div></div>' +
+        '<div class="metric-card" style="grid-column:1/-1"><div class="metric-icon">⚖️</div><div class="metric-label">Balance del mes</div><div class="metric-value" style="color:' + balColor + '">' + balSign + fmtUSD(balance) + '</div><div class="metric-sub">Ingresos − Gastos · ' + countryLabel + '</div></div>' +
+        '<div class="metric-card"><div class="metric-icon">✅</div><div class="metric-label">Svcs completados</div><div class="metric-value">' + svcCount + '</div><div class="metric-sub">este mes</div></div>' +
+        '<div class="metric-card"><div class="metric-icon">✈️</div><div class="metric-label">Svcs activos</div><div class="metric-value">' + svcActivos + '</div><div class="metric-sub">en curso / asignados</div></div>' +
+        '<div class="metric-card"><div class="metric-icon">💼</div><div class="metric-label">Propuestas activas</div><div class="metric-value">' + propCount + '</div><div class="metric-sub">en pipeline</div></div>' +
+        '<div class="metric-card"><div class="metric-icon">👥</div><div class="metric-label">Clientes activos</div><div class="metric-value">' + clientCount + '</div><div class="metric-sub">en CRM</div></div>' +
+        '<div class="metric-card" style="grid-column:1/-1;border-color:var(--green-mid)"><div class="metric-icon">📈</div><div class="metric-label">Ingresos del año ' + now.getFullYear() + '</div><div class="metric-value" style="color:var(--green)">' + fmtUSD(ingresosAnio) + '</div><div class="metric-sub">USD acumulado enero–' + now.toLocaleDateString('es-UY',{month:'long'}) + ' · ' + countryLabel + '</div></div>' +
+      '</div>';
   } catch (e) {
-    content.innerHTML = `<div class="coord-empty">Error al cargar métricas.<br><small>${e.message}</small></div>`;
+    content.innerHTML = '<div class="coord-empty">Error al cargar métricas.<br><small>' + e.message + '</small></div>';
   }
 }
 
