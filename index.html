@@ -993,14 +993,11 @@ async function cerrarServicio() {
   if (serviceState.notasPost) {
     properties['Notas post-servicio'] = { rich_text: [{ text: { content: serviceState.notasPost } }] };
   }
-  if (serviceState.avance) {
-    properties['% de avance'] = { number: parseFloat(serviceState.avance) };
-  }
   if (serviceState.resultado) {
     properties['Resultado'] = { select: { name: serviceState.resultado } };
   }
   if (serviceState.clima) {
-    properties['Condición climática'] = { select: { name: serviceState.clima } };
+    properties['Condición climática'] = { multi_select: [{ name: serviceState.clima }] };
   }
 
   try {
