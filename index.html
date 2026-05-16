@@ -6,33 +6,33 @@
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="FlyClean"/>
-<meta name="theme-color" content="#00C98D"/>
+<meta name="theme-color" content="#ffffff"/>
 <link rel="manifest" href="/manifest.json"/>
 <link rel="apple-touch-icon" href="/icon-192.png"/>
 <title>FlyClean</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Exo+2:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap');
 
   :root {
-    --bg: #0a0a0a;
-    --card: #141414;
-    --border: #1f1f1f;
-    --border2: #2a2a2a;
-    --text: #ffffff;
-    --text2: #aaaaaa;
-    --text3: #555555;
-    --green: #22c55e;
-    --green-dark: #052e16;
-    --green-mid: #14532d;
-    --green-light: #86efac;
-    --blue: #3b82f6;
-    --blue-dark: #0f172a;
-    --amber: #f59e0b;
-    --amber-dark: #1c1007;
-    --purple: #a78bfa;
-    --purple-dark: #1e1b4b;
-    --orange: #f97316;
-    --red: #ef4444;
+    --bg: #ffffff;
+    --card: #f4f8f6;
+    --border: #ddeae4;
+    --border2: #c8ddd6;
+    --text: #0d1f19;
+    --text2: #456b5e;
+    --text3: #8aada3;
+    --green: #00C98D;
+    --green-dark: #e0f7ef;
+    --green-mid: #b3edd9;
+    --green-light: #00C98D;
+    --blue: #0077cc;
+    --blue-dark: #e6f3ff;
+    --amber: #b45309;
+    --amber-dark: #fff8e6;
+    --purple: #6d28d9;
+    --purple-dark: #f0ebff;
+    --orange: #c2410c;
+    --red: #dc2626;
     --radius: 14px;
     --radius-sm: 10px;
   }
@@ -56,7 +56,7 @@ body::before {
 }
 
   body {
-    font-family: 'DM Sans', sans-serif;
+    font-family: 'Exo 2', sans-serif;
     background: var(--bg);
     color: var(--text);
     min-height: 100vh;
@@ -71,13 +71,13 @@ body::before {
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    width: min(80vw, 340px);
-    height: min(80vw, 340px);
-    background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%20100%20100%27%3E%3Cpath%20d%3D%27M%2094.00%2C50.00%20L%2093.59%2C50.02%20L%2092.39%2C50.17%20L%2090.45%2C50.56%20L%2087.85%2C51.30%20L%2084.70%2C52.47%20L%2081.12%2C54.12%20L%2077.27%2C56.28%20L%2073.30%2C58.94%20L%2069.35%2C62.05%20L%2065.56%2C65.56%20L%2062.05%2C69.35%20L%2058.94%2C73.30%20L%2056.28%2C77.27%20L%2054.12%2C81.12%20L%2052.47%2C84.70%20L%2051.30%2C87.85%20L%2050.56%2C90.45%20L%2050.17%2C92.39%20L%2050.02%2C93.59%20L%2050.00%2C94.00%20L%2049.98%2C93.59%20L%2049.83%2C92.39%20L%2049.44%2C90.45%20L%2048.70%2C87.85%20L%2047.53%2C84.70%20L%2045.88%2C81.12%20L%2043.72%2C77.27%20L%2041.06%2C73.30%20L%2037.95%2C69.35%20L%2034.44%2C65.56%20L%2030.65%2C62.05%20L%2026.70%2C58.94%20L%2022.73%2C56.28%20L%2018.88%2C54.12%20L%2015.30%2C52.47%20L%2012.15%2C51.30%20L%209.55%2C50.56%20L%207.61%2C50.17%20L%206.41%2C50.02%20L%206.00%2C50.00%20L%206.41%2C49.98%20L%207.61%2C49.83%20L%209.55%2C49.44%20L%2012.15%2C48.70%20L%2015.30%2C47.53%20L%2018.88%2C45.88%20L%2022.73%2C43.72%20L%2026.70%2C41.06%20L%2030.65%2C37.95%20L%2034.44%2C34.44%20L%2037.95%2C30.65%20L%2041.06%2C26.70%20L%2043.72%2C22.73%20L%2045.88%2C18.88%20L%2047.53%2C15.30%20L%2048.70%2C12.15%20L%2049.44%2C9.55%20L%2049.83%2C7.61%20L%2049.98%2C6.41%20L%2050.00%2C6.00%20L%2050.02%2C6.41%20L%2050.17%2C7.61%20L%2050.56%2C9.55%20L%2051.30%2C12.15%20L%2052.47%2C15.30%20L%2054.12%2C18.88%20L%2056.28%2C22.73%20L%2058.94%2C26.70%20L%2062.05%2C30.65%20L%2065.56%2C34.44%20L%2069.35%2C37.95%20L%2073.30%2C41.06%20L%2077.27%2C43.72%20L%2081.12%2C45.88%20L%2084.70%2C47.53%20L%2087.85%2C48.70%20L%2090.45%2C49.44%20L%2092.39%2C49.83%20L%2093.59%2C49.98%20Z%27%20fill%3D%27white%27%2F%3E%3C%2Fsvg%3E");
+    width: min(95vw, 410px);
+    height: min(95vw, 410px);
+    background-image: url("data:image/svg+xml,<svg%20xmlns=%27http://www.w3.org/2000/svg%27%20viewBox=%270%200%20800%20800%27><path%20fill=%27%2300C98D%27%20d=%27M259.15,432.55v-65.43h62.28v12.09h-47.81v19.32l43.24-3.51v12.1l-43.24-3.57v29h-14.48Z%27/><path%20fill=%27%2300C98D%27%20d=%27M327.57,432.55v-65.43h13.14v65.43h-13.14Z%27/><path%20fill=%27%2300C98D%27%20d=%27M357.53,451.41c-1.78,0-3.4-.14-4.86-.43-1.46-.29-2.83-.68-4.1-1.19v-8.57h6.57c2.92,0,5.24-.33,6.95-1,1.71-.67,3.09-1.63,4.14-2.9,1.05-1.27,2.05-2.86,3-4.76l-24.57-50.19h14.38l10.86,24.29c.57,1.14,1.22,2.56,1.95,4.24,.73,1.68,1.48,3.38,2.24,5.09,.76,1.71,1.43,3.21,2,4.48h.76c.7-1.97,1.35-3.7,1.95-5.19,.6-1.49,1.22-3.03,1.86-4.62,.63-1.59,1.2-3.02,1.71-4.29l9.71-24h13.81l-20.38,45.43c-1.71,3.75-3.38,7.08-5,10-1.62,2.92-3.45,5.4-5.48,7.43-2.03,2.03-4.46,3.57-7.29,4.62-2.82,1.05-6.24,1.57-10.24,1.57Z%27/><path%20fill=%27%2300C98D%27%20d=%27M448.34,433.7c-8.83,0-16.22-1.29-22.19-3.86-5.97-2.57-10.44-6.38-13.43-11.43-2.98-5.05-4.48-11.25-4.48-18.62,0-10.79,3.43-19.12,10.29-25,6.86-5.87,16.76-8.81,29.72-8.81,7.36,0,13.85,1.05,19.47,3.14,5.62,2.1,10,5.11,13.14,9.05,3.14,3.94,4.72,8.7,4.72,14.28h-14.19c0-3.17-.99-5.82-2.95-7.95-1.97-2.13-4.7-3.73-8.19-4.81-3.49-1.08-7.59-1.62-12.29-1.62-5.08,0-9.48,.81-13.19,2.43-3.71,1.62-6.59,3.95-8.62,7-2.03,3.05-3.05,6.73-3.05,11.05v2.38c0,4.38,1.02,8.11,3.05,11.19,2.03,3.08,4.92,5.43,8.67,7.05,3.74,1.62,8.16,2.43,13.24,2.43s9.09-.52,12.62-1.57c3.52-1.05,6.25-2.63,8.19-4.76,1.94-2.13,2.91-4.75,2.91-7.86h13.9c0,5.46-1.56,10.16-4.67,14.09-3.11,3.94-7.46,6.95-13.05,9.05-5.59,2.1-12.13,3.14-19.62,3.14Z%27/><path%20fill=%27%2300C98D%27%20d=%27M491.81,432.55v-65.43h13.14v65.43h-13.14Z%27/><path%20fill=%27%2300C98D%27%20d=%27M541.86,433.7c-6.48,0-12.05-.94-16.72-2.81-4.67-1.87-8.27-4.75-10.81-8.62-2.54-3.87-3.81-8.79-3.81-14.76s1.24-10.72,3.71-14.62,6.03-6.82,10.67-8.76c4.64-1.94,10.13-2.9,16.48-2.9,6.67,0,12.27,.97,16.81,2.9,4.54,1.94,7.95,4.76,10.24,8.48,2.29,3.71,3.43,8.24,3.43,13.57v4.57h-47.53c.19,3.11,1.03,5.6,2.53,7.48,1.49,1.87,3.55,3.22,6.19,4.05,2.63,.82,5.7,1.24,9.19,1.24,1.39,0,2.96-.16,4.71-.48,1.74-.32,3.43-.79,5.05-1.43,1.62-.63,3-1.48,4.14-2.52,1.14-1.05,1.81-2.33,2-3.86h13.33c0,2.54-.65,4.94-1.95,7.19-1.3,2.25-3.22,4.22-5.76,5.9-2.54,1.68-5.65,3-9.33,3.95-3.68,.95-7.87,1.43-12.57,1.43Zm-17.53-31.71h33.62c0-1.84-.43-3.43-1.29-4.76s-2.05-2.43-3.57-3.29c-1.52-.86-3.27-1.49-5.24-1.9-1.97-.41-4.06-.62-6.29-.62-3.24,0-6.11,.4-8.62,1.19-2.51,.8-4.49,1.99-5.95,3.57-1.46,1.59-2.35,3.52-2.67,5.81Z%27/><path%20fill=%27%2300C98D%27%20d=%27M598.05,433.7c-2.99,0-5.76-.24-8.33-.71-2.57-.48-4.82-1.27-6.76-2.38-1.94-1.11-3.44-2.62-4.52-4.52-1.08-1.9-1.62-4.29-1.62-7.14,0-4.06,1.11-7.24,3.33-9.52,2.22-2.29,5.36-3.94,9.43-4.95,4.06-1.02,8.81-1.65,14.24-1.91,5.43-.25,11.31-.38,17.66-.38v-2.1c0-2.16-.52-3.87-1.57-5.14-1.05-1.27-2.67-2.17-4.86-2.71-2.19-.54-5.07-.81-8.62-.81-2.86,0-5.37,.19-7.52,.57-2.16,.38-3.84,.95-5.05,1.71-1.21,.76-1.81,1.71-1.81,2.86v1.14h-13.14c-.06-.25-.11-.51-.14-.76-.03-.25-.05-.54-.05-.86,0-2.98,1.08-5.59,3.24-7.81,2.16-2.22,5.36-3.95,9.62-5.19,4.25-1.24,9.55-1.86,15.9-1.86,5.9,0,10.87,.54,14.91,1.62,4.03,1.08,7.08,2.86,9.14,5.33,2.06,2.48,3.09,5.81,3.09,10v21.62c0,1.21,.24,2.13,.72,2.76s1.31,.95,2.52,.95h4.86v8.57c-.63,.26-1.79,.59-3.47,1-1.68,.41-3.54,.62-5.57,.62-2.79,0-4.97-.35-6.52-1.05-1.56-.7-2.67-1.65-3.33-2.86-.67-1.21-1.13-2.54-1.38-4h-.76c-1.78,1.65-3.9,3.08-6.38,4.29-2.48,1.21-5.18,2.11-8.09,2.71-2.92,.6-5.97,.9-9.14,.9Zm3.24-10.19c2.03,0,4.21-.22,6.53-.67,2.32-.44,4.52-1.1,6.62-1.95,2.1-.86,3.79-1.94,5.1-3.24,1.3-1.3,1.95-2.81,1.95-4.52v-2.57c-7.11,0-13,.24-17.66,.71-4.67,.48-8.14,1.29-10.43,2.43s-3.43,2.76-3.43,4.86c0,1.4,.56,2.44,1.66,3.14,1.11,.7,2.54,1.18,4.29,1.43,1.75,.25,3.54,.38,5.38,.38Z%27/><path%20fill=%27%2300C98D%27%20d=%27M648.85,432.55v-50.19h10.57l.95,8.57h.86c1.84-2.48,3.94-4.41,6.29-5.81,2.35-1.4,4.84-2.4,7.48-3,2.63-.6,5.19-.9,7.67-.9,4.7,0,8.62,.73,11.76,2.19,3.14,1.46,5.51,3.68,7.1,6.67,1.58,2.99,2.38,6.8,2.38,11.43v31.05h-13.14v-28.76c0-2.16-.3-3.98-.91-5.48-.6-1.49-1.46-2.68-2.57-3.57-1.11-.89-2.45-1.52-4-1.9-1.56-.38-3.28-.57-5.19-.57-2.8,0-5.42,.57-7.86,1.71-2.45,1.14-4.43,2.73-5.95,4.76-1.52,2.03-2.29,4.42-2.29,7.14v26.67h-13.14Z%27/><path%20fill=%27%2300C98D%27%20d=%27M96.1,403.03v-6.05c0-1.3,1.11-2.32,2.4-2.21l35.62,2.97c14.25,1.19,26.16-10.72,24.97-24.97l-2.97-35.62c-.11-1.29,.91-2.4,2.21-2.4h6.05c1.3,0,2.32,1.11,2.21,2.4l-2.97,35.62c-1.19,14.25,10.72,26.16,24.97,24.97l35.62-2.97c1.29-.11,2.4,.91,2.4,2.21v6.05c0,1.3-1.11,2.32-2.4,2.21l-35.62-2.97c-14.25-1.19-26.16,10.72-24.97,24.97l2.97,35.62c.11,1.29-.91,2.4-2.21,2.4h-6.05c-1.3,0-2.32-1.11-2.21-2.4l2.97-35.62c1.19-14.25-10.72-26.16-24.97-24.97l-35.62,2.97c-1.29,.11-2.4-.91-2.4-2.21Z%27/></svg>");
     background-size: contain;
     background-repeat: no-repeat;
     background-position: center;
-    opacity: 0.13;
+    opacity: 0.07;
     z-index: 0;
     pointer-events: none;
   }
@@ -134,7 +134,7 @@ body::before {
   }
   .header-logo { font-size: 16px; font-weight: 700; color: var(--green); }
   .header-user { font-size: 11px; color: var(--text3); background: var(--card); padding: 5px 12px; border-radius: 20px; cursor: pointer; }
-  .back-btn { background: transparent; border: none; color: var(--text2); font-size: 14px; cursor: pointer; font-family: 'DM Sans', sans-serif; padding: 4px 0; }
+  .back-btn { background: transparent; border: none; color: var(--text2); font-size: 14px; cursor: pointer; font-family: 'Exo 2', sans-serif; padding: 4px 0; }
 
   /* ── SERVICES LIST ── */
   .services-header { padding: 20px 20px 8px; }
@@ -182,7 +182,7 @@ body::before {
     background: var(--card); border: 1px solid var(--border2);
     border-radius: var(--radius-sm); color: var(--text2);
     font-size: 13px; font-weight: 500; cursor: pointer;
-    font-family: 'DM Sans', sans-serif;
+    font-family: 'Exo 2', sans-serif;
   }
 
   /* ── SERVICE DETAIL ── */
@@ -262,7 +262,7 @@ body::before {
   textarea, input[type="number"], input[type="text"] {
     width: 100%; background: var(--card); border: 1px solid var(--border2);
     border-radius: var(--radius-sm); color: var(--text); font-size: 14px;
-    padding: 12px 14px; font-family: 'DM Sans', sans-serif; resize: none;
+    padding: 12px 14px; font-family: 'Exo 2', sans-serif; resize: none;
     transition: border-color 0.15s;
   }
   textarea:focus, input:focus { outline: none; border-color: var(--green); }
@@ -307,7 +307,7 @@ body::before {
   .btn-main {
     flex: 1; padding: 15px; border-radius: var(--radius); border: none;
     font-size: 15px; font-weight: 700; cursor: pointer;
-    font-family: 'DM Sans', sans-serif; transition: opacity 0.15s;
+    font-family: 'Exo 2', sans-serif; transition: opacity 0.15s;
     display: flex; align-items: center; justify-content: center; gap: 8px;
   }
   .btn-main:active { opacity: 0.8; }
@@ -322,7 +322,7 @@ body::before {
     padding: 15px 20px; border-radius: var(--radius); border: 1px solid var(--border2);
     background: var(--card); color: var(--text2);
     font-size: 15px; font-weight: 600; cursor: pointer;
-    font-family: 'DM Sans', sans-serif; transition: opacity 0.15s;
+    font-family: 'Exo 2', sans-serif; transition: opacity 0.15s;
   }
   .btn-secondary:active { opacity: 0.7; }
 
@@ -369,7 +369,7 @@ body::before {
   .pin-pad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; width: 100%; max-width: 280px; }
   .pin-key { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; font-size: 20px; font-weight: 600; cursor: pointer; text-align: center; transition: all 0.1s; user-select: none; -webkit-user-select: none; }
   .pin-key:active { background: var(--green-dark); border-color: var(--green); color: var(--green); transform: scale(0.95); }
-  .pin-back-btn { margin-top: 24px; background: none; border: none; color: var(--text3); font-size: 13px; cursor: pointer; font-family: 'DM Sans', sans-serif; }
+  .pin-back-btn { margin-top: 24px; background: none; border: none; color: var(--text3); font-size: 13px; cursor: pointer; font-family: 'Exo 2', sans-serif; }
   @keyframes shake { 0%,100%{transform:translateX(0)} 20%,60%{transform:translateX(-8px)} 40%,80%{transform:translateX(8px)} }
   .pin-dots.shake { animation: shake 0.4s ease; }
 
@@ -391,7 +391,7 @@ body::before {
   .coord-tag { font-size: 11px; color: var(--text3); background: var(--bg); padding: 2px 7px; border-radius: 5px; }
   .coord-ops { font-size: 11px; color: var(--text2); margin-top: 6px; }
   .contact-search-wrap { padding: 10px 16px 0; }
-  .contact-search { width: 100%; padding: 10px 14px; background: var(--card); border: 1px solid var(--border2); border-radius: var(--radius-sm); color: var(--text); font-size: 14px; font-family: 'DM Sans', sans-serif; outline: none; }
+  .contact-search { width: 100%; padding: 10px 14px; background: var(--card); border: 1px solid var(--border2); border-radius: var(--radius-sm); color: var(--text); font-size: 14px; font-family: 'Exo 2', sans-serif; outline: none; }
   .contact-search:focus { border-color: var(--green); }
   .contact-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 14px; margin: 8px 16px 0; cursor: pointer; }
   .contact-card:active { border-color: var(--green); }
@@ -402,7 +402,7 @@ body::before {
   .contact-estado.inactivo { background: rgba(85,85,85,0.3); color: var(--text3); }
   .contact-detail { font-size: 12px; color: var(--text2); margin-top:3px; }
   .multi-toggle-grid { display: flex; flex-wrap: wrap; gap: 7px; }
-  .multi-toggle-btn { padding: 8px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border); font-size: 12px; font-weight: 500; cursor: pointer; background: var(--bg); color: var(--text2); font-family: 'DM Sans', sans-serif; transition: all 0.15s; }
+  .multi-toggle-btn { padding: 8px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border); font-size: 12px; font-weight: 500; cursor: pointer; background: var(--bg); color: var(--text2); font-family: 'Exo 2', sans-serif; transition: all 0.15s; }
   .multi-toggle-btn.active { background: var(--green-dark); border-color: var(--green); color: var(--green); }
   .prop-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 14px; margin: 8px 16px 0; }
   .prop-nombre { font-size: 14px; font-weight: 600; margin-bottom: 6px; }
@@ -415,7 +415,7 @@ body::before {
   .prop-dias.alert { color: var(--amber); font-weight: 600; }
   .prop-importe { font-size: 13px; font-weight: 600; color: var(--green); }
   .coord-empty { padding: 40px 24px; text-align: center; color: var(--text3); font-size: 14px; }
-  .nueva-prop-btn { width: 100%; padding: 13px; background: var(--green-dark); border: 1px solid var(--green); border-radius: var(--radius-sm); color: var(--green); font-size: 14px; font-weight: 700; cursor: pointer; font-family: 'DM Sans', sans-serif; transition: all 0.15s; }
+  .nueva-prop-btn { width: 100%; padding: 13px; background: var(--green-dark); border: 1px solid var(--green); border-radius: var(--radius-sm); color: var(--green); font-size: 14px; font-weight: 700; cursor: pointer; font-family: 'Exo 2', sans-serif; transition: all 0.15s; }
   .nueva-prop-btn:active { background: var(--green); color: #000; }
   /* Week strip */
   .month-nav { display: none; align-items: center; justify-content: space-between; padding: 8px 16px 4px; background: var(--bg); }
@@ -447,10 +447,10 @@ body::before {
   .estado-btn { padding: 8px 12px; border-radius: 20px; border: 1px solid var(--border); font-size: 12px; font-weight: 600; cursor: pointer; background: var(--bg); color: var(--text2); transition: all 0.15s; }
   .estado-btn.active { background: var(--green-dark); border-color: var(--green); color: var(--green); }
   .operario-btns { display: flex; flex-direction: column; gap: 8px; }
-  .operario-btn { padding: 12px 14px; border-radius: var(--radius-sm); border: 1px solid var(--border); font-size: 13px; font-weight: 500; cursor: pointer; background: var(--bg); color: var(--text2); transition: all 0.15s; text-align: left; display: flex; align-items: center; gap: 10px; font-family: 'DM Sans', sans-serif; }
+  .operario-btn { padding: 12px 14px; border-radius: var(--radius-sm); border: 1px solid var(--border); font-size: 13px; font-weight: 500; cursor: pointer; background: var(--bg); color: var(--text2); transition: all 0.15s; text-align: left; display: flex; align-items: center; gap: 10px; font-family: 'Exo 2', sans-serif; }
   .operario-btn.active { background: var(--green-dark); border-color: var(--green); color: var(--green); }
-  .edit-date-input { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); font-size: 15px; font-family: 'DM Sans', sans-serif; padding: 12px 14px; width: 100%; box-sizing: border-box; }
-  .edit-save-btn { margin: 20px 20px 0; width: calc(100% - 40px); padding: 16px; background: var(--green); border: none; border-radius: var(--radius); color: #000; font-size: 15px; font-weight: 700; cursor: pointer; font-family: 'DM Sans', sans-serif; display: block; }
+  .edit-date-input { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); font-size: 15px; font-family: 'Exo 2', sans-serif; padding: 12px 14px; width: 100%; box-sizing: border-box; }
+  .edit-save-btn { margin: 20px 20px 0; width: calc(100% - 40px); padding: 16px; background: var(--green); border: none; border-radius: var(--radius); color: #000; font-size: 15px; font-weight: 700; cursor: pointer; font-family: 'Exo 2', sans-serif; display: block; }
   .edit-save-btn:disabled { background: var(--border2); color: var(--text3); cursor: not-allowed; }
 
   /* ── TABS ── */
@@ -485,7 +485,7 @@ body::before {
   .ceo-brand { font-size: 14px; font-weight: 700; color: var(--green); }
   .ceo-user-tag { font-size: 12px; color: var(--text3); }
   .ceo-country-tabs { display: flex; gap: 6px; padding: 10px 14px 0; background: var(--bg); }
-  .ceo-country-tab { padding: 5px 12px; border-radius: 20px; border: 1px solid var(--border2); font-size: 12px; font-weight: 600; cursor: pointer; color: var(--text3); background: var(--bg); font-family: 'DM Sans', sans-serif; transition: all 0.15s; }
+  .ceo-country-tab { padding: 5px 12px; border-radius: 20px; border: 1px solid var(--border2); font-size: 12px; font-weight: 600; cursor: pointer; color: var(--text3); background: var(--bg); font-family: 'Exo 2', sans-serif; transition: all 0.15s; }
   .ceo-country-tab.active { background: var(--green-dark); border-color: var(--green); color: var(--green); }
   .ceo-tab-bar { display: flex; border-bottom: 1px solid var(--border); background: var(--bg); }
   .ceo-tab { flex: 1; padding: 10px 4px; text-align: center; font-size: 11px; font-weight: 600; color: var(--text3); cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.15s; }
@@ -547,8 +547,8 @@ body::before {
 
 <!-- LOGIN -->
 <svg style="display:none" aria-hidden="true">
-  <symbol id="fc-mark" viewBox="0 0 100 100">
-    <path d="M 94.00,50.00 L 93.59,50.02 L 92.39,50.17 L 90.45,50.56 L 87.85,51.30 L 84.70,52.47 L 81.12,54.12 L 77.27,56.28 L 73.30,58.94 L 69.35,62.05 L 65.56,65.56 L 62.05,69.35 L 58.94,73.30 L 56.28,77.27 L 54.12,81.12 L 52.47,84.70 L 51.30,87.85 L 50.56,90.45 L 50.17,92.39 L 50.02,93.59 L 50.00,94.00 L 49.98,93.59 L 49.83,92.39 L 49.44,90.45 L 48.70,87.85 L 47.53,84.70 L 45.88,81.12 L 43.72,77.27 L 41.06,73.30 L 37.95,69.35 L 34.44,65.56 L 30.65,62.05 L 26.70,58.94 L 22.73,56.28 L 18.88,54.12 L 15.30,52.47 L 12.15,51.30 L 9.55,50.56 L 7.61,50.17 L 6.41,50.02 L 6.00,50.00 L 6.41,49.98 L 7.61,49.83 L 9.55,49.44 L 12.15,48.70 L 15.30,47.53 L 18.88,45.88 L 22.73,43.72 L 26.70,41.06 L 30.65,37.95 L 34.44,34.44 L 37.95,30.65 L 41.06,26.70 L 43.72,22.73 L 45.88,18.88 L 47.53,15.30 L 48.70,12.15 L 49.44,9.55 L 49.83,7.61 L 49.98,6.41 L 50.00,6.00 L 50.02,6.41 L 50.17,7.61 L 50.56,9.55 L 51.30,12.15 L 52.47,15.30 L 54.12,18.88 L 56.28,22.73 L 58.94,26.70 L 62.05,30.65 L 65.56,34.44 L 69.35,37.95 L 73.30,41.06 L 77.27,43.72 L 81.12,45.88 L 84.70,47.53 L 87.85,48.70 L 90.45,49.44 L 92.39,49.83 L 93.59,49.98 Z" fill="currentColor"/>
+  <symbol id="fc-mark" viewBox="0 0 800 800">
+    <path d="M175.7,410.4v-20.81c0-4.46,3.81-7.97,8.26-7.6l122.43,10.2c48.98,4.08,89.89-36.83,85.81-85.81l-10.2-122.43c-.37-4.45,3.14-8.26,7.6-8.26h20.81c4.46,0,7.97,3.81,7.6,8.26l-10.2,122.43c-4.08,48.98,36.83,89.89,85.81,85.81l122.43-10.2c4.45-.37,8.26,3.14,8.26,7.6v20.81c0,4.46-3.81,7.97-8.26,7.6l-122.43-10.2c-48.98-4.08-89.89,36.83-85.81,85.81l10.2,122.43c.37,4.45-3.14,8.26-7.6,8.26h-20.81c-4.46,0-7.97-3.81-7.6-8.26l10.2-122.43c4.08-48.98-36.83-89.89-85.81-85.81l-122.43,10.2c-4.45,.37-8.26-3.14-8.26-7.6Z" fill="currentColor"/>
   </symbol>
 </svg>
 
@@ -592,7 +592,7 @@ body::before {
   <div class="login-sub">Panel Operario</div>
   <div class="login-label">¿QUIÉN ERES?</div>
   <div id="users-list" style="width:100%"></div>
-  <button onclick="backToCountry()" style="background:none;border:none;color:var(--text3);font-size:12px;font-family:'DM Sans',sans-serif;cursor:pointer;margin-top:24px;padding:8px">‹ Cambiar región</button>
+  <button onclick="backToCountry()" style="background:none;border:none;color:var(--text3);font-size:12px;font-family:'Exo 2',sans-serif;cursor:pointer;margin-top:24px;padding:8px">‹ Cambiar región</button>
 </div>
 
 <!-- SERVICES LIST -->
@@ -657,7 +657,7 @@ body::before {
   <div class="coord-header">
     <div class="coord-logo" id="coord-logo-title"><svg class="fly-mark" style="color:#00C98D"><use href="#fc-mark"/></svg>FlyClean — Coordinador</div>
     <div style="display:flex;align-items:center;gap:8px">
-      <button id="coord-ceo-btn" onclick="goToCEOFromCoord()" style="display:none;background:none;border:1px solid var(--border2);border-radius:8px;color:var(--text2);font-size:11px;font-weight:600;padding:5px 10px;cursor:pointer;font-family:'DM Sans',sans-serif">📊 CEO</button>
+      <button id="coord-ceo-btn" onclick="goToCEOFromCoord()" style="display:none;background:none;border:1px solid var(--border2);border-radius:8px;color:var(--text2);font-size:11px;font-weight:600;padding:5px 10px;cursor:pointer;font-family:'Exo 2',sans-serif">📊 CEO</button>
       <div class="coord-user" id="coord-user-name" onclick="logout()">Salir ↩</div>
     </div>
   </div>

@@ -1,10 +1,10 @@
 {
   "name": "FlyClean",
   "short_name": "FlyClean",
-  "description": "Panel operativo FlyClean — operarios, coordinadores y CEO",
+  "description": "Panel operativo FlyClean \u2014 operarios, coordinadores y CEO",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0a0a0a",
+  "background_color": "#ffffff",
   "theme_color": "#00C98D",
   "orientation": "portrait",
   "icons": [
