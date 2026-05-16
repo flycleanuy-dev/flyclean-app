@@ -38,6 +38,22 @@
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+body::before {
+  content: '';
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(80vw, 340px);
+  height: min(80vw, 340px);
+  background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%20100%20100%27%3E%3Cpath%20d%3D%27M%2094.00%2C50.00%20L%2093.59%2C50.02%20L%2092.39%2C50.17%20L%2090.45%2C50.56%20L%2087.85%2C51.30%20L%2084.70%2C52.47%20L%2081.12%2C54.12%20L%2077.27%2C56.28%20L%2073.30%2C58.94%20L%2069.35%2C62.05%20L%2065.56%2C65.56%20L%2062.05%2C69.35%20L%2058.94%2C73.30%20L%2056.28%2C77.27%20L%2054.12%2C81.12%20L%2052.47%2C84.70%20L%2051.30%2C87.85%20L%2050.56%2C90.45%20L%2050.17%2C92.39%20L%2050.02%2C93.59%20L%2050.00%2C94.00%20L%2049.98%2C93.59%20L%2049.83%2C92.39%20L%2049.44%2C90.45%20L%2048.70%2C87.85%20L%2047.53%2C84.70%20L%2045.88%2C81.12%20L%2043.72%2C77.27%20L%2041.06%2C73.30%20L%2037.95%2C69.35%20L%2034.44%2C65.56%20L%2030.65%2C62.05%20L%2026.70%2C58.94%20L%2022.73%2C56.28%20L%2018.88%2C54.12%20L%2015.30%2C52.47%20L%2012.15%2C51.30%20L%209.55%2C50.56%20L%207.61%2C50.17%20L%206.41%2C50.02%20L%206.00%2C50.00%20L%206.41%2C49.98%20L%207.61%2C49.83%20L%209.55%2C49.44%20L%2012.15%2C48.70%20L%2015.30%2C47.53%20L%2018.88%2C45.88%20L%2022.73%2C43.72%20L%2026.70%2C41.06%20L%2030.65%2C37.95%20L%2034.44%2C34.44%20L%2037.95%2C30.65%20L%2041.06%2C26.70%20L%2043.72%2C22.73%20L%2045.88%2C18.88%20L%2047.53%2C15.30%20L%2048.70%2C12.15%20L%2049.44%2C9.55%20L%2049.83%2C7.61%20L%2049.98%2C6.41%20L%2050.00%2C6.00%20L%2050.02%2C6.41%20L%2050.17%2C7.61%20L%2050.56%2C9.55%20L%2051.30%2C12.15%20L%2052.47%2C15.30%20L%2054.12%2C18.88%20L%2056.28%2C22.73%20L%2058.94%2C26.70%20L%2062.05%2C30.65%20L%2065.56%2C34.44%20L%2069.35%2C37.95%20L%2073.30%2C41.06%20L%2077.27%2C43.72%20L%2081.12%2C45.88%20L%2084.70%2C47.53%20L%2087.85%2C48.70%20L%2090.45%2C49.44%20L%2092.39%2C49.83%20L%2093.59%2C49.98%20Z%27%20fill%3D%27white%27%2F%3E%3C%2Fsvg%3E");
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  opacity: 0.13;
+  z-index: 0;
+  pointer-events: none;
+}
 
   body {
     font-family: 'DM Sans', sans-serif;
@@ -49,9 +65,30 @@
     position: relative;
   }
 
+  body::before {
+    content: '';
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: min(80vw, 340px);
+    height: min(80vw, 340px);
+    background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%20100%20100%27%3E%3Cpath%20d%3D%27M%2094.00%2C50.00%20L%2093.59%2C50.02%20L%2092.39%2C50.17%20L%2090.45%2C50.56%20L%2087.85%2C51.30%20L%2084.70%2C52.47%20L%2081.12%2C54.12%20L%2077.27%2C56.28%20L%2073.30%2C58.94%20L%2069.35%2C62.05%20L%2065.56%2C65.56%20L%2062.05%2C69.35%20L%2058.94%2C73.30%20L%2056.28%2C77.27%20L%2054.12%2C81.12%20L%2052.47%2C84.70%20L%2051.30%2C87.85%20L%2050.56%2C90.45%20L%2050.17%2C92.39%20L%2050.02%2C93.59%20L%2050.00%2C94.00%20L%2049.98%2C93.59%20L%2049.83%2C92.39%20L%2049.44%2C90.45%20L%2048.70%2C87.85%20L%2047.53%2C84.70%20L%2045.88%2C81.12%20L%2043.72%2C77.27%20L%2041.06%2C73.30%20L%2037.95%2C69.35%20L%2034.44%2C65.56%20L%2030.65%2C62.05%20L%2026.70%2C58.94%20L%2022.73%2C56.28%20L%2018.88%2C54.12%20L%2015.30%2C52.47%20L%2012.15%2C51.30%20L%209.55%2C50.56%20L%207.61%2C50.17%20L%206.41%2C50.02%20L%206.00%2C50.00%20L%206.41%2C49.98%20L%207.61%2C49.83%20L%209.55%2C49.44%20L%2012.15%2C48.70%20L%2015.30%2C47.53%20L%2018.88%2C45.88%20L%2022.73%2C43.72%20L%2026.70%2C41.06%20L%2030.65%2C37.95%20L%2034.44%2C34.44%20L%2037.95%2C30.65%20L%2041.06%2C26.70%20L%2043.72%2C22.73%20L%2045.88%2C18.88%20L%2047.53%2C15.30%20L%2048.70%2C12.15%20L%2049.44%2C9.55%20L%2049.83%2C7.61%20L%2049.98%2C6.41%20L%2050.00%2C6.00%20L%2050.02%2C6.41%20L%2050.17%2C7.61%20L%2050.56%2C9.55%20L%2051.30%2C12.15%20L%2052.47%2C15.30%20L%2054.12%2C18.88%20L%2056.28%2C22.73%20L%2058.94%2C26.70%20L%2062.05%2C30.65%20L%2065.56%2C34.44%20L%2069.35%2C37.95%20L%2073.30%2C41.06%20L%2077.27%2C43.72%20L%2081.12%2C45.88%20L%2084.70%2C47.53%20L%2087.85%2C48.70%20L%2090.45%2C49.44%20L%2092.39%2C49.83%20L%2093.59%2C49.98%20Z%27%20fill%3D%27white%27%2F%3E%3C%2Fsvg%3E");
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    opacity: 0.13;
+    z-index: 0;
+    pointer-events: none;
+  }
+
+
+  .fly-mark { display: inline-block; width: 18px; height: 18px; vertical-align: middle; margin-right: 4px; flex-shrink: 0; }
+  .fly-mark-lg { display: block; width: 64px; height: 64px; margin: 0 auto 8px; }
+
   /* ── SCREENS ── */
   .screen { display: none; flex-direction: column; min-height: 100vh; }
-  .screen.active { display: flex; }
+  .screen.active { display: flex; position: relative; z-index: 1; }
 
   /* ── LOADER ── */
   #screen-loading {
@@ -509,9 +546,15 @@
 </div>
 
 <!-- LOGIN -->
+<svg style="display:none" aria-hidden="true">
+  <symbol id="fc-mark" viewBox="0 0 100 100">
+    <path d="M 94.00,50.00 L 93.59,50.02 L 92.39,50.17 L 90.45,50.56 L 87.85,51.30 L 84.70,52.47 L 81.12,54.12 L 77.27,56.28 L 73.30,58.94 L 69.35,62.05 L 65.56,65.56 L 62.05,69.35 L 58.94,73.30 L 56.28,77.27 L 54.12,81.12 L 52.47,84.70 L 51.30,87.85 L 50.56,90.45 L 50.17,92.39 L 50.02,93.59 L 50.00,94.00 L 49.98,93.59 L 49.83,92.39 L 49.44,90.45 L 48.70,87.85 L 47.53,84.70 L 45.88,81.12 L 43.72,77.27 L 41.06,73.30 L 37.95,69.35 L 34.44,65.56 L 30.65,62.05 L 26.70,58.94 L 22.73,56.28 L 18.88,54.12 L 15.30,52.47 L 12.15,51.30 L 9.55,50.56 L 7.61,50.17 L 6.41,50.02 L 6.00,50.00 L 6.41,49.98 L 7.61,49.83 L 9.55,49.44 L 12.15,48.70 L 15.30,47.53 L 18.88,45.88 L 22.73,43.72 L 26.70,41.06 L 30.65,37.95 L 34.44,34.44 L 37.95,30.65 L 41.06,26.70 L 43.72,22.73 L 45.88,18.88 L 47.53,15.30 L 48.70,12.15 L 49.44,9.55 L 49.83,7.61 L 49.98,6.41 L 50.00,6.00 L 50.02,6.41 L 50.17,7.61 L 50.56,9.55 L 51.30,12.15 L 52.47,15.30 L 54.12,18.88 L 56.28,22.73 L 58.94,26.70 L 62.05,30.65 L 65.56,34.44 L 69.35,37.95 L 73.30,41.06 L 77.27,43.72 L 81.12,45.88 L 84.70,47.53 L 87.85,48.70 L 90.45,49.44 L 92.39,49.83 L 93.59,49.98 Z" fill="currentColor"/>
+  </symbol>
+</svg>
+
 <div class="screen" id="screen-country">
   <div class="country-screen">
-    <div class="country-logo">🚁</div>
+    <svg class="fly-mark-lg" style="color:#00C98D"><use href="#fc-mark"/></svg>
     <div class="country-brand">FlyClean</div>
     <div class="country-tagline">Seleccioná tu región para continuar</div>
     <div class="country-cards">
@@ -544,7 +587,7 @@
 </div>
 
 <div class="screen" id="screen-login">
-  <div class="login-logo">🚁</div>
+  <svg class="fly-mark-lg" style="color:#00C98D"><use href="#fc-mark"/></svg>
   <div class="login-title">FlyClean</div>
   <div class="login-sub">Panel Operario</div>
   <div class="login-label">¿QUIÉN ERES?</div>
@@ -586,7 +629,7 @@
 <div class="screen" id="screen-services">
   <div class="header">
     <div>
-      <div class="header-logo">🚁 FlyClean</div>
+      <div class="header-logo"><svg class="fly-mark" style="color:#00C98D"><use href="#fc-mark"/></svg>FlyClean</div>
     </div>
     <div class="header-user" id="header-user-name" onclick="logout()">Salir ↩</div>
   </div>
@@ -612,7 +655,7 @@
 <!-- SERVICE DETAIL -->
 <div class="screen" id="screen-coordinator">
   <div class="coord-header">
-    <div class="coord-logo" id="coord-logo-title">🚁 FlyClean — Coordinador</div>
+    <div class="coord-logo" id="coord-logo-title"><svg class="fly-mark" style="color:#00C98D"><use href="#fc-mark"/></svg>FlyClean — Coordinador</div>
     <div style="display:flex;align-items:center;gap:8px">
       <button id="coord-ceo-btn" onclick="goToCEOFromCoord()" style="display:none;background:none;border:1px solid var(--border2);border-radius:8px;color:var(--text2);font-size:11px;font-weight:600;padding:5px 10px;cursor:pointer;font-family:'DM Sans',sans-serif">📊 CEO</button>
       <div class="coord-user" id="coord-user-name" onclick="logout()">Salir ↩</div>
@@ -682,7 +725,7 @@
 <div class="screen" id="screen-ceo">
   <div class="ceo-header">
     <button class="ceo-back-btn" id="ceo-back-btn" onclick="backFromCEO()">←</button>
-    <div class="ceo-brand" id="ceo-brand-title">📊 FlyClean</div>
+    <div class="ceo-brand" id="ceo-brand-title"><svg class="fly-mark" style="color:#00C98D"><use href="#fc-mark"/></svg>FlyClean</div>
     <div class="ceo-user-tag" id="ceo-user-name">CEO</div>
   </div>
   <div class="ceo-country-tabs" id="ceo-country-tabs"></div>
@@ -1546,7 +1589,7 @@ async function loadCEO() {
   showScreen('ceo');
   document.getElementById('ceo-user-name').textContent = currentUser.emoji + ' ' + currentUser.name.split(' ')[0];
   const flagMap = { 'Uruguay': '🇺🇾', 'Brasil': '🇧🇷', 'Panamá': '🇵🇦' };
-  document.getElementById('ceo-brand-title').textContent = `📊 FlyClean ${flagMap[currentUser.country] || ''} — CEO`;
+  document.getElementById('ceo-brand-title').innerHTML = '<svg class="fly-mark" style="color:#00C98D"><use href="#fc-mark"/></svg>FlyClean ' + (flagMap[currentUser.country] || '') + ' — CEO';
   ceoViewCountry = (currentUser.country === 'Uruguay') ? 'all' : currentUser.country;
   ceoMonthOffset = 0;
   loadAlerts(currentUser.role, 'alerts-banner-ceo');
@@ -1869,7 +1912,7 @@ async function loadCoordinator() {
   const flagMap = { 'Uruguay': '🇺🇾', 'Brasil': '🇧🇷', 'Panamá': '🇵🇦' };
   const flag = flagMap[selectedCountry] || '';
   const rolLabel = currentUser.role.includes('Dirección') ? 'Dirección' : 'Coordinador';
-  document.getElementById('coord-logo-title').textContent = `🚁 FlyClean ${flag} — ${rolLabel}`;
+  document.getElementById('coord-logo-title').innerHTML = '<svg class="fly-mark" style="color:#00C98D"><use href="#fc-mark"/></svg>FlyClean ' + flag + ' — ' + rolLabel;
   const ceoBtnEl = document.getElementById('coord-ceo-btn');
   if (ceoBtnEl) ceoBtnEl.style.display = currentUser.role.includes('Dirección') ? 'block' : 'none';
   _operarioOptions = null;
