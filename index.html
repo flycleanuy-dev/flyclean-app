@@ -479,6 +479,35 @@ body::before {
   .alert-item:last-child { border-bottom: none; }
   .alert-icon { font-size: 14px; flex-shrink: 0; margin-top: 1px; }
 
+  /* ── COMUNICACIONES ── */
+  .comms-placeholder { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 60px 32px; text-align: center; }
+  .comms-icon { font-size: 56px; margin-bottom: 20px; }
+  .comms-title { font-size: 18px; font-weight: 700; color: var(--text); margin-bottom: 10px; }
+  .comms-sub { font-size: 14px; color: var(--text2); line-height: 1.6; margin-bottom: 28px; }
+  .comms-badge { background: var(--green-dark); border: 1px solid var(--green); border-radius: 20px; color: var(--green); font-size: 12px; font-weight: 700; padding: 6px 18px; }
+  .comms-features { width: 100%; margin-top: 32px; }
+  .comms-feature { display: flex; align-items: center; gap: 14px; padding: 12px 0; border-bottom: 1px solid var(--border); text-align: left; }
+  .comms-feature:last-child { border-bottom: none; }
+  .comms-feature-icon { font-size: 22px; flex-shrink: 0; }
+  .comms-feature-text { font-size: 13px; color: var(--text2); }
+  .comms-feature-title { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 2px; }
+
+  /* ── CAMBIO DE PIN ── */
+  .pin-change-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 200; display: none; align-items: flex-end; justify-content: center; }
+  .pin-change-overlay.open { display: flex; }
+  .pin-change-sheet { background: var(--bg); border-radius: 20px 20px 0 0; padding: 24px 24px 40px; width: 100%; max-width: 430px; }
+  .pin-change-handle { width: 36px; height: 4px; background: var(--border2); border-radius: 2px; margin: 0 auto 20px; }
+  .pin-change-title { font-size: 17px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+  .pin-change-sub { font-size: 13px; color: var(--text2); margin-bottom: 20px; }
+  .pin-change-field { margin-bottom: 14px; }
+  .pin-change-label { font-size: 11px; font-weight: 700; color: var(--text3); letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 6px; }
+  .pin-change-input { width: 100%; padding: 12px 14px; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); font-size: 20px; font-family: 'Exo 2', sans-serif; letter-spacing: 8px; text-align: center; outline: none; }
+  .pin-change-input:focus { border-color: var(--green); }
+  .pin-change-error { color: var(--red); font-size: 12px; margin-top: 8px; min-height: 16px; }
+  .pin-change-btn { width: 100%; padding: 14px; background: var(--green); border: none; border-radius: var(--radius-sm); color: #fff; font-size: 15px; font-weight: 700; cursor: pointer; font-family: 'Exo 2', sans-serif; margin-top: 8px; }
+  .pin-change-btn:active { opacity: 0.85; }
+  .pin-change-link { background: none; border: none; color: var(--text3); font-size: 12px; cursor: pointer; font-family: 'Exo 2', sans-serif; padding: 4px 0; text-decoration: underline; }
+
   /* ── CEO DASHBOARD ── */
   .ceo-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px 10px; border-bottom: 1px solid var(--border); background: var(--bg); position: sticky; top: 0; z-index: 10; }
   .ceo-back-btn { background: none; border: none; color: var(--text2); font-size: 20px; cursor: pointer; padding: 0 8px 0 0; line-height: 1; }
@@ -631,7 +660,10 @@ body::before {
     <div>
       <div class="header-logo"><svg class="fly-mark" style="color:#00C98D"><use href="#fc-mark"/></svg>FlyClean</div>
     </div>
-    <div class="header-user" id="header-user-name" onclick="logout()">Salir ↩</div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <button onclick="openPinChange()" style="background:none;border:1px solid var(--border2);border-radius:8px;color:var(--text3);font-size:11px;padding:5px 10px;cursor:pointer;font-family:'Exo 2',sans-serif">🔑 PIN</button>
+      <div class="header-user" id="header-user-name" onclick="logout()">Salir ↩</div>
+    </div>
   </div>
   <div class="tab-bar">
     <div class="tab-btn active" id="tab-ordenes" onclick="setTab('ordenes')">📋 Órdenes</div>
@@ -658,6 +690,7 @@ body::before {
     <div class="coord-logo" id="coord-logo-title"><svg class="fly-mark" style="color:#00C98D"><use href="#fc-mark"/></svg>FlyClean — Coordinador</div>
     <div style="display:flex;align-items:center;gap:8px">
       <button id="coord-ceo-btn" onclick="goToCEOFromCoord()" style="display:none;background:none;border:1px solid var(--border2);border-radius:8px;color:var(--text2);font-size:11px;font-weight:600;padding:5px 10px;cursor:pointer;font-family:'Exo 2',sans-serif">📊 CEO</button>
+      <button onclick="openPinChange()" style="background:none;border:1px solid var(--border2);border-radius:8px;color:var(--text3);font-size:11px;padding:5px 10px;cursor:pointer;font-family:'Exo 2',sans-serif">🔑</button>
       <div class="coord-user" id="coord-user-name" onclick="logout()">Salir ↩</div>
     </div>
   </div>
@@ -665,6 +698,7 @@ body::before {
     <div class="coord-tab active" id="ctab-servicios" onclick="setCoordTab('servicios')">📋 Servicios</div>
     <div class="coord-tab" id="ctab-propuestas" onclick="setCoordTab('propuestas')">💼 Propuestas</div>
     <div class="coord-tab" id="ctab-contactos" onclick="setCoordTab('contactos')">👥 Contactos</div>
+    <div class="coord-tab" id="ctab-comunicaciones" onclick="setCoordTab('comunicaciones')">💬 Mensajes</div>
   </div>
   <div id="alerts-banner-coord"></div>
   <div class="month-nav" id="coord-month-nav">
@@ -726,7 +760,10 @@ body::before {
   <div class="ceo-header">
     <button class="ceo-back-btn" id="ceo-back-btn" onclick="backFromCEO()">←</button>
     <div class="ceo-brand" id="ceo-brand-title"><svg class="fly-mark" style="color:#00C98D"><use href="#fc-mark"/></svg>FlyClean</div>
-    <div class="ceo-user-tag" id="ceo-user-name">CEO</div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <button onclick="openPinChange()" style="background:none;border:1px solid var(--border2);border-radius:8px;color:var(--text3);font-size:11px;padding:5px 10px;cursor:pointer;font-family:'Exo 2',sans-serif">🔑</button>
+      <div class="ceo-user-tag" id="ceo-user-name">CEO</div>
+    </div>
   </div>
   <div class="ceo-country-tabs" id="ceo-country-tabs"></div>
   <div class="ceo-tab-bar">
@@ -734,10 +771,33 @@ body::before {
     <div class="ceo-tab" id="ceotab-servicios" onclick="setCEOTab('servicios')">📋 Servicios</div>
     <div class="ceo-tab" id="ceotab-finanzas" onclick="setCEOTab('finanzas')">💰 Finanzas</div>
     <div class="ceo-tab" id="ceotab-equipo" onclick="setCEOTab('equipo')">👥 Equipo</div>
+    <div class="ceo-tab" id="ceotab-comunicaciones" onclick="setCEOTab('comunicaciones')">💬 Mensajes</div>
   </div>
   <div id="alerts-banner-ceo"></div>
   <div class="ceo-content" id="ceo-content">
     <div style="text-align:center;padding:40px 0"><div class="spinner" style="margin:0 auto"></div></div>
+  </div>
+</div>
+
+<div class="pin-change-overlay" id="pin-change-overlay" onclick="pinChangeOverlayClick(event)">
+  <div class="pin-change-sheet">
+    <div class="pin-change-handle"></div>
+    <div class="pin-change-title">Cambiar PIN</div>
+    <div class="pin-change-sub" id="pin-change-sub">Ingresá tu PIN actual y elegí uno nuevo de 4 dígitos.</div>
+    <div class="pin-change-field">
+      <div class="pin-change-label">PIN Actual</div>
+      <input class="pin-change-input" id="pin-current" type="password" inputmode="numeric" maxlength="4" placeholder="••••" oninput="this.value=this.value.replace(/\D/g,'').slice(0,4)"/>
+    </div>
+    <div class="pin-change-field">
+      <div class="pin-change-label">PIN Nuevo</div>
+      <input class="pin-change-input" id="pin-new1" type="password" inputmode="numeric" maxlength="4" placeholder="••••" oninput="this.value=this.value.replace(/\D/g,'').slice(0,4)"/>
+    </div>
+    <div class="pin-change-field">
+      <div class="pin-change-label">Confirmar PIN Nuevo</div>
+      <input class="pin-change-input" id="pin-new2" type="password" inputmode="numeric" maxlength="4" placeholder="••••" oninput="this.value=this.value.replace(/\D/g,'').slice(0,4)"/>
+    </div>
+    <div class="pin-change-error" id="pin-change-error"></div>
+    <button class="pin-change-btn" onclick="saveNewPin()">Guardar nuevo PIN</button>
   </div>
 </div>
 
@@ -1035,7 +1095,7 @@ function updatePinDots() {
 }
 
 async function pinConfirm() {
-  if (pinBuffer !== pinUser.pin) {
+  if (pinBuffer !== getEffectivePin(pinUser.id)) {
     pinBuffer = '';
     updatePinDots();
     document.getElementById('pin-error').textContent = 'PIN incorrecto. Intentá de nuevo.';
@@ -1065,7 +1125,7 @@ function setTab(tab) {
 
 function setCoordTab(tab) {
   activeCoordTab = tab;
-  ['servicios', 'propuestas', 'contactos'].forEach(t => {
+  ['servicios', 'propuestas', 'contactos', 'comunicaciones'].forEach(t => {
     document.getElementById('ctab-' + t).classList.toggle('active', t === tab);
   });
   const strip = document.getElementById('coord-week-strip');
@@ -1074,7 +1134,8 @@ function setCoordTab(tab) {
   if (monthNav) monthNav.classList.toggle('visible', tab === 'servicios');
   if (tab === 'servicios') renderCoordServicios();
   else if (tab === 'propuestas') renderCoordPropuestas();
-  else renderCoordContactos();
+  else if (tab === 'contactos') renderCoordContactos();
+  else renderComunicaciones();
 }
 
 function logout() {
@@ -1625,7 +1686,7 @@ async function setCEOCountry(country) {
 
 async function setCEOTab(tab) {
   activeCEOTab = tab;
-  ['metricas','servicios','finanzas','equipo'].forEach(t =>
+  ['metricas','servicios','finanzas','equipo','comunicaciones'].forEach(t =>
     document.getElementById('ceotab-' + t).classList.toggle('active', t === tab)
   );
   // Global country tabs: hidden while in Métricas (it has its own sub-tabs)
@@ -1634,7 +1695,8 @@ async function setCEOTab(tab) {
   if (tab === 'metricas') await renderCEOMetricas();
   else if (tab === 'servicios') await renderCEOServicios();
   else if (tab === 'finanzas') await renderCEOFinanzas();
-  else renderCEOEquipo();
+  else if (tab === 'equipo') renderCEOEquipo();
+  else renderComunicaciones();
 }
 
 function backFromCEO() {
@@ -2696,6 +2758,72 @@ async function loadAlerts(role, bannerId) {
   }
 
   renderAlertsBanner(bannerId, alerts);
+}
+
+// ─────────────────────────────────────────────
+// COMUNICACIONES (placeholder)
+// ─────────────────────────────────────────────
+function renderComunicaciones() {
+  const isCEO = currentUser?.role === '👔 CEO' || currentUser?.role === '🎯 Dirección';
+  const content = document.getElementById(isCEO ? 'ceo-content' : 'coord-content');
+  if (!content) return;
+  content.innerHTML =
+    '<div class="comms-placeholder">' +
+      '<div class="comms-icon">💬</div>' +
+      '<div class="comms-title">Comunicaciones</div>' +
+      '<div class="comms-sub">El sistema de mensajería interno entre CEO, coordinadores y operarios está en desarrollo. Próximamente podrán comunicarse directamente desde la app.</div>' +
+      '<div class="comms-badge">Próximamente</div>' +
+      '<div class="comms-features">' +
+        '<div class="comms-feature"><div class="comms-feature-icon">📣</div><div><div class="comms-feature-title">Avisos del coordinador</div><div class="comms-feature-text">Notificaciones a operarios sobre cambios de fecha, instrucciones o alertas de servicio.</div></div></div>' +
+        '<div class="comms-feature"><div class="comms-feature-icon">📊</div><div><div class="comms-feature-title">Reportes del operario</div><div class="comms-feature-text">El operario reporta novedades del servicio directamente al coordinador.</div></div></div>' +
+        '<div class="comms-feature"><div class="comms-feature-icon">🏢</div><div><div class="comms-feature-title">Vista CEO</div><div class="comms-feature-text">El CEO recibe resúmenes diarios y puede comunicarse con los coordinadores de cada país.</div></div></div>' +
+      '</div>' +
+    '</div>';
+}
+
+// ─────────────────────────────────────────────
+// CAMBIO DE PIN
+// ─────────────────────────────────────────────
+function openPinChange() {
+  document.getElementById('pin-current').value = '';
+  document.getElementById('pin-new1').value = '';
+  document.getElementById('pin-new2').value = '';
+  document.getElementById('pin-change-error').textContent = '';
+  document.getElementById('pin-change-overlay').classList.add('open');
+  setTimeout(() => document.getElementById('pin-current').focus(), 100);
+}
+
+function closePinChange() {
+  document.getElementById('pin-change-overlay').classList.remove('open');
+}
+
+function pinChangeOverlayClick(e) {
+  if (e.target.id === 'pin-change-overlay') closePinChange();
+}
+
+function getEffectivePin(userId) {
+  return localStorage.getItem('fc_pin_' + userId) || (USERS.find(u => u.id === userId)?.pin || '');
+}
+
+function saveNewPin() {
+  const current = document.getElementById('pin-current').value.trim();
+  const new1    = document.getElementById('pin-new1').value.trim();
+  const new2    = document.getElementById('pin-new2').value.trim();
+  const errEl   = document.getElementById('pin-change-error');
+
+  if (!currentUser) return;
+  const correctPin = getEffectivePin(currentUser.id);
+
+  if (current !== correctPin) { errEl.textContent = 'El PIN actual es incorrecto.'; return; }
+  if (new1.length !== 4 || !/^\d{4}$/.test(new1)) { errEl.textContent = 'El nuevo PIN debe tener exactamente 4 dígitos.'; return; }
+  if (new1 !== new2) { errEl.textContent = 'Los PINs nuevos no coinciden.'; return; }
+  if (new1 === current) { errEl.textContent = 'El nuevo PIN debe ser diferente al actual.'; return; }
+
+  localStorage.setItem('fc_pin_' + currentUser.id, new1);
+  errEl.style.color = 'var(--green)';
+  errEl.textContent = '✅ PIN actualizado correctamente.';
+  setTimeout(closePinChange, 1200);
+  setTimeout(() => { errEl.style.color = 'var(--red)'; errEl.textContent = ''; }, 1500);
 }
 
 // ─────────────────────────────────────────────
