@@ -90,6 +90,12 @@ body::before {
   .screen { display: none; flex-direction: column; min-height: 100vh; }
   .screen.active { display: flex; position: relative; z-index: 1; }
 
+  /* ── LANG TOGGLE (Brasil only) ── */
+  #lang-toggle { position: fixed; top: 10px; right: 12px; z-index: 50; align-items: center; gap: 2px; background: var(--card); border: 1px solid var(--border2); border-radius: 999px; padding: 3px 6px; font-family: 'Exo 2', sans-serif; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+  #lang-toggle button { background: none; border: none; padding: 4px 9px; border-radius: 999px; font-size: 11px; font-weight: 700; color: var(--text3); cursor: pointer; font-family: inherit; letter-spacing: 0.4px; }
+  #lang-toggle button.active { background: var(--green); color: #fff; }
+  #lang-toggle .lang-sep { color: var(--border2); font-size: 12px; user-select: none; }
+
   /* ── LOADER ── */
   #screen-loading {
     align-items: center;
@@ -369,7 +375,10 @@ body::before {
   .pin-pad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; width: 100%; max-width: 280px; }
   .pin-key { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; font-size: 20px; font-weight: 600; cursor: pointer; text-align: center; transition: all 0.1s; user-select: none; -webkit-user-select: none; }
   .pin-key:active { background: var(--green-dark); border-color: var(--green); color: var(--green); transform: scale(0.95); }
-  .pin-back-btn { margin-top: 24px; background: none; border: none; color: var(--text3); font-size: 13px; cursor: pointer; font-family: 'Exo 2', sans-serif; }
+  .pin-back-btn { margin-top: 0; background: none; border: none; color: var(--text3); font-size: 13px; cursor: pointer; font-family: 'Exo 2', sans-serif; padding: 4px 6px; }
+  .pin-back-btn:active { color: var(--green); }
+  .pin-back-actions { margin-top: 24px; display: flex; align-items: center; justify-content: center; gap: 4px; flex-wrap: wrap; }
+  .pin-back-sep { color: var(--text3); font-size: 13px; }
   @keyframes shake { 0%,100%{transform:translateX(0)} 20%,60%{transform:translateX(-8px)} 40%,80%{transform:translateX(8px)} }
   .pin-dots.shake { animation: shake 0.4s ease; }
 
@@ -581,11 +590,17 @@ body::before {
   </symbol>
 </svg>
 
+<div id="lang-toggle" style="display:none" role="group" aria-label="Idioma">
+  <button id="lang-pt" type="button" onclick="setLang('pt-BR')">PT</button>
+  <span class="lang-sep">|</span>
+  <button id="lang-es" type="button" onclick="setLang('es')">ES</button>
+</div>
+
 <div class="screen" id="screen-country">
   <div class="country-screen">
     <svg class="fly-mark-lg" style="color:#00C98D"><use href="#fc-mark"/></svg>
     <div class="country-brand">FlyClean</div>
-    <div class="country-tagline">Seleccioná tu región para continuar</div>
+    <div class="country-tagline" data-i18n="country.tagline">Seleccioná tu región para continuar</div>
     <div class="country-cards">
       <div class="country-card" onclick="selectCountry('Uruguay')">
         <div class="country-card-flag">🇺🇾</div>
@@ -611,6 +626,22 @@ body::before {
         </div>
         <div class="country-card-arrow">›</div>
       </div>
+      <div class="country-card" onclick="selectCountry('Guatemala')">
+        <div class="country-card-flag">🇬🇹</div>
+        <div class="country-card-info">
+          <div class="country-card-name">FlyClean Guatemala</div>
+          <div class="country-card-sub">Ciudad de Guatemala</div>
+        </div>
+        <div class="country-card-arrow">›</div>
+      </div>
+      <div class="country-card" onclick="selectCountry('México')">
+        <div class="country-card-flag">🇲🇽</div>
+        <div class="country-card-info">
+          <div class="country-card-name">FlyClean México</div>
+          <div class="country-card-sub">CDMX · Monterrey</div>
+        </div>
+        <div class="country-card-arrow">›</div>
+      </div>
     </div>
   </div>
 </div>
@@ -618,10 +649,10 @@ body::before {
 <div class="screen" id="screen-login">
   <svg class="fly-mark-lg" style="color:#00C98D"><use href="#fc-mark"/></svg>
   <div class="login-title">FlyClean</div>
-  <div class="login-sub">Panel Operario</div>
-  <div class="login-label">¿QUIÉN ERES?</div>
+  <div class="login-sub" data-i18n="login.subtitle">Panel Operario</div>
+  <div class="login-label" data-i18n="login.who">¿QUIÉN ERES?</div>
   <div id="users-list" style="width:100%"></div>
-  <button onclick="backToCountry()" style="background:none;border:none;color:var(--text3);font-size:12px;font-family:'Exo 2',sans-serif;cursor:pointer;margin-top:24px;padding:8px">‹ Cambiar región</button>
+  <button onclick="backToCountry()" data-i18n="login.back" style="background:none;border:none;color:var(--text3);font-size:12px;font-family:'Exo 2',sans-serif;cursor:pointer;margin-top:24px;padding:8px">‹ Cambiar región</button>
 </div>
 
 <!-- SERVICES LIST -->
@@ -629,7 +660,7 @@ body::before {
   <div class="pin-header">
     <div class="pin-user-emoji" id="pin-emoji">👤</div>
     <div class="pin-user-name" id="pin-name">Nombre</div>
-    <div class="pin-sub">Ingresá tu PIN de 4 dígitos</div>
+    <div class="pin-sub" data-i18n="pin.sub">Ingresá tu PIN de 4 dígitos</div>
   </div>
   <div class="pin-dots" id="pin-dots">
     <div class="pin-dot" id="pd0"></div>
@@ -652,7 +683,11 @@ body::before {
     <div class="pin-key" onclick="pinPress('0')">0</div>
     <div class="pin-key" onclick="pinConfirm()">✓</div>
   </div>
-  <button class="pin-back-btn" onclick="showScreen('login')">← Cambiar usuario</button>
+  <div class="pin-back-actions">
+    <button class="pin-back-btn" data-i18n="pin.back.user" onclick="backToLogin()">← Cambiar usuario</button>
+    <span class="pin-back-sep">·</span>
+    <button class="pin-back-btn" data-i18n="pin.back.region" onclick="backToCountry()">← Cambiar región</button>
+  </div>
 </div>
 
 <div class="screen" id="screen-services">
@@ -666,15 +701,15 @@ body::before {
     </div>
   </div>
   <div class="tab-bar">
-    <div class="tab-btn active" id="tab-ordenes" onclick="setTab('ordenes')">📋 Órdenes</div>
-    <div class="tab-btn" id="tab-jornadas" onclick="setTab('jornadas')">📅 Jornadas</div>
+    <div class="tab-btn active" id="tab-ordenes" data-i18n="services.tab.ordenes" onclick="setTab('ordenes')">📋 Órdenes</div>
+    <div class="tab-btn" id="tab-jornadas" data-i18n="services.tab.jornadas" onclick="setTab('jornadas')">📅 Jornadas</div>
   </div>
   <div id="alerts-banner-services"></div>
   <div class="services-header">
-    <div class="services-title">Mis servicios</div>
-    <div class="services-sub" id="services-sub">Cargando...</div>
+    <div class="services-title" data-i18n="services.title">Mis servicios</div>
+    <div class="services-sub" id="services-sub" data-i18n="services.sub.loading">Cargando...</div>
   </div>
-  <div class="error-banner" id="error-banner">
+  <div class="error-banner" id="error-banner" data-i18n="services.error.banner">
     No se pudo conectar con Notion. Verificá tu conexión.
   </div>
   <div class="services-list" id="services-list">
@@ -695,10 +730,10 @@ body::before {
     </div>
   </div>
   <div class="coord-tab-bar">
-    <div class="coord-tab active" id="ctab-servicios" onclick="setCoordTab('servicios')">📋 Servicios</div>
-    <div class="coord-tab" id="ctab-propuestas" onclick="setCoordTab('propuestas')">💼 Propuestas</div>
-    <div class="coord-tab" id="ctab-contactos" onclick="setCoordTab('contactos')">👥 Contactos</div>
-    <div class="coord-tab" id="ctab-comunicaciones" onclick="setCoordTab('comunicaciones')">💬 Mensajes</div>
+    <div class="coord-tab active" id="ctab-servicios" data-i18n="coord.tab.servicios" onclick="setCoordTab('servicios')">📋 Servicios</div>
+    <div class="coord-tab" id="ctab-propuestas" data-i18n="coord.tab.propuestas" onclick="setCoordTab('propuestas')">💼 Propuestas</div>
+    <div class="coord-tab" id="ctab-contactos" data-i18n="coord.tab.contactos" onclick="setCoordTab('contactos')">👥 Contactos</div>
+    <div class="coord-tab" id="ctab-comunicaciones" data-i18n="coord.tab.mensajes" onclick="setCoordTab('comunicaciones')">💬 Mensajes</div>
   </div>
   <div id="alerts-banner-coord"></div>
   <div class="month-nav" id="coord-month-nav">
@@ -714,44 +749,44 @@ body::before {
     <div class="edit-sheet" id="edit-sheet">
       <div class="edit-sheet-handle"></div>
       <div class="edit-sheet-header">
-        <div class="edit-sheet-title" id="edit-sheet-title">Editar servicio</div>
+        <div class="edit-sheet-title" id="edit-sheet-title" data-i18n="sheet.edit.title.default">Editar servicio</div>
         <div class="edit-sheet-sub" id="edit-sheet-sub"></div>
       </div>
       <div class="edit-section">
-        <div class="edit-section-label">ESTADO</div>
+        <div class="edit-section-label" data-i18n="sheet.edit.section.estado">ESTADO</div>
         <div class="estado-btns" id="edit-estado-btns"></div>
       </div>
       <div class="edit-section">
-        <div class="edit-section-label">OPERARIO ASIGNADO</div>
+        <div class="edit-section-label" data-i18n="sheet.edit.section.operario">OPERARIO ASIGNADO</div>
         <div class="operario-btns" id="edit-operario-btns"></div>
       </div>
       <div class="edit-section">
-        <div class="edit-section-label">FECHA PROGRAMADA</div>
+        <div class="edit-section-label" data-i18n="sheet.edit.section.fecha">FECHA PROGRAMADA</div>
         <input type="date" class="edit-date-input" id="edit-fecha" onchange="editState.fecha=this.value"/>
       </div>
-      <button class="edit-save-btn" id="edit-save-btn" onclick="saveServiceEdit()">💾 GUARDAR EN NOTION</button>
+      <button class="edit-save-btn" id="edit-save-btn" data-i18n="btn.save.notion" onclick="saveServiceEdit()">💾 GUARDAR EN NOTION</button>
     </div>
   </div>
   <div class="edit-overlay" id="prop-overlay" onclick="propOverlayClick(event)">
     <div class="edit-sheet" id="prop-sheet">
       <div class="edit-sheet-handle"></div>
       <div class="edit-sheet-header">
-        <div class="edit-sheet-title" id="prop-sheet-title">Propuesta</div>
+        <div class="edit-sheet-title" id="prop-sheet-title" data-i18n="sheet.prop.title.default">Propuesta</div>
         <div class="edit-sheet-sub" id="prop-sheet-sub"></div>
       </div>
       <div id="prop-sheet-body"></div>
-      <button class="edit-save-btn" id="prop-save-btn" onclick="savePropEdit()">💾 GUARDAR EN NOTION</button>
+      <button class="edit-save-btn" id="prop-save-btn" data-i18n="btn.save.notion" onclick="savePropEdit()">💾 GUARDAR EN NOTION</button>
     </div>
   </div>
   <div class="edit-overlay" id="contact-overlay" onclick="contactOverlayClick(event)">
     <div class="edit-sheet" id="contact-sheet">
       <div class="edit-sheet-handle"></div>
       <div class="edit-sheet-header">
-        <div class="edit-sheet-title" id="contact-sheet-title">Contacto</div>
+        <div class="edit-sheet-title" id="contact-sheet-title" data-i18n="sheet.contact.title.default">Contacto</div>
         <div class="edit-sheet-sub" id="contact-sheet-sub"></div>
       </div>
       <div id="contact-sheet-body"></div>
-      <button class="edit-save-btn" id="contact-save-btn" onclick="saveContactEdit()">💾 GUARDAR EN NOTION</button>
+      <button class="edit-save-btn" id="contact-save-btn" data-i18n="btn.save.notion" onclick="saveContactEdit()">💾 GUARDAR EN NOTION</button>
     </div>
   </div>
 </div>
@@ -767,11 +802,11 @@ body::before {
   </div>
   <div class="ceo-country-tabs" id="ceo-country-tabs"></div>
   <div class="ceo-tab-bar">
-    <div class="ceo-tab active" id="ceotab-metricas" onclick="setCEOTab('metricas')">📊 Métricas</div>
-    <div class="ceo-tab" id="ceotab-servicios" onclick="setCEOTab('servicios')">📋 Servicios</div>
-    <div class="ceo-tab" id="ceotab-finanzas" onclick="setCEOTab('finanzas')">💰 Finanzas</div>
-    <div class="ceo-tab" id="ceotab-equipo" onclick="setCEOTab('equipo')">👥 Equipo</div>
-    <div class="ceo-tab" id="ceotab-comunicaciones" onclick="setCEOTab('comunicaciones')">💬 Mensajes</div>
+    <div class="ceo-tab active" id="ceotab-metricas" data-i18n="ceo.tab.metricas" onclick="setCEOTab('metricas')">📊 Métricas</div>
+    <div class="ceo-tab" id="ceotab-servicios" data-i18n="ceo.tab.servicios" onclick="setCEOTab('servicios')">📋 Servicios</div>
+    <div class="ceo-tab" id="ceotab-finanzas" data-i18n="ceo.tab.finanzas" onclick="setCEOTab('finanzas')">💰 Finanzas</div>
+    <div class="ceo-tab" id="ceotab-equipo" data-i18n="ceo.tab.equipo" onclick="setCEOTab('equipo')">👥 Equipo</div>
+    <div class="ceo-tab" id="ceotab-comunicaciones" data-i18n="ceo.tab.mensajes" onclick="setCEOTab('comunicaciones')">💬 Mensajes</div>
   </div>
   <div id="alerts-banner-ceo"></div>
   <div class="ceo-content" id="ceo-content">
@@ -782,28 +817,28 @@ body::before {
 <div class="pin-change-overlay" id="pin-change-overlay" onclick="pinChangeOverlayClick(event)">
   <div class="pin-change-sheet">
     <div class="pin-change-handle"></div>
-    <div class="pin-change-title">Cambiar PIN</div>
-    <div class="pin-change-sub" id="pin-change-sub">Ingresá tu PIN actual y elegí uno nuevo de 4 dígitos.</div>
+    <div class="pin-change-title" data-i18n="pinchange.title">Cambiar PIN</div>
+    <div class="pin-change-sub" id="pin-change-sub" data-i18n="pinchange.sub">Ingresá tu PIN actual y elegí uno nuevo de 4 dígitos.</div>
     <div class="pin-change-field">
-      <div class="pin-change-label">PIN Actual</div>
+      <div class="pin-change-label" data-i18n="pinchange.label.actual">PIN Actual</div>
       <input class="pin-change-input" id="pin-current" type="password" inputmode="numeric" maxlength="4" placeholder="••••" oninput="this.value=this.value.replace(/\D/g,'').slice(0,4)"/>
     </div>
     <div class="pin-change-field">
-      <div class="pin-change-label">PIN Nuevo</div>
+      <div class="pin-change-label" data-i18n="pinchange.label.nuevo">PIN Nuevo</div>
       <input class="pin-change-input" id="pin-new1" type="password" inputmode="numeric" maxlength="4" placeholder="••••" oninput="this.value=this.value.replace(/\D/g,'').slice(0,4)"/>
     </div>
     <div class="pin-change-field">
-      <div class="pin-change-label">Confirmar PIN Nuevo</div>
+      <div class="pin-change-label" data-i18n="pinchange.label.confirm">Confirmar PIN Nuevo</div>
       <input class="pin-change-input" id="pin-new2" type="password" inputmode="numeric" maxlength="4" placeholder="••••" oninput="this.value=this.value.replace(/\D/g,'').slice(0,4)"/>
     </div>
     <div class="pin-change-error" id="pin-change-error"></div>
-    <button class="pin-change-btn" onclick="saveNewPin()">Guardar nuevo PIN</button>
+    <button class="pin-change-btn" data-i18n="pinchange.btn.save" onclick="saveNewPin()">Guardar nuevo PIN</button>
   </div>
 </div>
 
 <div class="screen" id="screen-detail">
   <div class="detail-header">
-    <button class="back-btn" onclick="goBack()">← Volver</button>
+    <button class="back-btn" data-i18n="detail.back" onclick="goBack()">← Volver</button>
     <div class="detail-title" id="detail-title">Servicio</div>
   </div>
   <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
@@ -817,10 +852,10 @@ body::before {
 <!-- DONE -->
 <div class="screen" id="screen-done">
   <div class="done-icon">🏁</div>
-  <div class="done-title">¡Servicio cerrado!</div>
-  <div class="done-sub">Todos los datos se guardaron en Notion automáticamente.</div>
+  <div class="done-title" data-i18n="done.title">¡Servicio cerrado!</div>
+  <div class="done-sub" data-i18n="done.sub">Todos los datos se guardaron en Notion automáticamente.</div>
   <div class="done-stats" id="done-stats"></div>
-  <button class="btn-main btn-green" style="width:100%;max-width:300px" onclick="finishAndGoBack()">Ver mis servicios →</button>
+  <button class="btn-main btn-green" data-i18n="done.btn" style="width:100%;max-width:300px" onclick="finishAndGoBack()">Ver mis servicios →</button>
 </div>
 
 <script>
@@ -837,16 +872,628 @@ const USERS = [
   { id: 'operario-brasil-1', name: 'Operario Brasil',    role: '🛠️ Operario',    emoji: '👨‍🔧', pin: '1234', notionId: null, country: 'Brasil' },
   { id: 'coord-panama',      name: 'Coordinador Panamá', role: '🔧 Coordinador', emoji: '👷',  pin: '1234', notionId: null, country: 'Panamá' },
   { id: 'operario-panama-1', name: 'Operario Panamá',    role: '🛠️ Operario',    emoji: '👨‍🔧', pin: '1234', notionId: null, country: 'Panamá' },
+  { id: 'coord-guatemala',   name: 'Coordinador Guatemala', role: '🔧 Coordinador', emoji: '👷',  pin: '1234', notionId: null, country: 'Guatemala' },
+  { id: 'operario-guatemala-1', name: 'Operario Guatemala', role: '🛠️ Operario',  emoji: '👨‍🔧', pin: '1234', notionId: null, country: 'Guatemala' },
+  { id: 'coord-mexico',      name: 'Coordinador México', role: '🔧 Coordinador', emoji: '👷',  pin: '1234', notionId: null, country: 'México' },
+  { id: 'operario-mexico-1', name: 'Operario México',    role: '🛠️ Operario',    emoji: '👨‍🔧', pin: '1234', notionId: null, country: 'México' },
   { id: 'eduardo-cabral',   name: 'Eduardo Cabral',     role: '👔 CEO',          emoji: '🧑‍💼', pin: '9999', notionId: null, country: 'Uruguay' },
   { id: 'ceo-brasil',       name: 'CEO Brasil',         role: '👔 CEO',          emoji: '🧑‍💼', pin: '1234', notionId: null, country: 'Brasil' },
-  { id: 'ceo-panama',       name: 'CEO Panamá',         role: '👔 CEO',          emoji: '🧑‍💼', pin: '1234', notionId: null, country: 'Panamá' }
+  { id: 'ceo-panama',       name: 'CEO Panamá',         role: '👔 CEO',          emoji: '🧑‍💼', pin: '1234', notionId: null, country: 'Panamá' },
+  { id: 'ceo-guatemala',    name: 'CEO Guatemala',      role: '👔 CEO',          emoji: '🧑‍💼', pin: '1234', notionId: null, country: 'Guatemala' },
+  { id: 'ceo-mexico',       name: 'CEO México',         role: '👔 CEO',          emoji: '🧑‍💼', pin: '1234', notionId: null, country: 'México' }
 ];
 
 const COUNTRY_NOTION_MAP = {
-  'Uruguay': '🇺🇾 Uruguay',
-  'Brasil':  '🇧🇷 Brasil',
-  'Panamá':  '🇵🇦 Panamá'
+  'Uruguay':   '🇺🇾 Uruguay',
+  'Brasil':    '🇧🇷 Brasil',
+  'Panamá':    '🇵🇦 Panamá',
+  'Guatemala': '🇬🇹 Guatemala',
+  'México':    '🇲🇽 México'
 };
+
+// ─────────────────────────────────────────────
+// i18n — Spanish (default) + Portuguese (Brasil)
+// ─────────────────────────────────────────────
+const TRANSLATIONS = {
+  'es': {
+    'country.tagline': 'Seleccioná tu región para continuar',
+    'login.subtitle': 'Panel Operario',
+    'login.who': '¿QUIÉN ERES?',
+    'login.back': '‹ Cambiar región',
+    'pin.sub': 'Ingresá tu PIN de 4 dígitos',
+    'pin.error.wrong': 'PIN incorrecto. Intentá de nuevo.',
+    'pin.back.user': '← Cambiar usuario',
+    'pin.back.region': '← Cambiar región',
+    'pinchange.title': 'Cambiar PIN',
+    'pinchange.sub': 'Ingresá tu PIN actual y elegí uno nuevo de 4 dígitos.',
+    'pinchange.label.actual': 'PIN Actual',
+    'pinchange.label.nuevo': 'PIN Nuevo',
+    'pinchange.label.confirm': 'Confirmar PIN Nuevo',
+    'pinchange.btn.save': 'Guardar nuevo PIN',
+    'pinchange.error.current': 'El PIN actual es incorrecto.',
+    'pinchange.error.format': 'El nuevo PIN debe tener exactamente 4 dígitos.',
+    'pinchange.error.match': 'Los PINs nuevos no coinciden.',
+    'pinchange.error.same': 'El nuevo PIN debe ser diferente al actual.',
+    'pinchange.success': '✅ PIN actualizado correctamente.',
+    'services.tab.ordenes': '📋 Órdenes',
+    'services.tab.jornadas': '📅 Jornadas',
+    'services.title': 'Mis servicios',
+    'services.sub.loading': 'Cargando...',
+    'services.sub.loading2': 'Cargando servicios...',
+    'services.error.banner': 'No se pudo conectar con Notion. Verificá tu conexión.',
+    'services.sub.error': 'Error al cargar',
+    'services.empty.title': 'No hay servicios asignados',
+    'services.empty.text': 'Pedile al coordinador que te asigne un servicio en Notion. Los servicios aparecen aquí cuando el coordinador te los asigna.',
+    'services.empty.sub': 'Sin servicios asignados',
+    'services.connect.title': 'No se pudo conectar',
+    'services.connect.text': 'Verificá tu conexión a internet y que la app esté bien configurada.',
+    'services.retry': 'Reintentar',
+    'services.refresh': '🔄 Actualizar',
+    'services.salir': 'Salir ↩',
+    'services.assigned.one': 'servicio asignado',
+    'services.assigned.many': 'servicios asignados',
+    'jornada.badge': 'Jornada',
+    'detail.back': '← Volver',
+    'detail.title.default': 'Servicio',
+    'step.inicio.title': '▶ Iniciar servicio',
+    'step.inicio.sub': 'Revisá los datos antes de arrancar',
+    'step.inicio.hint': '📌 Esta información fue cargada por el coordinador. Solo lectura.',
+    'step.inicio.btn': '▶ INICIAR SERVICIO',
+    'step.inicio.continue': 'Continuar al checklist →',
+    'step.inicio.recorded': '✅ Servicio iniciado a las',
+    'step.info.nombre': '📋 Nombre',
+    'step.info.fecha': '📅 Fecha',
+    'step.info.tipo': '🪟 Tipo',
+    'step.info.pais': '🌎 País',
+    'step.info.m2': '📐 m² aprox.',
+    'step.info.tiporeg': '📋 Tipo de registro',
+    'step.info.nofecha': 'Sin fecha',
+    'step.pre.title': '✅ Checklist PRE-vuelo',
+    'step.pre.sub': 'Completá cada ítem ANTES de despegar',
+    'step.pre.hint': '🟢 Los 16 ítems son obligatorios antes de iniciar vuelo.',
+    'step.post.title': '✅ Checklist POST-servicio',
+    'step.post.sub': 'No te vayas sin completar todos los ítems',
+    'step.post.hint': '🔵 Completá cada ítem ANTES de retirarte del lugar.',
+    'step.checklist.completed': 'completados',
+    'step.fotos.antes.title': '📸 Fotos ANTES del trabajo',
+    'step.fotos.antes.sub': 'Mínimo 2 fotos del estado inicial',
+    'step.fotos.antes.hint': '📷 Mostrá el área completa a trabajar antes de empezar.',
+    'step.fotos.despues.title': '📸 Fotos DESPUÉS del trabajo',
+    'step.fotos.despues.sub': 'Mínimo 2 fotos del resultado final',
+    'step.fotos.despues.hint': '📷 Mostrá claramente el trabajo terminado.',
+    'step.fotos.area.text': 'Subida de fotos',
+    'step.fotos.area.note': 'La función de fotos se activa en la próxima versión.<br>Por ahora subí las fotos directamente en Notion.',
+    'step.inicioef.title': '🕐 Inicio Efectivo',
+    'step.inicioef.sub': 'Confirmá el clima y registrá el inicio de operativa',
+    'step.clima.label': '🌤️ CONDICIÓN CLIMÁTICA',
+    'step.clima.hint': 'Seleccioná la condición actual antes de iniciar.',
+    'step.inicioef.hint': '🟠 Este botón registra el momento exacto en que el drone empieza a trabajar.',
+    'step.inicioef.recorded': '✅ Inicio efectivo registrado',
+    'step.inicioef.btn': '🕐 REGISTRAR INICIO EFECTIVO',
+    'step.ejec.title': '🚁 En ejecución',
+    'step.ejec.sub': 'El trabajo está en curso',
+    'step.ejec.hint': '✈️ Estás volando. Cuando termines la operativa efectiva, avanzá al cierre.',
+    'step.ejec.tsLabel': '🕐 Inicio efectivo',
+    'step.ejec.continue': 'Terminar operativa →',
+    'step.cierreef.title': '⏹ Cierre Efectivo',
+    'step.cierreef.sub': 'Tocá cuando el drone aterrice',
+    'step.cierreef.hint': '🟠 Registra el tiempo efectivo de trabajo. El cálculo se hace automático en Notion.',
+    'step.cierreef.recorded': '✅ Cierre efectivo registrado',
+    'step.cierreef.btn': '⏹ REGISTRAR CIERRE EFECTIVO',
+    'step.obs.title': '📝 Observaciones y datos finales',
+    'step.obs.sub': 'Completá antes de cerrar el servicio',
+    'step.obs.notas.label': '📝 NOTAS POST-SERVICIO',
+    'step.obs.notas.placeholder': '¿Hubo algo inusual? ¿Dificultades? ¿Algo que dirección deba saber?',
+    'step.obs.avance.label': '📊 % DE AVANCE DE HOY',
+    'step.obs.avance.hint': '¿Qué porcentaje del trabajo total se completó en esta jornada?',
+    'step.obs.avance.placeholder': 'Ej: 40',
+    'step.obs.avance.note': '0% = sin avance · 100% = trabajo completado',
+    'step.obs.resultado.label': '🏁 RESULTADO',
+    'step.cerrar.title': '🏁 Cerrar servicio',
+    'step.cerrar.sub': 'Revisá todo antes de confirmar',
+    'step.cerrar.hint': '✅ Al cerrar, todos los datos se guardan automáticamente en Notion.',
+    'summary.title': 'RESUMEN DEL SERVICIO',
+    'summary.horainicio': '🕐 Hora de inicio',
+    'summary.inicioef': '⚡ Inicio efectivo',
+    'summary.cierreef': '⏹ Cierre efectivo',
+    'summary.checklist.pre': '✅ Checklist pre',
+    'summary.checklist.post': '✅ Checklist post',
+    'summary.avance': '💯 Avance',
+    'summary.resultado': '🏁 Resultado',
+    'summary.clima': '🌤️ Clima',
+    'btn.back': '← Atrás',
+    'btn.continue': 'Continuar →',
+    'btn.close.notion': '🏁 CERRAR EN NOTION',
+    'btn.save.notion': '💾 GUARDAR EN NOTION',
+    'btn.create.notion': '✨ CREAR EN NOTION',
+    'btn.saving': '⏳ Guardando...',
+    'btn.saving.notion': '⏳ Guardando en Notion...',
+    'done.title': '¡Servicio cerrado!',
+    'done.sub': 'Todos los datos se guardaron en Notion automáticamente.',
+    'done.btn': 'Ver mis servicios →',
+    'done.stat.inicio': 'Inicio',
+    'done.stat.inicioef': 'Inicio efectivo',
+    'done.stat.cierreef': 'Cierre efectivo',
+    'done.stat.resultado': 'Resultado',
+    'done.stat.checklists': 'Checklists',
+    'coord.brand.coord': 'Coordinador',
+    'coord.brand.direccion': 'Dirección',
+    'coord.tab.servicios': '📋 Servicios',
+    'coord.tab.propuestas': '💼 Propuestas',
+    'coord.tab.contactos': '👥 Contactos',
+    'coord.tab.mensajes': '💬 Mensajes',
+    'coord.empty.day': 'Sin servicios para este día.',
+    'coord.empty.month': 'Sin servicios este mes.',
+    'coord.empty.search': 'Sin resultados.',
+    'coord.error.load': 'Error al cargar.',
+    'coord.error.contactos': 'Error al cargar contactos.',
+    'coord.day.today': '📅 HOY — ',
+    'coord.unscheduled': '📅 Sin programar',
+    'coord.day.all': 'TODO',
+    'coord.unassigned': '— sin asignar',
+    'coord.search.contacts.placeholder': '🔍  Buscar contacto...',
+    'coord.new.contact': '+ Nuevo Contacto',
+    'role.direccion': '🎯 Dirección',
+    'role.coordinador': '🔧 Coordinador',
+    'role.operario': '🛠️ Operario',
+    'role.ceo': '👔 CEO',
+    'ceo.tab.metricas': '📊 Métricas',
+    'ceo.tab.servicios': '📋 Servicios',
+    'ceo.tab.finanzas': '💰 Finanzas',
+    'ceo.tab.equipo': '👥 Equipo',
+    'ceo.tab.mensajes': '💬 Mensajes',
+    'ceo.user.fallback': 'CEO',
+    'ceo.country.all': '🌎 Todos los países',
+    'ceo.metric.ingresos': 'Ingresos del mes',
+    'ceo.metric.gastos': 'Gastos del mes',
+    'ceo.metric.balance': 'Balance del mes',
+    'ceo.metric.balance.sub': 'Ingresos − Gastos',
+    'ceo.metric.svcs.completados': 'Svcs completados',
+    'ceo.metric.svcs.activos': 'Svcs activos',
+    'ceo.metric.svcs.completados.sub': 'este mes',
+    'ceo.metric.svcs.activos.sub': 'en curso / asignados',
+    'ceo.metric.props': 'Propuestas activas',
+    'ceo.metric.props.sub': 'en pipeline',
+    'ceo.metric.clientes': 'Clientes activos',
+    'ceo.metric.clientes.sub': 'en CRM',
+    'ceo.metric.year.label': 'Ingresos del año',
+    'ceo.metric.year.sub.prefix': 'USD acumulado enero–',
+    'ceo.servicios.title': 'SERVICIOS DEL MES',
+    'ceo.error.metricas': 'Error al cargar métricas.',
+    'ceo.error.servicios': 'Error al cargar servicios.',
+    'ceo.empty.servicios': 'Sin servicios este mes.',
+    'ceo.fin.ingresos': 'INGRESOS',
+    'ceo.fin.gastos': 'GASTOS',
+    'ceo.fin.balance': 'BALANCE',
+    'ceo.fin.ingresos.tipo': 'INGRESOS POR TIPO',
+    'ceo.fin.gastos.categ': 'GASTOS POR CATEGORÍA',
+    'ceo.fin.empty.ingresos': 'Sin ingresos registrados',
+    'ceo.fin.empty.gastos': 'Sin gastos registrados',
+    'ceo.error.finanzas': 'Error al cargar finanzas.',
+    'ceo.equipo.empty': 'Sin usuarios.',
+    'chart.ingresos': 'Ingresos',
+    'chart.gastos': 'Gastos',
+    'sheet.edit.title.default': 'Editar servicio',
+    'sheet.edit.section.estado': 'ESTADO',
+    'sheet.edit.section.operario': 'OPERARIO ASIGNADO',
+    'sheet.edit.section.fecha': 'FECHA PROGRAMADA',
+    'sheet.edit.operario.sinasignar': '— Sin asignar',
+    'sheet.edit.operario.nuevo': '+ Nuevo operario',
+    'sheet.edit.operario.nombre': 'Nombre completo',
+    'sheet.edit.operario.agregar': 'Agregar y seleccionar',
+    'sheet.alert.fecha': 'Sin fecha programada',
+    'sheet.alert.save.error': 'Error al guardar. Verificá tu conexión e intentá de nuevo.',
+    'sheet.alert.save.error2': 'Error al guardar: ',
+    'sheet.prop.title.nueva': 'Nueva Propuesta',
+    'sheet.prop.title.default': 'Propuesta',
+    'sheet.prop.subtitle.nueva': 'Se creará en Notion al guardar',
+    'sheet.prop.subtitle.default': 'Propuesta / Presupuesto',
+    'sheet.prop.section.nombre': 'NOMBRE DE LA PROPUESTA *',
+    'sheet.prop.nombre.placeholder': 'Ej: Fachada Torre Norte',
+    'sheet.prop.section.estado': 'ESTADO PIPELINE',
+    'sheet.prop.section.pais': 'PAÍS',
+    'sheet.prop.section.tipo': 'TIPO',
+    'sheet.prop.section.aprobacion': 'APROBACIÓN INTERNA',
+    'sheet.prop.section.importe': 'IMPORTE ESTIMADO (USD)',
+    'sheet.prop.importe.placeholder': 'Ej: 5000',
+    'sheet.prop.section.fechaenvio': 'FECHA DE ENVÍO',
+    'sheet.prop.section.ultimaint': 'ÚLTIMA INTERACCIÓN',
+    'sheet.prop.section.obs': 'OBSERVACIONES',
+    'sheet.prop.obs.placeholder': 'Notas sobre la propuesta...',
+    'sheet.prop.error.nombre': 'El nombre de la propuesta es obligatorio.',
+    'sheet.contact.title.default': 'Contacto',
+    'sheet.contact.title.nuevo': 'Nuevo Contacto',
+    'sheet.contact.subtitle.nuevo': 'Se creará en Notion al guardar',
+    'sheet.contact.section.nombre': 'NOMBRE / EMPRESA *',
+    'sheet.contact.nombre.placeholder': 'Ej: Torre del Parque',
+    'sheet.contact.section.estado': 'ESTADO',
+    'sheet.contact.section.tipo': 'TIPO DE CLIENTE',
+    'sheet.contact.section.pais': 'PAÍS',
+    'sheet.contact.section.canal': 'CANAL DE CAPTACIÓN',
+    'sheet.contact.section.servicios': 'SERVICIO DE INTERÉS',
+    'sheet.contact.section.tel': 'TELÉFONO / WHATSAPP',
+    'sheet.contact.tel.placeholder': '+598 9X XXX XXX',
+    'sheet.contact.section.email': 'EMAIL',
+    'sheet.contact.email.placeholder': 'contacto@empresa.com',
+    'sheet.contact.section.ciudad': 'CIUDAD / ZONA',
+    'sheet.contact.ciudad.placeholder': 'Ej: Punta del Este',
+    'sheet.contact.section.interlocutor': 'INTERLOCUTOR',
+    'sheet.contact.interlocutor.placeholder': 'Nombre del encargado',
+    'sheet.contact.section.notas': 'NOTAS',
+    'sheet.contact.notas.placeholder': 'Observaciones...',
+    'sheet.contact.error.nombre': 'El nombre es obligatorio.',
+    'coord.empty.props': 'Sin propuestas activas.',
+    'coord.error.props': 'Error al cargar propuestas.',
+    'coord.new.prop': '+ Nueva Propuesta',
+    'coord.prop.lastint.prefix': 'Última interacción: ',
+    'coord.prop.days.suffix': ' días sin respuesta',
+    'coord.prop.tap.edit': 'Tap para editar →',
+    'alerts.alerta': 'alerta',
+    'alerts.alertas': 'alertas',
+    'alerts.activa': 'activa',
+    'alerts.activas': 'activas',
+    'alerts.see': 'ver ▼',
+    'alerts.close': 'cerrar ▲',
+    'comms.title': 'Comunicaciones',
+    'comms.sub': 'El sistema de mensajería interno entre CEO, coordinadores y operarios está en desarrollo. Próximamente podrán comunicarse directamente desde la app.',
+    'comms.badge': 'Próximamente',
+    'comms.f1.title': 'Avisos del coordinador',
+    'comms.f1.text': 'Notificaciones a operarios sobre cambios de fecha, instrucciones o alertas de servicio.',
+    'comms.f2.title': 'Reportes del operario',
+    'comms.f2.text': 'El operario reporta novedades del servicio directamente al coordinador.',
+    'comms.f3.title': 'Vista CEO',
+    'comms.f3.text': 'El CEO recibe resúmenes diarios y puede comunicarse con los coordinadores de cada país.',
+    'lang.toggle.title': 'Idioma',
+    'common.sinnombre': 'Sin nombre',
+    'common.sinfecha': 'Sin fecha'
+  },
+  'pt-BR': {
+    'country.tagline': 'Selecione sua região para continuar',
+    'login.subtitle': 'Painel Operário',
+    'login.who': 'QUEM É VOCÊ?',
+    'login.back': '‹ Trocar região',
+    'pin.sub': 'Digite seu PIN de 4 dígitos',
+    'pin.error.wrong': 'PIN incorreto. Tente novamente.',
+    'pin.back.user': '← Trocar usuário',
+    'pin.back.region': '← Trocar região',
+    'pinchange.title': 'Trocar PIN',
+    'pinchange.sub': 'Digite seu PIN atual e escolha um novo de 4 dígitos.',
+    'pinchange.label.actual': 'PIN Atual',
+    'pinchange.label.nuevo': 'PIN Novo',
+    'pinchange.label.confirm': 'Confirmar PIN Novo',
+    'pinchange.btn.save': 'Salvar novo PIN',
+    'pinchange.error.current': 'O PIN atual está incorreto.',
+    'pinchange.error.format': 'O novo PIN deve ter exatamente 4 dígitos.',
+    'pinchange.error.match': 'Os novos PINs não conferem.',
+    'pinchange.error.same': 'O novo PIN deve ser diferente do atual.',
+    'pinchange.success': '✅ PIN atualizado com sucesso.',
+    'services.tab.ordenes': '📋 Ordens',
+    'services.tab.jornadas': '📅 Jornadas',
+    'services.title': 'Meus serviços',
+    'services.sub.loading': 'Carregando...',
+    'services.sub.loading2': 'Carregando serviços...',
+    'services.error.banner': 'Não foi possível conectar com Notion. Verifique sua conexão.',
+    'services.sub.error': 'Erro ao carregar',
+    'services.empty.title': 'Sem serviços atribuídos',
+    'services.empty.text': 'Peça ao coordenador que atribua um serviço no Notion. Os serviços aparecem aqui quando o coordenador os atribui.',
+    'services.empty.sub': 'Sem serviços atribuídos',
+    'services.connect.title': 'Não foi possível conectar',
+    'services.connect.text': 'Verifique sua conexão com a internet e se o app está bem configurado.',
+    'services.retry': 'Tentar novamente',
+    'services.refresh': '🔄 Atualizar',
+    'services.salir': 'Sair ↩',
+    'services.assigned.one': 'serviço atribuído',
+    'services.assigned.many': 'serviços atribuídos',
+    'jornada.badge': 'Jornada',
+    'detail.back': '← Voltar',
+    'detail.title.default': 'Serviço',
+    'step.inicio.title': '▶ Iniciar serviço',
+    'step.inicio.sub': 'Confira os dados antes de começar',
+    'step.inicio.hint': '📌 Essas informações foram carregadas pelo coordenador. Somente leitura.',
+    'step.inicio.btn': '▶ INICIAR SERVIÇO',
+    'step.inicio.continue': 'Continuar para o checklist →',
+    'step.inicio.recorded': '✅ Serviço iniciado às',
+    'step.info.nombre': '📋 Nome',
+    'step.info.fecha': '📅 Data',
+    'step.info.tipo': '🪟 Tipo',
+    'step.info.pais': '🌎 País',
+    'step.info.m2': '📐 m² aprox.',
+    'step.info.tiporeg': '📋 Tipo de registro',
+    'step.info.nofecha': 'Sem data',
+    'step.pre.title': '✅ Checklist PRÉ-voo',
+    'step.pre.sub': 'Marque cada item ANTES de decolar',
+    'step.pre.hint': '🟢 Os 16 itens são obrigatórios antes de iniciar o voo.',
+    'step.post.title': '✅ Checklist PÓS-serviço',
+    'step.post.sub': 'Não saia sem completar todos os itens',
+    'step.post.hint': '🔵 Marque cada item ANTES de sair do local.',
+    'step.checklist.completed': 'completos',
+    'step.fotos.antes.title': '📸 Fotos ANTES do trabalho',
+    'step.fotos.antes.sub': 'Mínimo 2 fotos do estado inicial',
+    'step.fotos.antes.hint': '📷 Mostre toda a área de trabalho antes de começar.',
+    'step.fotos.despues.title': '📸 Fotos DEPOIS do trabalho',
+    'step.fotos.despues.sub': 'Mínimo 2 fotos do resultado final',
+    'step.fotos.despues.hint': '📷 Mostre claramente o trabalho concluído.',
+    'step.fotos.area.text': 'Upload de fotos',
+    'step.fotos.area.note': 'A função de fotos será ativada na próxima versão.<br>Por enquanto, suba as fotos diretamente no Notion.',
+    'step.inicioef.title': '🕐 Início Efetivo',
+    'step.inicioef.sub': 'Confirme o clima e registre o início da operação',
+    'step.clima.label': '🌤️ CONDIÇÃO CLIMÁTICA',
+    'step.clima.hint': 'Selecione a condição atual antes de iniciar.',
+    'step.inicioef.hint': '🟠 Este botão registra o momento exato em que o drone começa a trabalhar.',
+    'step.inicioef.recorded': '✅ Início efetivo registrado',
+    'step.inicioef.btn': '🕐 REGISTRAR INÍCIO EFETIVO',
+    'step.ejec.title': '🚁 Em execução',
+    'step.ejec.sub': 'O trabalho está em andamento',
+    'step.ejec.hint': '✈️ Você está voando. Ao terminar a operação efetiva, avance para o fechamento.',
+    'step.ejec.tsLabel': '🕐 Início efetivo',
+    'step.ejec.continue': 'Encerrar operação →',
+    'step.cierreef.title': '⏹ Fechamento Efetivo',
+    'step.cierreef.sub': 'Toque quando o drone pousar',
+    'step.cierreef.hint': '🟠 Registra o tempo efetivo de trabalho. O cálculo é automático no Notion.',
+    'step.cierreef.recorded': '✅ Fechamento efetivo registrado',
+    'step.cierreef.btn': '⏹ REGISTRAR FECHAMENTO EFETIVO',
+    'step.obs.title': '📝 Observações e dados finais',
+    'step.obs.sub': 'Preencha antes de fechar o serviço',
+    'step.obs.notas.label': '📝 NOTAS PÓS-SERVIÇO',
+    'step.obs.notas.placeholder': 'Houve algo incomum? Dificuldades? Algo que a direção deva saber?',
+    'step.obs.avance.label': '📊 % DE AVANÇO DE HOJE',
+    'step.obs.avance.hint': 'Que porcentagem do trabalho total foi concluída nesta jornada?',
+    'step.obs.avance.placeholder': 'Ex: 40',
+    'step.obs.avance.note': '0% = sem avanço · 100% = trabalho concluído',
+    'step.obs.resultado.label': '🏁 RESULTADO',
+    'step.cerrar.title': '🏁 Fechar serviço',
+    'step.cerrar.sub': 'Revise tudo antes de confirmar',
+    'step.cerrar.hint': '✅ Ao fechar, todos os dados são salvos automaticamente no Notion.',
+    'summary.title': 'RESUMO DO SERVIÇO',
+    'summary.horainicio': '🕐 Hora de início',
+    'summary.inicioef': '⚡ Início efetivo',
+    'summary.cierreef': '⏹ Fechamento efetivo',
+    'summary.checklist.pre': '✅ Checklist pré',
+    'summary.checklist.post': '✅ Checklist pós',
+    'summary.avance': '💯 Avanço',
+    'summary.resultado': '🏁 Resultado',
+    'summary.clima': '🌤️ Clima',
+    'btn.back': '← Voltar',
+    'btn.continue': 'Continuar →',
+    'btn.close.notion': '🏁 FECHAR NO NOTION',
+    'btn.save.notion': '💾 SALVAR NO NOTION',
+    'btn.create.notion': '✨ CRIAR NO NOTION',
+    'btn.saving': '⏳ Salvando...',
+    'btn.saving.notion': '⏳ Salvando no Notion...',
+    'done.title': 'Serviço fechado!',
+    'done.sub': 'Todos os dados foram salvos automaticamente no Notion.',
+    'done.btn': 'Ver meus serviços →',
+    'done.stat.inicio': 'Início',
+    'done.stat.inicioef': 'Início efetivo',
+    'done.stat.cierreef': 'Fechamento efetivo',
+    'done.stat.resultado': 'Resultado',
+    'done.stat.checklists': 'Checklists',
+    'coord.brand.coord': 'Coordenador',
+    'coord.brand.direccion': 'Direção',
+    'coord.tab.servicios': '📋 Serviços',
+    'coord.tab.propuestas': '💼 Propostas',
+    'coord.tab.contactos': '👥 Contatos',
+    'coord.tab.mensajes': '💬 Mensagens',
+    'coord.empty.day': 'Sem serviços para este dia.',
+    'coord.empty.month': 'Sem serviços este mês.',
+    'coord.empty.search': 'Sem resultados.',
+    'coord.error.load': 'Erro ao carregar.',
+    'coord.error.contactos': 'Erro ao carregar contatos.',
+    'coord.day.today': '📅 HOJE — ',
+    'coord.unscheduled': '📅 Sem agendamento',
+    'coord.day.all': 'TUDO',
+    'coord.unassigned': '— sem atribuir',
+    'coord.search.contacts.placeholder': '🔍  Buscar contato...',
+    'coord.new.contact': '+ Novo Contato',
+    'role.direccion': '🎯 Direção',
+    'role.coordinador': '🔧 Coordenador',
+    'role.operario': '🛠️ Operário',
+    'role.ceo': '👔 CEO',
+    'ceo.tab.metricas': '📊 Métricas',
+    'ceo.tab.servicios': '📋 Serviços',
+    'ceo.tab.finanzas': '💰 Finanças',
+    'ceo.tab.equipo': '👥 Equipe',
+    'ceo.tab.mensajes': '💬 Mensagens',
+    'ceo.user.fallback': 'CEO',
+    'ceo.country.all': '🌎 Todos os países',
+    'ceo.metric.ingresos': 'Receita do mês',
+    'ceo.metric.gastos': 'Despesas do mês',
+    'ceo.metric.balance': 'Saldo do mês',
+    'ceo.metric.balance.sub': 'Receita − Despesas',
+    'ceo.metric.svcs.completados': 'Serv. concluídos',
+    'ceo.metric.svcs.activos': 'Serv. ativos',
+    'ceo.metric.svcs.completados.sub': 'este mês',
+    'ceo.metric.svcs.activos.sub': 'em curso / atribuídos',
+    'ceo.metric.props': 'Propostas ativas',
+    'ceo.metric.props.sub': 'no pipeline',
+    'ceo.metric.clientes': 'Clientes ativos',
+    'ceo.metric.clientes.sub': 'no CRM',
+    'ceo.metric.year.label': 'Receita do ano',
+    'ceo.metric.year.sub.prefix': 'USD acumulado janeiro–',
+    'ceo.servicios.title': 'SERVIÇOS DO MÊS',
+    'ceo.error.metricas': 'Erro ao carregar métricas.',
+    'ceo.error.servicios': 'Erro ao carregar serviços.',
+    'ceo.empty.servicios': 'Sem serviços este mês.',
+    'ceo.fin.ingresos': 'RECEITA',
+    'ceo.fin.gastos': 'DESPESAS',
+    'ceo.fin.balance': 'SALDO',
+    'ceo.fin.ingresos.tipo': 'RECEITA POR TIPO',
+    'ceo.fin.gastos.categ': 'DESPESAS POR CATEGORIA',
+    'ceo.fin.empty.ingresos': 'Sem receita registrada',
+    'ceo.fin.empty.gastos': 'Sem despesas registradas',
+    'ceo.error.finanzas': 'Erro ao carregar finanças.',
+    'ceo.equipo.empty': 'Sem usuários.',
+    'chart.ingresos': 'Receita',
+    'chart.gastos': 'Despesas',
+    'sheet.edit.title.default': 'Editar serviço',
+    'sheet.edit.section.estado': 'STATUS',
+    'sheet.edit.section.operario': 'OPERÁRIO ATRIBUÍDO',
+    'sheet.edit.section.fecha': 'DATA PROGRAMADA',
+    'sheet.edit.operario.sinasignar': '— Sem atribuir',
+    'sheet.edit.operario.nuevo': '+ Novo operário',
+    'sheet.edit.operario.nombre': 'Nome completo',
+    'sheet.edit.operario.agregar': 'Adicionar e selecionar',
+    'sheet.alert.fecha': 'Sem data programada',
+    'sheet.alert.save.error': 'Erro ao salvar. Verifique sua conexão e tente novamente.',
+    'sheet.alert.save.error2': 'Erro ao salvar: ',
+    'sheet.prop.title.nueva': 'Nova Proposta',
+    'sheet.prop.title.default': 'Proposta',
+    'sheet.prop.subtitle.nueva': 'Será criada no Notion ao salvar',
+    'sheet.prop.subtitle.default': 'Proposta / Orçamento',
+    'sheet.prop.section.nombre': 'NOME DA PROPOSTA *',
+    'sheet.prop.nombre.placeholder': 'Ex: Fachada Torre Norte',
+    'sheet.prop.section.estado': 'STATUS DO PIPELINE',
+    'sheet.prop.section.pais': 'PAÍS',
+    'sheet.prop.section.tipo': 'TIPO',
+    'sheet.prop.section.aprobacion': 'APROVAÇÃO INTERNA',
+    'sheet.prop.section.importe': 'VALOR ESTIMADO (USD)',
+    'sheet.prop.importe.placeholder': 'Ex: 5000',
+    'sheet.prop.section.fechaenvio': 'DATA DE ENVIO',
+    'sheet.prop.section.ultimaint': 'ÚLTIMA INTERAÇÃO',
+    'sheet.prop.section.obs': 'OBSERVAÇÕES',
+    'sheet.prop.obs.placeholder': 'Notas sobre a proposta...',
+    'sheet.prop.error.nombre': 'O nome da proposta é obrigatório.',
+    'sheet.contact.title.default': 'Contato',
+    'sheet.contact.title.nuevo': 'Novo Contato',
+    'sheet.contact.subtitle.nuevo': 'Será criado no Notion ao salvar',
+    'sheet.contact.section.nombre': 'NOME / EMPRESA *',
+    'sheet.contact.nombre.placeholder': 'Ex: Torre do Parque',
+    'sheet.contact.section.estado': 'STATUS',
+    'sheet.contact.section.tipo': 'TIPO DE CLIENTE',
+    'sheet.contact.section.pais': 'PAÍS',
+    'sheet.contact.section.canal': 'CANAL DE CAPTAÇÃO',
+    'sheet.contact.section.servicios': 'SERVIÇO DE INTERESSE',
+    'sheet.contact.section.tel': 'TELEFONE / WHATSAPP',
+    'sheet.contact.tel.placeholder': '+55 51 9XXXX-XXXX',
+    'sheet.contact.section.email': 'E-MAIL',
+    'sheet.contact.email.placeholder': 'contato@empresa.com',
+    'sheet.contact.section.ciudad': 'CIDADE / ZONA',
+    'sheet.contact.ciudad.placeholder': 'Ex: Porto Alegre',
+    'sheet.contact.section.interlocutor': 'INTERLOCUTOR',
+    'sheet.contact.interlocutor.placeholder': 'Nome do responsável',
+    'sheet.contact.section.notas': 'NOTAS',
+    'sheet.contact.notas.placeholder': 'Observações...',
+    'sheet.contact.error.nombre': 'O nome é obrigatório.',
+    'coord.empty.props': 'Sem propostas ativas.',
+    'coord.error.props': 'Erro ao carregar propostas.',
+    'coord.new.prop': '+ Nova Proposta',
+    'coord.prop.lastint.prefix': 'Última interação: ',
+    'coord.prop.days.suffix': ' dias sem resposta',
+    'coord.prop.tap.edit': 'Toque para editar →',
+    'alerts.alerta': 'alerta',
+    'alerts.alertas': 'alertas',
+    'alerts.activa': 'ativa',
+    'alerts.activas': 'ativas',
+    'alerts.see': 'ver ▼',
+    'alerts.close': 'fechar ▲',
+    'comms.title': 'Comunicações',
+    'comms.sub': 'O sistema de mensageria interna entre CEO, coordenadores e operários está em desenvolvimento. Em breve poderão se comunicar diretamente pelo app.',
+    'comms.badge': 'Em breve',
+    'comms.f1.title': 'Avisos do coordenador',
+    'comms.f1.text': 'Notificações aos operários sobre mudanças de data, instruções ou alertas de serviço.',
+    'comms.f2.title': 'Relatórios do operário',
+    'comms.f2.text': 'O operário reporta novidades do serviço diretamente ao coordenador.',
+    'comms.f3.title': 'Visão CEO',
+    'comms.f3.text': 'O CEO recebe resumos diários e pode se comunicar com os coordenadores de cada país.',
+    'lang.toggle.title': 'Idioma',
+    'common.sinnombre': 'Sem nome',
+    'common.sinfecha': 'Sem data'
+  }
+};
+
+let currentLang = 'es';
+
+function t(key) {
+  return (TRANSLATIONS[currentLang] && TRANSLATIONS[currentLang][key]) || TRANSLATIONS['es'][key] || key;
+}
+
+function defaultLangForCountry(country) {
+  return country === 'Brasil' ? 'pt-BR' : 'es';
+}
+
+function initLang() {
+  const savedCountry = localStorage.getItem('fc_country');
+  if (savedCountry === 'Brasil') {
+    const savedBr = localStorage.getItem('fc_lang_Brasil');
+    currentLang = (savedBr === 'es') ? 'es' : 'pt-BR';
+  } else {
+    currentLang = 'es';
+  }
+  document.documentElement.lang = currentLang === 'pt-BR' ? 'pt-BR' : 'es';
+}
+
+function setLang(lang) {
+  if (lang !== 'pt-BR' && lang !== 'es') return;
+  currentLang = lang;
+  if (selectedCountry === 'Brasil') {
+    localStorage.setItem('fc_lang_Brasil', lang);
+  }
+  document.documentElement.lang = lang === 'pt-BR' ? 'pt-BR' : 'es';
+  applyTranslations();
+  updateLangToggleUI();
+  rerenderActiveContent();
+}
+
+function applyTranslations() {
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    el.textContent = t(el.dataset.i18n);
+  });
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+    el.placeholder = t(el.dataset.i18nPlaceholder);
+  });
+  document.querySelectorAll('[data-i18n-html]').forEach(el => {
+    el.innerHTML = t(el.dataset.i18nHtml);
+  });
+}
+
+function updateLangToggleUI() {
+  const toggle = document.getElementById('lang-toggle');
+  if (!toggle) return;
+  const isBrasil = selectedCountry === 'Brasil';
+  toggle.style.display = isBrasil ? 'flex' : 'none';
+  const ptBtn = document.getElementById('lang-pt');
+  const esBtn = document.getElementById('lang-es');
+  if (ptBtn) ptBtn.classList.toggle('active', currentLang === 'pt-BR');
+  if (esBtn) esBtn.classList.toggle('active', currentLang === 'es');
+}
+
+function rerenderActiveContent() {
+  const active = document.querySelector('.screen.active');
+  if (!active) return;
+  const id = active.id;
+  try {
+    if (id === 'screen-login' && selectedCountry) {
+      renderLogin();
+    } else if (id === 'screen-pin' && pinUser) {
+      // re-render pin labels (emoji/name unchanged but sub label may be data-i18n)
+    } else if (id === 'screen-services' && currentUser) {
+      if (typeof _allServices !== 'undefined' && _allServices) renderServices(_allServices);
+    } else if (id === 'screen-detail' && typeof currentService !== 'undefined' && currentService) {
+      renderStepNav();
+      renderStep();
+    } else if (id === 'screen-coordinator' && currentUser) {
+      if (activeCoordTab === 'servicios') renderCoordServicios();
+      else if (activeCoordTab === 'propuestas' && typeof renderCoordPropuestas === 'function') renderCoordPropuestas();
+      else if (activeCoordTab === 'contactos') renderCoordContactos();
+    } else if (id === 'screen-ceo' && currentUser) {
+      renderCEOCountryTabs();
+      if (activeCEOTab === 'metricas') renderCEOMetricas();
+      else if (activeCEOTab === 'servicios') renderCEOServicios();
+      else if (activeCEOTab === 'finanzas') renderCEOFinanzas();
+      else if (activeCEOTab === 'equipo') renderCEOEquipo();
+    }
+  } catch (e) { console.warn('rerenderActiveContent error', e); }
+}
+
+function translateRole(role) {
+  const map = {
+    '🎯 Dirección': 'role.direccion',
+    '🔧 Coordinador': 'role.coordinador',
+    '🛠️ Operario': 'role.operario',
+    '👔 CEO': 'role.ceo'
+  };
+  return map[role] ? t(map[role]) : role;
+}
 
 function getCountryFilter() {
   const isGlobal = currentUser?.role?.includes('Dirección') ||
@@ -1043,12 +1690,43 @@ function showSaving() {
 function selectCountry(country) {
   selectedCountry = country;
   localStorage.setItem('fc_country', country);
+  applyLangForCountry(country);
   renderLogin();
   showScreen('login');
 }
 
+function applyLangForCountry(country) {
+  if (country === 'Brasil') {
+    const saved = localStorage.getItem('fc_lang_Brasil');
+    currentLang = (saved === 'es') ? 'es' : 'pt-BR';
+  } else {
+    currentLang = 'es';
+  }
+  document.documentElement.lang = currentLang === 'pt-BR' ? 'pt-BR' : 'es';
+  applyTranslations();
+  updateLangToggleUI();
+}
+
 function backToCountry() {
+  localStorage.removeItem('fc_country');
+  localStorage.removeItem('fc_user');
+  selectedCountry = null;
+  pinUser = null;
+  currentUser = null;
+  currentLang = 'es';
+  document.documentElement.lang = 'es';
+  applyTranslations();
+  updateLangToggleUI();
   showScreen('country');
+}
+
+function backToLogin() {
+  localStorage.removeItem('fc_user');
+  pinUser = null;
+  currentUser = null;
+  pinBuffer = '';
+  renderLogin();
+  showScreen('login');
 }
 
 function renderLogin() {
@@ -1059,7 +1737,7 @@ function renderLogin() {
       <span class="user-avatar">${u.emoji}</span>
       <div>
         <div class="user-name">${u.name}</div>
-        <div class="user-role">${u.role}</div>
+        <div class="user-role">${translateRole(u.role)}</div>
       </div>
       <span class="user-arrow">→</span>
     </div>
@@ -1098,7 +1776,7 @@ async function pinConfirm() {
   if (pinBuffer !== getEffectivePin(pinUser.id)) {
     pinBuffer = '';
     updatePinDots();
-    document.getElementById('pin-error').textContent = 'PIN incorrecto. Intentá de nuevo.';
+    document.getElementById('pin-error').textContent = t('pin.error.wrong');
     const dots = document.getElementById('pin-dots');
     dots.classList.add('shake');
     setTimeout(() => dots.classList.remove('shake'), 400);
@@ -1152,7 +1830,7 @@ async function loadServices() {
   if (!currentUser) { showScreen('login'); return; }
   showScreen('services');
   document.getElementById('header-user-name').textContent = (currentUser.emoji + ' ' + currentUser.name.split(' ')[0]);
-  document.getElementById('services-sub').textContent = 'Cargando servicios...';
+  document.getElementById('services-sub').textContent = t('services.sub.loading2');
   loadAlerts(currentUser.role, 'alerts-banner-services');
   document.getElementById('services-list').innerHTML = '<div style="text-align:center;padding:40px 0"><div class="spinner" style="margin:0 auto"></div></div>';
   document.getElementById('error-banner').classList.remove('visible');
@@ -1162,13 +1840,13 @@ async function loadServices() {
     renderServices(services);
   } catch (err) {
     document.getElementById('error-banner').classList.add('visible');
-    document.getElementById('services-sub').textContent = 'Error al cargar';
+    document.getElementById('services-sub').textContent = t('services.sub.error');
     document.getElementById('services-list').innerHTML = `
       <div class="empty-state">
         <div class="empty-icon">⚠️</div>
-        <div class="empty-title">No se pudo conectar</div>
-        <div class="empty-text">Verificá tu conexión a internet y que la app esté bien configurada.</div>
-        <button class="refresh-btn" onclick="loadServices()">Reintentar</button>
+        <div class="empty-title">${t('services.connect.title')}</div>
+        <div class="empty-text">${t('services.connect.text')}</div>
+        <button class="refresh-btn" onclick="loadServices()">${t('services.retry')}</button>
       </div>`;
   }
 }
@@ -1193,22 +1871,22 @@ function renderServices(services) {
   const list = document.getElementById('services-list');
 
   if (services.length === 0) {
-    sub.textContent = 'Sin servicios asignados';
+    sub.textContent = t('services.empty.sub');
     list.innerHTML = `
       <div class="empty-state">
         <div class="empty-icon">🚁</div>
-        <div class="empty-title">No hay servicios asignados</div>
-        <div class="empty-text">Pedile al coordinador que te asigne un servicio en Notion. Los servicios aparecen aquí cuando el coordinador te los asigna.</div>
-        <button class="refresh-btn" onclick="loadServices()">🔄 Actualizar</button>
+        <div class="empty-title">${t('services.empty.title')}</div>
+        <div class="empty-text">${t('services.empty.text')}</div>
+        <button class="refresh-btn" onclick="loadServices()">${t('services.refresh')}</button>
       </div>`;
     return;
   }
 
-  sub.textContent = `${services.length} servicio${services.length > 1 ? 's' : ''} asignado${services.length > 1 ? 's' : ''}`;
+  sub.textContent = `${services.length} ${services.length > 1 ? t('services.assigned.many') : t('services.assigned.one')}`;
 
   list.innerHTML = services.map((s, i) => {
     const props = s.properties;
-    const nombre = props['Nombre del servicio']?.title?.[0]?.plain_text || 'Sin nombre';
+    const nombre = props['Nombre del servicio']?.title?.[0]?.plain_text || t('common.sinnombre');
     const estado = props['Estado']?.select?.name || '📋 Pendiente';
     const fecha = props['Fecha programada']?.date?.start || '';
     const tipo = props['Tipo de servicio']?.select?.name || '';
@@ -1217,7 +1895,8 @@ function renderServices(services) {
     const jornadaN = props['Jornada N°']?.number;
     const isJornada = tipoReg.includes('Jornada');
 
-    const fechaFmt = fecha ? new Date(fecha + 'T00:00:00').toLocaleDateString('es-UY', { day: 'numeric', month: 'short' }) : '';
+    const dateLocale = currentLang === 'pt-BR' ? 'pt-BR' : 'es-UY';
+    const fechaFmt = fecha ? new Date(fecha + 'T00:00:00').toLocaleDateString(dateLocale, { day: 'numeric', month: 'short' }) : '';
 
     return `
       <div class="service-card ${estado.includes('Pendiente') ? '' : ''}" onclick="openService(${i})" data-idx="${i}">
@@ -1228,7 +1907,7 @@ function renderServices(services) {
           ${tipo ? `<span class="service-tag">${tipo}</span>` : ''}
           ${pais ? `<span class="service-tag">${pais}</span>` : ''}
         </div>
-        ${isJornada && jornadaN ? `<div class="service-jornada-badge">📅 Jornada ${jornadaN}</div>` : ''}
+        ${isJornada && jornadaN ? `<div class="service-jornada-badge">📅 ${t('jornada.badge')} ${jornadaN}</div>` : ''}
       </div>`;
   }).join('');
 
@@ -1244,7 +1923,7 @@ function openService(idx) {
   currentStep = 0;
   resetServiceState();
 
-  const nombre = currentService.properties['Nombre del servicio']?.title?.[0]?.plain_text || 'Servicio';
+  const nombre = currentService.properties['Nombre del servicio']?.title?.[0]?.plain_text || t('detail.title.default');
   document.getElementById('detail-title').textContent = nombre;
 
   renderStepNav();
@@ -1291,7 +1970,8 @@ function renderStep() {
   const pais = props['País']?.select?.name || '';
   const tipoReg = props['Tipo de registro']?.select?.name || '';
   const m2 = props['m² aproximados']?.number || '';
-  const fechaFmt = fecha ? new Date(fecha + 'T00:00:00').toLocaleDateString('es-UY', { weekday: 'long', day: 'numeric', month: 'long' }) : 'Sin fecha';
+  const dateLocale = currentLang === 'pt-BR' ? 'pt-BR' : 'es-UY';
+  const fechaFmt = fecha ? new Date(fecha + 'T00:00:00').toLocaleDateString(dateLocale, { weekday: 'long', day: 'numeric', month: 'long' }) : t('step.info.nofecha');
 
   const content = document.getElementById('step-content');
   const bar = document.getElementById('bottom-bar');
@@ -1299,24 +1979,24 @@ function renderStep() {
   // ── STEP 0: INICIAR ──
   if (step.id === 'inicio') {
     content.innerHTML = `
-      <div class="step-title">▶ Iniciar servicio</div>
-      <div class="step-sub">Revisá los datos antes de arrancar</div>
-      <div class="hint hint-blue">📌 Esta información fue cargada por el coordinador. Solo lectura.</div>
+      <div class="step-title">${t('step.inicio.title')}</div>
+      <div class="step-sub">${t('step.inicio.sub')}</div>
+      <div class="hint hint-blue">${t('step.inicio.hint')}</div>
       <div class="info-block">
-        <div class="info-row"><span class="info-label">📋 Nombre</span><span class="info-val">${nombre}</span></div>
-        <div class="info-row"><span class="info-label">📅 Fecha</span><span class="info-val">${fechaFmt}</span></div>
-        <div class="info-row"><span class="info-label">🪟 Tipo</span><span class="info-val">${tipo}</span></div>
-        <div class="info-row"><span class="info-label">🌎 País</span><span class="info-val">${pais}</span></div>
-        ${m2 ? `<div class="info-row"><span class="info-label">📐 m² aprox.</span><span class="info-val">${m2} m²</span></div>` : ''}
-        <div class="info-row"><span class="info-label">📋 Tipo de registro</span><span class="info-val">${tipoReg}</span></div>
+        <div class="info-row"><span class="info-label">${t('step.info.nombre')}</span><span class="info-val">${nombre}</span></div>
+        <div class="info-row"><span class="info-label">${t('step.info.fecha')}</span><span class="info-val">${fechaFmt}</span></div>
+        <div class="info-row"><span class="info-label">${t('step.info.tipo')}</span><span class="info-val">${tipo}</span></div>
+        <div class="info-row"><span class="info-label">${t('step.info.pais')}</span><span class="info-val">${pais}</span></div>
+        ${m2 ? `<div class="info-row"><span class="info-label">${t('step.info.m2')}</span><span class="info-val">${m2} m²</span></div>` : ''}
+        <div class="info-row"><span class="info-label">${t('step.info.tiporeg')}</span><span class="info-val">${tipoReg}</span></div>
       </div>
-      ${serviceState.horaInicio ? `<div class="ts-recorded"><div class="ts-label">✅ Servicio iniciado a las</div><div class="ts-value">${serviceState.horaInicio}</div></div>` : ''}
+      ${serviceState.horaInicio ? `<div class="ts-recorded"><div class="ts-label">${t('step.inicio.recorded')}</div><div class="ts-value">${serviceState.horaInicio}</div></div>` : ''}
     `;
 
     if (!serviceState.horaInicio) {
-      bar.innerHTML = `<button class="btn-main btn-green" onclick="iniciarServicio()">▶ INICIAR SERVICIO</button>`;
+      bar.innerHTML = `<button class="btn-main btn-green" onclick="iniciarServicio()">${t('step.inicio.btn')}</button>`;
     } else {
-      bar.innerHTML = `<button class="btn-main btn-green" onclick="nextStep()">Continuar al checklist →</button>`;
+      bar.innerHTML = `<button class="btn-main btn-green" onclick="nextStep()">${t('step.inicio.continue')}</button>`;
     }
   }
 
@@ -1324,10 +2004,10 @@ function renderStep() {
   else if (step.id === 'checklist_pre') {
     const done = Object.values(serviceState.checklistPre).filter(Boolean).length;
     content.innerHTML = `
-      <div class="step-title">✅ Checklist PRE-vuelo</div>
-      <div class="step-sub">Completá cada ítem ANTES de despegar</div>
-      <div class="hint hint-green">🟢 Los 16 ítems son obligatorios antes de iniciar vuelo.</div>
-      <div class="check-count">${done} / ${CHECKLIST_PRE.length} completados</div>
+      <div class="step-title">${t('step.pre.title')}</div>
+      <div class="step-sub">${t('step.pre.sub')}</div>
+      <div class="hint hint-green">${t('step.pre.hint')}</div>
+      <div class="check-count">${done} / ${CHECKLIST_PRE.length} ${t('step.checklist.completed')}</div>
       ${CHECKLIST_PRE.map((item, i) => `
         <div class="check-item ${serviceState.checklistPre[i] ? 'checked' : ''}" onclick="toggleCheck('pre', ${i})">
           <div class="checkbox">${serviceState.checklistPre[i] ? '✓' : ''}</div>
@@ -1336,26 +2016,26 @@ function renderStep() {
       <div style="height:20px"></div>
     `;
     bar.innerHTML = `
-      <button class="btn-secondary" onclick="goToStep(0)">← Atrás</button>
-      <button class="btn-main btn-green" onclick="nextStep()">Continuar →</button>
+      <button class="btn-secondary" onclick="goToStep(0)">${t('btn.back')}</button>
+      <button class="btn-main btn-green" onclick="nextStep()">${t('btn.continue')}</button>
     `;
   }
 
   // ── STEP 2: FOTOS ANTES ──
   else if (step.id === 'fotos_antes') {
     content.innerHTML = `
-      <div class="step-title">📸 Fotos ANTES del trabajo</div>
-      <div class="step-sub">Mínimo 2 fotos del estado inicial</div>
-      <div class="hint hint-amber">📷 Mostrá el área completa a trabajar antes de empezar.</div>
+      <div class="step-title">${t('step.fotos.antes.title')}</div>
+      <div class="step-sub">${t('step.fotos.antes.sub')}</div>
+      <div class="hint hint-amber">${t('step.fotos.antes.hint')}</div>
       <div class="photo-area">
         <div class="photo-icon">📷</div>
-        <div class="photo-text">Subida de fotos</div>
-        <div class="photo-note">La función de fotos se activa en la próxima versión.<br>Por ahora subí las fotos directamente en Notion.</div>
+        <div class="photo-text">${t('step.fotos.area.text')}</div>
+        <div class="photo-note">${t('step.fotos.area.note')}</div>
       </div>
     `;
     bar.innerHTML = `
-      <button class="btn-secondary" onclick="goToStep(1)">← Atrás</button>
-      <button class="btn-main btn-green" onclick="nextStep()">Continuar →</button>
+      <button class="btn-secondary" onclick="goToStep(1)">${t('btn.back')}</button>
+      <button class="btn-main btn-green" onclick="nextStep()">${t('btn.continue')}</button>
     `;
   }
 
@@ -1370,59 +2050,59 @@ function renderStep() {
       { val: '🔴 Suspendido +KP4', label: '🔴 Suspendido — KP +4', cls: 'red' },
     ];
     content.innerHTML = `
-      <div class="step-title">🕐 Inicio Efectivo</div>
-      <div class="step-sub">Confirmá el clima y registrá el inicio de operativa</div>
+      <div class="step-title">${t('step.inicioef.title')}</div>
+      <div class="step-sub">${t('step.inicioef.sub')}</div>
 
       <div class="field-group">
-        <div class="form-label">🌤️ CONDICIÓN CLIMÁTICA</div>
-        <div class="hint hint-blue" style="margin-bottom:10px">Seleccioná la condición actual antes de iniciar.</div>
+        <div class="form-label">${t('step.clima.label')}</div>
+        <div class="hint hint-blue" style="margin-bottom:10px">${t('step.clima.hint')}</div>
         <div class="clima-group">
           ${climaOpts.map(o => `<div class="clima-opt ${o.cls} ${serviceState.clima === o.val ? 'selected' : ''}" onclick="selectClima('${o.val}')">${o.label}</div>`).join('')}
         </div>
       </div>
 
-      <div class="hint hint-amber" style="margin-top:12px">🟠 Este botón registra el momento exacto en que el drone empieza a trabajar.</div>
+      <div class="hint hint-amber" style="margin-top:12px">${t('step.inicioef.hint')}</div>
       ${serviceState.horaInicioEfectivo
-        ? `<div class="ts-recorded"><div class="ts-label">✅ Inicio efectivo registrado</div><div class="ts-value">${serviceState.horaInicioEfectivo}</div></div>`
-        : `<button class="btn-main btn-purple" style="margin-top:16px" onclick="registrarInicioEfectivo()">🕐 REGISTRAR INICIO EFECTIVO</button>`
+        ? `<div class="ts-recorded"><div class="ts-label">${t('step.inicioef.recorded')}</div><div class="ts-value">${serviceState.horaInicioEfectivo}</div></div>`
+        : `<button class="btn-main btn-purple" style="margin-top:16px" onclick="registrarInicioEfectivo()">${t('step.inicioef.btn')}</button>`
       }
     `;
     bar.innerHTML = `
-      <button class="btn-secondary" onclick="goToStep(2)">← Atrás</button>
-      <button class="btn-main btn-green" onclick="nextStep()">Continuar →</button>
+      <button class="btn-secondary" onclick="goToStep(2)">${t('btn.back')}</button>
+      <button class="btn-main btn-green" onclick="nextStep()">${t('btn.continue')}</button>
     `;
   }
 
   // ── STEP 4: EJECUCIÓN ──
   else if (step.id === 'ejecucion') {
     content.innerHTML = `
-      <div class="step-title">🚁 En ejecución</div>
-      <div class="step-sub">El trabajo está en curso</div>
-      <div class="hint hint-green">✈️ Estás volando. Cuando termines la operativa efectiva, avanzá al cierre.</div>
-      ${serviceState.horaInicioEfectivo ? `<div class="ts-recorded"><div class="ts-label">🕐 Inicio efectivo</div><div class="ts-value">${serviceState.horaInicioEfectivo}</div></div>` : ''}
+      <div class="step-title">${t('step.ejec.title')}</div>
+      <div class="step-sub">${t('step.ejec.sub')}</div>
+      <div class="hint hint-green">${t('step.ejec.hint')}</div>
+      ${serviceState.horaInicioEfectivo ? `<div class="ts-recorded"><div class="ts-label">${t('step.ejec.tsLabel')}</div><div class="ts-value">${serviceState.horaInicioEfectivo}</div></div>` : ''}
       <div style="text-align:center;padding:40px 0;font-size:64px">🚁</div>
     `;
     bar.innerHTML = `
-      <button class="btn-secondary" onclick="goToStep(3)">← Atrás</button>
-      <button class="btn-main btn-orange" onclick="nextStep()">Terminar operativa →</button>
+      <button class="btn-secondary" onclick="goToStep(3)">${t('btn.back')}</button>
+      <button class="btn-main btn-orange" onclick="nextStep()">${t('step.ejec.continue')}</button>
     `;
   }
 
   // ── STEP 5: CIERRE EFECTIVO ──
   else if (step.id === 'cierre_efectivo') {
     content.innerHTML = `
-      <div class="step-title">⏹ Cierre Efectivo</div>
-      <div class="step-sub">Tocá cuando el drone aterrice</div>
-      <div class="hint hint-amber">🟠 Registra el tiempo efectivo de trabajo. El cálculo se hace automático en Notion.</div>
-      ${serviceState.horaInicioEfectivo ? `<div class="ts-recorded"><div class="ts-label">🕐 Inicio efectivo</div><div class="ts-value">${serviceState.horaInicioEfectivo}</div></div>` : ''}
+      <div class="step-title">${t('step.cierreef.title')}</div>
+      <div class="step-sub">${t('step.cierreef.sub')}</div>
+      <div class="hint hint-amber">${t('step.cierreef.hint')}</div>
+      ${serviceState.horaInicioEfectivo ? `<div class="ts-recorded"><div class="ts-label">${t('step.ejec.tsLabel')}</div><div class="ts-value">${serviceState.horaInicioEfectivo}</div></div>` : ''}
       ${serviceState.horaCierreEfectivo
-        ? `<div class="ts-recorded"><div class="ts-label">✅ Cierre efectivo registrado</div><div class="ts-value">${serviceState.horaCierreEfectivo}</div></div>`
-        : `<button class="btn-main btn-orange" style="margin-top:16px" onclick="registrarCierreEfectivo()">⏹ REGISTRAR CIERRE EFECTIVO</button>`
+        ? `<div class="ts-recorded"><div class="ts-label">${t('step.cierreef.recorded')}</div><div class="ts-value">${serviceState.horaCierreEfectivo}</div></div>`
+        : `<button class="btn-main btn-orange" style="margin-top:16px" onclick="registrarCierreEfectivo()">${t('step.cierreef.btn')}</button>`
       }
     `;
     bar.innerHTML = `
-      <button class="btn-secondary" onclick="goToStep(4)">← Atrás</button>
-      <button class="btn-main btn-green" onclick="nextStep()">Continuar →</button>
+      <button class="btn-secondary" onclick="goToStep(4)">${t('btn.back')}</button>
+      <button class="btn-main btn-green" onclick="nextStep()">${t('btn.continue')}</button>
     `;
   }
 
@@ -1430,10 +2110,10 @@ function renderStep() {
   else if (step.id === 'checklist_post') {
     const done = Object.values(serviceState.checklistPost).filter(Boolean).length;
     content.innerHTML = `
-      <div class="step-title">✅ Checklist POST-servicio</div>
-      <div class="step-sub">No te vayas sin completar todos los ítems</div>
-      <div class="hint hint-blue">🔵 Completá cada ítem ANTES de retirarte del lugar.</div>
-      <div class="check-count">${done} / ${CHECKLIST_POST.length} completados</div>
+      <div class="step-title">${t('step.post.title')}</div>
+      <div class="step-sub">${t('step.post.sub')}</div>
+      <div class="hint hint-blue">${t('step.post.hint')}</div>
+      <div class="check-count">${done} / ${CHECKLIST_POST.length} ${t('step.checklist.completed')}</div>
       ${CHECKLIST_POST.map((item, i) => `
         <div class="check-item ${serviceState.checklistPost[i] ? 'checked' : ''}" onclick="toggleCheck('post', ${i})">
           <div class="checkbox">${serviceState.checklistPost[i] ? '✓' : ''}</div>
@@ -1442,26 +2122,26 @@ function renderStep() {
       <div style="height:20px"></div>
     `;
     bar.innerHTML = `
-      <button class="btn-secondary" onclick="goToStep(5)">← Atrás</button>
-      <button class="btn-main btn-green" onclick="nextStep()">Continuar →</button>
+      <button class="btn-secondary" onclick="goToStep(5)">${t('btn.back')}</button>
+      <button class="btn-main btn-green" onclick="nextStep()">${t('btn.continue')}</button>
     `;
   }
 
   // ── STEP 7: FOTOS DESPUÉS ──
   else if (step.id === 'fotos_despues') {
     content.innerHTML = `
-      <div class="step-title">📸 Fotos DESPUÉS del trabajo</div>
-      <div class="step-sub">Mínimo 2 fotos del resultado final</div>
-      <div class="hint hint-amber">📷 Mostrá claramente el trabajo terminado.</div>
+      <div class="step-title">${t('step.fotos.despues.title')}</div>
+      <div class="step-sub">${t('step.fotos.despues.sub')}</div>
+      <div class="hint hint-amber">${t('step.fotos.despues.hint')}</div>
       <div class="photo-area">
         <div class="photo-icon">📷</div>
-        <div class="photo-text">Subida de fotos</div>
-        <div class="photo-note">La función de fotos se activa en la próxima versión.<br>Por ahora subí las fotos directamente en Notion.</div>
+        <div class="photo-text">${t('step.fotos.area.text')}</div>
+        <div class="photo-note">${t('step.fotos.area.note')}</div>
       </div>
     `;
     bar.innerHTML = `
-      <button class="btn-secondary" onclick="goToStep(6)">← Atrás</button>
-      <button class="btn-main btn-green" onclick="nextStep()">Continuar →</button>
+      <button class="btn-secondary" onclick="goToStep(6)">${t('btn.back')}</button>
+      <button class="btn-main btn-green" onclick="nextStep()">${t('btn.continue')}</button>
     `;
   }
 
@@ -1471,25 +2151,25 @@ function renderStep() {
     const tipoReg = currentService?.properties?.['Tipo de registro']?.select?.name || '';
     const isJornada = (jornadaN != null) || tipoReg.includes('Jornada');
     content.innerHTML = `
-      <div class="step-title">📝 Observaciones y datos finales</div>
-      <div class="step-sub">Completá antes de cerrar el servicio</div>
+      <div class="step-title">${t('step.obs.title')}</div>
+      <div class="step-sub">${t('step.obs.sub')}</div>
 
       <div class="field-group">
-        <div class="form-label">📝 NOTAS POST-SERVICIO</div>
-        <textarea rows="3" placeholder="¿Hubo algo inusual? ¿Dificultades? ¿Algo que dirección deba saber?" id="notas-input" oninput="serviceState.notasPost=this.value">${serviceState.notasPost}</textarea>
+        <div class="form-label">${t('step.obs.notas.label')}</div>
+        <textarea rows="3" placeholder="${t('step.obs.notas.placeholder')}" id="notas-input" oninput="serviceState.notasPost=this.value">${serviceState.notasPost}</textarea>
       </div>
 
       ${isJornada ? `
       <div class="field-group">
-        <div class="form-label">📊 % DE AVANCE DE HOY</div>
-        <div class="hint hint-blue" style="margin-bottom:10px">¿Qué porcentaje del trabajo total se completó en esta jornada?</div>
-        <input type="number" min="0" max="100" placeholder="Ej: 40" id="avance-input" value="${serviceState.avance}" oninput="serviceState.avance=this.value" style="font-size:18px;text-align:center;font-weight:700"/>
-        <div style="font-size:12px;color:var(--text3);text-align:center;margin-top:6px">0% = sin avance · 100% = trabajo completado</div>
+        <div class="form-label">${t('step.obs.avance.label')}</div>
+        <div class="hint hint-blue" style="margin-bottom:10px">${t('step.obs.avance.hint')}</div>
+        <input type="number" min="0" max="100" placeholder="${t('step.obs.avance.placeholder')}" id="avance-input" value="${serviceState.avance}" oninput="serviceState.avance=this.value" style="font-size:18px;text-align:center;font-weight:700"/>
+        <div style="font-size:12px;color:var(--text3);text-align:center;margin-top:6px">${t('step.obs.avance.note')}</div>
       </div>
       ` : ''}
 
       <div class="field-group">
-        <div class="form-label">🏁 RESULTADO</div>
+        <div class="form-label">${t('step.obs.resultado.label')}</div>
         <div class="radio-group">
           ${['✅ Exitoso', '⚠️ Con incidencia', '❌ Fallido'].map(r => `
             <div class="radio-opt ${serviceState.resultado === r ? 'selected' : ''}" onclick="selectResultado('${r}')">${r}</div>
@@ -1499,8 +2179,8 @@ function renderStep() {
       <div style="height:20px"></div>
     `;
     bar.innerHTML = `
-      <button class="btn-secondary" onclick="goToStep(7)">← Atrás</button>
-      <button class="btn-main btn-green" onclick="nextStep()">Continuar →</button>
+      <button class="btn-secondary" onclick="goToStep(7)">${t('btn.back')}</button>
+      <button class="btn-main btn-green" onclick="nextStep()">${t('btn.continue')}</button>
     `;
   }
 
@@ -1510,26 +2190,26 @@ function renderStep() {
     const postCount = Object.values(serviceState.checklistPost).filter(Boolean).length;
 
     content.innerHTML = `
-      <div class="step-title">🏁 Cerrar servicio</div>
-      <div class="step-sub">Revisá todo antes de confirmar</div>
-      <div class="hint hint-green">✅ Al cerrar, todos los datos se guardan automáticamente en Notion.</div>
+      <div class="step-title">${t('step.cerrar.title')}</div>
+      <div class="step-sub">${t('step.cerrar.sub')}</div>
+      <div class="hint hint-green">${t('step.cerrar.hint')}</div>
 
       <div class="summary-card">
-        <div class="summary-title">RESUMEN DEL SERVICIO</div>
-        <div class="summary-row"><span class="summary-key">🕐 Hora de inicio</span><span class="summary-val">${serviceState.horaInicio || '—'}</span></div>
-        <div class="summary-row"><span class="summary-key">⚡ Inicio efectivo</span><span class="summary-val">${serviceState.horaInicioEfectivo || '—'}</span></div>
-        <div class="summary-row"><span class="summary-key">⏹ Cierre efectivo</span><span class="summary-val">${serviceState.horaCierreEfectivo || '—'}</span></div>
-        <div class="summary-row"><span class="summary-key">✅ Checklist pre</span><span class="summary-val">${preCount} / ${CHECKLIST_PRE.length}</span></div>
-        <div class="summary-row"><span class="summary-key">✅ Checklist post</span><span class="summary-val">${postCount} / ${CHECKLIST_POST.length}</span></div>
-        <div class="summary-row"><span class="summary-key">💯 Avance</span><span class="summary-val">${serviceState.avance ? serviceState.avance + '%' : '—'}</span></div>
-        <div class="summary-row"><span class="summary-key">🏁 Resultado</span><span class="summary-val">${serviceState.resultado || '—'}</span></div>
-        <div class="summary-row"><span class="summary-key">🌤️ Clima</span><span class="summary-val">${serviceState.clima || '—'}</span></div>
+        <div class="summary-title">${t('summary.title')}</div>
+        <div class="summary-row"><span class="summary-key">${t('summary.horainicio')}</span><span class="summary-val">${serviceState.horaInicio || '—'}</span></div>
+        <div class="summary-row"><span class="summary-key">${t('summary.inicioef')}</span><span class="summary-val">${serviceState.horaInicioEfectivo || '—'}</span></div>
+        <div class="summary-row"><span class="summary-key">${t('summary.cierreef')}</span><span class="summary-val">${serviceState.horaCierreEfectivo || '—'}</span></div>
+        <div class="summary-row"><span class="summary-key">${t('summary.checklist.pre')}</span><span class="summary-val">${preCount} / ${CHECKLIST_PRE.length}</span></div>
+        <div class="summary-row"><span class="summary-key">${t('summary.checklist.post')}</span><span class="summary-val">${postCount} / ${CHECKLIST_POST.length}</span></div>
+        <div class="summary-row"><span class="summary-key">${t('summary.avance')}</span><span class="summary-val">${serviceState.avance ? serviceState.avance + '%' : '—'}</span></div>
+        <div class="summary-row"><span class="summary-key">${t('summary.resultado')}</span><span class="summary-val">${serviceState.resultado || '—'}</span></div>
+        <div class="summary-row"><span class="summary-key">${t('summary.clima')}</span><span class="summary-val">${serviceState.clima || '—'}</span></div>
       </div>
       <div style="height:20px"></div>
     `;
     bar.innerHTML = `
-      <button class="btn-secondary" onclick="goToStep(8)">← Atrás</button>
-      <button class="btn-main btn-red" onclick="cerrarServicio()">🏁 CERRAR EN NOTION</button>
+      <button class="btn-secondary" onclick="goToStep(8)">${t('btn.back')}</button>
+      <button class="btn-main btn-red" onclick="cerrarServicio()">${t('btn.close.notion')}</button>
     `;
   }
 }
@@ -1592,7 +2272,7 @@ function selectClima(val) {
 
 async function cerrarServicio() {
   const btn = document.querySelector('.btn-red');
-  if (btn) { btn.textContent = '⏳ Guardando en Notion...'; btn.disabled = true; }
+  if (btn) { btn.textContent = t('btn.saving.notion'); btn.disabled = true; }
 
   const properties = {
     'Estado': { select: { name: '✅ Completado' } },
@@ -1618,8 +2298,8 @@ async function cerrarServicio() {
     await updateServiceProps(currentService.id, properties);
     showDoneScreen();
   } catch (e) {
-    if (btn) { btn.textContent = '🏁 CERRAR EN NOTION'; btn.disabled = false; }
-    alert('Error al guardar. Verificá tu conexión e intentá de nuevo.');
+    if (btn) { btn.textContent = t('btn.close.notion'); btn.disabled = false; }
+    alert(t('sheet.alert.save.error'));
   }
 }
 
@@ -1628,11 +2308,11 @@ function showDoneScreen() {
   const postCount = Object.values(serviceState.checklistPost).filter(Boolean).length;
 
   document.getElementById('done-stats').innerHTML = `
-    <div class="done-stat-row"><span style="color:var(--text3)">Inicio</span><span>${serviceState.horaInicio || '—'}</span></div>
-    <div class="done-stat-row"><span style="color:var(--text3)">Inicio efectivo</span><span>${serviceState.horaInicioEfectivo || '—'}</span></div>
-    <div class="done-stat-row"><span style="color:var(--text3)">Cierre efectivo</span><span>${serviceState.horaCierreEfectivo || '—'}</span></div>
-    <div class="done-stat-row"><span style="color:var(--text3)">Resultado</span><span>${serviceState.resultado || '—'}</span></div>
-    <div class="done-stat-row"><span style="color:var(--text3)">Checklists</span><span>${preCount}/${CHECKLIST_PRE.length} · ${postCount}/${CHECKLIST_POST.length}</span></div>
+    <div class="done-stat-row"><span style="color:var(--text3)">${t('done.stat.inicio')}</span><span>${serviceState.horaInicio || '—'}</span></div>
+    <div class="done-stat-row"><span style="color:var(--text3)">${t('done.stat.inicioef')}</span><span>${serviceState.horaInicioEfectivo || '—'}</span></div>
+    <div class="done-stat-row"><span style="color:var(--text3)">${t('done.stat.cierreef')}</span><span>${serviceState.horaCierreEfectivo || '—'}</span></div>
+    <div class="done-stat-row"><span style="color:var(--text3)">${t('done.stat.resultado')}</span><span>${serviceState.resultado || '—'}</span></div>
+    <div class="done-stat-row"><span style="color:var(--text3)">${t('done.stat.checklists')}</span><span>${preCount}/${CHECKLIST_PRE.length} · ${postCount}/${CHECKLIST_POST.length}</span></div>
   `;
   showScreen('done');
 }
@@ -1651,8 +2331,8 @@ async function loadCEO() {
   if (!currentUser) { showScreen('login'); return; }
   showScreen('ceo');
   document.getElementById('ceo-user-name').textContent = currentUser.emoji + ' ' + currentUser.name.split(' ')[0];
-  const flagMap = { 'Uruguay': '🇺🇾', 'Brasil': '🇧🇷', 'Panamá': '🇵🇦' };
-  document.getElementById('ceo-brand-title').innerHTML = '<svg class="fly-mark" style="color:#00C98D"><use href="#fc-mark"/></svg>FlyClean ' + (flagMap[currentUser.country] || '') + ' — CEO';
+  const flagMap = { 'Uruguay': '🇺🇾', 'Brasil': '🇧🇷', 'Panamá': '🇵🇦', 'Guatemala': '🇬🇹', 'México': '🇲🇽' };
+  document.getElementById('ceo-brand-title').innerHTML = '<svg class="fly-mark" style="color:#00C98D"><use href="#fc-mark"/></svg>FlyClean ' + (flagMap[currentUser.country] || '') + ' — ' + t('ceo.user.fallback');
   ceoViewCountry = (currentUser.country === 'Uruguay') ? 'all' : currentUser.country;
   ceoMonthOffset = 0;
   loadAlerts(currentUser.role, 'alerts-banner-ceo');
@@ -1671,7 +2351,7 @@ function renderCEOCountryTabs() {
   const container = document.getElementById('ceo-country-tabs');
   const isGlobalCEO = currentUser.country === 'Uruguay';
   if (!isGlobalCEO) { container.innerHTML = ''; return; }
-  const options = [['all','🌎 Todos'],['Uruguay','🇺🇾 UY'],['Brasil','🇧🇷 BR'],['Panamá','🇵🇦 PA']];
+  const options = [['all','🌎 Todos'],['Uruguay','🇺🇾 UY'],['Brasil','🇧🇷 BR'],['Panamá','🇵🇦 PA'],['Guatemala','🇬🇹 GT'],['México','🇲🇽 MX']];
   container.innerHTML = options.map(([val, label]) =>
     `<button class="ceo-country-tab ${ceoViewCountry === val ? 'active' : ''}" onclick="setCEOCountry('${val}')">${label}</button>`
   ).join('');
@@ -1726,7 +2406,8 @@ async function renderCEOMetricas() {
     const monthEnd   = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
     const yearStart  = now.getFullYear() + '-01-01';
     const yearEnd    = now.getFullYear() + '-12-31';
-    const monthName  = now.toLocaleDateString('es-UY', { month: 'long', year: 'numeric' });
+    const dateLocale = currentLang === 'pt-BR' ? 'pt-BR' : 'es-UY';
+    const monthName  = now.toLocaleDateString(dateLocale, { month: 'long', year: 'numeric' });
 
     const ingFilter     = { and: [ ...(fcf ? [fcf] : []), { property: 'Fecha', date: { on_or_after: monthStart } }, { property: 'Fecha', date: { on_or_before: monthEnd } } ] };
     const gasFilter     = { and: [ ...(fcf ? [fcf] : []), { property: 'Fecha', date: { on_or_after: monthStart } }, { property: 'Fecha', date: { on_or_before: monthEnd } } ] };
@@ -1763,34 +2444,34 @@ async function renderCEOMetricas() {
     const svcActivos   = svcActivo.length;
     const propCount    = (propData.results    || []).length;
     const clientCount  = (contactData.results || []).length;
-    const fmtUSD = (n) => '$' + Math.abs(n).toLocaleString('es-UY', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+    const fmtUSD = (n) => '$' + Math.abs(n).toLocaleString(dateLocale, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
     const balSign = balance >= 0 ? '' : '-';
     const balColor = balance >= 0 ? 'var(--green)' : 'var(--red)';
 
     // Sub-tabs (only for Uruguay CEO)
     let subTabsHTML = '';
     if (isUruguayCEO) {
-      const opts = [['all','🌎 Global'],['Uruguay','🇺🇾 Uruguay'],['Brasil','🇧🇷 Brasil'],['Panamá','🇵🇦 Panamá']];
+      const opts = [['all','🌎 Global'],['Uruguay','🇺🇾 Uruguay'],['Brasil','🇧🇷 Brasil'],['Panamá','🇵🇦 Panamá'],['Guatemala','🇬🇹 Guatemala'],['México','🇲🇽 México']];
       subTabsHTML = '<div style="display:flex;gap:6px;padding:12px 16px 0;flex-wrap:wrap">' +
         opts.map(([val, label]) => '<button class="ceo-country-tab ' + (ceoViewCountry === val ? 'active' : '') + '" onclick="setCEOCountry(\'' + val + '\')">' + label + '</button>').join('') +
         '</div>';
     }
 
-    const countryLabel = ceoViewCountry === 'all' ? 'Todos los países' : ceoViewCountry;
+    const countryLabel = ceoViewCountry === 'all' ? t('ceo.country.all') : ceoViewCountry;
 
     content.innerHTML = subTabsHTML +
       '<div class="metric-grid">' +
-        '<div class="metric-card"><div class="metric-icon">💰</div><div class="metric-label">Ingresos del mes</div><div class="metric-value">' + fmtUSD(ingresos) + '</div><div class="metric-sub">USD · ' + monthName + '</div></div>' +
-        '<div class="metric-card"><div class="metric-icon">💸</div><div class="metric-label">Gastos del mes</div><div class="metric-value" style="color:var(--red)">' + fmtUSD(gastos) + '</div><div class="metric-sub">USD · ' + monthName + '</div></div>' +
-        '<div class="metric-card" style="grid-column:1/-1"><div class="metric-icon">⚖️</div><div class="metric-label">Balance del mes</div><div class="metric-value" style="color:' + balColor + '">' + balSign + fmtUSD(balance) + '</div><div class="metric-sub">Ingresos − Gastos · ' + countryLabel + '</div></div>' +
-        '<div class="metric-card"><div class="metric-icon">✅</div><div class="metric-label">Svcs completados</div><div class="metric-value">' + svcCount + '</div><div class="metric-sub">este mes</div></div>' +
-        '<div class="metric-card"><div class="metric-icon">✈️</div><div class="metric-label">Svcs activos</div><div class="metric-value">' + svcActivos + '</div><div class="metric-sub">en curso / asignados</div></div>' +
-        '<div class="metric-card"><div class="metric-icon">💼</div><div class="metric-label">Propuestas activas</div><div class="metric-value">' + propCount + '</div><div class="metric-sub">en pipeline</div></div>' +
-        '<div class="metric-card"><div class="metric-icon">👥</div><div class="metric-label">Clientes activos</div><div class="metric-value">' + clientCount + '</div><div class="metric-sub">en CRM</div></div>' +
-        '<div class="metric-card" style="grid-column:1/-1;border-color:var(--green-mid)"><div class="metric-icon">📈</div><div class="metric-label">Ingresos del año ' + now.getFullYear() + '</div><div class="metric-value" style="color:var(--green)">' + fmtUSD(ingresosAnio) + '</div><div class="metric-sub">USD acumulado enero–' + now.toLocaleDateString('es-UY',{month:'long'}) + ' · ' + countryLabel + '</div></div>' +
+        '<div class="metric-card"><div class="metric-icon">💰</div><div class="metric-label">' + t('ceo.metric.ingresos') + '</div><div class="metric-value">' + fmtUSD(ingresos) + '</div><div class="metric-sub">USD · ' + monthName + '</div></div>' +
+        '<div class="metric-card"><div class="metric-icon">💸</div><div class="metric-label">' + t('ceo.metric.gastos') + '</div><div class="metric-value" style="color:var(--red)">' + fmtUSD(gastos) + '</div><div class="metric-sub">USD · ' + monthName + '</div></div>' +
+        '<div class="metric-card" style="grid-column:1/-1"><div class="metric-icon">⚖️</div><div class="metric-label">' + t('ceo.metric.balance') + '</div><div class="metric-value" style="color:' + balColor + '">' + balSign + fmtUSD(balance) + '</div><div class="metric-sub">' + t('ceo.metric.balance.sub') + ' · ' + countryLabel + '</div></div>' +
+        '<div class="metric-card"><div class="metric-icon">✅</div><div class="metric-label">' + t('ceo.metric.svcs.completados') + '</div><div class="metric-value">' + svcCount + '</div><div class="metric-sub">' + t('ceo.metric.svcs.completados.sub') + '</div></div>' +
+        '<div class="metric-card"><div class="metric-icon">✈️</div><div class="metric-label">' + t('ceo.metric.svcs.activos') + '</div><div class="metric-value">' + svcActivos + '</div><div class="metric-sub">' + t('ceo.metric.svcs.activos.sub') + '</div></div>' +
+        '<div class="metric-card"><div class="metric-icon">💼</div><div class="metric-label">' + t('ceo.metric.props') + '</div><div class="metric-value">' + propCount + '</div><div class="metric-sub">' + t('ceo.metric.props.sub') + '</div></div>' +
+        '<div class="metric-card"><div class="metric-icon">👥</div><div class="metric-label">' + t('ceo.metric.clientes') + '</div><div class="metric-value">' + clientCount + '</div><div class="metric-sub">' + t('ceo.metric.clientes.sub') + '</div></div>' +
+        '<div class="metric-card" style="grid-column:1/-1;border-color:var(--green-mid)"><div class="metric-icon">📈</div><div class="metric-label">' + t('ceo.metric.year.label') + ' ' + now.getFullYear() + '</div><div class="metric-value" style="color:var(--green)">' + fmtUSD(ingresosAnio) + '</div><div class="metric-sub">' + t('ceo.metric.year.sub.prefix') + now.toLocaleDateString(dateLocale,{month:'long'}) + ' · ' + countryLabel + '</div></div>' +
       '</div>';
   } catch (e) {
-    content.innerHTML = '<div class="coord-empty">Error al cargar métricas.<br><small>' + e.message + '</small></div>';
+    content.innerHTML = '<div class="coord-empty">' + t('ceo.error.metricas') + '<br><small>' + e.message + '</small></div>';
   }
 }
 
@@ -1811,18 +2492,19 @@ async function renderCEOServicios() {
       const notionVal = COUNTRY_NOTION_MAP[ceoViewCountry];
       results = results.filter(s => s.properties?.['País']?.select?.name === notionVal);
     }
-    if (!results.length) { content.innerHTML = '<div class="coord-empty">Sin servicios este mes.</div>'; return; }
+    if (!results.length) { content.innerHTML = `<div class="coord-empty">${t('ceo.empty.servicios')}</div>`; return; }
     const ESTADO_CLASS = { '✅ Completado': 'estado-completado', '✈️ En curso': 'estado-en-curso', '🔄 Asignado': 'estado-asignado' };
-    const paiFlag = { '🇺🇾 Uruguay': '🇺🇾', '🇧🇷 Brasil': '🇧🇷', '🇵🇦 Panamá': '🇵🇦' };
-    content.innerHTML = '<div class="ceo-section-title">SERVICIOS DEL MES</div>' + results.map(s => {
+    const paiFlag = { '🇺🇾 Uruguay': '🇺🇾', '🇧🇷 Brasil': '🇧🇷', '🇵🇦 Panamá': '🇵🇦', '🇬🇹 Guatemala': '🇬🇹', '🇲🇽 México': '🇲🇽' };
+    const dateLocaleCeo = currentLang === 'pt-BR' ? 'pt-BR' : 'es-UY';
+    content.innerHTML = `<div class="ceo-section-title">${t('ceo.servicios.title')}</div>` + results.map(s => {
       const props = s.properties || {};
-      const nombre = props['Nombre del servicio']?.title?.[0]?.plain_text || 'Sin nombre';
+      const nombre = props['Nombre del servicio']?.title?.[0]?.plain_text || t('common.sinnombre');
       const estado = props['Estado']?.select?.name || '';
       const tipo = props['Tipo de servicio']?.select?.name || '';
       const fecha = props['Fecha programada']?.date?.start || '';
       const pais = props['País']?.select?.name || '';
       const operario = props['Operario App']?.select?.name || (props['Operario(s)']?.people?.[0]?.name || '');
-      const fechaFmt = fecha ? new Date(fecha + 'T00:00:00').toLocaleDateString('es-UY', { day:'numeric', month:'short' }) : '';
+      const fechaFmt = fecha ? new Date(fecha + 'T00:00:00').toLocaleDateString(dateLocaleCeo, { day:'numeric', month:'short' }) : '';
       return `<div class="ceo-service-card">
         <div class="ceo-service-name">${nombre} ${paiFlag[pais] || ''}</div>
         <div class="ceo-service-meta">
@@ -1834,17 +2516,18 @@ async function renderCEOServicios() {
       </div>`;
     }).join('');
   } catch (e) {
-    content.innerHTML = `<div class="coord-empty">Error al cargar servicios.<br><small>${e.message}</small></div>`;
+    content.innerHTML = `<div class="coord-empty">${t('ceo.error.servicios')}<br><small>${e.message}</small></div>`;
   }
 }
 
 function getCEOMonthRange() {
   const now = new Date();
   const base = new Date(now.getFullYear(), now.getMonth() + ceoMonthOffset, 1);
+  const dateLocale = currentLang === 'pt-BR' ? 'pt-BR' : 'es-UY';
   return {
     start: base.toISOString().split('T')[0],
     end: new Date(base.getFullYear(), base.getMonth() + 1, 0).toISOString().split('T')[0],
-    label: base.toLocaleDateString('es-UY', { month: 'long', year: 'numeric' })
+    label: base.toLocaleDateString(dateLocale, { month: 'long', year: 'numeric' })
   };
 }
 
@@ -1890,9 +2573,9 @@ function buildFinanceChart(ingByMonth, gasByMonth, year, activeMonth) {
 
   // Legend
   s += '<rect x="' + PL + '" y="' + (H-PB+16) + '" width="7" height="7" fill="#00C98D" rx="1"/>';
-  s += '<text x="' + (PL+9) + '" y="' + (H-PB+22) + '" font-size="7.5" fill="' + LABEL + '" font-family="Exo 2,sans-serif">Ingresos</text>';
+  s += '<text x="' + (PL+9) + '" y="' + (H-PB+22) + '" font-size="7.5" fill="' + LABEL + '" font-family="Exo 2,sans-serif">' + t('chart.ingresos') + '</text>';
   s += '<rect x="' + (PL+55) + '" y="' + (H-PB+16) + '" width="7" height="7" fill="#dc2626" rx="1"/>';
-  s += '<text x="' + (PL+64) + '" y="' + (H-PB+22) + '" font-size="7.5" fill="' + LABEL + '" font-family="Exo 2,sans-serif">Gastos</text>';
+  s += '<text x="' + (PL+64) + '" y="' + (H-PB+22) + '" font-size="7.5" fill="' + LABEL + '" font-family="Exo 2,sans-serif">' + t('chart.gastos') + '</text>';
   s += '<text x="' + (W-PR) + '" y="' + (H-PB+22) + '" text-anchor="end" font-size="7.5" fill="' + LABEL_DIM + '" font-family="Exo 2,sans-serif">' + year + '</text>';
 
   s += '</svg>';
@@ -1926,7 +2609,8 @@ async function renderCEOFinanzas() {
     const ingresos = (ingData.results||[]).reduce((s,r) => s + (r.properties?.['Monto USD']?.number||0), 0);
     const gastos   = (gasData.results||[]).reduce((s,r) => s + (r.properties?.['Monto USD']?.number||0), 0);
     const balance  = ingresos - gastos;
-    const fmt = n => '$' + Math.abs(n).toLocaleString('es-UY', {minimumFractionDigits:0,maximumFractionDigits:0});
+    const dateLocale = currentLang === 'pt-BR' ? 'pt-BR' : 'es-UY';
+    const fmt = n => '$' + Math.abs(n).toLocaleString(dateLocale, {minimumFractionDigits:0,maximumFractionDigits:0});
     const gasByCateg = {}, ingByTipo = {};
     (gasData.results||[]).forEach(r => { const k = r.properties?.['Categoría']?.select?.name||'Otros'; gasByCateg[k]=(gasByCateg[k]||0)+(r.properties?.['Monto USD']?.number||0); });
     (ingData.results||[]).forEach(r => { const k = r.properties?.['Tipo']?.select?.name||'Otros'; ingByTipo[k]=(ingByTipo[k]||0)+(r.properties?.['Monto USD']?.number||0); });
@@ -1935,16 +2619,16 @@ async function renderCEOFinanzas() {
       '<div style="padding:12px 14px 4px">' + buildFinanceChart(ingByMonth, gasByMonth, now.getFullYear(), start.substring(0,7)) + '</div>' +
       '<div class="finance-month-nav"><button class="month-nav-btn" onclick="changeCEOMonth(-1)">‹</button><div class="finance-month-label">' + label + '</div><button class="month-nav-btn" onclick="changeCEOMonth(1)">›</button></div>' +
       '<div class="finance-summary">' +
-        '<div class="finance-card"><div class="finance-card-label">INGRESOS</div><div class="finance-card-value ingreso">' + fmt(ingresos) + '</div></div>' +
-        '<div class="finance-card"><div class="finance-card-label">GASTOS</div><div class="finance-card-value gasto">' + fmt(gastos) + '</div></div>' +
-        '<div class="finance-card"><div class="finance-card-label">BALANCE</div><div class="finance-card-value balance ' + (balance>=0?'pos':'neg') + '">' + (balance<0?'-':'') + fmt(balance) + '</div></div>' +
+        '<div class="finance-card"><div class="finance-card-label">' + t('ceo.fin.ingresos') + '</div><div class="finance-card-value ingreso">' + fmt(ingresos) + '</div></div>' +
+        '<div class="finance-card"><div class="finance-card-label">' + t('ceo.fin.gastos') + '</div><div class="finance-card-value gasto">' + fmt(gastos) + '</div></div>' +
+        '<div class="finance-card"><div class="finance-card-label">' + t('ceo.fin.balance') + '</div><div class="finance-card-value balance ' + (balance>=0?'pos':'neg') + '">' + (balance<0?'-':'') + fmt(balance) + '</div></div>' +
       '</div>' +
-      '<div class="ceo-section-title">INGRESOS POR TIPO</div>' +
-      (Object.entries(ingByTipo).sort((a,b)=>b[1]-a[1]).map(([k,v])=>'<div class="finance-row"><span class="finance-row-label">'+k+'</span><span class="finance-row-value" style="color:var(--green)">'+fmt(v)+'</span></div>').join('') || '<div class="coord-empty" style="padding:12px 16px;font-size:13px">Sin ingresos registrados</div>') +
-      '<div class="ceo-section-title">GASTOS POR CATEGORÍA</div>' +
-      (Object.entries(gasByCateg).sort((a,b)=>b[1]-a[1]).map(([k,v])=>'<div class="finance-row"><span class="finance-row-label">'+k+'</span><span class="finance-row-value" style="color:var(--red)">'+fmt(v)+'</span></div>').join('') || '<div class="coord-empty" style="padding:12px 16px;font-size:13px">Sin gastos registrados</div>');
+      '<div class="ceo-section-title">' + t('ceo.fin.ingresos.tipo') + '</div>' +
+      (Object.entries(ingByTipo).sort((a,b)=>b[1]-a[1]).map(([k,v])=>'<div class="finance-row"><span class="finance-row-label">'+k+'</span><span class="finance-row-value" style="color:var(--green)">'+fmt(v)+'</span></div>').join('') || '<div class="coord-empty" style="padding:12px 16px;font-size:13px">' + t('ceo.fin.empty.ingresos') + '</div>') +
+      '<div class="ceo-section-title">' + t('ceo.fin.gastos.categ') + '</div>' +
+      (Object.entries(gasByCateg).sort((a,b)=>b[1]-a[1]).map(([k,v])=>'<div class="finance-row"><span class="finance-row-label">'+k+'</span><span class="finance-row-value" style="color:var(--red)">'+fmt(v)+'</span></div>').join('') || '<div class="coord-empty" style="padding:12px 16px;font-size:13px">' + t('ceo.fin.empty.gastos') + '</div>');
   } catch (e) {
-    content.innerHTML = '<div class="coord-empty">Error al cargar finanzas.<br><small>' + e.message + '</small></div>';
+    content.innerHTML = '<div class="coord-empty">' + t('ceo.error.finanzas') + '<br><small>' + e.message + '</small></div>';
   }
 }
 
@@ -1956,9 +2640,9 @@ async function changeCEOMonth(delta) {
 function renderCEOEquipo() {
   const content = document.getElementById('ceo-content');
   const isGlobal = ceoViewCountry === 'all';
-  const flagMap = { 'Uruguay': '🇺🇾', 'Brasil': '🇧🇷', 'Panamá': '🇵🇦' };
+  const flagMap = { 'Uruguay': '🇺🇾', 'Brasil': '🇧🇷', 'Panamá': '🇵🇦', 'Guatemala': '🇬🇹', 'México': '🇲🇽' };
   const users = isGlobal ? USERS : USERS.filter(u => u.country === ceoViewCountry);
-  if (!users.length) { content.innerHTML = '<div class="coord-empty">Sin usuarios.</div>'; return; }
+  if (!users.length) { content.innerHTML = `<div class="coord-empty">${t('ceo.equipo.empty')}</div>`; return; }
   const grouped = {};
   users.forEach(u => { if (!grouped[u.country]) grouped[u.country] = []; grouped[u.country].push(u); });
   let html = '';
@@ -1968,7 +2652,7 @@ function renderCEOEquipo() {
       const countryTag = isGlobal ? '<div class="equipo-country">' + (flagMap[u.country] || '') + '</div>' : '';
       html += '<div class="equipo-card">' +
         '<div class="equipo-emoji">' + u.emoji + '</div>' +
-        '<div><div class="equipo-name">' + u.name + '</div><div class="equipo-role">' + u.role + '</div></div>' +
+        '<div><div class="equipo-name">' + u.name + '</div><div class="equipo-role">' + translateRole(u.role) + '</div></div>' +
         countryTag + '</div>';
     }
   }
@@ -1979,9 +2663,9 @@ async function loadCoordinator() {
   if (!currentUser) { showScreen('login'); return; }
   showScreen('coordinator');
   document.getElementById('coord-user-name').textContent = currentUser.emoji + ' ' + currentUser.name.split(' ')[0];
-  const flagMap = { 'Uruguay': '🇺🇾', 'Brasil': '🇧🇷', 'Panamá': '🇵🇦' };
+  const flagMap = { 'Uruguay': '🇺🇾', 'Brasil': '🇧🇷', 'Panamá': '🇵🇦', 'Guatemala': '🇬🇹', 'México': '🇲🇽' };
   const flag = flagMap[selectedCountry] || '';
-  const rolLabel = currentUser.role.includes('Dirección') ? 'Dirección' : 'Coordinador';
+  const rolLabel = currentUser.role.includes('Dirección') ? t('coord.brand.direccion') : t('coord.brand.coord');
   document.getElementById('coord-logo-title').innerHTML = '<svg class="fly-mark" style="color:#00C98D"><use href="#fc-mark"/></svg>FlyClean ' + flag + ' — ' + rolLabel;
   const ceoBtnEl = document.getElementById('coord-ceo-btn');
   if (ceoBtnEl) ceoBtnEl.style.display = currentUser.role.includes('Dirección') ? 'block' : 'none';
@@ -2000,7 +2684,8 @@ function getCoordMonthRange() {
   const base = new Date(now.getFullYear(), now.getMonth() + coordMonthOffset, 1);
   const start = base.toISOString().split('T')[0];
   const end = new Date(base.getFullYear(), base.getMonth() + 1, 0).toISOString().split('T')[0];
-  const label = base.toLocaleDateString('es-UY', { month: 'long', year: 'numeric' });
+  const dateLocale = currentLang === 'pt-BR' ? 'pt-BR' : 'es-UY';
+  const label = base.toLocaleDateString(dateLocale, { month: 'long', year: 'numeric' });
   return { start, end, label, base };
 }
 
@@ -2013,7 +2698,9 @@ function renderWeekStrip(services) {
   const todayISO = today.toISOString().split('T')[0];
   const serviceDates = {};
   services.forEach(s => { const f = s.properties?.['Fecha programada']?.date?.start; if (f) serviceDates[f] = (serviceDates[f] || 0) + 1; });
-  const dayNames = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+  const dayNames = currentLang === 'pt-BR'
+    ? ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb']
+    : ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
   const monthNav = document.getElementById('coord-month-nav');
   if (monthNav) {
     monthNav.classList.add('visible');
@@ -2032,7 +2719,7 @@ function renderWeekStrip(services) {
       <div class="day-pill-dot">${count > 0 ? '<div class="day-dot"></div>' + (count > 1 ? '<div class="day-dot"></div>' : '') : ''}</div>
     </div>`;
   }).join('') + `<div class="day-pill ${selectedCoordDay === 'all' ? 'active' : ''}" onclick="setCoordDay('all')" style="flex:0 0 52px">
-    <div class="day-pill-name">TODO</div>
+    <div class="day-pill-name">${t('coord.day.all')}</div>
     <div class="day-pill-num" style="font-size:11px;margin-top:4px">▼</div>
     <div class="day-pill-dot"></div>
   </div>`;
@@ -2056,37 +2743,38 @@ function setCoordDay(day) {
 function renderCoordList() {
   const content = document.getElementById('coord-content');
   const todayISO = new Date().toISOString().split('T')[0];
+  const dateLocale = currentLang === 'pt-BR' ? 'pt-BR' : 'es-UY';
   if (selectedCoordDay && selectedCoordDay !== 'all') {
     const dayServices = _coordAllServices.filter(s => (s.properties?.['Fecha programada']?.date?.start || '') === selectedCoordDay);
-    if (!dayServices.length) { content.innerHTML = '<div class="coord-empty">Sin servicios para este día.</div>'; return; }
+    if (!dayServices.length) { content.innerHTML = `<div class="coord-empty">${t('coord.empty.day')}</div>`; return; }
     content.innerHTML = '<div style="height:8px"></div>' + dayServices.map(s => coordServiceCard(s)).join('');
     return;
   }
   const withDate = [..._coordAllServices.filter(s => s.properties?.['Fecha programada']?.date?.start)]
     .sort((a, b) => (a.properties['Fecha programada'].date.start).localeCompare(b.properties['Fecha programada'].date.start));
   const sinFecha = _coordAllServices.filter(s => !s.properties?.['Fecha programada']?.date?.start);
-  if (!withDate.length && !sinFecha.length) { content.innerHTML = '<div class="coord-empty">Sin servicios este mes.</div>'; return; }
+  if (!withDate.length && !sinFecha.length) { content.innerHTML = `<div class="coord-empty">${t('coord.empty.month')}</div>`; return; }
   const groups = {};
   withDate.forEach(s => { const f = s.properties['Fecha programada'].date.start; if (!groups[f]) groups[f] = []; groups[f].push(s); });
   let html = Object.entries(groups).map(([fecha, items]) => {
     const isToday = fecha === todayISO;
-    const dateLabel = new Date(fecha + 'T00:00:00').toLocaleDateString('es-UY', { weekday: 'long', day: 'numeric', month: 'short' });
-    return `<div class="day-group"><div class="day-label ${isToday ? 'today' : ''}">${isToday ? '📅 HOY — ' : ''}${dateLabel}</div>${items.map(s => coordServiceCard(s)).join('')}</div>`;
+    const dateLabel = new Date(fecha + 'T00:00:00').toLocaleDateString(dateLocale, { weekday: 'long', day: 'numeric', month: 'short' });
+    return `<div class="day-group"><div class="day-label ${isToday ? 'today' : ''}">${isToday ? t('coord.day.today') : ''}${dateLabel}</div>${items.map(s => coordServiceCard(s)).join('')}</div>`;
   }).join('');
   if (sinFecha.length) {
-    html += `<div class="day-group"><div class="day-label" style="color:var(--amber)">📅 Sin programar (${sinFecha.length})</div>${sinFecha.map(s => coordServiceCard(s)).join('')}</div>`;
+    html += `<div class="day-group"><div class="day-label" style="color:var(--amber)">${t('coord.unscheduled')} (${sinFecha.length})</div>${sinFecha.map(s => coordServiceCard(s)).join('')}</div>`;
   }
-  content.innerHTML = html || '<div class="coord-empty">Sin servicios este mes.</div>';
+  content.innerHTML = html || `<div class="coord-empty">${t('coord.empty.month')}</div>`;
 }
 
 function coordServiceCard(s) {
   const props = s.properties || {};
-  const nombre = props['Nombre del servicio']?.title?.[0]?.plain_text || 'Sin nombre';
+  const nombre = props['Nombre del servicio']?.title?.[0]?.plain_text || t('common.sinnombre');
   const estado = props['Estado']?.select?.name || '';
   const tipo = props['Tipo de servicio']?.select?.name || '';
   const operarioAppName = props['Operario App']?.select?.name || '';
   const legacyOpsNames = (props['Operario(s)']?.people || []).map(p => p.name).join(', ');
-  const ops = operarioAppName || legacyOpsNames || '— sin asignar';
+  const ops = operarioAppName || legacyOpsNames || t('coord.unassigned');
   const jornadaN = props['Jornada N°']?.number;
   const tipoReg = props['Tipo de registro']?.select?.name || '';
   const esJornada = jornadaN != null || tipoReg.includes('Jornada');
@@ -2112,12 +2800,12 @@ async function fetchOperarioOptions() {
 function renderOperarioBtns(current) {
   const options = _operarioOptions || USERS.map(u => u.name);
   document.getElementById('edit-operario-btns').innerHTML =
-    `<button class="operario-btn ${!current ? 'active' : ''}" onclick="selectEditOperario(null,this)">— Sin asignar</button>` +
+    `<button class="operario-btn ${!current ? 'active' : ''}" onclick="selectEditOperario(null,this)">${t('sheet.edit.operario.sinasignar')}</button>` +
     options.map(name => `<button class="operario-btn ${current === name ? 'active' : ''}" onclick="selectEditOperario('${name.replace(/'/g,"\\'")}',this)">${name}</button>`).join('') +
-    `<button class="operario-btn" style="border-style:dashed;color:var(--green);font-weight:600" onclick="showNewOperarioInput()">+ Nuevo operario</button>` +
+    `<button class="operario-btn" style="border-style:dashed;color:var(--green);font-weight:600" onclick="showNewOperarioInput()">${t('sheet.edit.operario.nuevo')}</button>` +
     `<div id="new-op-wrap" style="display:none;gap:6px;margin-top:2px">
-      <input id="new-op-input" type="text" class="edit-date-input" placeholder="Nombre completo" style="margin-bottom:0"/>
-      <button onclick="confirmNewOperario()" style="width:100%;padding:10px;background:var(--green-dark);border:1px solid var(--green);border-radius:var(--radius-sm);color:var(--green);font-weight:700;font-family:inherit;font-size:13px;cursor:pointer">Agregar y seleccionar</button>
+      <input id="new-op-input" type="text" class="edit-date-input" placeholder="${t('sheet.edit.operario.nombre')}" style="margin-bottom:0"/>
+      <button onclick="confirmNewOperario()" style="width:100%;padding:10px;background:var(--green-dark);border:1px solid var(--green);border-radius:var(--radius-sm);color:var(--green);font-weight:700;font-family:inherit;font-size:13px;cursor:pointer">${t('sheet.edit.operario.agregar')}</button>
     </div>`;
 }
 
@@ -2140,7 +2828,7 @@ async function openEditSheet(pageId) {
   editingService = _coordAllServices.find(s => s.id === pageId);
   if (!editingService) return;
   const props = editingService.properties || {};
-  const nombre = props['Nombre del servicio']?.title?.[0]?.plain_text || 'Sin nombre';
+  const nombre = props['Nombre del servicio']?.title?.[0]?.plain_text || t('common.sinnombre');
   const fecha = props['Fecha programada']?.date?.start || '';
   const estadoActual = props['Estado']?.select?.name || '';
   const operarioApp = props['Operario App']?.select?.name || '';
@@ -2148,13 +2836,14 @@ async function openEditSheet(pageId) {
   const operarioActual = operarioApp || legacyOps[0] || null;
   editState = { estado: estadoActual, operario: operarioActual, fecha };
   document.getElementById('edit-sheet-title').textContent = nombre;
-  document.getElementById('edit-sheet-sub').textContent = fecha ? new Date(fecha + 'T00:00:00').toLocaleDateString('es-UY', { weekday: 'long', day: 'numeric', month: 'long' }) : 'Sin fecha programada';
+  const dateLocale = currentLang === 'pt-BR' ? 'pt-BR' : 'es-UY';
+  document.getElementById('edit-sheet-sub').textContent = fecha ? new Date(fecha + 'T00:00:00').toLocaleDateString(dateLocale, { weekday: 'long', day: 'numeric', month: 'long' }) : t('sheet.alert.fecha');
   const estados = ['📋 Pendiente', '🔄 Asignado', '✈️ En curso', '✅ Completado', '❌ Cancelado'];
   document.getElementById('edit-estado-btns').innerHTML = estados.map(e =>
     `<button class="estado-btn ${editState.estado === e ? 'active' : ''}" onclick="selectEditEstado('${e}')">${e}</button>`
   ).join('');
   document.getElementById('edit-fecha').value = fecha;
-  document.getElementById('edit-save-btn').textContent = '💾 GUARDAR EN NOTION';
+  document.getElementById('edit-save-btn').textContent = t('btn.save.notion');
   document.getElementById('edit-save-btn').disabled = false;
   document.getElementById('edit-overlay').classList.add('open');
   await fetchOperarioOptions();
@@ -2174,7 +2863,7 @@ function selectEditOperario(name, el) {
 }
 async function saveServiceEdit() {
   const btn = document.getElementById('edit-save-btn');
-  btn.textContent = '⏳ Guardando...'; btn.disabled = true;
+  btn.textContent = t('btn.saving'); btn.disabled = true;
   try {
     const props = {};
     if (editState.estado) props['Estado'] = { select: { name: editState.estado } };
@@ -2188,8 +2877,8 @@ async function saveServiceEdit() {
     closeEditSheet();
     await renderCoordServicios();
   } catch (e) {
-    btn.textContent = '💾 GUARDAR EN NOTION'; btn.disabled = false;
-    alert('Error al guardar: ' + e.message);
+    btn.textContent = t('btn.save.notion'); btn.disabled = false;
+    alert(t('sheet.alert.save.error2') + e.message);
   }
 }
 
@@ -2228,7 +2917,7 @@ async function renderCoordServicios() {
     renderWeekStrip(_coordAllServices);
     renderCoordList();
   } catch (e) {
-    content.innerHTML = `<div class="coord-empty">Error al cargar.<br><small>${e.message}</small></div>`;
+    content.innerHTML = `<div class="coord-empty">${t('coord.error.load')}<br><small>${e.message}</small></div>`;
   }
 }
 
@@ -2237,11 +2926,11 @@ function openNewPropSheet() {
   editingProp = null;
   propEditState = { nombre: '', estado: '🆕 Nuevo lead', pais: '🇺🇾 Uruguay', tipo: '', aprobacion: '⏳ Pendiente', importe: '', fechaEnvio: '', ultimaInt: new Date().toISOString().split('T')[0], obs: '' };
 
-  document.getElementById('prop-sheet-title').textContent = 'Nueva Propuesta';
-  document.getElementById('prop-sheet-sub').textContent = 'Se creará en Notion al guardar';
+  document.getElementById('prop-sheet-title').textContent = t('sheet.prop.title.nueva');
+  document.getElementById('prop-sheet-sub').textContent = t('sheet.prop.subtitle.nueva');
 
   const PIPELINE = ['🆕 Nuevo lead','📞 Contactado','🔍 Relevamiento','⏳ En preparación','✅ Aprobada internamente','📤 Enviada al cliente','🤝 Negociando','✅ Aceptada','❌ Rechazada','😶 Sin respuesta','🔄 Reactivo'];
-  const PAISES = ['🇺🇾 Uruguay','🇧🇷 Brasil','🇵🇦 Panamá','🇬🇹 Guatemala'];
+  const PAISES = ['🇺🇾 Uruguay','🇧🇷 Brasil','🇵🇦 Panamá','🇬🇹 Guatemala','🇲🇽 México'];
   const TIPOS = ['📌 Puntual','🔄 Recurrente'];
   const APROBACIONES = ['⏳ Pendiente','✅ Aprobada','🔁 Revisar'];
 
@@ -2252,23 +2941,23 @@ function openNewPropSheet() {
   }
 
   document.getElementById('prop-sheet-body').innerHTML =
-    `<div class="edit-section"><div class="edit-section-label">NOMBRE DE LA PROPUESTA *</div>
-      <input type="text" class="edit-date-input" placeholder="Ej: Fachada Torre Norte" oninput="propEditState.nombre=this.value" style="font-size:14px"/></div>` +
-    btnGroup('ESTADO PIPELINE', 'estado', PIPELINE) +
-    btnGroup('PAÍS', 'pais', PAISES) +
-    btnGroup('TIPO', 'tipo', TIPOS) +
-    btnGroup('APROBACIÓN INTERNA', 'aprobacion', APROBACIONES) +
-    `<div class="edit-section"><div class="edit-section-label">IMPORTE ESTIMADO (USD)</div>
-      <input type="number" class="edit-date-input" placeholder="Ej: 5000" step="100" oninput="propEditState.importe=this.value"/></div>` +
-    `<div class="edit-section"><div class="edit-section-label">FECHA DE ENVÍO</div>
+    `<div class="edit-section"><div class="edit-section-label">${t('sheet.prop.section.nombre')}</div>
+      <input type="text" class="edit-date-input" placeholder="${t('sheet.prop.nombre.placeholder')}" oninput="propEditState.nombre=this.value" style="font-size:14px"/></div>` +
+    btnGroup(t('sheet.prop.section.estado'), 'estado', PIPELINE) +
+    btnGroup(t('sheet.prop.section.pais'), 'pais', PAISES) +
+    btnGroup(t('sheet.prop.section.tipo'), 'tipo', TIPOS) +
+    btnGroup(t('sheet.prop.section.aprobacion'), 'aprobacion', APROBACIONES) +
+    `<div class="edit-section"><div class="edit-section-label">${t('sheet.prop.section.importe')}</div>
+      <input type="number" class="edit-date-input" placeholder="${t('sheet.prop.importe.placeholder')}" step="100" oninput="propEditState.importe=this.value"/></div>` +
+    `<div class="edit-section"><div class="edit-section-label">${t('sheet.prop.section.fechaenvio')}</div>
       <input type="date" class="edit-date-input" onchange="propEditState.fechaEnvio=this.value"/></div>` +
-    `<div class="edit-section"><div class="edit-section-label">ÚLTIMA INTERACCIÓN</div>
+    `<div class="edit-section"><div class="edit-section-label">${t('sheet.prop.section.ultimaint')}</div>
       <input type="date" class="edit-date-input" value="${propEditState.ultimaInt}" onchange="propEditState.ultimaInt=this.value"/></div>` +
-    `<div class="edit-section" style="padding-bottom:0"><div class="edit-section-label">OBSERVACIONES</div>
-      <textarea class="edit-date-input" rows="3" style="resize:none;height:80px" placeholder="Notas sobre la propuesta..." oninput="propEditState.obs=this.value"></textarea></div>`;
+    `<div class="edit-section" style="padding-bottom:0"><div class="edit-section-label">${t('sheet.prop.section.obs')}</div>
+      <textarea class="edit-date-input" rows="3" style="resize:none;height:80px" placeholder="${t('sheet.prop.obs.placeholder')}" oninput="propEditState.obs=this.value"></textarea></div>`;
 
   const btn = document.getElementById('prop-save-btn');
-  btn.textContent = '✨ CREAR EN NOTION';
+  btn.textContent = t('btn.create.notion');
   btn.disabled = false;
   document.getElementById('prop-overlay').classList.add('open');
 }
@@ -2278,7 +2967,7 @@ function openPropSheet(pageId) {
   editingProp = _coordAllProps.find(p => p.id === pageId);
   if (!editingProp) return;
   const props = editingProp.properties || {};
-  const nombre = props['Nombre de propuesta']?.title?.[0]?.plain_text || 'Sin nombre';
+  const nombre = props['Nombre de propuesta']?.title?.[0]?.plain_text || t('common.sinnombre');
   const estado = props['Estado pipeline']?.select?.name || '';
   const pais = props['País']?.select?.name || '';
   const tipo = props['Tipo']?.select?.name || '';
@@ -2291,10 +2980,10 @@ function openPropSheet(pageId) {
   propEditState = { estado, pais, tipo, aprobacion, importe, fechaEnvio, ultimaInt, obs };
 
   document.getElementById('prop-sheet-title').textContent = nombre;
-  document.getElementById('prop-sheet-sub').textContent = pais || 'Propuesta / Presupuesto';
+  document.getElementById('prop-sheet-sub').textContent = pais || t('sheet.prop.subtitle.default');
 
   const PIPELINE = ['🆕 Nuevo lead','📞 Contactado','🔍 Relevamiento','⏳ En preparación','✅ Aprobada internamente','📤 Enviada al cliente','🤝 Negociando','✅ Aceptada','❌ Rechazada','😶 Sin respuesta','🔄 Reactivo'];
-  const PAISES = ['🇺🇾 Uruguay','🇧🇷 Brasil','🇵🇦 Panamá','🇬🇹 Guatemala'];
+  const PAISES = ['🇺🇾 Uruguay','🇧🇷 Brasil','🇵🇦 Panamá','🇬🇹 Guatemala','🇲🇽 México'];
   const TIPOS = ['📌 Puntual','🔄 Recurrente'];
   const APROBACIONES = ['⏳ Pendiente','✅ Aprobada','🔁 Revisar'];
 
@@ -2305,21 +2994,21 @@ function openPropSheet(pageId) {
   }
 
   document.getElementById('prop-sheet-body').innerHTML =
-    btnGroup('ESTADO PIPELINE', 'estado', PIPELINE) +
-    btnGroup('PAÍS', 'pais', PAISES) +
-    btnGroup('TIPO', 'tipo', TIPOS) +
-    btnGroup('APROBACIÓN INTERNA', 'aprobacion', APROBACIONES) +
-    `<div class="edit-section"><div class="edit-section-label">IMPORTE ESTIMADO (USD)</div>
-      <input type="number" class="edit-date-input" value="${importe}" placeholder="Ej: 5000" step="100" oninput="propEditState.importe=this.value"/></div>` +
-    `<div class="edit-section"><div class="edit-section-label">FECHA DE ENVÍO</div>
+    btnGroup(t('sheet.prop.section.estado'), 'estado', PIPELINE) +
+    btnGroup(t('sheet.prop.section.pais'), 'pais', PAISES) +
+    btnGroup(t('sheet.prop.section.tipo'), 'tipo', TIPOS) +
+    btnGroup(t('sheet.prop.section.aprobacion'), 'aprobacion', APROBACIONES) +
+    `<div class="edit-section"><div class="edit-section-label">${t('sheet.prop.section.importe')}</div>
+      <input type="number" class="edit-date-input" value="${importe}" placeholder="${t('sheet.prop.importe.placeholder')}" step="100" oninput="propEditState.importe=this.value"/></div>` +
+    `<div class="edit-section"><div class="edit-section-label">${t('sheet.prop.section.fechaenvio')}</div>
       <input type="date" class="edit-date-input" value="${fechaEnvio}" onchange="propEditState.fechaEnvio=this.value"/></div>` +
-    `<div class="edit-section"><div class="edit-section-label">ÚLTIMA INTERACCIÓN</div>
+    `<div class="edit-section"><div class="edit-section-label">${t('sheet.prop.section.ultimaint')}</div>
       <input type="date" class="edit-date-input" value="${ultimaInt}" onchange="propEditState.ultimaInt=this.value"/></div>` +
-    `<div class="edit-section" style="padding-bottom:0"><div class="edit-section-label">OBSERVACIONES</div>
-      <textarea class="edit-date-input" rows="3" style="resize:none;height:80px" placeholder="Notas sobre la propuesta..." oninput="propEditState.obs=this.value">${obs}</textarea></div>`;
+    `<div class="edit-section" style="padding-bottom:0"><div class="edit-section-label">${t('sheet.prop.section.obs')}</div>
+      <textarea class="edit-date-input" rows="3" style="resize:none;height:80px" placeholder="${t('sheet.prop.obs.placeholder')}" oninput="propEditState.obs=this.value">${obs}</textarea></div>`;
 
   const btn = document.getElementById('prop-save-btn');
-  btn.textContent = '💾 GUARDAR EN NOTION';
+  btn.textContent = t('btn.save.notion');
   btn.disabled = false;
   document.getElementById('prop-overlay').classList.add('open');
 }
@@ -2335,12 +3024,12 @@ function closePropSheet() { document.getElementById('prop-overlay').classList.re
 
 async function savePropEdit() {
   const btn = document.getElementById('prop-save-btn');
-  btn.textContent = '⏳ Guardando...'; btn.disabled = true;
+  btn.textContent = t('btn.saving'); btn.disabled = true;
   try {
     if (propSheetMode === 'create') {
       if (!propEditState.nombre.trim()) {
-        btn.textContent = '✨ CREAR EN NOTION'; btn.disabled = false;
-        alert('El nombre de la propuesta es obligatorio.'); return;
+        btn.textContent = t('btn.create.notion'); btn.disabled = false;
+        alert(t('sheet.prop.error.nombre')); return;
       }
       const props = { 'Nombre de propuesta': { title: [{ text: { content: propEditState.nombre.trim() } }] } };
       if (propEditState.estado) props['Estado pipeline'] = { select: { name: propEditState.estado } };
@@ -2367,9 +3056,9 @@ async function savePropEdit() {
     closePropSheet();
     await renderCoordPropuestas();
   } catch (e) {
-    btn.textContent = propSheetMode === 'create' ? '✨ CREAR EN NOTION' : '💾 GUARDAR EN NOTION';
+    btn.textContent = propSheetMode === 'create' ? t('btn.create.notion') : t('btn.save.notion');
     btn.disabled = false;
-    alert('Error al guardar: ' + e.message);
+    alert(t('sheet.alert.save.error2') + e.message);
   }
 }
 
@@ -2387,7 +3076,7 @@ async function renderCoordContactos() {
     _coordAllContacts = data.results || [];
     renderContactList(_coordAllContacts);
   } catch (e) {
-    content.innerHTML = `<div class="coord-empty">Error al cargar contactos.<br><small>${e.message}</small></div>`;
+    content.innerHTML = `<div class="coord-empty">${t('coord.error.contactos')}<br><small>${e.message}</small></div>`;
   }
 }
 
@@ -2400,11 +3089,11 @@ function renderContactList(contacts) {
 
   const listHTML = filtered.length
     ? filtered.map(c => coordContactCard(c)).join('')
-    : '<div class="coord-empty" style="margin-top:0">Sin resultados.</div>';
+    : `<div class="coord-empty" style="margin-top:0">${t('coord.empty.search')}</div>`;
 
   content.innerHTML =
-    `<div class="contact-search-wrap"><input class="contact-search" id="contact-search-input" type="text" placeholder="🔍  Buscar contacto..." oninput="filterContacts(this.value)" value="${searchVal}"/></div>` +
-    `<div style="padding:10px 16px 0"><button class="nueva-prop-btn" onclick="openNewContactSheet()">+ Nuevo Contacto</button></div>` +
+    `<div class="contact-search-wrap"><input class="contact-search" id="contact-search-input" type="text" placeholder="${t('coord.search.contacts.placeholder')}" oninput="filterContacts(this.value)" value="${searchVal}"/></div>` +
+    `<div style="padding:10px 16px 0"><button class="nueva-prop-btn" onclick="openNewContactSheet()">${t('coord.new.contact')}</button></div>` +
     `<div style="height:4px"></div>` + listHTML;
 }
 
@@ -2422,13 +3111,13 @@ function filterContacts(val) {
   existing.forEach(el => el.remove());
   const html = filtered.length
     ? filtered.map(c => coordContactCard(c)).join('')
-    : '<div class="coord-empty" style="margin-top:8px">Sin resultados.</div>';
+    : `<div class="coord-empty" style="margin-top:8px">${t('coord.empty.search')}</div>`;
   content.insertAdjacentHTML('beforeend', html);
 }
 
 function coordContactCard(c) {
   const props = c.properties || {};
-  const nombre = props['Nombre / Empresa']?.title?.[0]?.plain_text || 'Sin nombre';
+  const nombre = props['Nombre / Empresa']?.title?.[0]?.plain_text || t('common.sinnombre');
   const estado = props['Estado']?.select?.name || '';
   const tipo = props['Tipo de cliente']?.select?.name || '';
   const pais = props['País']?.select?.name || '';
@@ -2453,7 +3142,7 @@ function buildContactSheetBody(mode) {
   const s = contactEditState;
   const ESTADOS = ['🆕 Lead', '✅ Cliente activo', '⏸️ Inactivo'];
   const TIPOS = ['🏢 Administración', '🏗️ Constructora', '🏠 Particular'];
-  const PAISES = ['🇺🇾 Uruguay', '🇧🇷 Brasil', '🇵🇦 Panamá', '🇬🇹 Guatemala'];
+  const PAISES = ['🇺🇾 Uruguay', '🇧🇷 Brasil', '🇵🇦 Panamá', '🇬🇹 Guatemala', '🇲🇽 México'];
   const CANALES = ['💬 WhatsApp', '📱 Redes sociales', '🤝 Recomendación', '🚶 Captación proactiva', '📧 Email'];
   const SERVICIOS = ['🏢 Fachada', '🪟 Vidrios', '☀️ Paneles solares'];
 
@@ -2471,24 +3160,24 @@ function buildContactSheetBody(mode) {
   }
 
   return (mode === 'create'
-    ? `<div class="edit-section"><div class="edit-section-label">NOMBRE / EMPRESA *</div>
-        <input type="text" class="edit-date-input" placeholder="Ej: Torre del Parque" value="${s.nombre || ''}" oninput="contactEditState.nombre=this.value" style="font-size:14px"/></div>`
+    ? `<div class="edit-section"><div class="edit-section-label">${t('sheet.contact.section.nombre')}</div>
+        <input type="text" class="edit-date-input" placeholder="${t('sheet.contact.nombre.placeholder')}" value="${s.nombre || ''}" oninput="contactEditState.nombre=this.value" style="font-size:14px"/></div>`
     : '') +
-    btnGroup('ESTADO', 'estado', ESTADOS) +
-    btnGroup('TIPO DE CLIENTE', 'tipo', TIPOS) +
-    btnGroup('PAÍS', 'pais', PAISES) +
-    btnGroup('CANAL DE CAPTACIÓN', 'canal', CANALES) +
-    multiGroup('SERVICIO DE INTERÉS', 'servicios', SERVICIOS) +
-    `<div class="edit-section"><div class="edit-section-label">TELÉFONO / WHATSAPP</div>
-      <input type="tel" class="edit-date-input" placeholder="+598 9X XXX XXX" value="${s.tel || ''}" oninput="contactEditState.tel=this.value"/></div>` +
-    `<div class="edit-section"><div class="edit-section-label">EMAIL</div>
-      <input type="email" class="edit-date-input" placeholder="contacto@empresa.com" value="${s.email || ''}" oninput="contactEditState.email=this.value"/></div>` +
-    `<div class="edit-section"><div class="edit-section-label">CIUDAD / ZONA</div>
-      <input type="text" class="edit-date-input" placeholder="Ej: Punta del Este" value="${s.ciudad || ''}" oninput="contactEditState.ciudad=this.value"/></div>` +
-    `<div class="edit-section"><div class="edit-section-label">INTERLOCUTOR</div>
-      <input type="text" class="edit-date-input" placeholder="Nombre del encargado" value="${s.interlocutor || ''}" oninput="contactEditState.interlocutor=this.value"/></div>` +
-    `<div class="edit-section" style="padding-bottom:0"><div class="edit-section-label">NOTAS</div>
-      <textarea class="edit-date-input" rows="3" style="resize:none;height:80px" placeholder="Observaciones..." oninput="contactEditState.notas=this.value">${s.notas || ''}</textarea></div>`;
+    btnGroup(t('sheet.contact.section.estado'), 'estado', ESTADOS) +
+    btnGroup(t('sheet.contact.section.tipo'), 'tipo', TIPOS) +
+    btnGroup(t('sheet.contact.section.pais'), 'pais', PAISES) +
+    btnGroup(t('sheet.contact.section.canal'), 'canal', CANALES) +
+    multiGroup(t('sheet.contact.section.servicios'), 'servicios', SERVICIOS) +
+    `<div class="edit-section"><div class="edit-section-label">${t('sheet.contact.section.tel')}</div>
+      <input type="tel" class="edit-date-input" placeholder="${t('sheet.contact.tel.placeholder')}" value="${s.tel || ''}" oninput="contactEditState.tel=this.value"/></div>` +
+    `<div class="edit-section"><div class="edit-section-label">${t('sheet.contact.section.email')}</div>
+      <input type="email" class="edit-date-input" placeholder="${t('sheet.contact.email.placeholder')}" value="${s.email || ''}" oninput="contactEditState.email=this.value"/></div>` +
+    `<div class="edit-section"><div class="edit-section-label">${t('sheet.contact.section.ciudad')}</div>
+      <input type="text" class="edit-date-input" placeholder="${t('sheet.contact.ciudad.placeholder')}" value="${s.ciudad || ''}" oninput="contactEditState.ciudad=this.value"/></div>` +
+    `<div class="edit-section"><div class="edit-section-label">${t('sheet.contact.section.interlocutor')}</div>
+      <input type="text" class="edit-date-input" placeholder="${t('sheet.contact.interlocutor.placeholder')}" value="${s.interlocutor || ''}" oninput="contactEditState.interlocutor=this.value"/></div>` +
+    `<div class="edit-section" style="padding-bottom:0"><div class="edit-section-label">${t('sheet.contact.section.notas')}</div>
+      <textarea class="edit-date-input" rows="3" style="resize:none;height:80px" placeholder="${t('sheet.contact.notas.placeholder')}" oninput="contactEditState.notas=this.value">${s.notas || ''}</textarea></div>`;
 }
 
 function openContactSheet(pageId) {
@@ -2508,12 +3197,12 @@ function openContactSheet(pageId) {
     interlocutor: props['Interlocutor']?.rich_text?.[0]?.plain_text || '',
     notas: props['Notas']?.rich_text?.[0]?.plain_text || ''
   };
-  const nombre = props['Nombre / Empresa']?.title?.[0]?.plain_text || 'Sin nombre';
+  const nombre = props['Nombre / Empresa']?.title?.[0]?.plain_text || t('common.sinnombre');
   document.getElementById('contact-sheet-title').textContent = nombre;
-  document.getElementById('contact-sheet-sub').textContent = contactEditState.tipo || 'Contacto';
+  document.getElementById('contact-sheet-sub').textContent = contactEditState.tipo || t('sheet.contact.title.default');
   document.getElementById('contact-sheet-body').innerHTML = buildContactSheetBody('edit');
   const btn = document.getElementById('contact-save-btn');
-  btn.textContent = '💾 GUARDAR EN NOTION'; btn.disabled = false;
+  btn.textContent = t('btn.save.notion'); btn.disabled = false;
   document.getElementById('contact-overlay').classList.add('open');
 }
 
@@ -2521,11 +3210,11 @@ function openNewContactSheet() {
   contactSheetMode = 'create';
   editingContact = null;
   contactEditState = { nombre: '', estado: '🆕 Lead', tipo: '', pais: '🇺🇾 Uruguay', canal: '', servicios: [], tel: '', email: '', ciudad: '', interlocutor: '', notas: '' };
-  document.getElementById('contact-sheet-title').textContent = 'Nuevo Contacto';
-  document.getElementById('contact-sheet-sub').textContent = 'Se creará en Notion al guardar';
+  document.getElementById('contact-sheet-title').textContent = t('sheet.contact.title.nuevo');
+  document.getElementById('contact-sheet-sub').textContent = t('sheet.contact.subtitle.nuevo');
   document.getElementById('contact-sheet-body').innerHTML = buildContactSheetBody('create');
   const btn = document.getElementById('contact-save-btn');
-  btn.textContent = '✨ CREAR EN NOTION'; btn.disabled = false;
+  btn.textContent = t('btn.create.notion'); btn.disabled = false;
   document.getElementById('contact-overlay').classList.add('open');
 }
 
@@ -2548,7 +3237,7 @@ function closeContactSheet() { document.getElementById('contact-overlay').classL
 
 async function saveContactEdit() {
   const btn = document.getElementById('contact-save-btn');
-  btn.textContent = '⏳ Guardando...'; btn.disabled = true;
+  btn.textContent = t('btn.saving'); btn.disabled = true;
   try {
     const s = contactEditState;
     const props = {};
@@ -2565,8 +3254,8 @@ async function saveContactEdit() {
 
     if (contactSheetMode === 'create') {
       if (!s.nombre.trim()) {
-        btn.textContent = '✨ CREAR EN NOTION'; btn.disabled = false;
-        alert('El nombre es obligatorio.'); return;
+        btn.textContent = t('btn.create.notion'); btn.disabled = false;
+        alert(t('sheet.contact.error.nombre')); return;
       }
       props['Nombre / Empresa'] = { title: [{ text: { content: s.nombre.trim() } }] };
       await callNotion('pages', 'POST', { parent: { database_id: '250115612de74e0582366549bbe5e389' }, properties: props });
@@ -2576,9 +3265,9 @@ async function saveContactEdit() {
     closeContactSheet();
     await renderCoordContactos();
   } catch (e) {
-    btn.textContent = contactSheetMode === 'create' ? '✨ CREAR EN NOTION' : '💾 GUARDAR EN NOTION';
+    btn.textContent = contactSheetMode === 'create' ? t('btn.create.notion') : t('btn.save.notion');
     btn.disabled = false;
-    alert('Error al guardar: ' + e.message);
+    alert(t('sheet.alert.save.error2') + e.message);
   }
 }
 
@@ -2600,22 +3289,23 @@ async function renderCoordPropuestas() {
     _coordAllProps = data.results || [];
     if (!_coordAllProps.length) {
       content.innerHTML =
-        '<div style="padding:12px 16px 0"><button class="nueva-prop-btn" onclick="openNewPropSheet()">+ Nueva Propuesta</button></div>' +
-        '<div class="coord-empty">Sin propuestas activas.</div>';
+        `<div style="padding:12px 16px 0"><button class="nueva-prop-btn" onclick="openNewPropSheet()">${t('coord.new.prop')}</button></div>` +
+        `<div class="coord-empty">${t('coord.empty.props')}</div>`;
       return;
     }
 
+    const dateLocale = currentLang === 'pt-BR' ? 'pt-BR' : 'es-UY';
     content.innerHTML =
-      '<div style="padding:12px 16px 0"><button class="nueva-prop-btn" onclick="openNewPropSheet()">+ Nueva Propuesta</button></div>' +
+      `<div style="padding:12px 16px 0"><button class="nueva-prop-btn" onclick="openNewPropSheet()">${t('coord.new.prop')}</button></div>` +
       '<div style="height:8px"></div>' + _coordAllProps.map(p => {
       const props = p.properties || {};
-      const nombre = props['Nombre de propuesta']?.title?.[0]?.plain_text || 'Sin nombre';
+      const nombre = props['Nombre de propuesta']?.title?.[0]?.plain_text || t('common.sinnombre');
       const estado = props['Estado pipeline']?.select?.name || '—';
       const pais = props['País']?.select?.name || '';
       const importe = props['Importe estimado']?.number;
       const dias = props['Días sin respuesta']?.formula?.number ?? null;
       const ultimaInteraccion = props['Última interacción']?.date?.start || '';
-      const ultimaFmt = ultimaInteraccion ? new Date(ultimaInteraccion + 'T00:00:00').toLocaleDateString('es-UY', { day: 'numeric', month: 'short' }) : '';
+      const ultimaFmt = ultimaInteraccion ? new Date(ultimaInteraccion + 'T00:00:00').toLocaleDateString(dateLocale, { day: 'numeric', month: 'short' }) : '';
       const estadoClass = estado.includes('Aceptada') ? 'aceptada' :
         estado.includes('Negociando') ? 'negociando' :
         estado.toLowerCase().includes('enviada') ? 'enviada' : '';
@@ -2628,13 +3318,13 @@ async function renderCoordPropuestas() {
           ${importe ? `<span class="prop-importe">$${importe.toLocaleString()}</span>` : ''}
         </div>
         <div class="prop-dias ${dias != null && dias > 14 ? 'alert' : ''}">
-          ${ultimaFmt ? `Última interacción: ${ultimaFmt}` : ''}${dias != null ? ` · ${dias} días sin respuesta` : ''}
+          ${ultimaFmt ? `${t('coord.prop.lastint.prefix')}${ultimaFmt}` : ''}${dias != null ? ` · ${dias}${t('coord.prop.days.suffix')}` : ''}
         </div>
-        <div style="font-size:11px;color:var(--text3);margin-top:4px">Tap para editar →</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:4px">${t('coord.prop.tap.edit')}</div>
       </div>`;
     }).join('');
   } catch (e) {
-    content.innerHTML = `<div class="coord-empty">Error al cargar propuestas.<br><small>${e.message}</small></div>`;
+    content.innerHTML = `<div class="coord-empty">${t('coord.error.props')}<br><small>${e.message}</small></div>`;
   }
 }
 
@@ -2647,13 +3337,15 @@ function renderAlertsBanner(containerId, alerts) {
   if (!alerts.length) { el.innerHTML = ''; return; }
   const hasCritical = alerts.some(a => a.level === 'critical');
   const id = containerId + '_list';
+  const labelAlertas = alerts.length > 1 ? t('alerts.alertas') : t('alerts.alerta');
+  const labelActivas = alerts.length > 1 ? t('alerts.activas') : t('alerts.activa');
   el.innerHTML =
     '<div class="alerts-banner">' +
       '<div class="alerts-header ' + (hasCritical ? 'critical' : '') + '" onclick="toggleAlertsList(\'' + id + '\', this)">' +
         '<div class="alerts-header-left">' +
-          (hasCritical ? '🔴' : '⚠️') + ' ' + alerts.length + ' alerta' + (alerts.length > 1 ? 's' : '') + ' activa' + (alerts.length > 1 ? 's' : '') +
+          (hasCritical ? '🔴' : '⚠️') + ' ' + alerts.length + ' ' + labelAlertas + ' ' + labelActivas +
         '</div>' +
-        '<span class="alerts-toggle" id="' + id + '_toggle">ver ▼</span>' +
+        '<span class="alerts-toggle" id="' + id + '_toggle">' + t('alerts.see') + '</span>' +
       '</div>' +
       '<div class="alerts-list ' + (hasCritical ? 'critical' : '') + '" id="' + id + '" style="display:none">' +
         alerts.map(a =>
@@ -2669,7 +3361,7 @@ function toggleAlertsList(id, header) {
   if (!list) return;
   const open = list.style.display === 'none';
   list.style.display = open ? 'block' : 'none';
-  if (toggle) toggle.textContent = open ? 'cerrar ▲' : 'ver ▼';
+  if (toggle) toggle.textContent = open ? t('alerts.close') : t('alerts.see');
 }
 
 async function loadAlerts(role, bannerId) {
@@ -2784,13 +3476,13 @@ function renderComunicaciones() {
   content.innerHTML =
     '<div class="comms-placeholder">' +
       '<div class="comms-icon">💬</div>' +
-      '<div class="comms-title">Comunicaciones</div>' +
-      '<div class="comms-sub">El sistema de mensajería interno entre CEO, coordinadores y operarios está en desarrollo. Próximamente podrán comunicarse directamente desde la app.</div>' +
-      '<div class="comms-badge">Próximamente</div>' +
+      '<div class="comms-title">' + t('comms.title') + '</div>' +
+      '<div class="comms-sub">' + t('comms.sub') + '</div>' +
+      '<div class="comms-badge">' + t('comms.badge') + '</div>' +
       '<div class="comms-features">' +
-        '<div class="comms-feature"><div class="comms-feature-icon">📣</div><div><div class="comms-feature-title">Avisos del coordinador</div><div class="comms-feature-text">Notificaciones a operarios sobre cambios de fecha, instrucciones o alertas de servicio.</div></div></div>' +
-        '<div class="comms-feature"><div class="comms-feature-icon">📊</div><div><div class="comms-feature-title">Reportes del operario</div><div class="comms-feature-text">El operario reporta novedades del servicio directamente al coordinador.</div></div></div>' +
-        '<div class="comms-feature"><div class="comms-feature-icon">🏢</div><div><div class="comms-feature-title">Vista CEO</div><div class="comms-feature-text">El CEO recibe resúmenes diarios y puede comunicarse con los coordinadores de cada país.</div></div></div>' +
+        '<div class="comms-feature"><div class="comms-feature-icon">📣</div><div><div class="comms-feature-title">' + t('comms.f1.title') + '</div><div class="comms-feature-text">' + t('comms.f1.text') + '</div></div></div>' +
+        '<div class="comms-feature"><div class="comms-feature-icon">📊</div><div><div class="comms-feature-title">' + t('comms.f2.title') + '</div><div class="comms-feature-text">' + t('comms.f2.text') + '</div></div></div>' +
+        '<div class="comms-feature"><div class="comms-feature-icon">🏢</div><div><div class="comms-feature-title">' + t('comms.f3.title') + '</div><div class="comms-feature-text">' + t('comms.f3.text') + '</div></div></div>' +
       '</div>' +
     '</div>';
 }
@@ -2828,14 +3520,14 @@ function saveNewPin() {
   const new2    = document.getElementById('pin-new2')?.value?.trim() || '';
   const correctPin = getEffectivePin(currentUser.id);
 
-  if (current !== correctPin) { errEl.textContent = 'El PIN actual es incorrecto.'; return; }
-  if (new1.length !== 4 || !/^\d{4}$/.test(new1)) { errEl.textContent = 'El nuevo PIN debe tener exactamente 4 dígitos.'; return; }
-  if (new1 !== new2) { errEl.textContent = 'Los PINs nuevos no coinciden.'; return; }
-  if (new1 === current) { errEl.textContent = 'El nuevo PIN debe ser diferente al actual.'; return; }
+  if (current !== correctPin) { errEl.textContent = t('pinchange.error.current'); return; }
+  if (new1.length !== 4 || !/^\d{4}$/.test(new1)) { errEl.textContent = t('pinchange.error.format'); return; }
+  if (new1 !== new2) { errEl.textContent = t('pinchange.error.match'); return; }
+  if (new1 === current) { errEl.textContent = t('pinchange.error.same'); return; }
 
   localStorage.setItem('fc_pin_' + currentUser.id, new1);
   errEl.style.color = 'var(--green)';
-  errEl.textContent = '✅ PIN actualizado correctamente.';
+  errEl.textContent = t('pinchange.success');
   setTimeout(closePinChange, 1200);
   setTimeout(() => { errEl.style.color = 'var(--red)'; errEl.textContent = ''; }, 1500);
 }
@@ -2844,10 +3536,14 @@ function saveNewPin() {
 // INIT
 // ─────────────────────────────────────────────
 async function init() {
+  initLang();
+  applyTranslations();
   const savedCountry = localStorage.getItem('fc_country');
   if (savedCountry) {
     selectedCountry = savedCountry;
+    updateLangToggleUI();
   } else {
+    updateLangToggleUI();
     showScreen('country');
     return;
   }
