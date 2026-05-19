@@ -10,6 +10,8 @@ const ALLOWED_METHODS = ['GET', 'POST', 'PATCH'];
 export default async function handler(req, res) {
   const origin = req.headers.origin || '';
   const allowedOrigins = [
+    'https://flyclean.app',
+    'https://www.flyclean.app',
     'https://flyclean-app.vercel.app',
     /^https:\/\/flyclean-app-[a-z0-9]+-fly-clean-app-s-projects\.vercel\.app$/,
   ];
@@ -17,7 +19,7 @@ export default async function handler(req, res) {
     typeof o === 'string' ? o === origin : o.test(origin)
   );
 
-  res.setHeader('Access-Control-Allow-Origin', originAllowed ? origin : 'https://flyclean-app.vercel.app');
+  res.setHeader('Access-Control-Allow-Origin', originAllowed ? origin : 'https://flyclean.app');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   res.setHeader('Vary', 'Origin');

@@ -351,6 +351,33 @@ body::before {
   .photo-text { font-size: 13px; color: var(--text3); }
   .photo-note { font-size: 11px; color: var(--text3); margin-top: 6px; background: var(--bg); padding: 6px 10px; border-radius: 6px; }
 
+  /* ── Photo uploader (R2 directo) ── */
+  .photo-uploader { background: var(--card); border: 1px solid var(--border2); border-radius: var(--radius); padding: 14px; margin-bottom: 12px; }
+  .photo-add-btn { width: 100%; padding: 14px; background: var(--green-dark); border: 2px dashed var(--green); border-radius: var(--radius-sm); color: var(--green); font-size: 14px; font-weight: 700; cursor: pointer; font-family: 'Exo 2', sans-serif; transition: all 0.15s; }
+  .photo-add-btn:active { background: var(--green); color: #fff; transform: scale(0.98); }
+  .photo-count { font-size: 12px; color: var(--text3); text-align: center; margin: 8px 0; }
+  .photo-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 8px; }
+  .photo-thumb { position: relative; aspect-ratio: 1; background: var(--bg); border-radius: var(--radius-sm); overflow: hidden; border: 1px solid var(--border); }
+  .photo-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .photo-thumb-empty { display: flex; align-items: center; justify-content: center; height: 100%; font-size: 28px; color: var(--text3); }
+  .photo-thumb.status-done { border-color: var(--green); }
+  .photo-thumb.status-error { border-color: var(--red); }
+  .photo-thumb.status-uploading { opacity: 0.7; }
+  .photo-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 4px; color: #fff; font-size: 11px; padding: 6px; text-align: center; }
+  .photo-overlay-error { background: rgba(220, 38, 38, 0.85); font-size: 18px; }
+  .photo-error-text { font-size: 10px; line-height: 1.2; word-break: break-word; }
+  .photo-badge { position: absolute; top: 4px; left: 4px; background: var(--green); color: #fff; width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; }
+  .photo-remove { position: absolute; top: 4px; right: 4px; background: rgba(0,0,0,0.6); color: #fff; border: none; width: 22px; height: 22px; border-radius: 50%; cursor: pointer; font-size: 16px; line-height: 1; padding: 0; font-family: inherit; }
+  .photo-remove:active { background: var(--red); }
+  .photo-retry { position: absolute; bottom: 4px; left: 4px; right: 4px; background: var(--amber-dark); color: var(--amber); border: 1px solid var(--amber); border-radius: 4px; cursor: pointer; font-size: 10px; padding: 3px; font-family: inherit; font-weight: 600; }
+  .spinner-sm { width: 20px; height: 20px; border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Gallery viewer en coord/CEO */
+  .photo-gallery { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+  .photo-gallery a { display: block; width: 56px; height: 56px; border-radius: 6px; overflow: hidden; border: 1px solid var(--border); background: var(--bg); }
+  .photo-gallery img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
   /* Saving indicator */
   .saving-bar {
     position: fixed; top: 0; left: 50%; transform: translateX(-50%);
@@ -1145,7 +1172,14 @@ const TRANSLATIONS = {
     'comms.f3.text': 'El CEO recibe resúmenes diarios y puede comunicarse con los coordinadores de cada país.',
     'lang.toggle.title': 'Idioma',
     'common.sinnombre': 'Sin nombre',
-    'common.sinfecha': 'Sin fecha'
+    'common.sinfecha': 'Sin fecha',
+    'photos.add': 'Agregar fotos',
+    'photos.uploaded.one': 'foto subida',
+    'photos.uploaded.many': 'fotos subidas',
+    'photos.retry': 'Reintentar',
+    'photos.empty.gallery': 'Sin fotos aún',
+    'photos.gallery.title': 'Fotos del servicio',
+    'photos.wait.uploading': 'Esperá que terminen de subir las fotos antes de cerrar el servicio.'
   },
   'pt-BR': {
     'country.tagline': 'Selecione sua região para continuar',
@@ -1397,7 +1431,14 @@ const TRANSLATIONS = {
     'comms.f3.text': 'O CEO recebe resumos diários e pode se comunicar com os coordenadores de cada país.',
     'lang.toggle.title': 'Idioma',
     'common.sinnombre': 'Sem nome',
-    'common.sinfecha': 'Sem data'
+    'common.sinfecha': 'Sem data',
+    'photos.add': 'Adicionar fotos',
+    'photos.uploaded.one': 'foto enviada',
+    'photos.uploaded.many': 'fotos enviadas',
+    'photos.retry': 'Tentar novamente',
+    'photos.empty.gallery': 'Sem fotos ainda',
+    'photos.gallery.title': 'Fotos do serviço',
+    'photos.wait.uploading': 'Aguarde as fotos terminarem de enviar antes de fechar o serviço.'
   }
 };
 
@@ -1600,8 +1641,137 @@ function resetServiceState() {
     avance: '',
     resultado: '',
     clima: '',
-    isSaving: false
+    isSaving: false,
+    photos: { pre: [], post: [], relevamiento: [] }
   };
+}
+
+// ─────────────────────────────────────────────
+// FOTOS — upload directo a Cloudflare R2 vía presigned URL
+// ─────────────────────────────────────────────
+const PHOTO_MAX_BYTES = 10 * 1024 * 1024; // 10 MB
+const PHOTO_ALLOWED_MIMES = ['image/jpeg','image/jpg','image/png','image/webp','image/heic','image/heif'];
+
+function ensurePhotosBucket(fotoType) {
+  if (!serviceState.photos) serviceState.photos = { pre: [], post: [], relevamiento: [] };
+  if (!serviceState.photos[fotoType]) serviceState.photos[fotoType] = [];
+}
+
+async function handlePhotoSelect(inputEl, fotoType) {
+  const files = Array.from(inputEl.files || []);
+  inputEl.value = ''; // reset para permitir re-seleccionar la misma foto
+  if (!files.length) return;
+
+  ensurePhotosBucket(fotoType);
+
+  // Subir todas en paralelo
+  await Promise.all(files.map(file => uploadPhoto(file, fotoType)));
+}
+
+async function uploadPhoto(file, fotoType) {
+  const id = Date.now() + '-' + Math.random().toString(36).slice(2, 7);
+  ensurePhotosBucket(fotoType);
+
+  if (file.size > PHOTO_MAX_BYTES) {
+    serviceState.photos[fotoType].push({ id, fotoType, filename: file.name, status: 'error', error: 'Foto >10MB' });
+    renderStep();
+    return;
+  }
+  const mime = (file.type || '').toLowerCase();
+  if (!PHOTO_ALLOWED_MIMES.includes(mime)) {
+    serviceState.photos[fotoType].push({ id, fotoType, filename: file.name, status: 'error', error: 'Tipo no permitido' });
+    renderStep();
+    return;
+  }
+
+  const previewUrl = URL.createObjectURL(file);
+  const photo = { id, fotoType, filename: file.name, contentType: mime, status: 'uploading', publicUrl: null, error: null, previewUrl };
+  serviceState.photos[fotoType].push(photo);
+  renderStep();
+
+  try {
+    if (!currentService?.id) throw new Error('Sin servicio activo');
+
+    // 1. Pedir URL presignada
+    const resp = await fetch('/api/upload-url', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        serviceId: currentService.id,
+        fotoType,
+        filename: file.name,
+        contentType: mime
+      })
+    });
+    if (!resp.ok) {
+      const data = await resp.json().catch(() => ({}));
+      throw new Error(data.error || ('Backend ' + resp.status));
+    }
+    const { uploadUrl, publicUrl } = await resp.json();
+
+    // 2. PUT directo a R2
+    const putResp = await fetch(uploadUrl, {
+      method: 'PUT',
+      headers: { 'Content-Type': mime },
+      body: file
+    });
+    if (!putResp.ok) throw new Error('Upload ' + putResp.status);
+
+    photo.status = 'done';
+    photo.publicUrl = publicUrl;
+    renderStep();
+  } catch (e) {
+    photo.status = 'error';
+    photo.error = e.message || 'Error';
+    renderStep();
+  }
+}
+
+function retryPhoto(fotoType, photoId) {
+  const arr = serviceState.photos?.[fotoType] || [];
+  const p = arr.find(x => x.id === photoId);
+  if (!p) return;
+  // No tenemos el File original; pedimos al usuario que lo seleccione de nuevo
+  arr.splice(arr.indexOf(p), 1);
+  renderStep();
+  // Disparar el file input
+  setTimeout(() => {
+    const inp = document.getElementById('photo-input-' + fotoType);
+    if (inp) inp.click();
+  }, 50);
+}
+
+function removePhoto(fotoType, photoId) {
+  if (!serviceState.photos?.[fotoType]) return;
+  const p = serviceState.photos[fotoType].find(x => x.id === photoId);
+  if (p?.previewUrl) URL.revokeObjectURL(p.previewUrl);
+  serviceState.photos[fotoType] = serviceState.photos[fotoType].filter(x => x.id !== photoId);
+  renderStep();
+}
+
+function renderPhotoUploader(fotoType, minPhotos) {
+  const photos = serviceState.photos?.[fotoType] || [];
+  const doneCount = photos.filter(p => p.status === 'done').length;
+  const minLabel = minPhotos ? ` (mínimo ${minPhotos})` : '';
+  return `
+    <div class="photo-uploader">
+      <input type="file" accept="image/*" capture="environment" multiple id="photo-input-${fotoType}" onchange="handlePhotoSelect(this, '${fotoType}')" style="display:none">
+      <button type="button" class="photo-add-btn" onclick="document.getElementById('photo-input-${fotoType}').click()">📷 ${t('photos.add')}</button>
+      <div class="photo-count">${doneCount} ${doneCount === 1 ? t('photos.uploaded.one') : t('photos.uploaded.many')}${minLabel}</div>
+      <div class="photo-grid">
+        ${photos.map(p => `
+          <div class="photo-thumb status-${p.status}">
+            ${p.previewUrl || p.publicUrl ? `<img src="${p.previewUrl || p.publicUrl}" alt="">` : '<div class="photo-thumb-empty">📷</div>'}
+            ${p.status === 'uploading' ? '<div class="photo-overlay"><div class="spinner-sm"></div></div>' : ''}
+            ${p.status === 'done' ? '<div class="photo-badge photo-badge-ok">✓</div>' : ''}
+            ${p.status === 'error' ? `<div class="photo-overlay photo-overlay-error" title="${p.error || ''}">⚠️<div class="photo-error-text">${p.error || 'Error'}</div></div>` : ''}
+            ${p.status !== 'uploading' ? `<button type="button" class="photo-remove" onclick="removePhoto('${fotoType}','${p.id}')">×</button>` : ''}
+            ${p.status === 'error' ? `<button type="button" class="photo-retry" onclick="retryPhoto('${fotoType}','${p.id}')">${t('photos.retry')}</button>` : ''}
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `;
 }
 
 // ─────────────────────────────────────────────
@@ -2027,11 +2197,7 @@ function renderStep() {
       <div class="step-title">${t('step.fotos.antes.title')}</div>
       <div class="step-sub">${t('step.fotos.antes.sub')}</div>
       <div class="hint hint-amber">${t('step.fotos.antes.hint')}</div>
-      <div class="photo-area">
-        <div class="photo-icon">📷</div>
-        <div class="photo-text">${t('step.fotos.area.text')}</div>
-        <div class="photo-note">${t('step.fotos.area.note')}</div>
-      </div>
+      ${renderPhotoUploader('pre', 2)}
     `;
     bar.innerHTML = `
       <button class="btn-secondary" onclick="goToStep(1)">${t('btn.back')}</button>
@@ -2133,11 +2299,7 @@ function renderStep() {
       <div class="step-title">${t('step.fotos.despues.title')}</div>
       <div class="step-sub">${t('step.fotos.despues.sub')}</div>
       <div class="hint hint-amber">${t('step.fotos.despues.hint')}</div>
-      <div class="photo-area">
-        <div class="photo-icon">📷</div>
-        <div class="photo-text">${t('step.fotos.area.text')}</div>
-        <div class="photo-note">${t('step.fotos.area.note')}</div>
-      </div>
+      ${renderPhotoUploader('post', 2)}
     `;
     bar.innerHTML = `
       <button class="btn-secondary" onclick="goToStep(6)">${t('btn.back')}</button>
@@ -2270,7 +2432,29 @@ function selectClima(val) {
   renderStep();
 }
 
+function photosToNotionFiles(arr, baseName) {
+  return (arr || [])
+    .filter(p => p.status === 'done' && p.publicUrl)
+    .map((p, i) => ({
+      type: 'external',
+      name: `${baseName}-${i + 1}.${(p.filename?.split('.').pop() || 'jpg').toLowerCase()}`,
+      external: { url: p.publicUrl }
+    }));
+}
+
 async function cerrarServicio() {
+  // Bloquear si hay fotos en upload todavía
+  const allPhotos = [
+    ...(serviceState.photos?.pre || []),
+    ...(serviceState.photos?.post || []),
+    ...(serviceState.photos?.relevamiento || [])
+  ];
+  const stillUploading = allPhotos.filter(p => p.status === 'uploading').length;
+  if (stillUploading > 0) {
+    alert(t('photos.wait.uploading'));
+    return;
+  }
+
   const btn = document.querySelector('.btn-red');
   if (btn) { btn.textContent = t('btn.saving.notion'); btn.disabled = true; }
 
@@ -2293,6 +2477,13 @@ async function cerrarServicio() {
   if (((jornadaN != null) || tipoReg.includes('Jornada')) && serviceState.avance !== '') {
     properties['% de avance'] = { number: parseFloat(serviceState.avance) };
   }
+
+  const preFiles = photosToNotionFiles(serviceState.photos?.pre, 'pre');
+  const postFiles = photosToNotionFiles(serviceState.photos?.post, 'post');
+  const relevFiles = photosToNotionFiles(serviceState.photos?.relevamiento, 'relev');
+  if (preFiles.length) properties['📸 Fotos pre-servicio'] = { files: preFiles };
+  if (postFiles.length) properties['📸 Fotos post-servicio'] = { files: postFiles };
+  if (relevFiles.length) properties['📸 Fotos relevamiento'] = { files: relevFiles };
 
   try {
     await updateServiceProps(currentService.id, properties);
@@ -2767,6 +2958,27 @@ function renderCoordList() {
   content.innerHTML = html || `<div class="coord-empty">${t('coord.empty.month')}</div>`;
 }
 
+function extractServiceFiles(props) {
+  const collect = (key) => {
+    const files = props[key]?.files || [];
+    return files.map(f => f.external?.url || f.file?.url).filter(Boolean);
+  };
+  return {
+    pre: collect('📸 Fotos pre-servicio'),
+    post: collect('📸 Fotos post-servicio'),
+    relevamiento: collect('📸 Fotos relevamiento')
+  };
+}
+
+function renderPhotoGallery(props) {
+  const files = extractServiceFiles(props);
+  const all = [...files.pre, ...files.post, ...files.relevamiento];
+  if (!all.length) return '';
+  const thumbs = all.slice(0, 6).map(url => `<a href="${url}" target="_blank" rel="noopener" onclick="event.stopPropagation()"><img loading="lazy" src="${url}" alt=""></a>`).join('');
+  const more = all.length > 6 ? `<a href="#" onclick="event.stopPropagation();return false" class="photo-more">+${all.length - 6}</a>` : '';
+  return `<div class="photo-gallery">${thumbs}${more}</div>`;
+}
+
 function coordServiceCard(s) {
   const props = s.properties || {};
   const nombre = props['Nombre del servicio']?.title?.[0]?.plain_text || t('common.sinnombre');
@@ -2783,6 +2995,7 @@ function coordServiceCard(s) {
     <div class="coord-service-name">${nombre}${esJornada && jornadaN != null ? ` <span style="color:var(--purple);font-size:12px">J${jornadaN}</span>` : ''}</div>
     <div class="coord-service-meta"><span class="service-estado ${estadoClass}">${estado}</span>${tipo ? `<span class="coord-tag">${tipo}</span>` : ''}</div>
     <div class="coord-ops">👤 ${ops}</div>
+    ${renderPhotoGallery(props)}
   </div>`;
 }
 
