@@ -33,6 +33,10 @@ function getR2Client() {
     region: 'auto',
     endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
     credentials: { accessKeyId, secretAccessKey },
+    // R2 no soporta los checksums automáticos del SDK v3 (>=3.700) en presigned URLs.
+    // Sin esto, el PUT falla con "Credential access key has length 33" (mensaje engañoso).
+    requestChecksumCalculation: 'WHEN_REQUIRED',
+    responseChecksumValidation: 'WHEN_REQUIRED',
   });
 }
 
