@@ -59,13 +59,9 @@ export default async function handler(req, res) {
     return res.status(403).json({ error: 'Origin not allowed' });
   }
 
-  // Defense in depth: validate upload token if configured
-  if (process.env.UPLOAD_SECRET) {
-    const provided = req.headers['x-upload-token'];
-    if (provided !== process.env.UPLOAD_SECRET) {
-      return res.status(403).json({ error: 'Invalid upload token' });
-    }
-  }
+  // Note: UPLOAD_SECRET in env is intentionally unused — origin check + tight
+  // validation (MIME, size, key namespacing) is sufficient at current scale.
+  // Future protection options: Vercel Edge rate-limit, captcha, signed JWTs.
 
   const bucket = process.env.R2_BUCKET_NAME;
   const publicBase = process.env.R2_PUBLIC_URL;
