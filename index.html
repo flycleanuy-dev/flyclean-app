@@ -3275,8 +3275,11 @@ async function createServicioFromPropuesta(propPageId) {
     if (tipo) properties['Tipo'] = { select: { name: tipo } };
     if (contactRel) properties['Contacto'] = { relation: [{ id: contactRel }] };
 
+    // La base Servicios tiene multiple data sources → Notion exige data_source_id
+    // (no database_id) en el parent al crear páginas. Si usás database_id, devuelve
+    // validation_error y el proxy fallback dispara un search (incorrecto para creates).
     const created = await callNotion('pages', 'POST', {
-      parent: { database_id: 'ccaf276c-7f6a-460c-aeb3-d2800deab2e5' },
+      parent: { type: 'data_source_id', data_source_id: '2fbc8a03-5c4f-445c-8516-71dd9b2eea78' },
       properties
     });
 

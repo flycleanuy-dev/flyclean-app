@@ -62,8 +62,11 @@ export default async function handler(req, res) {
 
     const data = await response.json();
 
-    // Fallback for Servicios DB (multiple data sources)
-    if (data.code === 'validation_error' &&
+    // Fallback for Servicios DB (multiple data sources) — SOLO aplica a queries de listado,
+    // NO a creates ni updates. Notion responde con el mismo error_type para creates pero
+    // el fallback de search devolvería resultados inválidos en ese caso.
+    const isQuery = /^databases\/[a-f0-9-]{32,36}\/query$/.test(endpointNorm);
+    if (isQuery && data.code === 'validation_error' &&
         data.additional_data?.error_type === 'multiple_data_sources_for_database') {
       const dbId = endpointNorm.split('/')[1];
       let allResults = [];
