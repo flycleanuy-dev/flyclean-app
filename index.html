@@ -178,6 +178,15 @@ body::before {
     font-size: 11px; color: var(--purple); font-weight: 500;
     margin-top: 8px;
   }
+  .service-relev-badge {
+    display: inline-block; font-size: 10px; font-weight: 700; letter-spacing: 0.5px;
+    background: var(--purple-dark); color: var(--purple);
+    padding: 2px 7px; border-radius: 999px;
+    vertical-align: middle; margin-right: 6px;
+  }
+  .create-relev-btn { width: 100%; padding: 14px; background: var(--purple-dark); border: 2px solid var(--purple); border-radius: var(--radius-sm); color: var(--purple); font-size: 14px; font-weight: 700; cursor: pointer; font-family: 'Exo 2', sans-serif; transition: all 0.15s; margin-top: 4px; }
+  .create-relev-btn:hover, .create-relev-btn:active { background: var(--purple); color: #fff; transform: scale(0.99); }
+  .create-relev-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 
   .empty-state { padding: 60px 24px; text-align: center; }
   .empty-icon { font-size: 48px; margin-bottom: 16px; }
@@ -1208,7 +1217,29 @@ const TRANSLATIONS = {
     'sheet.prop.deleting': 'Eliminando...',
     'sheet.prop.delete.confirm': '¿Eliminar la propuesta "{name}"? Va a la papelera de Notion (recuperable 30 días).',
     'sheet.prop.delete.confirm.with.svc': '¿Eliminar la propuesta "{name}"?\\n\\nTiene {n} servicio(s) vinculado(s) — los servicios NO se borran, solo la propuesta. Recuperable 30 días desde la papelera de Notion.',
-    'sheet.prop.delete.error': 'Error al eliminar:'
+    'sheet.prop.delete.error': 'Error al eliminar:',
+    'sheet.prop.pedir.relev': 'Pedir relevamiento previo',
+    'sheet.prop.creating.relev': 'Creando relevamiento...',
+    'relev.badge': 'RELEVAMIENTO',
+    'relev.step.datos.title': '🔍 Datos del relevamiento',
+    'relev.step.datos.sub': 'Completá los datos clave del lugar',
+    'relev.step.fotos.title': '📸 Fotos del relevamiento',
+    'relev.step.fotos.sub': 'Mínimo 3 fotos del lugar y dificultades',
+    'relev.step.fotos.hint': '📷 Mostrá el área completa, accesos, riesgos y cualquier cosa relevante para cotizar.',
+    'relev.step.notas.title': '📝 Notas para el comercial',
+    'relev.step.notas.sub': 'Info adicional que el comercial necesita saber',
+    'relev.step.notas.hint': '💡 Mientras más detalle, mejor cotización. Mencioná horarios preferidos, contactos en el lugar, accesos, etc.',
+    'relev.step.cerrar.title': '🏁 Cerrar relevamiento',
+    'relev.m2.label': 'm² aproximados',
+    'relev.m2.placeholder': 'Ej: 250',
+    'relev.altura.label': '🏢 Altura / Pisos',
+    'relev.altura.placeholder': 'Ej: 6',
+    'relev.dificultad.label': '⚠️ Dificultad de acceso (marcá las que apliquen)',
+    'relev.sugerido.label': '💡 Servicio sugerido',
+    'relev.fotos.label': 'Fotos',
+    'relev.notas.label': 'Notas para el comercial',
+    'relev.notas.placeholder': 'Datos clave para que el comercial cotice: horarios, contactos, accesos, particularidades...',
+    'relev.summary.title': 'RESUMEN DEL RELEVAMIENTO'
   },
   'pt-BR': {
     'country.tagline': 'Selecione sua região para continuar',
@@ -1482,7 +1513,29 @@ const TRANSLATIONS = {
     'sheet.prop.deleting': 'Excluindo...',
     'sheet.prop.delete.confirm': 'Excluir a proposta "{name}"? Vai para a lixeira do Notion (recuperável por 30 dias).',
     'sheet.prop.delete.confirm.with.svc': 'Excluir a proposta "{name}"?\\n\\nTem {n} serviço(s) vinculado(s) — os serviços NÃO são excluídos, apenas a proposta. Recuperável por 30 dias na lixeira do Notion.',
-    'sheet.prop.delete.error': 'Erro ao excluir:'
+    'sheet.prop.delete.error': 'Erro ao excluir:',
+    'sheet.prop.pedir.relev': 'Pedir levantamento prévio',
+    'sheet.prop.creating.relev': 'Criando levantamento...',
+    'relev.badge': 'LEVANTAMENTO',
+    'relev.step.datos.title': '🔍 Dados do levantamento',
+    'relev.step.datos.sub': 'Preencha os dados-chave do local',
+    'relev.step.fotos.title': '📸 Fotos do levantamento',
+    'relev.step.fotos.sub': 'Mínimo 3 fotos do local e dificuldades',
+    'relev.step.fotos.hint': '📷 Mostre a área completa, acessos, riscos e qualquer detalhe relevante para cotizar.',
+    'relev.step.notas.title': '📝 Notas para o comercial',
+    'relev.step.notas.sub': 'Info adicional que o comercial precisa saber',
+    'relev.step.notas.hint': '💡 Quanto mais detalhe, melhor a cotação. Mencione horários preferidos, contatos no local, acessos, etc.',
+    'relev.step.cerrar.title': '🏁 Fechar levantamento',
+    'relev.m2.label': 'm² aproximados',
+    'relev.m2.placeholder': 'Ex: 250',
+    'relev.altura.label': '🏢 Altura / Andares',
+    'relev.altura.placeholder': 'Ex: 6',
+    'relev.dificultad.label': '⚠️ Dificuldade de acesso (marque as que se aplicam)',
+    'relev.sugerido.label': '💡 Serviço sugerido',
+    'relev.fotos.label': 'Fotos',
+    'relev.notas.label': 'Notas para o comercial',
+    'relev.notas.placeholder': 'Dados-chave para o comercial cotizar: horários, contatos, acessos, particularidades...',
+    'relev.summary.title': 'RESUMO DO LEVANTAMENTO'
   }
 };
 
@@ -1630,7 +1683,7 @@ const CHECKLIST_POST = [
   '✅ Resultado marcado en Notion'
 ];
 
-const STEPS = [
+const STEPS_SERVICIO = [
   { id: 'inicio', label: 'INICIAR', icon: '▶' },
   { id: 'checklist_pre', label: 'PRE', icon: '✅' },
   { id: 'fotos_antes', label: 'FOTOS', icon: '📸' },
@@ -1642,6 +1695,16 @@ const STEPS = [
   { id: 'observaciones', label: 'NOTAS', icon: '📝' },
   { id: 'cerrar', label: 'CERRAR', icon: '🏁' }
 ];
+
+const STEPS_RELEVAMIENTO = [
+  { id: 'inicio', label: 'LUGAR', icon: '📍' },
+  { id: 'relev_datos', label: 'DATOS', icon: '🔍' },
+  { id: 'fotos_relevamiento', label: 'FOTOS', icon: '📸' },
+  { id: 'relev_notas', label: 'NOTAS', icon: '📝' },
+  { id: 'cerrar', label: 'CERRAR', icon: '🏁' }
+];
+
+let STEPS = STEPS_SERVICIO;
 
 // ─────────────────────────────────────────────
 // STATE
@@ -1686,7 +1749,14 @@ function resetServiceState() {
     resultado: '',
     clima: '',
     isSaving: false,
-    photos: { pre: [], post: [], relevamiento: [] }
+    photos: { pre: [], post: [], relevamiento: [] },
+    relevamiento: {
+      m2: '',
+      altura: '',
+      dificultades: [],
+      servicioSugerido: [],
+      notasComercial: ''
+    }
   };
 }
 
@@ -2108,6 +2178,7 @@ function renderServices(services) {
     const tipoReg = props['Tipo de registro']?.select?.name || '';
     const jornadaN = props['Jornada N°']?.number;
     const isJornada = tipoReg.includes('Jornada');
+    const isRelev = tipoReg.includes('Relevamiento');
 
     const dateLocale = currentLang === 'pt-BR' ? 'pt-BR' : 'es-UY';
     const fechaFmt = fecha ? new Date(fecha + 'T00:00:00').toLocaleDateString(dateLocale, { day: 'numeric', month: 'short' }) : '';
@@ -2115,7 +2186,7 @@ function renderServices(services) {
     return `
       <div class="service-card ${estado.includes('Pendiente') ? '' : ''}" onclick="openService(${i})" data-idx="${i}">
         <div class="service-estado ${getEstadoClass(estado)}">${estado}</div>
-        <div class="service-nombre">${nombre}</div>
+        <div class="service-nombre">${isRelev ? `<span class="service-relev-badge">🔍 ${t('relev.badge')}</span> ` : ''}${nombre}</div>
         <div class="service-meta">
           ${fechaFmt ? `<span class="service-tag">📅 ${fechaFmt}</span>` : ''}
           ${tipo ? `<span class="service-tag">${tipo}</span>` : ''}
@@ -2136,6 +2207,14 @@ function openService(idx) {
   currentService = window._services[idx];
   currentStep = 0;
   resetServiceState();
+
+  // Elegir el array de STEPS según el tipo de registro
+  const tipoReg = currentService.properties?.['Tipo de registro']?.select?.name || '';
+  STEPS = tipoReg.includes('Relevamiento') ? STEPS_RELEVAMIENTO : STEPS_SERVICIO;
+
+  // Pre-cargar m² aproximados si ya existe en el servicio (útil para relevamientos)
+  const m2Existing = currentService.properties?.['m² aproximados']?.number;
+  if (m2Existing != null) serviceState.relevamiento.m2 = String(m2Existing);
 
   const nombre = currentService.properties['Nombre del servicio']?.title?.[0]?.plain_text || t('detail.title.default');
   document.getElementById('detail-title').textContent = nombre;
@@ -2390,18 +2469,97 @@ function renderStep() {
     `;
   }
 
+  // ── STEPS RELEVAMIENTO ──
+  else if (step.id === 'relev_datos') {
+    const r = serviceState.relevamiento;
+    const DIFICULTADES = ['🚧 Acceso restringido','💧 Sin agua disponible','⚡ Sin electricidad','⚠️ Riesgo eléctrico','🌬️ Vientos frecuentes','🏗️ Andamios necesarios','🪜 Altura significativa (>5 pisos)','🔒 Requiere coordinación especial'];
+    const SUGERIDOS = ['🏢 Fachada','🪟 Vidrios','☀️ Paneles solares','🔄 Combinado'];
+    content.innerHTML = `
+      <div class="step-title">${t('relev.step.datos.title')}</div>
+      <div class="step-sub">${t('relev.step.datos.sub')}</div>
+
+      <div class="field-group">
+        <div class="form-label">📐 ${t('relev.m2.label')}</div>
+        <input type="number" min="0" placeholder="${t('relev.m2.placeholder')}" value="${r.m2}" oninput="serviceState.relevamiento.m2=this.value" style="font-size:18px;text-align:center;font-weight:700"/>
+      </div>
+
+      <div class="field-group">
+        <div class="form-label">${t('relev.altura.label')}</div>
+        <input type="number" min="0" placeholder="${t('relev.altura.placeholder')}" value="${r.altura}" oninput="serviceState.relevamiento.altura=this.value" style="font-size:18px;text-align:center;font-weight:700"/>
+      </div>
+
+      <div class="field-group">
+        <div class="form-label">${t('relev.dificultad.label')}</div>
+        <div class="clima-group">
+          ${DIFICULTADES.map(d => `<div class="clima-opt yellow ${r.dificultades.includes(d) ? 'selected' : ''}" onclick="relevToggleDif('${d.replace(/'/g,"\\'")}')">${d}</div>`).join('')}
+        </div>
+      </div>
+
+      <div class="field-group">
+        <div class="form-label">${t('relev.sugerido.label')}</div>
+        <div class="radio-group">
+          ${SUGERIDOS.map(s => `<div class="radio-opt ${r.servicioSugerido.includes(s) ? 'selected' : ''}" onclick="relevToggleSugerido('${s.replace(/'/g,"\\'")}')">${s}</div>`).join('')}
+        </div>
+      </div>
+      <div style="height:20px"></div>
+    `;
+    bar.innerHTML = `
+      <button class="btn-secondary" onclick="goToStep(${currentStep - 1})">${t('btn.back')}</button>
+      <button class="btn-main btn-green" onclick="nextStep()">${t('btn.continue')}</button>
+    `;
+  }
+
+  else if (step.id === 'fotos_relevamiento') {
+    content.innerHTML = `
+      <div class="step-title">${t('relev.step.fotos.title')}</div>
+      <div class="step-sub">${t('relev.step.fotos.sub')}</div>
+      <div class="hint hint-amber">${t('relev.step.fotos.hint')}</div>
+      ${renderPhotoUploader('relevamiento', 3)}
+    `;
+    bar.innerHTML = `
+      <button class="btn-secondary" onclick="goToStep(${currentStep - 1})">${t('btn.back')}</button>
+      <button class="btn-main btn-green" onclick="nextStep()">${t('btn.continue')}</button>
+    `;
+  }
+
+  else if (step.id === 'relev_notas') {
+    content.innerHTML = `
+      <div class="step-title">${t('relev.step.notas.title')}</div>
+      <div class="step-sub">${t('relev.step.notas.sub')}</div>
+      <div class="hint hint-blue">${t('relev.step.notas.hint')}</div>
+
+      <div class="field-group">
+        <div class="form-label">📝 ${t('relev.notas.label')}</div>
+        <textarea rows="6" placeholder="${t('relev.notas.placeholder')}" oninput="serviceState.relevamiento.notasComercial=this.value">${serviceState.relevamiento.notasComercial}</textarea>
+      </div>
+      <div style="height:20px"></div>
+    `;
+    bar.innerHTML = `
+      <button class="btn-secondary" onclick="goToStep(${currentStep - 1})">${t('btn.back')}</button>
+      <button class="btn-main btn-green" onclick="nextStep()">${t('btn.continue')}</button>
+    `;
+  }
+
   // ── STEP 9: CERRAR ──
   else if (step.id === 'cerrar') {
-    const preCount = Object.values(serviceState.checklistPre).filter(Boolean).length;
-    const postCount = Object.values(serviceState.checklistPost).filter(Boolean).length;
+    const isRelev = STEPS === STEPS_RELEVAMIENTO;
+    let summaryRows = '';
 
-    content.innerHTML = `
-      <div class="step-title">${t('step.cerrar.title')}</div>
-      <div class="step-sub">${t('step.cerrar.sub')}</div>
-      <div class="hint hint-green">${t('step.cerrar.hint')}</div>
-
-      <div class="summary-card">
-        <div class="summary-title">${t('summary.title')}</div>
+    if (isRelev) {
+      const r = serviceState.relevamiento;
+      const fotosCount = (serviceState.photos?.relevamiento || []).filter(p => p.status === 'done').length;
+      summaryRows = `
+        <div class="summary-row"><span class="summary-key">📐 ${t('relev.m2.label')}</span><span class="summary-val">${r.m2 ? r.m2 + ' m²' : '—'}</span></div>
+        <div class="summary-row"><span class="summary-key">${t('relev.altura.label')}</span><span class="summary-val">${r.altura || '—'}</span></div>
+        <div class="summary-row"><span class="summary-key">${t('relev.dificultad.label')}</span><span class="summary-val">${r.dificultades.length || '—'}</span></div>
+        <div class="summary-row"><span class="summary-key">${t('relev.sugerido.label')}</span><span class="summary-val">${r.servicioSugerido.join(', ') || '—'}</span></div>
+        <div class="summary-row"><span class="summary-key">📸 ${t('relev.fotos.label')}</span><span class="summary-val">${fotosCount}</span></div>
+        <div class="summary-row"><span class="summary-key">📝 ${t('relev.notas.label')}</span><span class="summary-val">${r.notasComercial ? '✓' : '—'}</span></div>
+      `;
+    } else {
+      const preCount = Object.values(serviceState.checklistPre).filter(Boolean).length;
+      const postCount = Object.values(serviceState.checklistPost).filter(Boolean).length;
+      summaryRows = `
         <div class="summary-row"><span class="summary-key">${t('summary.horainicio')}</span><span class="summary-val">${serviceState.horaInicio || '—'}</span></div>
         <div class="summary-row"><span class="summary-key">${t('summary.inicioef')}</span><span class="summary-val">${serviceState.horaInicioEfectivo || '—'}</span></div>
         <div class="summary-row"><span class="summary-key">${t('summary.cierreef')}</span><span class="summary-val">${serviceState.horaCierreEfectivo || '—'}</span></div>
@@ -2410,11 +2568,22 @@ function renderStep() {
         <div class="summary-row"><span class="summary-key">${t('summary.avance')}</span><span class="summary-val">${serviceState.avance ? serviceState.avance + '%' : '—'}</span></div>
         <div class="summary-row"><span class="summary-key">${t('summary.resultado')}</span><span class="summary-val">${serviceState.resultado || '—'}</span></div>
         <div class="summary-row"><span class="summary-key">${t('summary.clima')}</span><span class="summary-val">${serviceState.clima || '—'}</span></div>
+      `;
+    }
+
+    content.innerHTML = `
+      <div class="step-title">${isRelev ? t('relev.step.cerrar.title') : t('step.cerrar.title')}</div>
+      <div class="step-sub">${t('step.cerrar.sub')}</div>
+      <div class="hint hint-green">${t('step.cerrar.hint')}</div>
+
+      <div class="summary-card">
+        <div class="summary-title">${isRelev ? t('relev.summary.title') : t('summary.title')}</div>
+        ${summaryRows}
       </div>
       <div style="height:20px"></div>
     `;
     bar.innerHTML = `
-      <button class="btn-secondary" onclick="goToStep(8)">${t('btn.back')}</button>
+      <button class="btn-secondary" onclick="goToStep(${currentStep - 1})">${t('btn.back')}</button>
       <button class="btn-main btn-red" onclick="cerrarServicio()">${t('btn.close.notion')}</button>
     `;
   }
@@ -2468,6 +2637,20 @@ function toggleCheck(list, idx) {
 
 function selectResultado(val) {
   serviceState.resultado = val;
+  renderStep();
+}
+
+function relevToggleDif(val) {
+  const arr = serviceState.relevamiento.dificultades;
+  const idx = arr.indexOf(val);
+  if (idx === -1) arr.push(val); else arr.splice(idx, 1);
+  renderStep();
+}
+
+function relevToggleSugerido(val) {
+  const arr = serviceState.relevamiento.servicioSugerido;
+  const idx = arr.indexOf(val);
+  if (idx === -1) arr.push(val); else arr.splice(idx, 1);
   renderStep();
 }
 
@@ -2528,6 +2711,28 @@ async function cerrarServicio() {
   if (preFiles.length) properties['📸 Fotos pre-servicio'] = { files: preFiles };
   if (postFiles.length) properties['📸 Fotos post-servicio'] = { files: postFiles };
   if (relevFiles.length) properties['📸 Fotos relevamiento'] = { files: relevFiles };
+
+  // Si es relevamiento, agregar los 4 campos extra + notas para el comercial
+  if (tipoReg.includes('Relevamiento')) {
+    const r = serviceState.relevamiento || {};
+    if (r.m2 !== '' && r.m2 != null) {
+      const n = parseFloat(r.m2);
+      if (!isNaN(n)) properties['m² aproximados'] = { number: n };
+    }
+    if (r.altura !== '' && r.altura != null) {
+      const n = parseFloat(r.altura);
+      if (!isNaN(n)) properties['Altura / Pisos'] = { number: n };
+    }
+    if (Array.isArray(r.dificultades) && r.dificultades.length) {
+      properties['Dificultad de acceso'] = { multi_select: r.dificultades.map(d => ({ name: d })) };
+    }
+    if (Array.isArray(r.servicioSugerido) && r.servicioSugerido.length) {
+      properties['Servicio sugerido'] = { multi_select: r.servicioSugerido.map(s => ({ name: s })) };
+    }
+    if (r.notasComercial) {
+      properties['Notas pre-servicio'] = { rich_text: [{ text: { content: r.notasComercial } }] };
+    }
+  }
 
   try {
     await updateServiceProps(currentService.id, properties);
@@ -3034,9 +3239,10 @@ function coordServiceCard(s) {
   const jornadaN = props['Jornada N°']?.number;
   const tipoReg = props['Tipo de registro']?.select?.name || '';
   const esJornada = jornadaN != null || tipoReg.includes('Jornada');
+  const esRelev = tipoReg.includes('Relevamiento');
   const estadoClass = estado.includes('Completado') ? 'estado-completado' : estado.includes('En curso') ? 'estado-en-curso' : estado.includes('Asignado') ? 'estado-asignado' : 'estado-pendiente';
   return `<div class="coord-service-card" style="cursor:pointer" onclick="openEditSheet('${s.id}')">
-    <div class="coord-service-name">${nombre}${esJornada && jornadaN != null ? ` <span style="color:var(--purple);font-size:12px">J${jornadaN}</span>` : ''}</div>
+    <div class="coord-service-name">${esRelev ? `<span class="service-relev-badge">🔍 ${t('relev.badge')}</span> ` : ''}${nombre}${esJornada && jornadaN != null ? ` <span style="color:var(--purple);font-size:12px">J${jornadaN}</span>` : ''}</div>
     <div class="coord-service-meta"><span class="service-estado ${estadoClass}">${estado}</span>${tipo ? `<span class="coord-tag">${tipo}</span>` : ''}</div>
     <div class="coord-ops">👤 ${ops}</div>
     ${renderPhotoGallery(props)}
@@ -3298,11 +3504,14 @@ function openPropSheet(pageId) {
       <input type="date" class="edit-date-input" value="${ultimaInt}" onchange="propEditState.ultimaInt=this.value"/></div>` +
     `<div class="edit-section"><div class="edit-section-label">${t('sheet.prop.section.obs')}</div>
       <textarea class="edit-date-input" rows="3" style="resize:none;height:80px" placeholder="${t('sheet.prop.obs.placeholder')}" oninput="propEditState.obs=this.value">${obs}</textarea></div>` +
+    `<div class="edit-section" id="create-relev-section" style="padding-bottom:0;display:none">
+      <button class="create-relev-btn" id="create-relev-btn" onclick="createRelevamientoFromPropuesta('${pageId}')"></button>
+     </div>` +
     `<div class="edit-section" id="create-svc-section" style="padding-bottom:0;display:none">
       <button class="create-svc-btn" id="create-svc-btn" onclick="createServicioFromPropuesta('${pageId}')"></button>
      </div>`;
 
-  // El botón aparece/desaparece según el estado pipeline (reactivo a cambios dentro del sheet)
+  // Los botones aparecen/desaparecen según el estado pipeline (reactivo a cambios dentro del sheet)
   updateCreateSvcBtnVisibility();
 
   const btn = document.getElementById('prop-save-btn');
@@ -3388,6 +3597,47 @@ async function createServicioFromPropuesta(propPageId) {
   }
 }
 
+async function createRelevamientoFromPropuesta(propPageId) {
+  const prop = (editingProp && editingProp.id === propPageId) ? editingProp : _coordAllProps?.find(p => p.id === propPageId);
+  if (!prop) { alert('Propuesta no encontrada en memoria. Recargá la lista.'); return; }
+  const pp = prop.properties || {};
+  const nombrePropuesta = pp['Nombre de propuesta']?.title?.[0]?.plain_text || t('common.sinnombre');
+  const pais = pp['País']?.select?.name || '';
+  const contactRel = pp['Contacto']?.relation?.[0]?.id;
+
+  const btn = document.getElementById('create-relev-btn');
+  if (btn) { btn.textContent = '⏳ ' + t('sheet.prop.creating.relev'); btn.disabled = true; }
+
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    const properties = {
+      'Nombre del servicio': { title: [{ text: { content: '🔍 Relevamiento — ' + nombrePropuesta } }] },
+      'Estado': { select: { name: '📋 Pendiente' } },
+      'Tipo de registro': { select: { name: '🔍 Relevamiento' } },
+      'Fecha programada': { date: { start: today } },
+      'Propuesta': { relation: [{ id: propPageId }] }
+    };
+    if (pais) properties['País'] = { select: { name: pais } };
+    if (contactRel) properties['Contacto'] = { relation: [{ id: contactRel }] };
+
+    // Multi-source DB → data_source_id obligatorio
+    const created = await callNotion('pages', 'POST', {
+      parent: { type: 'data_source_id', data_source_id: '2fbc8a03-5c4f-445c-8516-71dd9b2eea78' },
+      properties
+    });
+
+    closePropSheet();
+    if (typeof setCoordTab === 'function') setCoordTab('servicios');
+    await renderCoordServicios();
+    setTimeout(() => {
+      if (typeof openEditSheet === 'function') openEditSheet(created.id);
+    }, 400);
+  } catch (e) {
+    if (btn) { btn.textContent = '🔍 ' + t('sheet.prop.pedir.relev'); btn.disabled = false; }
+    alert(t('sheet.prop.create.error') + ' ' + e.message);
+  }
+}
+
 function propSetField(key, el, val) {
   propEditState[key] = val;
   el.closest('.estado-btns').querySelectorAll('.estado-btn').forEach(b => b.classList.remove('active'));
@@ -3396,18 +3646,36 @@ function propSetField(key, el, val) {
 }
 
 function updateCreateSvcBtnVisibility() {
-  const section = document.getElementById('create-svc-section');
-  const btn = document.getElementById('create-svc-btn');
-  if (!section || !btn || !editingProp) return;
+  if (!editingProp) return;
+  const estado = propEditState.estado || '';
+  // Estados donde se puede crear servicio (ya vendida)
   const ESTADOS_VENDIDO = ['✅ Aceptada', 'Concretado', 'Servicio Pendiente'];
-  const show = ESTADOS_VENDIDO.includes(propEditState.estado);
-  section.style.display = show ? '' : 'none';
-  if (show) {
-    const servCount = (editingProp.properties?.['Servicios']?.relation || []).length;
-    btn.textContent = servCount > 0
-      ? '+ ' + t('sheet.prop.create.another.svc') + ' (' + servCount + ' ' + t('sheet.prop.svc.already') + ')'
-      : '→ ' + t('sheet.prop.create.svc');
-    btn.disabled = false;
+  // Estados donde tiene sentido pedir un relevamiento previo (antes de cotizar)
+  const ESTADOS_PRE_VENTA = ['🆕 Nuevo lead', '📞 Contactado', '🔍 Relevamiento', '⏳ En preparación'];
+
+  const svcSection = document.getElementById('create-svc-section');
+  const svcBtn = document.getElementById('create-svc-btn');
+  if (svcSection && svcBtn) {
+    const showSvc = ESTADOS_VENDIDO.includes(estado);
+    svcSection.style.display = showSvc ? '' : 'none';
+    if (showSvc) {
+      const servCount = (editingProp.properties?.['Servicios']?.relation || []).length;
+      svcBtn.textContent = servCount > 0
+        ? '+ ' + t('sheet.prop.create.another.svc') + ' (' + servCount + ' ' + t('sheet.prop.svc.already') + ')'
+        : '→ ' + t('sheet.prop.create.svc');
+      svcBtn.disabled = false;
+    }
+  }
+
+  const relevSection = document.getElementById('create-relev-section');
+  const relevBtn = document.getElementById('create-relev-btn');
+  if (relevSection && relevBtn) {
+    const showRelev = ESTADOS_PRE_VENTA.includes(estado);
+    relevSection.style.display = showRelev ? '' : 'none';
+    if (showRelev) {
+      relevBtn.textContent = '🔍 ' + t('sheet.prop.pedir.relev');
+      relevBtn.disabled = false;
+    }
   }
 }
 
