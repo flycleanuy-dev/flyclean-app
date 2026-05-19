@@ -387,6 +387,17 @@ body::before {
   .photo-gallery a { display: block; width: 56px; height: 56px; border-radius: 6px; overflow: hidden; border: 1px solid var(--border); background: var(--bg); }
   .photo-gallery img { width: 100%; height: 100%; object-fit: cover; display: block; }
 
+  /* ── Historial del cliente (en sheet de Contacto) ── */
+  .history-loading, .history-empty { font-size: 12px; color: var(--text3); padding: 12px; text-align: center; background: var(--bg); border-radius: 8px; }
+  .history-item { display: flex; gap: 10px; padding: 10px 12px; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 6px; cursor: pointer; transition: all 0.15s; }
+  .history-item:active { background: var(--card); transform: scale(0.99); }
+  .history-item-ingreso { cursor: default; }
+  .history-item-ingreso:active { transform: none; }
+  .history-icon { font-size: 18px; flex-shrink: 0; line-height: 1; padding-top: 2px; }
+  .history-content { flex: 1; min-width: 0; }
+  .history-title { font-size: 13px; font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .history-meta { font-size: 11px; color: var(--text3); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
   /* Saving indicator */
   .saving-bar {
     position: fixed; top: 0; left: 50%; transform: translateX(-50%);
@@ -1080,6 +1091,14 @@ const TRANSLATIONS = {
     'coord.empty.month.relev': 'Sin relevamientos este mes.',
     'coord.tab.relevamientos': '🔍 Relevamientos',
     'services.tab.relevamientos': '🔍 Relevamientos',
+    'contact.history.title': '📜 HISTORIAL DEL CLIENTE',
+    'contact.history.loading': 'Cargando historial...',
+    'contact.history.empty': 'Sin actividad registrada aún.',
+    'contact.history.error': 'Error al cargar historial:',
+    'contact.history.propuesta': 'Propuesta',
+    'contact.history.relevamiento': 'Relevamiento',
+    'contact.history.servicio': 'Servicio',
+    'contact.history.ingreso': 'Ingreso',
     'coord.empty.search': 'Sin resultados.',
     'coord.error.load': 'Error al cargar.',
     'coord.error.contactos': 'Error al cargar contactos.',
@@ -1380,6 +1399,14 @@ const TRANSLATIONS = {
     'coord.empty.month.relev': 'Sem levantamentos este mês.',
     'coord.tab.relevamientos': '🔍 Levantamentos',
     'services.tab.relevamientos': '🔍 Levantamentos',
+    'contact.history.title': '📜 HISTÓRICO DO CLIENTE',
+    'contact.history.loading': 'Carregando histórico...',
+    'contact.history.empty': 'Sem atividade registrada ainda.',
+    'contact.history.error': 'Erro ao carregar histórico:',
+    'contact.history.propuesta': 'Proposta',
+    'contact.history.relevamiento': 'Levantamento',
+    'contact.history.servicio': 'Serviço',
+    'contact.history.ingreso': 'Receita',
     'coord.empty.search': 'Sem resultados.',
     'coord.error.load': 'Erro ao carregar.',
     'coord.error.contactos': 'Erro ao carregar contatos.',
@@ -3341,7 +3368,7 @@ async function openEditSheet(pageId) {
 }
 
 function overlayClick(e) { if (e.target.id === 'edit-overlay') closeEditSheet(); }
-function closeEditSheet() { document.getElementById('edit-overlay').classList.remove('open'); editingService = null; }
+function closeEditSheet() { document.getElementById('edit-overlay').classList.remove('open'); editingService = null; if (typeof _contactHistoryCache !== 'undefined') Object.keys(_contactHistoryCache).forEach(k => delete _contactHistoryCache[k]); }
 function selectEditEstado(estado) {
   editState.estado = estado;
   document.querySelectorAll('.estado-btn').forEach(b => b.classList.toggle('active', b.textContent.trim() === estado));
@@ -3728,7 +3755,7 @@ function updateCreateSvcBtnVisibility() {
 }
 
 function propOverlayClick(e) { if (e.target.id === 'prop-overlay') closePropSheet(); }
-function closePropSheet() { document.getElementById('prop-overlay').classList.remove('open'); editingProp = null; }
+function closePropSheet() { document.getElementById('prop-overlay').classList.remove('open'); editingProp = null; if (typeof _contactHistoryCache !== 'undefined') Object.keys(_contactHistoryCache).forEach(k => delete _contactHistoryCache[k]); }
 
 async function savePropEdit() {
   const btn = document.getElementById('prop-save-btn');
@@ -3884,8 +3911,13 @@ function buildContactSheetBody(mode) {
       <input type="text" class="edit-date-input" placeholder="${t('sheet.contact.ciudad.placeholder')}" value="${s.ciudad || ''}" oninput="contactEditState.ciudad=this.value"/></div>` +
     `<div class="edit-section"><div class="edit-section-label">${t('sheet.contact.section.interlocutor')}</div>
       <input type="text" class="edit-date-input" placeholder="${t('sheet.contact.interlocutor.placeholder')}" value="${s.interlocutor || ''}" oninput="contactEditState.interlocutor=this.value"/></div>` +
-    `<div class="edit-section" style="padding-bottom:0"><div class="edit-section-label">${t('sheet.contact.section.notas')}</div>
-      <textarea class="edit-date-input" rows="3" style="resize:none;height:80px" placeholder="${t('sheet.contact.notas.placeholder')}" oninput="contactEditState.notas=this.value">${s.notas || ''}</textarea></div>`;
+    `<div class="edit-section"><div class="edit-section-label">${t('sheet.contact.section.notas')}</div>
+      <textarea class="edit-date-input" rows="3" style="resize:none;height:80px" placeholder="${t('sheet.contact.notas.placeholder')}" oninput="contactEditState.notas=this.value">${s.notas || ''}</textarea></div>` +
+    (mode === 'edit'
+      ? `<div class="edit-section" style="padding-bottom:0"><div class="edit-section-label">${t('contact.history.title')}</div>
+          <div id="contact-history-container"><div class="history-loading">${t('contact.history.loading')}</div></div>
+         </div>`
+      : '');
 }
 
 function openContactSheet(pageId) {
@@ -3912,6 +3944,9 @@ function openContactSheet(pageId) {
   const btn = document.getElementById('contact-save-btn');
   btn.textContent = t('btn.save.notion'); btn.disabled = false;
   document.getElementById('contact-overlay').classList.add('open');
+
+  // Cargar historial async (no bloquea apertura del sheet)
+  loadContactHistory(pageId);
 }
 
 function openNewContactSheet() {
@@ -3976,6 +4011,175 @@ async function saveContactEdit() {
     btn.textContent = contactSheetMode === 'create' ? t('btn.create.notion') : t('btn.save.notion');
     btn.disabled = false;
     alert(t('sheet.alert.save.error2') + e.message);
+  }
+}
+
+// ─────────────────────────────────────────────
+// HISTORIAL DEL CLIENTE — propuestas + relevamientos + servicios + ingresos
+// ─────────────────────────────────────────────
+const _contactHistoryCache = {};
+
+async function loadContactHistory(contactId) {
+  if (!contactId) return;
+  const container = document.getElementById('contact-history-container');
+  if (!container) return;
+
+  // Usar cache si existe
+  if (_contactHistoryCache[contactId]) {
+    renderContactHistory(_contactHistoryCache[contactId]);
+    return;
+  }
+
+  // Lanzar las 4 queries en paralelo
+  const propFilter = { property: 'Contacto', relation: { contains: contactId } };
+  const svcRelevFilter = { and: [
+    { property: 'Contacto', relation: { contains: contactId } },
+    { property: 'Tipo de registro', select: { equals: '🔍 Relevamiento' } }
+  ]};
+  const svcCompletoFilter = { and: [
+    { property: 'Contacto', relation: { contains: contactId } },
+    { property: 'Tipo de registro', select: { equals: '📋 Orden de trabajo' } },
+    { property: 'Estado', select: { equals: '✅ Completado' } }
+  ]};
+  const ingresoFilter = { property: 'Cuenta', relation: { contains: contactId } };
+
+  try {
+    const [propRes, relevRes, svcRes, ingRes] = await Promise.all([
+      callNotion('databases/2c0a4257-f429-4941-b994-dfebc1098633/query', 'POST', { filter: propFilter }).catch(() => ({ results: [] })),
+      callNotion('databases/ccaf276c-7f6a-460c-aeb3-d2800deab2e5/query', 'POST', { filter: svcRelevFilter }).catch(() => ({ results: [] })),
+      callNotion('databases/ccaf276c-7f6a-460c-aeb3-d2800deab2e5/query', 'POST', { filter: svcCompletoFilter }).catch(() => ({ results: [] })),
+      callNotion('databases/d1e15376-e83a-408a-8a52-f47da33c249a/query', 'POST', { filter: ingresoFilter }).catch(() => ({ results: [] }))
+    ]);
+
+    // El proxy hace search fallback para Servicios (multi-source) que ignora el filter
+    // → filtrar cliente-side por contactId Y tipoReg
+    const relevs = (relevRes.results || []).filter(s => {
+      const tipoReg = s.properties?.['Tipo de registro']?.select?.name || '';
+      const contactos = s.properties?.['Contacto']?.relation || [];
+      return tipoReg.includes('Relevamiento') && contactos.some(r => r.id === contactId);
+    });
+    const svcs = (svcRes.results || []).filter(s => {
+      const tipoReg = s.properties?.['Tipo de registro']?.select?.name || '';
+      const estado = s.properties?.['Estado']?.select?.name || '';
+      const contactos = s.properties?.['Contacto']?.relation || [];
+      return tipoReg.includes('Orden de trabajo') && estado.includes('Completado') && contactos.some(r => r.id === contactId);
+    });
+
+    const items = [
+      ...(propRes.results || []).map(r => ({ type: 'propuesta', data: r, date: r.properties?.['Fecha de creación']?.created_time || r.created_time || '' })),
+      ...relevs.map(r => ({ type: 'relevamiento', data: r, date: r.properties?.['Fecha programada']?.date?.start || r.created_time || '' })),
+      ...svcs.map(r => ({ type: 'servicio', data: r, date: r.properties?.['Fecha programada']?.date?.start || r.created_time || '' })),
+      ...(ingRes.results || []).map(r => ({ type: 'ingreso', data: r, date: r.properties?.['Fecha']?.date?.start || r.created_time || '' }))
+    ];
+
+    // Ordenar por fecha desc
+    items.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+
+    _contactHistoryCache[contactId] = items;
+    renderContactHistory(items);
+  } catch (e) {
+    container.innerHTML = `<div class="history-empty">${t('contact.history.error')} ${e.message}</div>`;
+  }
+}
+
+function renderContactHistory(items) {
+  const container = document.getElementById('contact-history-container');
+  if (!container) return;
+
+  if (!items.length) {
+    container.innerHTML = `<div class="history-empty">${t('contact.history.empty')}</div>`;
+    return;
+  }
+
+  const dateLocale = currentLang === 'pt-BR' ? 'pt-BR' : 'es-UY';
+  const fmtDate = (d) => d ? new Date(d.length === 10 ? d + 'T00:00:00' : d).toLocaleDateString(dateLocale, { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
+
+  container.innerHTML = items.map(item => {
+    const p = item.data.properties || {};
+    const id = item.data.id;
+    const fecha = fmtDate(item.date);
+
+    if (item.type === 'propuesta') {
+      const nombre = p['Nombre de propuesta']?.title?.[0]?.plain_text || t('common.sinnombre');
+      const estado = p['Estado pipeline']?.select?.name || '—';
+      const importe = p['Importe estimado']?.number;
+      return `<div class="history-item" onclick="openHistoryItem('propuesta','${id}')">
+        <div class="history-icon">🧾</div>
+        <div class="history-content">
+          <div class="history-title">${t('contact.history.propuesta')}: ${nombre}</div>
+          <div class="history-meta">${estado}${importe ? ' · $' + importe.toLocaleString() : ''} · ${fecha}</div>
+        </div>
+      </div>`;
+    }
+    if (item.type === 'relevamiento') {
+      const nombre = p['Nombre del servicio']?.title?.[0]?.plain_text || '—';
+      const op = p['Operario App']?.select?.name || '—';
+      return `<div class="history-item" onclick="openHistoryItem('servicio','${id}')">
+        <div class="history-icon">🔍</div>
+        <div class="history-content">
+          <div class="history-title">${t('contact.history.relevamiento')}</div>
+          <div class="history-meta">${nombre} · ${op} · ${fecha}</div>
+        </div>
+      </div>`;
+    }
+    if (item.type === 'servicio') {
+      const nombre = p['Nombre del servicio']?.title?.[0]?.plain_text || '—';
+      const tipo = p['Tipo de servicio']?.select?.name || '';
+      return `<div class="history-item" onclick="openHistoryItem('servicio','${id}')">
+        <div class="history-icon">🛠️</div>
+        <div class="history-content">
+          <div class="history-title">${t('contact.history.servicio')}: ${nombre}</div>
+          <div class="history-meta">${tipo ? tipo + ' · ' : ''}${fecha}</div>
+        </div>
+      </div>`;
+    }
+    if (item.type === 'ingreso') {
+      const monto = p['Monto USD']?.number;
+      const moneda = p['Moneda cobro']?.select?.name || '';
+      const detalle = p['Servicio']?.title?.[0]?.plain_text || p['Cliente']?.rich_text?.[0]?.plain_text || '—';
+      return `<div class="history-item history-item-ingreso">
+        <div class="history-icon">💰</div>
+        <div class="history-content">
+          <div class="history-title">${t('contact.history.ingreso')}: ${monto ? '$' + monto.toLocaleString() : '—'} ${moneda}</div>
+          <div class="history-meta">${detalle} · ${fecha}</div>
+        </div>
+      </div>`;
+    }
+    return '';
+  }).join('');
+}
+
+async function openHistoryItem(type, id) {
+  // Cerrar el sheet de contacto y abrir el del item correspondiente
+  closeContactSheet();
+  // Pequeño delay para evitar conflicto de overlays
+  await new Promise(r => setTimeout(r, 250));
+  if (type === 'propuesta') {
+    // Asegurar que la propuesta esté cargada en _coordAllProps; si no, hacer fetch directo
+    let prop = _coordAllProps?.find(p => p.id === id);
+    if (!prop) {
+      try {
+        const data = await callNotion('pages/' + id, 'GET');
+        if (!_coordAllProps) _coordAllProps = [];
+        _coordAllProps.push(data);
+      } catch (e) { console.warn('No se pudo cargar propuesta', e); return; }
+    }
+    if (typeof setCoordTab === 'function') setCoordTab('propuestas');
+    setTimeout(() => openPropSheet(id), 300);
+  } else if (type === 'servicio') {
+    let svc = _coordAllServices?.find(s => s.id === id);
+    if (!svc) {
+      try {
+        const data = await callNotion('pages/' + id, 'GET');
+        if (!_coordAllServices) _coordAllServices = [];
+        _coordAllServices.push(data);
+      } catch (e) { console.warn('No se pudo cargar servicio', e); return; }
+    }
+    // Si es relevamiento, abrir tab relevamientos; si no, servicios
+    const tipoReg = (_coordAllServices.find(s => s.id === id)?.properties?.['Tipo de registro']?.select?.name) || '';
+    const targetTab = tipoReg.includes('Relevamiento') ? 'relevamientos' : 'servicios';
+    if (typeof setCoordTab === 'function') setCoordTab(targetTab);
+    setTimeout(() => openEditSheet(id), 300);
   }
 }
 
