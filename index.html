@@ -3285,10 +3285,6 @@ function openPropSheet(pageId) {
     }</div></div>`;
   }
 
-  const ESTADOS_VENDIDO = ['✅ Aceptada', 'Concretado'];
-  const servCount = (props['Servicios']?.relation || []).length;
-  const showCreateSvcBtn = ESTADOS_VENDIDO.includes(estado);
-
   document.getElementById('prop-sheet-body').innerHTML =
     btnGroup(t('sheet.prop.section.estado'), 'estado', PIPELINE) +
     btnGroup(t('sheet.prop.section.pais'), 'pais', PAISES) +
@@ -3302,13 +3298,12 @@ function openPropSheet(pageId) {
       <input type="date" class="edit-date-input" value="${ultimaInt}" onchange="propEditState.ultimaInt=this.value"/></div>` +
     `<div class="edit-section"><div class="edit-section-label">${t('sheet.prop.section.obs')}</div>
       <textarea class="edit-date-input" rows="3" style="resize:none;height:80px" placeholder="${t('sheet.prop.obs.placeholder')}" oninput="propEditState.obs=this.value">${obs}</textarea></div>` +
-    (showCreateSvcBtn
-      ? `<div class="edit-section" style="padding-bottom:0">
-          <button class="create-svc-btn" id="create-svc-btn" onclick="createServicioFromPropuesta('${pageId}')">
-            ${servCount > 0 ? '+ ' + t('sheet.prop.create.another.svc') + ' (' + servCount + ' ' + t('sheet.prop.svc.already') + ')' : '→ ' + t('sheet.prop.create.svc')}
-          </button>
-         </div>`
-      : '');
+    `<div class="edit-section" id="create-svc-section" style="padding-bottom:0;display:none">
+      <button class="create-svc-btn" id="create-svc-btn" onclick="createServicioFromPropuesta('${pageId}')"></button>
+     </div>`;
+
+  // El botón aparece/desaparece según el estado pipeline (reactivo a cambios dentro del sheet)
+  updateCreateSvcBtnVisibility();
 
   const btn = document.getElementById('prop-save-btn');
   btn.textContent = t('btn.save.notion');
@@ -3397,6 +3392,23 @@ function propSetField(key, el, val) {
   propEditState[key] = val;
   el.closest('.estado-btns').querySelectorAll('.estado-btn').forEach(b => b.classList.remove('active'));
   el.classList.add('active');
+  if (key === 'estado') updateCreateSvcBtnVisibility();
+}
+
+function updateCreateSvcBtnVisibility() {
+  const section = document.getElementById('create-svc-section');
+  const btn = document.getElementById('create-svc-btn');
+  if (!section || !btn || !editingProp) return;
+  const ESTADOS_VENDIDO = ['✅ Aceptada', 'Concretado', 'Servicio Pendiente'];
+  const show = ESTADOS_VENDIDO.includes(propEditState.estado);
+  section.style.display = show ? '' : 'none';
+  if (show) {
+    const servCount = (editingProp.properties?.['Servicios']?.relation || []).length;
+    btn.textContent = servCount > 0
+      ? '+ ' + t('sheet.prop.create.another.svc') + ' (' + servCount + ' ' + t('sheet.prop.svc.already') + ')'
+      : '→ ' + t('sheet.prop.create.svc');
+    btn.disabled = false;
+  }
 }
 
 function propOverlayClick(e) { if (e.target.id === 'prop-overlay') closePropSheet(); }
