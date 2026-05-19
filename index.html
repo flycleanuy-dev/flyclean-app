@@ -747,6 +747,7 @@ body::before {
   <div class="tab-bar">
     <div class="tab-btn active" id="tab-ordenes" data-i18n="services.tab.ordenes" onclick="setTab('ordenes')">📋 Órdenes</div>
     <div class="tab-btn" id="tab-jornadas" data-i18n="services.tab.jornadas" onclick="setTab('jornadas')">📅 Jornadas</div>
+    <div class="tab-btn" id="tab-relevamientos" data-i18n="services.tab.relevamientos" onclick="setTab('relevamientos')">🔍 Relevamientos</div>
   </div>
   <div id="alerts-banner-services"></div>
   <div class="services-header">
@@ -775,6 +776,7 @@ body::before {
   </div>
   <div class="coord-tab-bar">
     <div class="coord-tab active" id="ctab-servicios" data-i18n="coord.tab.servicios" onclick="setCoordTab('servicios')">📋 Servicios</div>
+    <div class="coord-tab" id="ctab-relevamientos" data-i18n="coord.tab.relevamientos" onclick="setCoordTab('relevamientos')">🔍 Relevamientos</div>
     <div class="coord-tab" id="ctab-propuestas" data-i18n="coord.tab.propuestas" onclick="setCoordTab('propuestas')">💼 Propuestas</div>
     <div class="coord-tab" id="ctab-contactos" data-i18n="coord.tab.contactos" onclick="setCoordTab('contactos')">👥 Contactos</div>
     <div class="coord-tab" id="ctab-comunicaciones" data-i18n="coord.tab.mensajes" onclick="setCoordTab('comunicaciones')">💬 Mensajes</div>
@@ -1074,6 +1076,10 @@ const TRANSLATIONS = {
     'coord.tab.mensajes': '💬 Mensajes',
     'coord.empty.day': 'Sin servicios para este día.',
     'coord.empty.month': 'Sin servicios este mes.',
+    'coord.empty.day.relev': 'Sin relevamientos para este día.',
+    'coord.empty.month.relev': 'Sin relevamientos este mes.',
+    'coord.tab.relevamientos': '🔍 Relevamientos',
+    'services.tab.relevamientos': '🔍 Relevamientos',
     'coord.empty.search': 'Sin resultados.',
     'coord.error.load': 'Error al cargar.',
     'coord.error.contactos': 'Error al cargar contactos.',
@@ -1370,6 +1376,10 @@ const TRANSLATIONS = {
     'coord.tab.mensajes': '💬 Mensagens',
     'coord.empty.day': 'Sem serviços para este dia.',
     'coord.empty.month': 'Sem serviços este mês.',
+    'coord.empty.day.relev': 'Sem levantamentos para este dia.',
+    'coord.empty.month.relev': 'Sem levantamentos este mês.',
+    'coord.tab.relevamientos': '🔍 Levantamentos',
+    'services.tab.relevamientos': '🔍 Levantamentos',
     'coord.empty.search': 'Sem resultados.',
     'coord.error.load': 'Erro ao carregar.',
     'coord.error.contactos': 'Erro ao carregar contatos.',
@@ -2079,22 +2089,26 @@ async function pinConfirm() {
 
 function setTab(tab) {
   activeTab = tab;
-  ['ordenes', 'jornadas'].forEach(t => {
-    document.getElementById('tab-' + t).classList.toggle('active', t === tab);
+  ['ordenes', 'jornadas', 'relevamientos'].forEach(t => {
+    const el = document.getElementById('tab-' + t);
+    if (el) el.classList.toggle('active', t === tab);
   });
   renderServices(_allServices);
 }
 
 function setCoordTab(tab) {
   activeCoordTab = tab;
-  ['servicios', 'propuestas', 'contactos', 'comunicaciones'].forEach(t => {
-    document.getElementById('ctab-' + t).classList.toggle('active', t === tab);
+  ['servicios', 'relevamientos', 'propuestas', 'contactos', 'comunicaciones'].forEach(t => {
+    const el = document.getElementById('ctab-' + t);
+    if (el) el.classList.toggle('active', t === tab);
   });
+  const showStrip = (tab === 'servicios' || tab === 'relevamientos');
   const strip = document.getElementById('coord-week-strip');
-  strip.style.display = tab === 'servicios' ? 'flex' : 'none';
+  strip.style.display = showStrip ? 'flex' : 'none';
   const monthNav = document.getElementById('coord-month-nav');
-  if (monthNav) monthNav.classList.toggle('visible', tab === 'servicios');
+  if (monthNav) monthNav.classList.toggle('visible', showStrip);
   if (tab === 'servicios') renderCoordServicios();
+  else if (tab === 'relevamientos') renderCoordRelevamientos();
   else if (tab === 'propuestas') renderCoordPropuestas();
   else if (tab === 'contactos') renderCoordContactos();
   else renderComunicaciones();
@@ -2149,7 +2163,11 @@ function renderServices(services) {
     const tipoReg = s.properties?.['Tipo de registro']?.select?.name || '';
     const jornadaN = s.properties?.['Jornada N°']?.number;
     const isJornada = (jornadaN != null) || tipoReg.includes('Jornada');
-    return activeTab === 'jornadas' ? isJornada : !isJornada;
+    const isRelev = tipoReg.includes('Relevamiento');
+    if (activeTab === 'jornadas') return isJornada;
+    if (activeTab === 'relevamientos') return isRelev;
+    // 'ordenes' (default): ni jornada ni relevamiento → solo órdenes de trabajo
+    return !isJornada && !isRelev;
   });
   const sub = document.getElementById('services-sub');
   const list = document.getElementById('services-list');
@@ -2178,7 +2196,6 @@ function renderServices(services) {
     const tipoReg = props['Tipo de registro']?.select?.name || '';
     const jornadaN = props['Jornada N°']?.number;
     const isJornada = tipoReg.includes('Jornada');
-    const isRelev = tipoReg.includes('Relevamiento');
 
     const dateLocale = currentLang === 'pt-BR' ? 'pt-BR' : 'es-UY';
     const fechaFmt = fecha ? new Date(fecha + 'T00:00:00').toLocaleDateString(dateLocale, { day: 'numeric', month: 'short' }) : '';
@@ -2186,7 +2203,7 @@ function renderServices(services) {
     return `
       <div class="service-card ${estado.includes('Pendiente') ? '' : ''}" onclick="openService(${i})" data-idx="${i}">
         <div class="service-estado ${getEstadoClass(estado)}">${estado}</div>
-        <div class="service-nombre">${isRelev ? `<span class="service-relev-badge">🔍 ${t('relev.badge')}</span> ` : ''}${nombre}</div>
+        <div class="service-nombre">${nombre}</div>
         <div class="service-meta">
           ${fechaFmt ? `<span class="service-tag">📅 ${fechaFmt}</span>` : ''}
           ${tipo ? `<span class="service-tag">${tipo}</span>` : ''}
@@ -3184,16 +3201,19 @@ function renderCoordList() {
   const content = document.getElementById('coord-content');
   const todayISO = new Date().toISOString().split('T')[0];
   const dateLocale = currentLang === 'pt-BR' ? 'pt-BR' : 'es-UY';
+  const isRelevTab = activeCoordTab === 'relevamientos';
+  const emptyDayKey = isRelevTab ? 'coord.empty.day.relev' : 'coord.empty.day';
+  const emptyMonthKey = isRelevTab ? 'coord.empty.month.relev' : 'coord.empty.month';
   if (selectedCoordDay && selectedCoordDay !== 'all') {
     const dayServices = _coordAllServices.filter(s => (s.properties?.['Fecha programada']?.date?.start || '') === selectedCoordDay);
-    if (!dayServices.length) { content.innerHTML = `<div class="coord-empty">${t('coord.empty.day')}</div>`; return; }
+    if (!dayServices.length) { content.innerHTML = `<div class="coord-empty">${t(emptyDayKey)}</div>`; return; }
     content.innerHTML = '<div style="height:8px"></div>' + dayServices.map(s => coordServiceCard(s)).join('');
     return;
   }
   const withDate = [..._coordAllServices.filter(s => s.properties?.['Fecha programada']?.date?.start)]
     .sort((a, b) => (a.properties['Fecha programada'].date.start).localeCompare(b.properties['Fecha programada'].date.start));
   const sinFecha = _coordAllServices.filter(s => !s.properties?.['Fecha programada']?.date?.start);
-  if (!withDate.length && !sinFecha.length) { content.innerHTML = `<div class="coord-empty">${t('coord.empty.month')}</div>`; return; }
+  if (!withDate.length && !sinFecha.length) { content.innerHTML = `<div class="coord-empty">${t(emptyMonthKey)}</div>`; return; }
   const groups = {};
   withDate.forEach(s => { const f = s.properties['Fecha programada'].date.start; if (!groups[f]) groups[f] = []; groups[f].push(s); });
   let html = Object.entries(groups).map(([fecha, items]) => {
@@ -3204,7 +3224,7 @@ function renderCoordList() {
   if (sinFecha.length) {
     html += `<div class="day-group"><div class="day-label" style="color:var(--amber)">${t('coord.unscheduled')} (${sinFecha.length})</div>${sinFecha.map(s => coordServiceCard(s)).join('')}</div>`;
   }
-  content.innerHTML = html || `<div class="coord-empty">${t('coord.empty.month')}</div>`;
+  content.innerHTML = html || `<div class="coord-empty">${t(emptyMonthKey)}</div>`;
 }
 
 function extractServiceFiles(props) {
@@ -3239,10 +3259,9 @@ function coordServiceCard(s) {
   const jornadaN = props['Jornada N°']?.number;
   const tipoReg = props['Tipo de registro']?.select?.name || '';
   const esJornada = jornadaN != null || tipoReg.includes('Jornada');
-  const esRelev = tipoReg.includes('Relevamiento');
   const estadoClass = estado.includes('Completado') ? 'estado-completado' : estado.includes('En curso') ? 'estado-en-curso' : estado.includes('Asignado') ? 'estado-asignado' : 'estado-pendiente';
   return `<div class="coord-service-card" style="cursor:pointer" onclick="openEditSheet('${s.id}')">
-    <div class="coord-service-name">${esRelev ? `<span class="service-relev-badge">🔍 ${t('relev.badge')}</span> ` : ''}${nombre}${esJornada && jornadaN != null ? ` <span style="color:var(--purple);font-size:12px">J${jornadaN}</span>` : ''}</div>
+    <div class="coord-service-name">${nombre}${esJornada && jornadaN != null ? ` <span style="color:var(--purple);font-size:12px">J${jornadaN}</span>` : ''}</div>
     <div class="coord-service-meta"><span class="service-estado ${estadoClass}">${estado}</span>${tipo ? `<span class="coord-tag">${tipo}</span>` : ''}</div>
     <div class="coord-ops">👤 ${ops}</div>
     ${renderPhotoGallery(props)}
@@ -3377,37 +3396,66 @@ async function deleteService() {
   }
 }
 
+async function fetchCoordItemsForMonth() {
+  const { start, end } = getCoordMonthRange();
+  const cf = getCountryFilter();
+  const filter = {
+    or: [
+      { and: [
+        ...(cf ? [cf] : []),
+        { property: 'Fecha programada', date: { on_or_after: start } },
+        { property: 'Fecha programada', date: { on_or_before: end } }
+      ]},
+      ...(cf
+        ? [{ and: [cf, { property: 'Fecha programada', date: { is_empty: true } }] }]
+        : [{ property: 'Fecha programada', date: { is_empty: true } }]
+      )
+    ]
+  };
+  const data = await callNotion('databases/ccaf276c-7f6a-460c-aeb3-d2800deab2e5/query', 'POST', {
+    filter,
+    sorts: [{ property: 'Fecha programada', direction: 'ascending' }]
+  });
+  let items = data.results || [];
+  // Filtrado cliente-side por país (el proxy hace search fallback que ignora server filter)
+  const cf2 = getCountryFilter();
+  if (cf2) {
+    const notionVal = COUNTRY_NOTION_MAP[selectedCountry];
+    items = items.filter(s => s.properties?.['País']?.select?.name === notionVal);
+  }
+  return items;
+}
+
 async function renderCoordServicios() {
   const content = document.getElementById('coord-content');
   content.innerHTML = '<div style="text-align:center;padding:40px 0"><div class="spinner" style="margin:0 auto"></div></div>';
   document.getElementById('coord-week-strip').style.display = 'flex';
   try {
-    const { start, end } = getCoordMonthRange();
-    const cf = getCountryFilter();
-    const filter = {
-      or: [
-        { and: [
-          ...(cf ? [cf] : []),
-          { property: 'Fecha programada', date: { on_or_after: start } },
-          { property: 'Fecha programada', date: { on_or_before: end } }
-        ]},
-        ...(cf
-          ? [{ and: [cf, { property: 'Fecha programada', date: { is_empty: true } }] }]
-          : [{ property: 'Fecha programada', date: { is_empty: true } }]
-        )
-      ]
-    };
-    const data = await callNotion('databases/ccaf276c-7f6a-460c-aeb3-d2800deab2e5/query', 'POST', {
-      filter,
-      sorts: [{ property: 'Fecha programada', direction: 'ascending' }]
+    const items = await fetchCoordItemsForMonth();
+    // EXCLUIR relevamientos (viven en su propio tab)
+    _coordAllServices = items.filter(s => {
+      const tipoReg = s.properties?.['Tipo de registro']?.select?.name || '';
+      return !tipoReg.includes('Relevamiento');
     });
-    let allSvcs = data.results || [];
-    const cf2 = getCountryFilter();
-    if (cf2) {
-      const notionVal = COUNTRY_NOTION_MAP[selectedCountry];
-      allSvcs = allSvcs.filter(s => s.properties?.['País']?.select?.name === notionVal);
-    }
-    _coordAllServices = allSvcs;
+    if (!selectedCoordDay) selectedCoordDay = 'all';
+    renderWeekStrip(_coordAllServices);
+    renderCoordList();
+  } catch (e) {
+    content.innerHTML = `<div class="coord-empty">${t('coord.error.load')}<br><small>${e.message}</small></div>`;
+  }
+}
+
+async function renderCoordRelevamientos() {
+  const content = document.getElementById('coord-content');
+  content.innerHTML = '<div style="text-align:center;padding:40px 0"><div class="spinner" style="margin:0 auto"></div></div>';
+  document.getElementById('coord-week-strip').style.display = 'flex';
+  try {
+    const items = await fetchCoordItemsForMonth();
+    // INCLUIR solo relevamientos
+    _coordAllServices = items.filter(s => {
+      const tipoReg = s.properties?.['Tipo de registro']?.select?.name || '';
+      return tipoReg.includes('Relevamiento');
+    });
     if (!selectedCoordDay) selectedCoordDay = 'all';
     renderWeekStrip(_coordAllServices);
     renderCoordList();
