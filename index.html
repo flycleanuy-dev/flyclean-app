@@ -488,6 +488,9 @@ body::before {
   .edit-date-input { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); font-size: 15px; font-family: 'Exo 2', sans-serif; padding: 12px 14px; width: 100%; box-sizing: border-box; }
   .edit-save-btn { margin: 20px 20px 0; width: calc(100% - 40px); padding: 16px; background: var(--green); border: none; border-radius: var(--radius); color: #000; font-size: 15px; font-weight: 700; cursor: pointer; font-family: 'Exo 2', sans-serif; display: block; }
   .edit-save-btn:disabled { background: var(--border2); color: var(--text3); cursor: not-allowed; }
+  .create-svc-btn { width: 100%; padding: 14px; background: var(--green-dark); border: 2px solid var(--green); border-radius: var(--radius-sm); color: var(--green); font-size: 14px; font-weight: 700; cursor: pointer; font-family: 'Exo 2', sans-serif; transition: all 0.15s; margin-top: 4px; }
+  .create-svc-btn:hover, .create-svc-btn:active { background: var(--green); color: #fff; transform: scale(0.99); }
+  .create-svc-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 
   /* ── TABS ── */
   .tab-bar { display: flex; border-bottom: 1px solid var(--border); background: var(--bg); }
@@ -1179,7 +1182,12 @@ const TRANSLATIONS = {
     'photos.retry': 'Reintentar',
     'photos.empty.gallery': 'Sin fotos aún',
     'photos.gallery.title': 'Fotos del servicio',
-    'photos.wait.uploading': 'Esperá que terminen de subir las fotos antes de cerrar el servicio.'
+    'photos.wait.uploading': 'Esperá que terminen de subir las fotos antes de cerrar el servicio.',
+    'sheet.prop.create.svc': 'Crear servicio desde esta propuesta',
+    'sheet.prop.create.another.svc': 'Crear otro servicio',
+    'sheet.prop.svc.already': 'servicio(s) ya creado(s)',
+    'sheet.prop.creating.svc': 'Creando servicio...',
+    'sheet.prop.create.error': 'Error al crear servicio:'
   },
   'pt-BR': {
     'country.tagline': 'Selecione sua região para continuar',
@@ -1438,7 +1446,12 @@ const TRANSLATIONS = {
     'photos.retry': 'Tentar novamente',
     'photos.empty.gallery': 'Sem fotos ainda',
     'photos.gallery.title': 'Fotos do serviço',
-    'photos.wait.uploading': 'Aguarde as fotos terminarem de enviar antes de fechar o serviço.'
+    'photos.wait.uploading': 'Aguarde as fotos terminarem de enviar antes de fechar o serviço.',
+    'sheet.prop.create.svc': 'Criar serviço a partir desta proposta',
+    'sheet.prop.create.another.svc': 'Criar outro serviço',
+    'sheet.prop.svc.already': 'serviço(s) já criado(s)',
+    'sheet.prop.creating.svc': 'Criando serviço...',
+    'sheet.prop.create.error': 'Erro ao criar serviço:'
   }
 };
 
@@ -3206,6 +3219,10 @@ function openPropSheet(pageId) {
     }</div></div>`;
   }
 
+  const ESTADOS_VENDIDO = ['✅ Aceptada', 'Concretado'];
+  const servCount = (props['Servicios']?.relation || []).length;
+  const showCreateSvcBtn = ESTADOS_VENDIDO.includes(estado);
+
   document.getElementById('prop-sheet-body').innerHTML =
     btnGroup(t('sheet.prop.section.estado'), 'estado', PIPELINE) +
     btnGroup(t('sheet.prop.section.pais'), 'pais', PAISES) +
@@ -3217,13 +3234,64 @@ function openPropSheet(pageId) {
       <input type="date" class="edit-date-input" value="${fechaEnvio}" onchange="propEditState.fechaEnvio=this.value"/></div>` +
     `<div class="edit-section"><div class="edit-section-label">${t('sheet.prop.section.ultimaint')}</div>
       <input type="date" class="edit-date-input" value="${ultimaInt}" onchange="propEditState.ultimaInt=this.value"/></div>` +
-    `<div class="edit-section" style="padding-bottom:0"><div class="edit-section-label">${t('sheet.prop.section.obs')}</div>
-      <textarea class="edit-date-input" rows="3" style="resize:none;height:80px" placeholder="${t('sheet.prop.obs.placeholder')}" oninput="propEditState.obs=this.value">${obs}</textarea></div>`;
+    `<div class="edit-section"><div class="edit-section-label">${t('sheet.prop.section.obs')}</div>
+      <textarea class="edit-date-input" rows="3" style="resize:none;height:80px" placeholder="${t('sheet.prop.obs.placeholder')}" oninput="propEditState.obs=this.value">${obs}</textarea></div>` +
+    (showCreateSvcBtn
+      ? `<div class="edit-section" style="padding-bottom:0">
+          <button class="create-svc-btn" id="create-svc-btn" onclick="createServicioFromPropuesta('${pageId}')">
+            ${servCount > 0 ? '+ ' + t('sheet.prop.create.another.svc') + ' (' + servCount + ' ' + t('sheet.prop.svc.already') + ')' : '→ ' + t('sheet.prop.create.svc')}
+          </button>
+         </div>`
+      : '');
 
   const btn = document.getElementById('prop-save-btn');
   btn.textContent = t('btn.save.notion');
   btn.disabled = false;
   document.getElementById('prop-overlay').classList.add('open');
+}
+
+async function createServicioFromPropuesta(propPageId) {
+  const prop = (editingProp && editingProp.id === propPageId) ? editingProp : _coordAllProps?.find(p => p.id === propPageId);
+  if (!prop) { alert('Propuesta no encontrada en memoria. Recargá la lista.'); return; }
+  const pp = prop.properties || {};
+  const nombrePropuesta = pp['Nombre de propuesta']?.title?.[0]?.plain_text || t('common.sinnombre');
+  const pais = pp['País']?.select?.name || '';
+  const tipo = pp['Tipo']?.select?.name || '';
+  const contactRel = pp['Contacto']?.relation?.[0]?.id;
+
+  const btn = document.getElementById('create-svc-btn');
+  if (btn) { btn.textContent = '⏳ ' + t('sheet.prop.creating.svc'); btn.disabled = true; }
+
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    const properties = {
+      'Nombre del servicio': { title: [{ text: { content: nombrePropuesta } }] },
+      'Estado': { select: { name: '📋 Pendiente' } },
+      'Tipo de registro': { select: { name: '📋 Orden de trabajo' } },
+      'Fecha programada': { date: { start: today } },
+      'Propuesta': { relation: [{ id: propPageId }] }
+    };
+    if (pais) properties['País'] = { select: { name: pais } };
+    if (tipo) properties['Tipo'] = { select: { name: tipo } };
+    if (contactRel) properties['Contacto'] = { relation: [{ id: contactRel }] };
+
+    const created = await callNotion('pages', 'POST', {
+      parent: { database_id: 'ccaf276c-7f6a-460c-aeb3-d2800deab2e5' },
+      properties
+    });
+
+    closePropSheet();
+    // Cambiar a tab Servicios y refrescar
+    if (typeof setCoordTab === 'function') setCoordTab('servicios');
+    await renderCoordServicios();
+    // Abrir el edit sheet del servicio recién creado para asignar operario
+    setTimeout(() => {
+      if (typeof openEditSheet === 'function') openEditSheet(created.id);
+    }, 400);
+  } catch (e) {
+    if (btn) { btn.textContent = '→ ' + t('sheet.prop.create.svc'); btn.disabled = false; }
+    alert(t('sheet.prop.create.error') + ' ' + e.message);
+  }
 }
 
 function propSetField(key, el, val) {
