@@ -415,7 +415,7 @@ body::before {
   .coord-logo { font-size: 15px; font-weight: 700; color: var(--green); }
   .coord-user { font-size: 11px; color: var(--text3); background: var(--card); padding: 5px 12px; border-radius: 20px; cursor: pointer; }
   .coord-tab-bar { display: flex; border-bottom: 1px solid var(--border); background: var(--bg); }
-  .coord-tab { flex: 1; padding: 12px 8px; text-align: center; font-size: 13px; font-weight: 600; color: var(--text3); cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.15s; }
+  .coord-tab { flex: 1; padding: 12px 8px; display: flex; align-items: center; justify-content: center; gap: 4px; line-height: 1.2; min-height: 44px; text-align: center; font-size: 13px; font-weight: 600; color: var(--text3); cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.15s; }
   .coord-tab.active { color: var(--green); border-bottom-color: var(--green); }
   .coord-content { flex: 1; overflow-y: auto; padding-bottom: 32px; }
   .day-group { margin: 16px 16px 0; }
@@ -472,7 +472,7 @@ body::before {
   /* Edit overlay */
   .edit-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 100; display: none; align-items: flex-end; justify-content: center; }
   .edit-overlay.open { display: flex; }
-  .edit-sheet { background: var(--card); border-radius: 20px 20px 0 0; width: 100%; max-width: 430px; padding: 0 0 32px; max-height: 85vh; overflow-y: auto; }
+  .edit-sheet { background: var(--card); border-radius: 20px 20px 0 0; width: 100%; max-width: 430px; padding: 0 0 32px; max-height: 85vh; overflow-y: auto; position: relative; }
   .edit-sheet-handle { width: 36px; height: 4px; border-radius: 2px; background: var(--border2); margin: 12px auto 16px; }
   .edit-sheet-header { padding: 0 20px 12px; border-bottom: 1px solid var(--border); }
   .edit-sheet-title { font-size: 15px; font-weight: 700; }
@@ -488,13 +488,18 @@ body::before {
   .edit-date-input { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); font-size: 15px; font-family: 'Exo 2', sans-serif; padding: 12px 14px; width: 100%; box-sizing: border-box; }
   .edit-save-btn { margin: 20px 20px 0; width: calc(100% - 40px); padding: 16px; background: var(--green); border: none; border-radius: var(--radius); color: #000; font-size: 15px; font-weight: 700; cursor: pointer; font-family: 'Exo 2', sans-serif; display: block; }
   .edit-save-btn:disabled { background: var(--border2); color: var(--text3); cursor: not-allowed; }
+  .sheet-close-btn { position: absolute; top: 14px; right: 14px; background: var(--card); border: 1px solid var(--border2); width: 32px; height: 32px; border-radius: 50%; font-size: 18px; line-height: 1; cursor: pointer; color: var(--text2); padding: 0; font-family: inherit; z-index: 5; display: flex; align-items: center; justify-content: center; }
+  .sheet-close-btn:active { background: var(--border); color: var(--text); transform: scale(0.95); }
+  .delete-svc-btn { margin: 8px 20px 20px; width: calc(100% - 40px); padding: 12px; background: transparent; border: 1px solid var(--red); border-radius: var(--radius-sm); color: var(--red); font-size: 13px; font-weight: 600; cursor: pointer; font-family: 'Exo 2', sans-serif; display: block; }
+  .delete-svc-btn:active { background: var(--red); color: #fff; }
+  .delete-svc-btn:disabled { opacity: 0.6; cursor: not-allowed; }
   .create-svc-btn { width: 100%; padding: 14px; background: var(--green-dark); border: 2px solid var(--green); border-radius: var(--radius-sm); color: var(--green); font-size: 14px; font-weight: 700; cursor: pointer; font-family: 'Exo 2', sans-serif; transition: all 0.15s; margin-top: 4px; }
   .create-svc-btn:hover, .create-svc-btn:active { background: var(--green); color: #fff; transform: scale(0.99); }
   .create-svc-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 
   /* ── TABS ── */
   .tab-bar { display: flex; border-bottom: 1px solid var(--border); background: var(--bg); }
-  .tab-btn { flex: 1; padding: 12px 8px; text-align: center; font-size: 13px; font-weight: 600; color: var(--text3); cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.15s; user-select: none; }
+  .tab-btn { flex: 1; padding: 12px 8px; display: flex; align-items: center; justify-content: center; gap: 4px; line-height: 1.2; min-height: 44px; text-align: center; font-size: 13px; font-weight: 600; color: var(--text3); cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.15s; user-select: none; }
   .tab-btn.active { color: var(--green); border-bottom-color: var(--green); }
 
   /* Error banner */
@@ -534,7 +539,7 @@ body::before {
   /* ── CAMBIO DE PIN ── */
   .pin-change-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 200; display: none; align-items: flex-end; justify-content: center; }
   .pin-change-overlay.open { display: flex; }
-  .pin-change-sheet { background: var(--bg); border-radius: 20px 20px 0 0; padding: 24px 24px 40px; width: 100%; max-width: 430px; }
+  .pin-change-sheet { background: var(--bg); border-radius: 20px 20px 0 0; padding: 24px 24px 40px; width: 100%; max-width: 430px; position: relative; }
   .pin-change-handle { width: 36px; height: 4px; background: var(--border2); border-radius: 2px; margin: 0 auto 20px; }
   .pin-change-title { font-size: 17px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
   .pin-change-sub { font-size: 13px; color: var(--text2); margin-bottom: 20px; }
@@ -556,7 +561,7 @@ body::before {
   .ceo-country-tab { padding: 5px 12px; border-radius: 20px; border: 1px solid var(--border2); font-size: 12px; font-weight: 600; cursor: pointer; color: var(--text3); background: var(--bg); font-family: 'Exo 2', sans-serif; transition: all 0.15s; }
   .ceo-country-tab.active { background: var(--green-dark); border-color: var(--green); color: var(--green); }
   .ceo-tab-bar { display: flex; border-bottom: 1px solid var(--border); background: var(--bg); }
-  .ceo-tab { flex: 1; padding: 10px 4px; text-align: center; font-size: 11px; font-weight: 600; color: var(--text3); cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.15s; }
+  .ceo-tab { flex: 1; padding: 10px 4px; display: flex; align-items: center; justify-content: center; gap: 3px; line-height: 1.2; min-height: 40px; text-align: center; font-size: 11px; font-weight: 600; color: var(--text3); cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.15s; }
   .ceo-tab.active { color: var(--green); border-bottom-color: var(--green); }
   .ceo-content { flex: 1; overflow-y: auto; padding-bottom: 40px; }
   .metric-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 14px 16px 0; }
@@ -777,6 +782,7 @@ body::before {
   </div>
   <div class="edit-overlay" id="edit-overlay" onclick="overlayClick(event)">
     <div class="edit-sheet" id="edit-sheet">
+      <button class="sheet-close-btn" type="button" aria-label="Cerrar" onclick="closeEditSheet()">×</button>
       <div class="edit-sheet-handle"></div>
       <div class="edit-sheet-header">
         <div class="edit-sheet-title" id="edit-sheet-title" data-i18n="sheet.edit.title.default">Editar servicio</div>
@@ -795,10 +801,12 @@ body::before {
         <input type="date" class="edit-date-input" id="edit-fecha" onchange="editState.fecha=this.value"/>
       </div>
       <button class="edit-save-btn" id="edit-save-btn" data-i18n="btn.save.notion" onclick="saveServiceEdit()">💾 GUARDAR EN NOTION</button>
+      <button class="delete-svc-btn" id="delete-svc-btn" data-i18n="sheet.edit.delete" onclick="deleteService()">🗑️ Eliminar servicio</button>
     </div>
   </div>
   <div class="edit-overlay" id="prop-overlay" onclick="propOverlayClick(event)">
     <div class="edit-sheet" id="prop-sheet">
+      <button class="sheet-close-btn" type="button" aria-label="Cerrar" onclick="closePropSheet()">×</button>
       <div class="edit-sheet-handle"></div>
       <div class="edit-sheet-header">
         <div class="edit-sheet-title" id="prop-sheet-title" data-i18n="sheet.prop.title.default">Propuesta</div>
@@ -810,6 +818,7 @@ body::before {
   </div>
   <div class="edit-overlay" id="contact-overlay" onclick="contactOverlayClick(event)">
     <div class="edit-sheet" id="contact-sheet">
+      <button class="sheet-close-btn" type="button" aria-label="Cerrar" onclick="closeContactSheet()">×</button>
       <div class="edit-sheet-handle"></div>
       <div class="edit-sheet-header">
         <div class="edit-sheet-title" id="contact-sheet-title" data-i18n="sheet.contact.title.default">Contacto</div>
@@ -846,6 +855,7 @@ body::before {
 
 <div class="pin-change-overlay" id="pin-change-overlay" onclick="pinChangeOverlayClick(event)">
   <div class="pin-change-sheet">
+    <button class="sheet-close-btn" type="button" aria-label="Cerrar" onclick="closePinChange()">×</button>
     <div class="pin-change-handle"></div>
     <div class="pin-change-title" data-i18n="pinchange.title">Cambiar PIN</div>
     <div class="pin-change-sub" id="pin-change-sub" data-i18n="pinchange.sub">Ingresá tu PIN actual y elegí uno nuevo de 4 dígitos.</div>
@@ -1187,7 +1197,11 @@ const TRANSLATIONS = {
     'sheet.prop.create.another.svc': 'Crear otro servicio',
     'sheet.prop.svc.already': 'servicio(s) ya creado(s)',
     'sheet.prop.creating.svc': 'Creando servicio...',
-    'sheet.prop.create.error': 'Error al crear servicio:'
+    'sheet.prop.create.error': 'Error al crear servicio:',
+    'sheet.edit.delete': 'Eliminar servicio',
+    'sheet.edit.deleting': 'Eliminando...',
+    'sheet.edit.delete.confirm': '¿Eliminar "{name}"? Lo mando a la papelera de Notion (recuperable desde ahí en los próximos 30 días).',
+    'sheet.edit.delete.error': 'Error al eliminar:'
   },
   'pt-BR': {
     'country.tagline': 'Selecione sua região para continuar',
@@ -1451,7 +1465,11 @@ const TRANSLATIONS = {
     'sheet.prop.create.another.svc': 'Criar outro serviço',
     'sheet.prop.svc.already': 'serviço(s) já criado(s)',
     'sheet.prop.creating.svc': 'Criando serviço...',
-    'sheet.prop.create.error': 'Erro ao criar serviço:'
+    'sheet.prop.create.error': 'Erro ao criar serviço:',
+    'sheet.edit.delete': 'Excluir serviço',
+    'sheet.edit.deleting': 'Excluindo...',
+    'sheet.edit.delete.confirm': 'Excluir "{name}"? Vai para a lixeira do Notion (recuperável de lá por 30 dias).',
+    'sheet.edit.delete.error': 'Erro ao excluir:'
   }
 };
 
@@ -3071,6 +3089,8 @@ async function openEditSheet(pageId) {
   document.getElementById('edit-fecha').value = fecha;
   document.getElementById('edit-save-btn').textContent = t('btn.save.notion');
   document.getElementById('edit-save-btn').disabled = false;
+  const delBtn = document.getElementById('delete-svc-btn');
+  if (delBtn) { delBtn.textContent = '🗑️ ' + t('sheet.edit.delete'); delBtn.disabled = false; }
   document.getElementById('edit-overlay').classList.add('open');
   await fetchOperarioOptions();
   renderOperarioBtns(operarioActual);
@@ -3105,6 +3125,24 @@ async function saveServiceEdit() {
   } catch (e) {
     btn.textContent = t('btn.save.notion'); btn.disabled = false;
     alert(t('sheet.alert.save.error2') + e.message);
+  }
+}
+
+async function deleteService() {
+  if (!editingService) return;
+  const nombre = editingService.properties?.['Nombre del servicio']?.title?.[0]?.plain_text || t('common.sinnombre');
+  if (!confirm(t('sheet.edit.delete.confirm').replace('{name}', nombre))) return;
+
+  const btn = document.getElementById('delete-svc-btn');
+  if (btn) { btn.textContent = '⏳ ' + t('sheet.edit.deleting'); btn.disabled = true; }
+  try {
+    // Archive en Notion (in_trash=true). No es delete permanente — recuperable desde la papelera.
+    await callNotion('pages/' + editingService.id, 'PATCH', { in_trash: true });
+    closeEditSheet();
+    await renderCoordServicios();
+  } catch (e) {
+    if (btn) { btn.textContent = '🗑️ ' + t('sheet.edit.delete'); btn.disabled = false; }
+    alert(t('sheet.edit.delete.error') + ' ' + e.message);
   }
 }
 
