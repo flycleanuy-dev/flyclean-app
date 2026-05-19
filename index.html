@@ -814,6 +814,7 @@ body::before {
       </div>
       <div id="prop-sheet-body"></div>
       <button class="edit-save-btn" id="prop-save-btn" data-i18n="btn.save.notion" onclick="savePropEdit()">💾 GUARDAR EN NOTION</button>
+      <button class="delete-svc-btn" id="delete-prop-btn" onclick="deletePropuesta()" style="display:none">🗑️ Eliminar propuesta</button>
     </div>
   </div>
   <div class="edit-overlay" id="contact-overlay" onclick="contactOverlayClick(event)">
@@ -1201,7 +1202,13 @@ const TRANSLATIONS = {
     'sheet.edit.delete': 'Eliminar servicio',
     'sheet.edit.deleting': 'Eliminando...',
     'sheet.edit.delete.confirm': '¿Eliminar "{name}"? Lo mando a la papelera de Notion (recuperable desde ahí en los próximos 30 días).',
-    'sheet.edit.delete.error': 'Error al eliminar:'
+    'sheet.edit.delete.error': 'Error al eliminar:',
+    'sheet.edit.delete.blocked.completed': 'Los servicios completados no se pueden eliminar (son registro histórico). Solo se pueden modificar.',
+    'sheet.prop.delete': 'Eliminar propuesta',
+    'sheet.prop.deleting': 'Eliminando...',
+    'sheet.prop.delete.confirm': '¿Eliminar la propuesta "{name}"? Va a la papelera de Notion (recuperable 30 días).',
+    'sheet.prop.delete.confirm.with.svc': '¿Eliminar la propuesta "{name}"?\\n\\nTiene {n} servicio(s) vinculado(s) — los servicios NO se borran, solo la propuesta. Recuperable 30 días desde la papelera de Notion.',
+    'sheet.prop.delete.error': 'Error al eliminar:'
   },
   'pt-BR': {
     'country.tagline': 'Selecione sua região para continuar',
@@ -1469,7 +1476,13 @@ const TRANSLATIONS = {
     'sheet.edit.delete': 'Excluir serviço',
     'sheet.edit.deleting': 'Excluindo...',
     'sheet.edit.delete.confirm': 'Excluir "{name}"? Vai para a lixeira do Notion (recuperável de lá por 30 dias).',
-    'sheet.edit.delete.error': 'Erro ao excluir:'
+    'sheet.edit.delete.error': 'Erro ao excluir:',
+    'sheet.edit.delete.blocked.completed': 'Serviços concluídos não podem ser excluídos (são registro histórico). Apenas podem ser modificados.',
+    'sheet.prop.delete': 'Excluir proposta',
+    'sheet.prop.deleting': 'Excluindo...',
+    'sheet.prop.delete.confirm': 'Excluir a proposta "{name}"? Vai para a lixeira do Notion (recuperável por 30 dias).',
+    'sheet.prop.delete.confirm.with.svc': 'Excluir a proposta "{name}"?\\n\\nTem {n} serviço(s) vinculado(s) — os serviços NÃO são excluídos, apenas a proposta. Recuperável por 30 dias na lixeira do Notion.',
+    'sheet.prop.delete.error': 'Erro ao excluir:'
   }
 };
 
@@ -3090,7 +3103,13 @@ async function openEditSheet(pageId) {
   document.getElementById('edit-save-btn').textContent = t('btn.save.notion');
   document.getElementById('edit-save-btn').disabled = false;
   const delBtn = document.getElementById('delete-svc-btn');
-  if (delBtn) { delBtn.textContent = '🗑️ ' + t('sheet.edit.delete'); delBtn.disabled = false; }
+  if (delBtn) {
+    // Regla: no permitir eliminar servicios completados (registro histórico inmutable)
+    const isCompletado = estadoActual.includes('Completado');
+    delBtn.style.display = isCompletado ? 'none' : '';
+    delBtn.textContent = '🗑️ ' + t('sheet.edit.delete');
+    delBtn.disabled = false;
+  }
   document.getElementById('edit-overlay').classList.add('open');
   await fetchOperarioOptions();
   renderOperarioBtns(operarioActual);
@@ -3130,7 +3149,13 @@ async function saveServiceEdit() {
 
 async function deleteService() {
   if (!editingService) return;
-  const nombre = editingService.properties?.['Nombre del servicio']?.title?.[0]?.plain_text || t('common.sinnombre');
+  const props = editingService.properties || {};
+  const estado = props['Estado']?.select?.name || '';
+  if (estado.includes('Completado')) {
+    alert(t('sheet.edit.delete.blocked.completed'));
+    return;
+  }
+  const nombre = props['Nombre del servicio']?.title?.[0]?.plain_text || t('common.sinnombre');
   if (!confirm(t('sheet.edit.delete.confirm').replace('{name}', nombre))) return;
 
   const btn = document.getElementById('delete-svc-btn');
@@ -3223,6 +3248,9 @@ function openNewPropSheet() {
   const btn = document.getElementById('prop-save-btn');
   btn.textContent = t('btn.create.notion');
   btn.disabled = false;
+  // En modo "create" no se muestra eliminar (la propuesta no existe aún)
+  const delBtn = document.getElementById('delete-prop-btn');
+  if (delBtn) delBtn.style.display = 'none';
   document.getElementById('prop-overlay').classList.add('open');
 }
 
@@ -3285,7 +3313,37 @@ function openPropSheet(pageId) {
   const btn = document.getElementById('prop-save-btn');
   btn.textContent = t('btn.save.notion');
   btn.disabled = false;
+  const delPropBtn = document.getElementById('delete-prop-btn');
+  if (delPropBtn) {
+    delPropBtn.style.display = '';
+    delPropBtn.textContent = '🗑️ ' + t('sheet.prop.delete');
+    delPropBtn.disabled = false;
+  }
   document.getElementById('prop-overlay').classList.add('open');
+}
+
+async function deletePropuesta() {
+  if (!editingProp) return;
+  const props = editingProp.properties || {};
+  const nombre = props['Nombre de propuesta']?.title?.[0]?.plain_text || t('common.sinnombre');
+  const servCount = (props['Servicios']?.relation || []).length;
+
+  // Si tiene servicios vinculados, avisar — el archive de la propuesta NO afecta a los servicios
+  const confirmMsg = servCount > 0
+    ? t('sheet.prop.delete.confirm.with.svc').replace('{name}', nombre).replace('{n}', servCount)
+    : t('sheet.prop.delete.confirm').replace('{name}', nombre);
+  if (!confirm(confirmMsg)) return;
+
+  const btn = document.getElementById('delete-prop-btn');
+  if (btn) { btn.textContent = '⏳ ' + t('sheet.prop.deleting'); btn.disabled = true; }
+  try {
+    await callNotion('pages/' + editingProp.id, 'PATCH', { in_trash: true });
+    closePropSheet();
+    await renderCoordPropuestas();
+  } catch (e) {
+    if (btn) { btn.textContent = '🗑️ ' + t('sheet.prop.delete'); btn.disabled = false; }
+    alert(t('sheet.prop.delete.error') + ' ' + e.message);
+  }
 }
 
 async function createServicioFromPropuesta(propPageId) {
