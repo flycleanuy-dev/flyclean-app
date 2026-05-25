@@ -3582,23 +3582,30 @@ function renderCoordFiltersPanel() {
 
   const dateLabel = isProps ? 'Última interacción' : 'Fecha programada';
 
+  // Escape para usar el valor dentro de un atributo HTML (data-val="..."). Sin esto, valores
+  // con comillas (o el propio JSON.stringify) cierran el atributo y rompen el click handler.
+  const escAttr = s => String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const chip = (dim, value, active) =>
+    `<span class="coord-filter-chip ${active ? 'active' : ''}" data-dim="${dim}" data-val="${escAttr(value)}" onclick="toggleCoordFilterValue(this.dataset.dim, this.dataset.val)">${escAttr(value)}</span>`;
+
   let html = '';
   if (estados.length) {
     html += `<div class="coord-filter-section">
       <div class="coord-filter-label">Estado</div>
-      <div class="coord-filter-chips">${estados.map(e => `<span class="coord-filter-chip ${coordFilters.estado.includes(e) ? 'active' : ''}" onclick="toggleCoordFilterValue('estado', ${JSON.stringify(e)})">${e}</span>`).join('')}</div>
+      <div class="coord-filter-chips">${estados.map(e => chip('estado', e, coordFilters.estado.includes(e))).join('')}</div>
     </div>`;
   }
   if (paises.length) {
     html += `<div class="coord-filter-section">
       <div class="coord-filter-label">País</div>
-      <div class="coord-filter-chips">${paises.map(p => `<span class="coord-filter-chip ${coordFilters.pais.includes(p) ? 'active' : ''}" onclick="toggleCoordFilterValue('pais', ${JSON.stringify(p)})">${p}</span>`).join('')}</div>
+      <div class="coord-filter-chips">${paises.map(p => chip('pais', p, coordFilters.pais.includes(p))).join('')}</div>
     </div>`;
   }
   if (operarios.length) {
     html += `<div class="coord-filter-section">
       <div class="coord-filter-label">Operario</div>
-      <div class="coord-filter-chips">${operarios.map(o => `<span class="coord-filter-chip ${coordFilters.operario.includes(o) ? 'active' : ''}" onclick="toggleCoordFilterValue('operario', ${JSON.stringify(o)})">${o}</span>`).join('')}</div>
+      <div class="coord-filter-chips">${operarios.map(o => chip('operario', o, coordFilters.operario.includes(o))).join('')}</div>
     </div>`;
   }
   html += `<div class="coord-filter-section">
