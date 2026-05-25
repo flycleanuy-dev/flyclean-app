@@ -122,6 +122,22 @@ body::before {
   .login-legal { text-align: center; margin-top: 24px; font-size: 12px; color: var(--text3); opacity: 0.7; }
   .login-legal a { color: var(--text3); text-decoration: none; margin: 0 6px; }
   .login-legal a:hover { color: var(--green); }
+  .login-version { text-align: center; margin-top: 6px; font-size: 10px; color: var(--text3); opacity: 0.5; letter-spacing: 0.5px; font-family: ui-monospace, 'SF Mono', Menlo, monospace; }
+  .login-version.outdated { color: #ff6b6b; opacity: 1; font-weight: 600; }
+  .gps-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 10000; padding: 16px; backdrop-filter: blur(4px); }
+  .gps-modal { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px 20px; max-width: 360px; width: 100%; text-align: center; }
+  .gps-emoji { font-size: 36px; margin-bottom: 8px; }
+  .gps-title { font-size: 18px; font-weight: 700; color: var(--text); margin-bottom: 8px; }
+  .gps-body { font-size: 13px; color: var(--text2); line-height: 1.5; margin-bottom: 18px; }
+  .gps-actions { display: flex; gap: 8px; margin-bottom: 14px; }
+  .gps-btn { flex: 1; padding: 12px; border-radius: var(--radius-sm); border: 1px solid var(--border); font-family: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
+  .gps-btn-skip { background: transparent; color: var(--text3); }
+  .gps-btn-allow { background: var(--green); border-color: var(--green); color: #001; }
+  .gps-fineprint { font-size: 11px; color: var(--text3); line-height: 1.4; }
+  .gps-fineprint a { color: var(--green); }
+  .offline-badge { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 8px; padding: 8px 14px; background: rgba(20,20,20,0.92); color: #fff; border-radius: 20px; font-size: 12px; z-index: 9999; box-shadow: 0 4px 16px rgba(0,0,0,0.4); border: 1px solid var(--border); }
+  .offline-badge-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; animation: pulseDot 1.5s ease-in-out infinite; }
+  @keyframes pulseDot { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
   .user-card {
     width: 100%; background: var(--card); border: 1px solid var(--border);
     border-radius: var(--radius); padding: 16px 20px;
@@ -740,6 +756,7 @@ body::before {
     ·
     <a href="/terms" target="_blank" rel="noopener">Términos</a>
   </div>
+  <div class="login-version" id="login-version"></div>
 </div>
 
 <!-- SERVICES LIST -->
@@ -971,6 +988,38 @@ body::before {
 // ─────────────────────────────────────────────
 // CONFIG
 // ─────────────────────────────────────────────
+// Versionado web/APK. Cuando cambie funcionalidad significativa de la web,
+// bump APP_VERSION. Cuando algo requiera versión mínima de APK, bump MIN_APK_VERSION_REQUIRED.
+// La app instalada (TWA) compara su versión nativa contra MIN_APK_VERSION_REQUIRED.
+const APP_VERSION = '1.0.0';
+const MIN_APK_VERSION_REQUIRED = '1.0.0';
+
+// Helper semver simple para comparar "x.y.z" (devuelve <0, 0, >0).
+function compareVersions(a, b) {
+  const pa = String(a || '0.0.0').split('.').map(n => parseInt(n, 10) || 0);
+  const pb = String(b || '0.0.0').split('.').map(n => parseInt(n, 10) || 0);
+  for (let i = 0; i < 3; i++) {
+    if ((pa[i] || 0) > (pb[i] || 0)) return 1;
+    if ((pa[i] || 0) < (pb[i] || 0)) return -1;
+  }
+  return 0;
+}
+
+// El APK puede exponer su versión nativa vía un meta tag inyectado por el wrapper TWA,
+// o vía Digital Asset Links / navigator.getInstalledRelatedApps. Si no hay info, asumimos
+// "running on web" y no hay version-gate.
+function getApkInstalledVersion() {
+  // Convención: el TWA inyecta un meta <meta name="fc-apk-version" content="1.2.3"> al cargar.
+  const meta = document.querySelector('meta[name="fc-apk-version"]');
+  return meta?.content || null;
+}
+
+function checkApkOutdated() {
+  const apkVer = getApkInstalledVersion();
+  if (!apkVer) return false; // no estamos en APK o no se inyectó la versión
+  return compareVersions(apkVer, MIN_APK_VERSION_REQUIRED) < 0;
+}
+
 const DB_ID = 'ccaf276c-7f6a-460c-aeb3-d2800deab2e5';
 const USERS = [
   { id: 'diego-laxalt',      name: 'Diego Laxalt',       role: '🎯 Dirección',   emoji: '👨‍✈️', pin: '1234', notionId: '69fce11a-3828-4780-ba22-af79a887b9e3', country: 'Uruguay' },
@@ -1959,7 +2008,7 @@ function persistServiceState({ immediateNotion = false } = {}) {
   const flush = async () => {
     try {
       const props = buildIncrementalProps(serviceState);
-      if (Object.keys(props).length) await updateServiceProps(currentService.id, props);
+      if (Object.keys(props).length) await queueableUpdateServiceProps(currentService.id, props);
     } catch (e) { console.warn('Notion auto-save failed (will retry next change):', e); }
   };
   if (immediateNotion) flush();
@@ -2227,6 +2276,170 @@ async function getMyServices(userId) {
 async function updateServiceProps(pageId, properties) {
   return callNotion(`pages/${pageId}`, 'PATCH', { properties });
 }
+
+// ─────────────────────────────────────────────
+// OFFLINE WRITE QUEUE (M1)
+// Cuando el operario está sin conexión (azotea sin señal), las escrituras a
+// Notion se encolan en IndexedDB y se reintentan automáticamente al recuperar
+// la conexión. Esto evita perder marcas de hora, checklist o cierre de servicio.
+//
+// Reads siguen yendo por sw.js con stale-while-revalidate. Solo writes son la queue.
+// Fotos NO se encolan en esta versión — quedan en localStorage + se commitean al
+// reconectar vía hydrateServiceState + flushPendingPhotos (ya implementado).
+// ─────────────────────────────────────────────
+const OFFLINE_DB_NAME = 'fc-offline-v1';
+const OFFLINE_STORE = 'writeQueue';
+
+function openOfflineDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(OFFLINE_DB_NAME, 1);
+    req.onupgradeneeded = e => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains(OFFLINE_STORE)) {
+        db.createObjectStore(OFFLINE_STORE, { keyPath: 'id', autoIncrement: true });
+      }
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function enqueueWrite(pageId, properties) {
+  try {
+    const db = await openOfflineDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(OFFLINE_STORE, 'readwrite');
+      const store = tx.objectStore(OFFLINE_STORE);
+      const item = { pageId, properties, queuedAt: Date.now(), retries: 0 };
+      const req = store.add(item);
+      req.onsuccess = () => { renderOfflineBadge(); resolve(req.result); };
+      req.onerror = () => reject(req.error);
+    });
+  } catch (e) {
+    console.warn('enqueueWrite fallback to memory:', e);
+    return null;
+  }
+}
+
+async function getQueueItems() {
+  try {
+    const db = await openOfflineDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(OFFLINE_STORE, 'readonly');
+      const store = tx.objectStore(OFFLINE_STORE);
+      const req = store.getAll();
+      req.onsuccess = () => resolve(req.result || []);
+      req.onerror = () => reject(req.error);
+    });
+  } catch (e) { return []; }
+}
+
+async function removeQueueItem(id) {
+  try {
+    const db = await openOfflineDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(OFFLINE_STORE, 'readwrite');
+      const store = tx.objectStore(OFFLINE_STORE);
+      const req = store.delete(id);
+      req.onsuccess = () => { renderOfflineBadge(); resolve(); };
+      req.onerror = () => reject(req.error);
+    });
+  } catch (e) { /* swallow */ }
+}
+
+async function updateQueueItem(id, patch) {
+  try {
+    const db = await openOfflineDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(OFFLINE_STORE, 'readwrite');
+      const store = tx.objectStore(OFFLINE_STORE);
+      const getReq = store.get(id);
+      getReq.onsuccess = () => {
+        const cur = getReq.result;
+        if (!cur) return resolve();
+        Object.assign(cur, patch);
+        store.put(cur).onsuccess = () => resolve();
+      };
+      getReq.onerror = () => reject(getReq.error);
+    });
+  } catch (e) { /* swallow */ }
+}
+
+let _queueProcessing = false;
+async function processQueue() {
+  if (_queueProcessing) return;
+  if (!navigator.onLine) return;
+  _queueProcessing = true;
+  try {
+    const items = await getQueueItems();
+    for (const item of items) {
+      try {
+        await callNotion(`pages/${item.pageId}`, 'PATCH', { properties: item.properties });
+        await removeQueueItem(item.id);
+      } catch (e) {
+        // Si falla, incrementar retries; si excede 10, descartar (fallo permanente probablemente).
+        const newRetries = (item.retries || 0) + 1;
+        if (newRetries > 10) {
+          console.warn('[offline] queue item discarded after 10 retries', item);
+          await removeQueueItem(item.id);
+        } else {
+          await updateQueueItem(item.id, { retries: newRetries });
+        }
+        // Romper el loop — si una falla, probablemente todas fallarán (sin conexión).
+        break;
+      }
+    }
+  } finally {
+    _queueProcessing = false;
+    renderOfflineBadge();
+  }
+}
+
+async function renderOfflineBadge() {
+  const items = await getQueueItems();
+  let badge = document.getElementById('offline-badge');
+  if (!items.length && !badge) return;
+  if (!badge) {
+    badge = document.createElement('div');
+    badge.id = 'offline-badge';
+    badge.className = 'offline-badge';
+    document.body.appendChild(badge);
+  }
+  if (!items.length) {
+    badge.style.display = 'none';
+    return;
+  }
+  badge.style.display = 'flex';
+  const isOnline = navigator.onLine;
+  badge.innerHTML = isOnline
+    ? `<span class="offline-badge-dot" style="background:var(--amber)"></span><span>🔄 ${items.length} sincronizando…</span>`
+    : `<span class="offline-badge-dot" style="background:#ff6b6b"></span><span>📴 ${items.length} pendiente${items.length > 1 ? 's' : ''} sin conexión</span>`;
+}
+
+// Wrapper que prueba escribir directo; si falla por red, encola.
+async function queueableUpdateServiceProps(pageId, properties) {
+  if (!navigator.onLine) {
+    // Sin conexión: encolar directo.
+    await enqueueWrite(pageId, properties);
+    return { queued: true };
+  }
+  try {
+    return await updateServiceProps(pageId, properties);
+  } catch (e) {
+    // Si fue por red, encolar; otros errores (validación, 4xx) se propagan.
+    const msg = String(e?.message || '');
+    if (msg.includes('Failed to fetch') || msg.includes('NetworkError') || msg.includes('Network request failed')) {
+      await enqueueWrite(pageId, properties);
+      return { queued: true };
+    }
+    throw e;
+  }
+}
+
+// Auto-process al recuperar conexión + cada 30s mientras haya items.
+window.addEventListener('online', () => { processQueue(); renderOfflineBadge(); });
+window.addEventListener('offline', () => { renderOfflineBadge(); });
+setInterval(() => { if (navigator.onLine) processQueue(); }, 30000);
 
 // ─────────────────────────────────────────────
 // SCREENS
@@ -2940,6 +3153,40 @@ function renderStep() {
 function isoNow() { return new Date().toISOString(); }
 function timeNow() { return new Date().toLocaleTimeString('es-UY', { hour: '2-digit', minute: '2-digit' }); }
 
+// M10 — Pedir ubicación GPS al operario con Aviso de Privacidad Simplificado previo
+// (requisito México LFPDPPP art. 16). Si rechaza, devuelve null y se continúa sin GPS.
+function requestUserLocationWithConsent(timeoutMs = 10000) {
+  return new Promise((resolve) => {
+    if (!navigator.geolocation) return resolve(null);
+    // Modal de Aviso Simplificado
+    const overlay = document.createElement('div');
+    overlay.className = 'gps-overlay';
+    overlay.innerHTML = `
+      <div class="gps-modal">
+        <div class="gps-emoji">📍</div>
+        <div class="gps-title">Compartir ubicación</div>
+        <div class="gps-body">FlyClean usa tu ubicación GPS sólo para registrar dónde se realiza el servicio. La info queda en la planilla del servicio en Notion (no se comparte con terceros, no se usa para rastreo).</div>
+        <div class="gps-actions">
+          <button class="gps-btn gps-btn-skip" id="gps-skip">Omitir</button>
+          <button class="gps-btn gps-btn-allow" id="gps-allow">Permitir</button>
+        </div>
+        <div class="gps-fineprint">Podés cambiar esta decisión luego en los ajustes del sistema.<br>Ver <a href="/privacy" target="_blank" rel="noopener">Política de Privacidad</a>.</div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+    const cleanup = () => { try { document.body.removeChild(overlay); } catch (_) {} };
+    document.getElementById('gps-skip').onclick = () => { cleanup(); resolve(null); };
+    document.getElementById('gps-allow').onclick = () => {
+      cleanup();
+      navigator.geolocation.getCurrentPosition(
+        pos => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: pos.coords.accuracy }),
+        err => { console.warn('[gps] denied or failed:', err.message); resolve(null); },
+        { enableHighAccuracy: true, timeout: timeoutMs, maximumAge: 60000 }
+      );
+    };
+  });
+}
+
 async function iniciarServicio() {
   // Prevenir doble-iniciar: si ya hay hora, sólo avanzar (no sobreescribir el dato real).
   if (serviceState.horaInicio) {
@@ -2947,11 +3194,22 @@ async function iniciarServicio() {
     return;
   }
   serviceState.horaInicio = timeNow();
+
+  // M10 — Pedir GPS (no bloqueante: si lo rechaza, sigue sin GPS)
+  const gps = await requestUserLocationWithConsent();
+  const props = {
+    'Estado': { select: { name: '✈️ En curso' } },
+    'Hora Inicio': { date: { start: isoNow()} }
+  };
+  if (gps) {
+    // Property `Ubicación GPS` (tipo URL) en la DB Servicios.
+    // Si no existe la property en Notion, Notion ignora silenciosamente esa key.
+    props['Ubicación GPS'] = { url: `https://maps.google.com/?q=${gps.lat},${gps.lng}` };
+    serviceState.gpsInicio = `${gps.lat.toFixed(6)},${gps.lng.toFixed(6)}`;
+  }
+
   try {
-    await updateServiceProps(currentService.id, {
-      'Estado': { select: { name: '✈️ En curso' } },
-      'Hora Inicio': { date: { start: isoNow()} }
-    });
+    await queueableUpdateServiceProps(currentService.id, props);
     showSaving();
     persistServiceStateToLocal();
   } catch (e) { console.warn('Error al guardar inicio:', e); }
@@ -2962,7 +3220,7 @@ async function registrarInicioEfectivo() {
   if (serviceState.horaInicioEfectivo) { renderStep(); return; }
   serviceState.horaInicioEfectivo = timeNow();
   try {
-    await updateServiceProps(currentService.id, {
+    await queueableUpdateServiceProps(currentService.id, {
       'Hora Inicio Efectivo': { date: { start: isoNow()} }
     });
     showSaving();
@@ -2975,7 +3233,7 @@ async function registrarCierreEfectivo() {
   if (serviceState.horaCierreEfectivo) { renderStep(); return; }
   serviceState.horaCierreEfectivo = timeNow();
   try {
-    await updateServiceProps(currentService.id, {
+    await queueableUpdateServiceProps(currentService.id, {
       'Hora Fin Efectivo': { date: { start: isoNow()} }
     });
     showSaving();
@@ -3095,9 +3353,12 @@ async function cerrarServicio() {
   }
 
   try {
-    await updateServiceProps(currentService.id, properties);
-    // Limpiar el estado en localStorage: el servicio quedó committeado entero en Notion.
-    try { localStorage.removeItem(storageKeyForService(currentService.id)); } catch (_) {}
+    const result = await queueableUpdateServiceProps(currentService.id, properties);
+    // Si quedó encolado (sin conexión), NO limpiar localStorage — el state debe
+    // sobrevivir hasta que el sync real complete.
+    if (!result?.queued) {
+      try { localStorage.removeItem(storageKeyForService(currentService.id)); } catch (_) {}
+    }
     showDoneScreen();
   } catch (e) {
     if (btn) { btn.textContent = t('btn.close.notion'); btn.disabled = false; }
@@ -5501,9 +5762,30 @@ function saveNewPin() {
 // ─────────────────────────────────────────────
 // INIT
 // ─────────────────────────────────────────────
+function renderVersionLabel() {
+  const el = document.getElementById('login-version');
+  if (!el) return;
+  const apkVer = getApkInstalledVersion();
+  const outdated = checkApkOutdated();
+  if (outdated) {
+    el.classList.add('outdated');
+    el.innerHTML = `⚠ APK v${apkVer} desactualizado · web v${APP_VERSION} requiere ≥ v${MIN_APK_VERSION_REQUIRED}`;
+  } else if (apkVer) {
+    el.classList.remove('outdated');
+    el.textContent = `APK v${apkVer} · web v${APP_VERSION}`;
+  } else {
+    el.classList.remove('outdated');
+    el.textContent = `v${APP_VERSION}`;
+  }
+}
+
 async function init() {
   initLang();
   applyTranslations();
+  renderVersionLabel();
+  // Si hay writes pendientes de una sesión anterior, mostrar badge y procesar.
+  renderOfflineBadge();
+  if (navigator.onLine) processQueue();
   const savedCountry = localStorage.getItem('fc_country');
   if (savedCountry) {
     selectedCountry = savedCountry;
