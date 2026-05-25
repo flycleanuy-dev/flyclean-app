@@ -1879,6 +1879,119 @@ function resetServiceState() {
 }
 
 // ─────────────────────────────────────────────
+// PERSISTENCIA DE serviceState
+// localStorage inmediato + debounce 3s a Notion para los campos seguros.
+// Notion guarda fotos, clima, resultado. Checklist y notas viven en localStorage
+// hasta el cierre del servicio (cerrarServicio commitea todo de una).
+// ─────────────────────────────────────────────
+function storageKeyForService(id) { return 'fc_service_' + id; }
+
+function persistServiceStateToLocal() {
+  if (!currentService?.id) return;
+  try {
+    localStorage.setItem(storageKeyForService(currentService.id), JSON.stringify({
+      state: serviceState,
+      step: currentStep,
+      ts: Date.now()
+    }));
+  } catch (e) { console.warn('local persist failed', e); }
+}
+
+let _notionFlushTimer = null;
+function buildIncrementalProps(s) {
+  const properties = {};
+  const preFiles = photosToNotionFiles(s.photos?.pre, 'pre');
+  const postFiles = photosToNotionFiles(s.photos?.post, 'post');
+  const relevFiles = photosToNotionFiles(s.photos?.relevamiento, 'relev');
+  if (preFiles.length) properties['📸 Fotos pre-servicio'] = { files: preFiles };
+  if (postFiles.length) properties['📸 Fotos post-servicio'] = { files: postFiles };
+  if (relevFiles.length) properties['📸 Fotos relevamiento'] = { files: relevFiles };
+  if (s.clima) properties['Condición climática'] = { multi_select: [{ name: s.clima }] };
+  if (s.resultado) properties['Resultado'] = { select: { name: s.resultado } };
+  return properties;
+}
+
+function persistServiceState({ immediateNotion = false } = {}) {
+  persistServiceStateToLocal();
+  if (!currentService?.id) return;
+  clearTimeout(_notionFlushTimer);
+  const flush = async () => {
+    try {
+      const props = buildIncrementalProps(serviceState);
+      if (Object.keys(props).length) await updateServiceProps(currentService.id, props);
+    } catch (e) { console.warn('Notion auto-save failed (will retry next change):', e); }
+  };
+  if (immediateNotion) flush();
+  else _notionFlushTimer = setTimeout(flush, 3000);
+}
+
+function hydrateServiceStateFromNotion(svc) {
+  const props = svc.properties || {};
+  const fmtTime = iso => iso ? new Date(iso).toLocaleTimeString('es-UY', { hour: '2-digit', minute: '2-digit' }) : null;
+  const hi = props['Hora Inicio']?.date?.start;
+  const hie = props['Hora Inicio Efectivo']?.date?.start;
+  const hfe = props['Hora Fin Efectivo']?.date?.start;
+  if (hi) serviceState.horaInicio = fmtTime(hi);
+  if (hie) serviceState.horaInicioEfectivo = fmtTime(hie);
+  if (hfe) serviceState.horaCierreEfectivo = fmtTime(hfe);
+
+  const clima = props['Condición climática']?.multi_select?.[0]?.name;
+  if (clima) serviceState.clima = clima;
+  const resultado = props['Resultado']?.select?.name;
+  if (resultado) serviceState.resultado = resultado;
+
+  const collect = prop => (prop?.files || [])
+    .map(f => ({
+      id: 'notion-' + Math.random().toString(36).slice(2, 9),
+      filename: f.name || 'foto.jpg',
+      status: 'done',
+      publicUrl: f.external?.url || f.file?.url || null,
+      previewUrl: f.external?.url || f.file?.url || null
+    }))
+    .filter(f => f.publicUrl);
+  serviceState.photos.pre = collect(props['📸 Fotos pre-servicio']);
+  serviceState.photos.post = collect(props['📸 Fotos post-servicio']);
+  serviceState.photos.relevamiento = collect(props['📸 Fotos relevamiento']);
+}
+
+function hydrateServiceStateFromLocal(id) {
+  try {
+    const raw = localStorage.getItem(storageKeyForService(id));
+    if (!raw) return false;
+    const d = JSON.parse(raw);
+    const ls = d.state || {};
+    if (ls.checklistPre && Object.keys(ls.checklistPre).length) serviceState.checklistPre = ls.checklistPre;
+    if (ls.checklistPost && Object.keys(ls.checklistPost).length) serviceState.checklistPost = ls.checklistPost;
+    if (ls.notasPost) serviceState.notasPost = ls.notasPost;
+    if (ls.avance) serviceState.avance = ls.avance;
+    if (ls.relevamiento) serviceState.relevamiento = { ...serviceState.relevamiento, ...ls.relevamiento };
+    // Si Notion no trajo hora pero localStorage sí (caso degradado), tomarla
+    if (!serviceState.horaInicio && ls.horaInicio) serviceState.horaInicio = ls.horaInicio;
+    if (!serviceState.horaInicioEfectivo && ls.horaInicioEfectivo) serviceState.horaInicioEfectivo = ls.horaInicioEfectivo;
+    if (!serviceState.horaCierreEfectivo && ls.horaCierreEfectivo) serviceState.horaCierreEfectivo = ls.horaCierreEfectivo;
+    return true;
+  } catch (e) { return false; }
+}
+
+function computeStepFromState() {
+  if (!STEPS || !STEPS.length) return 0;
+  const idxOf = id => STEPS.findIndex(s => s.id === id);
+  if (serviceState.horaCierreEfectivo) {
+    const t = idxOf('fotos_despues');
+    return t >= 0 ? t : Math.max(0, STEPS.length - 2);
+  }
+  if (serviceState.horaInicioEfectivo) {
+    const t = idxOf('inicio_efectivo');
+    return t >= 0 ? t : 1;
+  }
+  if (serviceState.horaInicio) {
+    const t = idxOf('checklist_pre');
+    return t >= 0 ? t : 1;
+  }
+  return 0;
+}
+
+// ─────────────────────────────────────────────
 // FOTOS — upload directo a Cloudflare R2 vía presigned URL
 // ─────────────────────────────────────────────
 const PHOTO_MAX_BYTES = 10 * 1024 * 1024; // 10 MB
@@ -1951,6 +2064,7 @@ async function uploadPhoto(file, fotoType) {
 
     photo.status = 'done';
     photo.publicUrl = publicUrl;
+    persistServiceState();
     renderStep();
   } catch (e) {
     photo.status = 'error';
@@ -1978,6 +2092,7 @@ function removePhoto(fotoType, photoId) {
   const p = serviceState.photos[fotoType].find(x => x.id === photoId);
   if (p?.previewUrl) URL.revokeObjectURL(p.previewUrl);
   serviceState.photos[fotoType] = serviceState.photos[fotoType].filter(x => x.id !== photoId);
+  persistServiceState();
   renderStep();
 }
 
@@ -2174,6 +2289,26 @@ function updatePinDots() {
   }
 }
 
+// ─────────────────────────────────────────────
+// Sesión: la app permite reabrir sin pedir PIN si la última actividad
+// está dentro de SESSION_MAX_MS. Pasado ese umbral, se vuelve a pedir PIN.
+// ─────────────────────────────────────────────
+const SESSION_MAX_MS = 8 * 60 * 60 * 1000;
+function markUserActive() {
+  try { localStorage.setItem('fc_last_active', String(Date.now())); } catch (_) {}
+}
+function isSessionFresh() {
+  try {
+    const ts = parseInt(localStorage.getItem('fc_last_active') || '0', 10);
+    return ts > 0 && (Date.now() - ts) < SESSION_MAX_MS;
+  } catch (_) { return false; }
+}
+async function routeByRole(role) {
+  if (role === '🔧 Coordinador' || role === '🎯 Dirección') return loadCoordinator();
+  if (role === '👔 CEO') return loadCEO();
+  return loadServices();
+}
+
 async function pinConfirm() {
   if (pinBuffer !== getEffectivePin(pinUser.id)) {
     pinBuffer = '';
@@ -2186,13 +2321,8 @@ async function pinConfirm() {
   }
   currentUser = { id: pinUser.id, name: pinUser.name, role: pinUser.role, emoji: pinUser.emoji, country: pinUser.country };
   localStorage.setItem('fc_user', JSON.stringify(currentUser));
-  if (pinUser.role === '🔧 Coordinador' || pinUser.role === '🎯 Dirección') {
-    await loadCoordinator();
-  } else if (pinUser.role === '👔 CEO') {
-    await loadCEO();
-  } else {
-    await loadServices();
-  }
+  markUserActive();
+  await routeByRole(currentUser.role);
 }
 
 function setTab(tab) {
@@ -2234,6 +2364,7 @@ function logout() {
 // ─────────────────────────────────────────────
 async function loadServices() {
   if (!currentUser) { showScreen('login'); return; }
+  markUserActive();
   showScreen('services');
   document.getElementById('header-user-name').textContent = (currentUser.emoji + ' ' + currentUser.name.split(' ')[0]);
   document.getElementById('services-sub').textContent = t('services.sub.loading2');
@@ -2337,9 +2468,22 @@ function openService(idx) {
   const tipoReg = currentService.properties?.['Tipo de registro']?.select?.name || '';
   STEPS = tipoReg.includes('Relevamiento') ? STEPS_RELEVAMIENTO : STEPS_SERVICIO;
 
+  // Rehidratar progreso previo: Notion (hora, fotos, clima, resultado) + localStorage (checklist, notas).
+  // Sin esto, reabrir un servicio iniciado pierde Hora Inicio y muestra "Iniciar" otra vez.
+  hydrateServiceStateFromNotion(currentService);
+  hydrateServiceStateFromLocal(currentService.id);
+
   // Pre-cargar m² aproximados si ya existe en el servicio (útil para relevamientos)
   const m2Existing = currentService.properties?.['m² aproximados']?.number;
-  if (m2Existing != null) serviceState.relevamiento.m2 = String(m2Existing);
+  if (m2Existing != null && !serviceState.relevamiento.m2) {
+    serviceState.relevamiento.m2 = String(m2Existing);
+  }
+
+  // Saltar al paso correcto según el progreso ya hecho
+  if (serviceState.horaInicio) {
+    const computed = computeStepFromState();
+    if (computed > 0) currentStep = Math.min(computed, STEPS.length - 1);
+  }
 
   const nombre = currentService.properties['Nombre del servicio']?.title?.[0]?.plain_text || t('detail.title.default');
   document.getElementById('detail-title').textContent = nombre;
@@ -2566,14 +2710,14 @@ function renderStep() {
 
       <div class="field-group">
         <div class="form-label">${t('step.obs.notas.label')}</div>
-        <textarea rows="3" placeholder="${t('step.obs.notas.placeholder')}" id="notas-input" oninput="serviceState.notasPost=this.value">${serviceState.notasPost}</textarea>
+        <textarea rows="3" placeholder="${t('step.obs.notas.placeholder')}" id="notas-input" oninput="serviceState.notasPost=this.value; persistServiceStateToLocal();">${serviceState.notasPost}</textarea>
       </div>
 
       ${isJornada ? `
       <div class="field-group">
         <div class="form-label">${t('step.obs.avance.label')}</div>
         <div class="hint hint-blue" style="margin-bottom:10px">${t('step.obs.avance.hint')}</div>
-        <input type="number" min="0" max="100" placeholder="${t('step.obs.avance.placeholder')}" id="avance-input" value="${serviceState.avance}" oninput="serviceState.avance=this.value" style="font-size:18px;text-align:center;font-weight:700"/>
+        <input type="number" min="0" max="100" placeholder="${t('step.obs.avance.placeholder')}" id="avance-input" value="${serviceState.avance}" oninput="serviceState.avance=this.value; persistServiceStateToLocal();" style="font-size:18px;text-align:center;font-weight:700"/>
         <div style="font-size:12px;color:var(--text3);text-align:center;margin-top:6px">${t('step.obs.avance.note')}</div>
       </div>
       ` : ''}
@@ -2605,12 +2749,12 @@ function renderStep() {
 
       <div class="field-group">
         <div class="form-label">📐 ${t('relev.m2.label')}</div>
-        <input type="number" min="0" placeholder="${t('relev.m2.placeholder')}" value="${r.m2}" oninput="serviceState.relevamiento.m2=this.value" style="font-size:18px;text-align:center;font-weight:700"/>
+        <input type="number" min="0" placeholder="${t('relev.m2.placeholder')}" value="${r.m2}" oninput="serviceState.relevamiento.m2=this.value; persistServiceStateToLocal();" style="font-size:18px;text-align:center;font-weight:700"/>
       </div>
 
       <div class="field-group">
         <div class="form-label">${t('relev.altura.label')}</div>
-        <input type="number" min="0" placeholder="${t('relev.altura.placeholder')}" value="${r.altura}" oninput="serviceState.relevamiento.altura=this.value" style="font-size:18px;text-align:center;font-weight:700"/>
+        <input type="number" min="0" placeholder="${t('relev.altura.placeholder')}" value="${r.altura}" oninput="serviceState.relevamiento.altura=this.value; persistServiceStateToLocal();" style="font-size:18px;text-align:center;font-weight:700"/>
       </div>
 
       <div class="field-group">
@@ -2655,7 +2799,7 @@ function renderStep() {
 
       <div class="field-group">
         <div class="form-label">📝 ${t('relev.notas.label')}</div>
-        <textarea rows="6" placeholder="${t('relev.notas.placeholder')}" oninput="serviceState.relevamiento.notasComercial=this.value">${serviceState.relevamiento.notasComercial}</textarea>
+        <textarea rows="6" placeholder="${t('relev.notas.placeholder')}" oninput="serviceState.relevamiento.notasComercial=this.value; persistServiceStateToLocal();">${serviceState.relevamiento.notasComercial}</textarea>
       </div>
       <div style="height:20px"></div>
     `;
@@ -2721,6 +2865,11 @@ function isoNow() { return new Date().toISOString(); }
 function timeNow() { return new Date().toLocaleTimeString('es-UY', { hour: '2-digit', minute: '2-digit' }); }
 
 async function iniciarServicio() {
+  // Prevenir doble-iniciar: si ya hay hora, sólo avanzar (no sobreescribir el dato real).
+  if (serviceState.horaInicio) {
+    nextStep();
+    return;
+  }
   serviceState.horaInicio = timeNow();
   try {
     await updateServiceProps(currentService.id, {
@@ -2728,28 +2877,33 @@ async function iniciarServicio() {
       'Hora Inicio': { date: { start: isoNow()} }
     });
     showSaving();
+    persistServiceStateToLocal();
   } catch (e) { console.warn('Error al guardar inicio:', e); }
   renderStep();
 }
 
 async function registrarInicioEfectivo() {
+  if (serviceState.horaInicioEfectivo) { renderStep(); return; }
   serviceState.horaInicioEfectivo = timeNow();
   try {
     await updateServiceProps(currentService.id, {
       'Hora Inicio Efectivo': { date: { start: isoNow()} }
     });
     showSaving();
+    persistServiceStateToLocal();
   } catch (e) { console.warn('Error al guardar inicio efectivo:', e); }
   renderStep();
 }
 
 async function registrarCierreEfectivo() {
+  if (serviceState.horaCierreEfectivo) { renderStep(); return; }
   serviceState.horaCierreEfectivo = timeNow();
   try {
     await updateServiceProps(currentService.id, {
       'Hora Fin Efectivo': { date: { start: isoNow()} }
     });
     showSaving();
+    persistServiceStateToLocal();
   } catch (e) { console.warn('Error al guardar cierre efectivo:', e); }
   renderStep();
 }
@@ -2757,11 +2911,13 @@ async function registrarCierreEfectivo() {
 function toggleCheck(list, idx) {
   const key = list === 'pre' ? 'checklistPre' : 'checklistPost';
   serviceState[key][idx] = !serviceState[key][idx];
+  persistServiceState();
   renderStep();
 }
 
 function selectResultado(val) {
   serviceState.resultado = val;
+  persistServiceState();
   renderStep();
 }
 
@@ -2769,6 +2925,7 @@ function relevToggleDif(val) {
   const arr = serviceState.relevamiento.dificultades;
   const idx = arr.indexOf(val);
   if (idx === -1) arr.push(val); else arr.splice(idx, 1);
+  persistServiceState();
   renderStep();
 }
 
@@ -2776,11 +2933,13 @@ function relevToggleSugerido(val) {
   const arr = serviceState.relevamiento.servicioSugerido;
   const idx = arr.indexOf(val);
   if (idx === -1) arr.push(val); else arr.splice(idx, 1);
+  persistServiceState();
   renderStep();
 }
 
 function selectClima(val) {
   serviceState.clima = val;
+  persistServiceState();
   renderStep();
 }
 
@@ -2861,6 +3020,8 @@ async function cerrarServicio() {
 
   try {
     await updateServiceProps(currentService.id, properties);
+    // Limpiar el estado en localStorage: el servicio quedó committeado entero en Notion.
+    try { localStorage.removeItem(storageKeyForService(currentService.id)); } catch (_) {}
     showDoneScreen();
   } catch (e) {
     if (btn) { btn.textContent = t('btn.close.notion'); btn.disabled = false; }
@@ -2894,6 +3055,7 @@ async function finishAndGoBack() {
 // ─────────────────────────────────────────────
 async function loadCEO() {
   if (!currentUser) { showScreen('login'); return; }
+  markUserActive();
   showScreen('ceo');
   document.getElementById('ceo-user-name').textContent = currentUser.emoji + ' ' + currentUser.name.split(' ')[0];
   const flagMap = { 'Uruguay': '🇺🇾', 'Brasil': '🇧🇷', 'Panamá': '🇵🇦', 'Guatemala': '🇬🇹', 'México': '🇲🇽' };
@@ -3226,6 +3388,7 @@ function renderCEOEquipo() {
 
 async function loadCoordinator() {
   if (!currentUser) { showScreen('login'); return; }
+  markUserActive();
   showScreen('coordinator');
   document.getElementById('coord-user-name').textContent = currentUser.emoji + ' ' + currentUser.name.split(' ')[0];
   const flagMap = { 'Uruguay': '🇺🇾', 'Brasil': '🇧🇷', 'Panamá': '🇵🇦', 'Guatemala': '🇬🇹', 'México': '🇲🇽' };
@@ -5011,6 +5174,14 @@ async function init() {
                 USERS.find(p => p.notionId === u.id) ||
                 USERS.find(p => p.name === u.name);
       if (pinUser) {
+        // Si la sesión está fresca (< 8h desde última actividad), saltar PIN y entrar directo.
+        if (isSessionFresh()) {
+          currentUser = { id: pinUser.id, name: pinUser.name, role: pinUser.role, emoji: pinUser.emoji, country: pinUser.country };
+          markUserActive();
+          await routeByRole(currentUser.role);
+          return;
+        }
+        // Sesión expirada: pedir PIN como antes
         document.getElementById('pin-emoji').textContent = pinUser.emoji;
         document.getElementById('pin-name').textContent = pinUser.name;
         pinBuffer = '';
