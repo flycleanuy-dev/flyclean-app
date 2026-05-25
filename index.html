@@ -439,6 +439,26 @@ body::before {
   .coord-tab { flex: 1; padding: 12px 8px; display: flex; align-items: center; justify-content: center; gap: 4px; line-height: 1.2; min-height: 44px; text-align: center; font-size: 13px; font-weight: 600; color: var(--text3); cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.15s; }
   .coord-tab.active { color: var(--green); border-bottom-color: var(--green); }
   .coord-content { flex: 1; overflow-y: auto; padding-bottom: 32px; }
+  .coord-toolbar { padding: 10px 12px 6px; border-bottom: 1px solid var(--border); background: var(--bg); position: sticky; top: 0; z-index: 5; }
+  .coord-toolbar-row { display: flex; gap: 8px; align-items: center; }
+  .coord-search-input { flex: 1; min-width: 0; padding: 10px 12px; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); font-family: inherit; font-size: 14px; outline: none; }
+  .coord-search-input:focus { border-color: var(--green); }
+  .coord-tool-btn { position: relative; min-width: 44px; padding: 10px; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); font-size: 16px; cursor: pointer; font-family: inherit; }
+  .coord-tool-btn.active { border-color: var(--green); color: var(--green); }
+  .coord-filter-count { position: absolute; top: -4px; right: -4px; background: var(--green); color: #001; font-weight: 700; font-size: 10px; padding: 1px 5px; border-radius: 8px; min-width: 16px; line-height: 14px; text-align: center; }
+  .coord-sort-select { padding: 10px 8px; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); font-family: inherit; font-size: 12px; cursor: pointer; max-width: 160px; }
+  .coord-filters-panel { margin-top: 10px; padding: 12px; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-sm); }
+  .coord-filter-section { margin-bottom: 10px; }
+  .coord-filter-section:last-child { margin-bottom: 0; }
+  .coord-filter-label { font-size: 11px; font-weight: 700; color: var(--text3); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 6px; }
+  .coord-filter-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .coord-filter-chip { padding: 6px 10px; background: var(--bg); border: 1px solid var(--border); border-radius: 16px; color: var(--text2); font-size: 12px; cursor: pointer; font-family: inherit; line-height: 1.2; }
+  .coord-filter-chip.active { background: rgba(0,201,141,0.15); border-color: var(--green); color: var(--green); }
+  .coord-filter-date-row { display: flex; gap: 8px; align-items: center; }
+  .coord-filter-date-input { flex: 1; padding: 8px 10px; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); font-family: inherit; font-size: 12px; }
+  .coord-filters-actions { display: flex; gap: 8px; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); }
+  .coord-filters-actions button { flex: 1; padding: 8px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--bg); color: var(--text); font-family: inherit; font-size: 12px; font-weight: 600; cursor: pointer; }
+  .coord-filters-actions .clear-btn { color: var(--red); border-color: rgba(255,82,82,0.3); }
   .day-group { margin: 16px 16px 0; }
   .day-label { font-size: 11px; font-weight: 700; color: var(--text3); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 8px; padding: 0 4px; }
   .day-label.today { color: var(--green); }
@@ -797,12 +817,25 @@ body::before {
     <div class="coord-tab" id="ctab-comunicaciones" data-i18n="coord.tab.mensajes" onclick="setCoordTab('comunicaciones')">💬 Mensajes</div>
   </div>
   <div id="alerts-banner-coord"></div>
+  <div class="coord-toolbar" id="coord-toolbar" style="display:none">
+    <div class="coord-toolbar-row">
+      <input type="search" id="coord-search" class="coord-search-input" placeholder="🔎 Buscar..." oninput="onCoordSearchInput(this.value)" autocomplete="off"/>
+      <button class="coord-tool-btn" id="coord-filter-btn" onclick="toggleCoordFiltersPanel()" title="Filtros"><span id="coord-filter-icon">⚙︎</span><span id="coord-filter-count" class="coord-filter-count" style="display:none"></span></button>
+      <select id="coord-sort" class="coord-sort-select" onchange="setCoordSort(this.value)" title="Orden">
+        <option value="date-asc">📅 Próximos primero</option>
+        <option value="date-desc">📅 Últimos primero</option>
+        <option value="alpha-asc">🔤 A → Z</option>
+        <option value="alpha-desc">🔤 Z → A</option>
+      </select>
+    </div>
+    <div class="coord-filters-panel" id="coord-filters-panel" style="display:none"></div>
+  </div>
   <div class="month-nav" id="coord-month-nav">
     <button class="month-nav-btn" onclick="changeCoordMonth(-1)">‹</button>
     <div class="month-nav-label" id="coord-month-label"></div>
     <button class="month-nav-btn" onclick="changeCoordMonth(1)">›</button>
   </div>
-  <div class="week-strip" id="coord-week-strip"></div>
+  <div class="week-strip" id="coord-week-strip" style="display:none"></div>
   <div class="coord-content" id="coord-content">
     <div style="text-align:center;padding:40px 0"><div class="spinner" style="margin:0 auto"></div></div>
   </div>
@@ -2336,15 +2369,27 @@ function setTab(tab) {
 
 function setCoordTab(tab) {
   activeCoordTab = tab;
+  markUserActive();
   ['servicios', 'relevamientos', 'propuestas', 'contactos', 'comunicaciones'].forEach(t => {
     const el = document.getElementById('ctab-' + t);
     if (el) el.classList.toggle('active', t === tab);
   });
-  const showStrip = (tab === 'servicios' || tab === 'relevamientos');
+  // Reset de filtros al cambiar de tab (search/estado/etc no se aplican entre dominios distintos).
+  coordFilters.search = '';
+  coordFilters.estado = [];
+  coordFilters.pais = [];
+  coordFilters.operario = [];
+  coordFilters.dateFrom = '';
+  coordFilters.dateTo = '';
+  _coordFiltersPanelOpen = false;
+  showCoordToolbar(tab);
+
+  // Week-strip queda escondido por default; el coordinador ahora trabaja con la lista cronológica.
   const strip = document.getElementById('coord-week-strip');
-  strip.style.display = showStrip ? 'flex' : 'none';
+  if (strip) strip.style.display = 'none';
   const monthNav = document.getElementById('coord-month-nav');
-  if (monthNav) monthNav.classList.toggle('visible', showStrip);
+  if (monthNav) monthNav.classList.toggle('visible', tab === 'servicios' || tab === 'relevamientos');
+
   if (tab === 'servicios') renderCoordServicios();
   else if (tab === 'relevamientos') renderCoordRelevamientos();
   else if (tab === 'propuestas') renderCoordPropuestas();
@@ -2471,7 +2516,7 @@ function openService(idx) {
   // Rehidratar progreso previo: Notion (hora, fotos, clima, resultado) + localStorage (checklist, notas).
   // Sin esto, reabrir un servicio iniciado pierde Hora Inicio y muestra "Iniciar" otra vez.
   hydrateServiceStateFromNotion(currentService);
-  hydrateServiceStateFromLocal(currentService.id);
+  const hadLocal = hydrateServiceStateFromLocal(currentService.id);
 
   // Pre-cargar m² aproximados si ya existe en el servicio (útil para relevamientos)
   const m2Existing = currentService.properties?.['m² aproximados']?.number;
@@ -2485,12 +2530,35 @@ function openService(idx) {
     if (computed > 0) currentStep = Math.min(computed, STEPS.length - 1);
   }
 
+  // A2 — Reintento de fotos huérfanas: si tenemos fotos en serviceState (localStorage o R2)
+  // que no aparecen en las properties de Notion, disparar un flush inmediato a Notion.
+  // Esto cubre el caso donde el operario subió fotos a R2, el debounce de 3s no alcanzó
+  // a hacer flush, y la app se cerró antes.
+  if (hadLocal) {
+    flushPendingPhotosIfNeeded();
+  }
+
   const nombre = currentService.properties['Nombre del servicio']?.title?.[0]?.plain_text || t('detail.title.default');
   document.getElementById('detail-title').textContent = nombre;
 
   renderStepNav();
   renderStep();
   showScreen('detail');
+}
+
+function flushPendingPhotosIfNeeded() {
+  if (!currentService?.properties) return;
+  const props = currentService.properties;
+  const countLocal = (serviceState.photos?.pre?.length || 0)
+                   + (serviceState.photos?.post?.length || 0)
+                   + (serviceState.photos?.relevamiento?.length || 0);
+  const countNotion = (props['📸 Fotos pre-servicio']?.files?.length || 0)
+                    + (props['📸 Fotos post-servicio']?.files?.length || 0)
+                    + (props['📸 Fotos relevamiento']?.files?.length || 0);
+  if (countLocal > countNotion) {
+    console.info(`[fc] flush fotos huérfanas: local=${countLocal} notion=${countNotion}`);
+    persistServiceState({ immediateNotion: true });
+  }
 }
 
 function goBack() {
@@ -3386,6 +3454,225 @@ function renderCEOEquipo() {
   content.innerHTML = html;
 }
 
+// ─────────────────────────────────────────────
+// FILTROS DEL COORDINADOR — buscador + multi-select + sort + rango fechas
+// Aplica client-side sobre los items ya cargados (no genera más calls a Notion).
+// ─────────────────────────────────────────────
+let coordFilters = {
+  search: '',
+  estado: [],         // multi-select de estados a INCLUIR; vacío = todos
+  pais: [],           // multi-select de países a INCLUIR; vacío = todos
+  operario: [],       // multi-select de operarios; vacío = todos
+  dateFrom: '',       // YYYY-MM-DD
+  dateTo: '',         // YYYY-MM-DD
+  sort: 'date-asc'
+};
+let _coordFiltersPanelOpen = false;
+let _coordSearchTimer = null;
+
+function getActiveFilterCount() {
+  let n = 0;
+  if (coordFilters.search) n++;
+  if (coordFilters.estado.length) n++;
+  if (coordFilters.pais.length) n++;
+  if (coordFilters.operario.length) n++;
+  if (coordFilters.dateFrom || coordFilters.dateTo) n++;
+  return n;
+}
+
+function refreshCoordFilterBadge() {
+  const badge = document.getElementById('coord-filter-count');
+  const btn = document.getElementById('coord-filter-btn');
+  const n = getActiveFilterCount();
+  if (badge) {
+    if (n > 0) { badge.textContent = n; badge.style.display = 'inline-block'; }
+    else { badge.style.display = 'none'; }
+  }
+  if (btn) btn.classList.toggle('active', n > 0);
+}
+
+function isCoordToolbarVisible(tab) {
+  return tab === 'servicios' || tab === 'relevamientos' || tab === 'propuestas';
+}
+
+function showCoordToolbar(tab) {
+  const tb = document.getElementById('coord-toolbar');
+  if (!tb) return;
+  if (isCoordToolbarVisible(tab)) {
+    tb.style.display = 'block';
+    const sortSel = document.getElementById('coord-sort');
+    if (sortSel) sortSel.value = coordFilters.sort;
+    const searchEl = document.getElementById('coord-search');
+    if (searchEl) searchEl.value = coordFilters.search;
+    refreshCoordFilterBadge();
+  } else {
+    tb.style.display = 'none';
+    const panel = document.getElementById('coord-filters-panel');
+    if (panel) { panel.style.display = 'none'; _coordFiltersPanelOpen = false; }
+  }
+}
+
+function onCoordSearchInput(v) {
+  clearTimeout(_coordSearchTimer);
+  _coordSearchTimer = setTimeout(() => {
+    coordFilters.search = (v || '').trim().toLowerCase();
+    refreshCoordFilterBadge();
+    rerenderActiveCoordTab();
+  }, 200);
+}
+
+function setCoordSort(v) {
+  coordFilters.sort = v;
+  rerenderActiveCoordTab();
+}
+
+function toggleCoordFiltersPanel() {
+  _coordFiltersPanelOpen = !_coordFiltersPanelOpen;
+  const panel = document.getElementById('coord-filters-panel');
+  if (!panel) return;
+  panel.style.display = _coordFiltersPanelOpen ? 'block' : 'none';
+  if (_coordFiltersPanelOpen) renderCoordFiltersPanel();
+}
+
+function toggleCoordFilterValue(dim, val) {
+  const arr = coordFilters[dim];
+  const i = arr.indexOf(val);
+  if (i === -1) arr.push(val); else arr.splice(i, 1);
+  refreshCoordFilterBadge();
+  renderCoordFiltersPanel();
+  rerenderActiveCoordTab();
+}
+
+function setCoordDateRange(from, to) {
+  coordFilters.dateFrom = from || '';
+  coordFilters.dateTo = to || '';
+  refreshCoordFilterBadge();
+  rerenderActiveCoordTab();
+}
+
+function clearCoordFilters() {
+  coordFilters.search = '';
+  coordFilters.estado = [];
+  coordFilters.pais = [];
+  coordFilters.operario = [];
+  coordFilters.dateFrom = '';
+  coordFilters.dateTo = '';
+  const searchEl = document.getElementById('coord-search');
+  if (searchEl) searchEl.value = '';
+  refreshCoordFilterBadge();
+  renderCoordFiltersPanel();
+  rerenderActiveCoordTab();
+}
+
+function uniqueValues(items, getter) {
+  const seen = new Set();
+  items.forEach(it => { const v = getter(it); if (v) seen.add(v); });
+  return [...seen].sort();
+}
+
+function renderCoordFiltersPanel() {
+  const panel = document.getElementById('coord-filters-panel');
+  if (!panel) return;
+  const isProps = activeCoordTab === 'propuestas';
+  const items = isProps ? _coordAllProps : _coordAllServices;
+  const estadoKey = isProps ? 'Estado pipeline' : 'Estado';
+  const estados = uniqueValues(items, it => it.properties?.[estadoKey]?.select?.name);
+  const paises = uniqueValues(items, it => it.properties?.['País']?.select?.name);
+  const operarios = isProps ? [] : uniqueValues(items, it => it.properties?.['Operario App']?.select?.name);
+
+  const dateLabel = isProps ? 'Última interacción' : 'Fecha programada';
+
+  let html = '';
+  if (estados.length) {
+    html += `<div class="coord-filter-section">
+      <div class="coord-filter-label">Estado</div>
+      <div class="coord-filter-chips">${estados.map(e => `<span class="coord-filter-chip ${coordFilters.estado.includes(e) ? 'active' : ''}" onclick="toggleCoordFilterValue('estado', ${JSON.stringify(e)})">${e}</span>`).join('')}</div>
+    </div>`;
+  }
+  if (paises.length) {
+    html += `<div class="coord-filter-section">
+      <div class="coord-filter-label">País</div>
+      <div class="coord-filter-chips">${paises.map(p => `<span class="coord-filter-chip ${coordFilters.pais.includes(p) ? 'active' : ''}" onclick="toggleCoordFilterValue('pais', ${JSON.stringify(p)})">${p}</span>`).join('')}</div>
+    </div>`;
+  }
+  if (operarios.length) {
+    html += `<div class="coord-filter-section">
+      <div class="coord-filter-label">Operario</div>
+      <div class="coord-filter-chips">${operarios.map(o => `<span class="coord-filter-chip ${coordFilters.operario.includes(o) ? 'active' : ''}" onclick="toggleCoordFilterValue('operario', ${JSON.stringify(o)})">${o}</span>`).join('')}</div>
+    </div>`;
+  }
+  html += `<div class="coord-filter-section">
+    <div class="coord-filter-label">${dateLabel}</div>
+    <div class="coord-filter-date-row">
+      <input type="date" class="coord-filter-date-input" value="${coordFilters.dateFrom}" onchange="setCoordDateRange(this.value, coordFilters.dateTo)" placeholder="Desde"/>
+      <span style="color:var(--text3);font-size:12px">→</span>
+      <input type="date" class="coord-filter-date-input" value="${coordFilters.dateTo}" onchange="setCoordDateRange(coordFilters.dateFrom, this.value)" placeholder="Hasta"/>
+    </div>
+  </div>`;
+  html += `<div class="coord-filters-actions">
+    <button class="clear-btn" onclick="clearCoordFilters()">Limpiar todo</button>
+    <button onclick="toggleCoordFiltersPanel()">Aplicar</button>
+  </div>`;
+  panel.innerHTML = html;
+}
+
+function rerenderActiveCoordTab() {
+  if (activeCoordTab === 'servicios' || activeCoordTab === 'relevamientos') {
+    renderCoordList();
+  } else if (activeCoordTab === 'propuestas') {
+    renderCoordPropuestasList();
+  }
+}
+
+function applyCoordFilters(items, opts) {
+  opts = opts || {};
+  const isProps = opts.isProps === true;
+  const estadoKey = isProps ? 'Estado pipeline' : 'Estado';
+  const dateKey = isProps ? 'Última interacción' : 'Fecha programada';
+  const search = coordFilters.search;
+
+  let out = items.filter(it => {
+    const props = it.properties || {};
+    if (search) {
+      const titleKey = isProps ? 'Nombre de propuesta' : 'Nombre del servicio';
+      const nombre = (props[titleKey]?.title?.[0]?.plain_text || '').toLowerCase();
+      if (!nombre.includes(search)) return false;
+    }
+    if (coordFilters.estado.length) {
+      const v = props[estadoKey]?.select?.name || '';
+      if (!coordFilters.estado.includes(v)) return false;
+    }
+    if (coordFilters.pais.length) {
+      const v = props['País']?.select?.name || '';
+      if (!coordFilters.pais.includes(v)) return false;
+    }
+    if (!isProps && coordFilters.operario.length) {
+      const v = props['Operario App']?.select?.name || '';
+      if (!coordFilters.operario.includes(v)) return false;
+    }
+    if (coordFilters.dateFrom || coordFilters.dateTo) {
+      const f = props[dateKey]?.date?.start || '';
+      if (!f) return false;
+      if (coordFilters.dateFrom && f < coordFilters.dateFrom) return false;
+      if (coordFilters.dateTo && f > coordFilters.dateTo) return false;
+    }
+    return true;
+  });
+
+  const titleKey = isProps ? 'Nombre de propuesta' : 'Nombre del servicio';
+  const getName = it => (it.properties?.[titleKey]?.title?.[0]?.plain_text || '').toLowerCase();
+  const getDate = it => it.properties?.[dateKey]?.date?.start || '';
+
+  const sortFn = {
+    'alpha-asc':  (a, b) => getName(a).localeCompare(getName(b)),
+    'alpha-desc': (a, b) => getName(b).localeCompare(getName(a)),
+    'date-asc':   (a, b) => (getDate(a) || '9999').localeCompare(getDate(b) || '9999'),
+    'date-desc':  (a, b) => (getDate(b) || '0000').localeCompare(getDate(a) || '0000'),
+  }[coordFilters.sort] || ((a, b) => 0);
+
+  return [...out].sort(sortFn);
+}
+
 async function loadCoordinator() {
   if (!currentUser) { showScreen('login'); return; }
   markUserActive();
@@ -3404,6 +3691,7 @@ async function loadCoordinator() {
     const el = document.getElementById('ctab-' + t);
     if (el) el.classList.toggle('active', t === 'servicios');
   });
+  showCoordToolbar('servicios');
   await renderCoordServicios();
 }
 
@@ -3470,31 +3758,65 @@ function setCoordDay(day) {
 
 function renderCoordList() {
   const content = document.getElementById('coord-content');
-  const todayISO = new Date().toISOString().split('T')[0];
   const dateLocale = currentLang === 'pt-BR' ? 'pt-BR' : 'es-UY';
   const isRelevTab = activeCoordTab === 'relevamientos';
-  const emptyDayKey = isRelevTab ? 'coord.empty.day.relev' : 'coord.empty.day';
   const emptyMonthKey = isRelevTab ? 'coord.empty.month.relev' : 'coord.empty.month';
-  if (selectedCoordDay && selectedCoordDay !== 'all') {
-    const dayServices = _coordAllServices.filter(s => (s.properties?.['Fecha programada']?.date?.start || '') === selectedCoordDay);
-    if (!dayServices.length) { content.innerHTML = `<div class="coord-empty">${t(emptyDayKey)}</div>`; return; }
-    content.innerHTML = '<div style="height:8px"></div>' + dayServices.map(s => coordServiceCard(s)).join('');
+
+  const filtered = applyCoordFilters(_coordAllServices, { isProps: false });
+  if (!filtered.length) {
+    content.innerHTML = `<div class="coord-empty">${getActiveFilterCount() ? '🔎 Sin resultados para los filtros actuales' : t(emptyMonthKey)}</div>`;
     return;
   }
-  const withDate = [..._coordAllServices.filter(s => s.properties?.['Fecha programada']?.date?.start)]
-    .sort((a, b) => (a.properties['Fecha programada'].date.start).localeCompare(b.properties['Fecha programada'].date.start));
-  const sinFecha = _coordAllServices.filter(s => !s.properties?.['Fecha programada']?.date?.start);
-  if (!withDate.length && !sinFecha.length) { content.innerHTML = `<div class="coord-empty">${t(emptyMonthKey)}</div>`; return; }
-  const groups = {};
-  withDate.forEach(s => { const f = s.properties['Fecha programada'].date.start; if (!groups[f]) groups[f] = []; groups[f].push(s); });
-  let html = Object.entries(groups).map(([fecha, items]) => {
-    const isToday = fecha === todayISO;
-    const dateLabel = new Date(fecha + 'T00:00:00').toLocaleDateString(dateLocale, { weekday: 'long', day: 'numeric', month: 'short' });
-    return `<div class="day-group"><div class="day-label ${isToday ? 'today' : ''}">${isToday ? t('coord.day.today') : ''}${dateLabel}</div>${items.map(s => coordServiceCard(s)).join('')}</div>`;
-  }).join('');
-  if (sinFecha.length) {
-    html += `<div class="day-group"><div class="day-label" style="color:var(--amber)">${t('coord.unscheduled')} (${sinFecha.length})</div>${sinFecha.map(s => coordServiceCard(s)).join('')}</div>`;
+
+  // Para sort cronológico (date-asc / date-desc) agrupamos en buckets temporales con headers
+  // semánticos. Para sort alfabético mostramos una lista plana — los headers no aportan.
+  const isChronological = coordFilters.sort === 'date-asc' || coordFilters.sort === 'date-desc';
+  if (!isChronological) {
+    content.innerHTML = '<div class="day-group">' + filtered.map(coordServiceCard).join('') + '</div>';
+    return;
   }
+
+  const today = new Date(); today.setHours(0,0,0,0);
+  const todayISO = today.toISOString().split('T')[0];
+  const tomorrow = new Date(today.getTime() + 86400000);
+  const tomorrowISO = tomorrow.toISOString().split('T')[0];
+  // Fin de semana (domingo, índice 0) — sumar (7 - hoy.getDay()) días
+  const daysToEndOfWeek = 6 - today.getDay() + 1;
+  const endOfWeek = new Date(today.getTime() + daysToEndOfWeek * 86400000);
+  const endOfWeekISO = endOfWeek.toISOString().split('T')[0];
+
+  const bucketsOrder = ['pasados', 'hoy', 'mañana', 'semana', 'proximos', 'sinfecha'];
+  const bucketLabels = {
+    pasados: '⏪ Pasados',
+    hoy: '📍 Hoy',
+    mañana: '⏭ Mañana',
+    semana: '🗓 Esta semana',
+    proximos: '📅 Próximos',
+    sinfecha: '⚠️ Sin fecha'
+  };
+  const buckets = { pasados: [], hoy: [], mañana: [], semana: [], proximos: [], sinfecha: [] };
+
+  filtered.forEach(s => {
+    const f = s.properties?.['Fecha programada']?.date?.start || '';
+    if (!f) { buckets.sinfecha.push(s); return; }
+    if (f === todayISO) buckets.hoy.push(s);
+    else if (f === tomorrowISO) buckets.mañana.push(s);
+    else if (f < todayISO) buckets.pasados.push(s);
+    else if (f <= endOfWeekISO) buckets.semana.push(s);
+    else buckets.proximos.push(s);
+  });
+
+  // Para date-desc invertir el orden de los buckets de futuro (más lejano arriba)
+  const order = coordFilters.sort === 'date-desc'
+    ? ['proximos', 'semana', 'mañana', 'hoy', 'pasados', 'sinfecha']
+    : bucketsOrder;
+
+  const html = order.map(b => {
+    const items = buckets[b];
+    if (!items.length) return '';
+    const isHoy = b === 'hoy';
+    return `<div class="day-group"><div class="day-label ${isHoy ? 'today' : ''}">${bucketLabels[b]} (${items.length})</div>${items.map(coordServiceCard).join('')}</div>`;
+  }).filter(Boolean).join('');
   content.innerHTML = html || `<div class="coord-empty">${t(emptyMonthKey)}</div>`;
 }
 
@@ -4903,47 +5225,58 @@ async function renderCoordPropuestas() {
       filter: { and: andConditions },
       sorts: [{ property: 'Última interacción', direction: 'descending' }]
     });
-
     _coordAllProps = data.results || [];
-    if (!_coordAllProps.length) {
-      content.innerHTML =
-        `<div style="padding:12px 16px 0"><button class="nueva-prop-btn" onclick="openNewPropSheet()">${t('coord.new.prop')}</button></div>` +
-        `<div class="coord-empty">${t('coord.empty.props')}</div>`;
-      return;
-    }
-
-    const dateLocale = currentLang === 'pt-BR' ? 'pt-BR' : 'es-UY';
-    content.innerHTML =
-      `<div style="padding:12px 16px 0"><button class="nueva-prop-btn" onclick="openNewPropSheet()">${t('coord.new.prop')}</button></div>` +
-      '<div style="height:8px"></div>' + _coordAllProps.map(p => {
-      const props = p.properties || {};
-      const nombre = props['Nombre de propuesta']?.title?.[0]?.plain_text || t('common.sinnombre');
-      const estado = props['Estado pipeline']?.select?.name || '—';
-      const pais = props['País']?.select?.name || '';
-      const importe = props['Importe estimado']?.number;
-      const dias = props['Días sin respuesta']?.formula?.number ?? null;
-      const ultimaInteraccion = props['Última interacción']?.date?.start || '';
-      const ultimaFmt = ultimaInteraccion ? new Date(ultimaInteraccion + 'T00:00:00').toLocaleDateString(dateLocale, { day: 'numeric', month: 'short' }) : '';
-      const estadoClass = estado.includes('Aceptada') ? 'aceptada' :
-        estado.includes('Negociando') ? 'negociando' :
-        estado.toLowerCase().includes('enviada') ? 'enviada' : '';
-
-      return `<div class="prop-card" style="cursor:pointer" onclick="openPropSheet('${p.id}')">
-        <div class="prop-nombre">${nombre}</div>
-        <div class="prop-meta">
-          <span class="prop-estado ${estadoClass}">${estado}</span>
-          ${pais ? `<span class="coord-tag">${pais}</span>` : ''}
-          ${importe ? `<span class="prop-importe">$${importe.toLocaleString()}</span>` : ''}
-        </div>
-        <div class="prop-dias ${dias != null && dias > 14 ? 'alert' : ''}">
-          ${ultimaFmt ? `${t('coord.prop.lastint.prefix')}${ultimaFmt}` : ''}${dias != null ? ` · ${dias}${t('coord.prop.days.suffix')}` : ''}
-        </div>
-        <div style="font-size:11px;color:var(--text3);margin-top:4px">${t('coord.prop.tap.edit')}</div>
-      </div>`;
-    }).join('');
+    renderCoordPropuestasList();
   } catch (e) {
     content.innerHTML = `<div class="coord-empty">${t('coord.error.props')}<br><small>${e.message}</small></div>`;
   }
+}
+
+function renderCoordPropuestasList() {
+  const content = document.getElementById('coord-content');
+  if (!_coordAllProps.length) {
+    content.innerHTML =
+      `<div style="padding:12px 16px 0"><button class="nueva-prop-btn" onclick="openNewPropSheet()">${t('coord.new.prop')}</button></div>` +
+      `<div class="coord-empty">${t('coord.empty.props')}</div>`;
+    return;
+  }
+  const filtered = applyCoordFilters(_coordAllProps, { isProps: true });
+  if (!filtered.length) {
+    content.innerHTML =
+      `<div style="padding:12px 16px 0"><button class="nueva-prop-btn" onclick="openNewPropSheet()">${t('coord.new.prop')}</button></div>` +
+      `<div class="coord-empty">${getActiveFilterCount() ? '🔎 Sin propuestas para los filtros actuales' : t('coord.empty.props')}</div>`;
+    return;
+  }
+  const dateLocale = currentLang === 'pt-BR' ? 'pt-BR' : 'es-UY';
+  const cards = filtered.map(p => {
+    const props = p.properties || {};
+    const nombre = props['Nombre de propuesta']?.title?.[0]?.plain_text || t('common.sinnombre');
+    const estado = props['Estado pipeline']?.select?.name || '—';
+    const pais = props['País']?.select?.name || '';
+    const importe = props['Importe estimado']?.number;
+    const dias = props['Días sin respuesta']?.formula?.number ?? null;
+    const ultimaInteraccion = props['Última interacción']?.date?.start || '';
+    const ultimaFmt = ultimaInteraccion ? new Date(ultimaInteraccion + 'T00:00:00').toLocaleDateString(dateLocale, { day: 'numeric', month: 'short' }) : '';
+    const estadoClass = estado.includes('Aceptada') ? 'aceptada' :
+      estado.includes('Negociando') ? 'negociando' :
+      estado.toLowerCase().includes('enviada') ? 'enviada' : '';
+
+    return `<div class="prop-card" style="cursor:pointer" onclick="openPropSheet('${p.id}')">
+      <div class="prop-nombre">${nombre}</div>
+      <div class="prop-meta">
+        <span class="prop-estado ${estadoClass}">${estado}</span>
+        ${pais ? `<span class="coord-tag">${pais}</span>` : ''}
+        ${importe ? `<span class="prop-importe">$${importe.toLocaleString()}</span>` : ''}
+      </div>
+      <div class="prop-dias ${dias != null && dias > 14 ? 'alert' : ''}">
+        ${ultimaFmt ? `${t('coord.prop.lastint.prefix')}${ultimaFmt}` : ''}${dias != null ? ` · ${dias}${t('coord.prop.days.suffix')}` : ''}
+      </div>
+      <div style="font-size:11px;color:var(--text3);margin-top:4px">${t('coord.prop.tap.edit')}</div>
+    </div>`;
+  }).join('');
+  content.innerHTML =
+    `<div style="padding:12px 16px 0"><button class="nueva-prop-btn" onclick="openNewPropSheet()">${t('coord.new.prop')}</button></div>` +
+    '<div style="height:8px"></div>' + cards;
 }
 
 // ─────────────────────────────────────────────
