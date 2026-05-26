@@ -884,12 +884,12 @@ body::before {
         <div class="estado-btns" id="edit-estado-btns"></div>
       </div>
       <div class="edit-section">
-        <div class="edit-section-label" data-i18n="sheet.edit.section.operario">OPERARIO ASIGNADO (encargado)</div>
+        <div class="edit-section-label" data-i18n="sheet.edit.section.operario">PILOTO</div>
         <div class="operario-btns" id="edit-operario-btns"></div>
       </div>
       <div class="edit-section">
-        <div class="edit-section-label" data-i18n="sheet.edit.section.participantes">AYUDANTES (otros operarios que trabajaron acá)</div>
-        <div class="edit-section-hint" data-i18n="sheet.edit.section.participantes.hint" style="font-size:11px;color:var(--text3);margin-bottom:8px">Marcá a los que estuvieron en el campo además del encargado. Cada uno suma 1 jornal.</div>
+        <div class="edit-section-label" data-i18n="sheet.edit.section.participantes">AYUDANTES</div>
+        <div class="edit-section-hint" data-i18n="sheet.edit.section.participantes.hint" style="font-size:11px;color:var(--text3);margin-bottom:8px">Marcá a los que estuvieron en el campo además del piloto. Cada uno suma 1 jornal.</div>
         <div class="operario-btns" id="edit-participantes-btns"></div>
       </div>
       <div class="edit-section">
@@ -927,7 +927,7 @@ body::before {
         <input type="date" class="edit-date-input" id="jornada-fecha" onchange="jornadaState.fecha=this.value"/>
       </div>
       <div class="edit-section">
-        <div class="edit-section-label" data-i18n="sheet.jornada.section.operario">OPERARIO ASIGNADO</div>
+        <div class="edit-section-label" data-i18n="sheet.jornada.section.operario">PILOTO</div>
         <div class="operario-btns" id="jornada-operario-btns"></div>
       </div>
       <button class="edit-save-btn" id="jornada-save-btn" onclick="submitCreateJornada()" data-i18n="sheet.jornada.btn.crear">✦ Crear jornada</button>
@@ -1290,9 +1290,9 @@ const TRANSLATIONS = {
     'chart.gastos': 'Gastos',
     'sheet.edit.title.default': 'Editar servicio',
     'sheet.edit.section.estado': 'ESTADO',
-    'sheet.edit.section.operario': 'OPERARIO ASIGNADO (encargado)',
-    'sheet.edit.section.participantes': 'AYUDANTES (otros operarios que trabajaron acá)',
-    'sheet.edit.section.participantes.hint': 'Marcá a los que estuvieron en el campo además del encargado. Cada uno suma 1 jornal.',
+    'sheet.edit.section.operario': 'PILOTO',
+    'sheet.edit.section.participantes': 'AYUDANTES',
+    'sheet.edit.section.participantes.hint': 'Marcá a los que estuvieron en el campo además del piloto. Cada uno suma 1 jornal.',
     'sheet.edit.section.fecha': 'FECHA PROGRAMADA',
     'sheet.edit.jornada.title': '📅 Continuar como jornada',
     'sheet.edit.jornada.sub': 'Si este servicio se extiende a otro día, creá una jornada para mañana.',
@@ -1300,7 +1300,7 @@ const TRANSLATIONS = {
     'sheet.jornada.title': '📅 Crear jornada',
     'sheet.jornada.section.numero': 'JORNADA N°',
     'sheet.jornada.section.fecha': 'FECHA',
-    'sheet.jornada.section.operario': 'OPERARIO ASIGNADO',
+    'sheet.jornada.section.operario': 'PILOTO',
     'sheet.jornada.btn.crear': '✦ Crear jornada',
     'sheet.jornada.btn.crear.short': 'Crear jornada',
     'sheet.jornada.creating': 'Creando…',
@@ -1652,9 +1652,9 @@ const TRANSLATIONS = {
     'chart.gastos': 'Despesas',
     'sheet.edit.title.default': 'Editar serviço',
     'sheet.edit.section.estado': 'STATUS',
-    'sheet.edit.section.operario': 'OPERÁRIO ATRIBUÍDO (encarregado)',
-    'sheet.edit.section.participantes': 'AJUDANTES (outros operários que trabalharam aqui)',
-    'sheet.edit.section.participantes.hint': 'Marque os que estiveram no campo além do encarregado. Cada um soma 1 jornal.',
+    'sheet.edit.section.operario': 'PILOTO',
+    'sheet.edit.section.participantes': 'AJUDANTES',
+    'sheet.edit.section.participantes.hint': 'Marque os que estiveram no campo além do piloto. Cada um soma 1 jornal.',
     'sheet.edit.section.fecha': 'DATA PROGRAMADA',
     'sheet.edit.jornada.title': '📅 Continuar como jornada',
     'sheet.edit.jornada.sub': 'Se este serviço se estende para outro dia, crie uma jornada para amanhã.',
@@ -1662,7 +1662,7 @@ const TRANSLATIONS = {
     'sheet.jornada.title': '📅 Criar jornada',
     'sheet.jornada.section.numero': 'JORNADA N°',
     'sheet.jornada.section.fecha': 'DATA',
-    'sheet.jornada.section.operario': 'OPERÁRIO ATRIBUÍDO',
+    'sheet.jornada.section.operario': 'PILOTO',
     'sheet.jornada.btn.crear': '✦ Criar jornada',
     'sheet.jornada.btn.crear.short': 'Criar jornada',
     'sheet.jornada.creating': 'Criando…',
@@ -4264,11 +4264,11 @@ function confirmNewOperario() {
   if (!_operarioOptions.includes(name)) _operarioOptions.push(name);
   editState.operario = name;
   renderOperarioBtns(name);
-  renderParticipantesBtns(); // refresh ayudantes para excluir al nuevo encargado
+  renderParticipantesBtns(); // refresh ayudantes para excluir al nuevo piloto
 }
 
-// Renderiza los botones de "Ayudantes" (multi-select). Excluye al operario asignado
-// (encargado) para no permitir asignar a la misma persona como ayudante + encargado.
+// Renderiza los botones de "Ayudantes" (multi-select). Excluye al piloto
+// para no permitir asignar a la misma persona como ayudante + piloto.
 function renderParticipantesBtns() {
   const container = document.getElementById('edit-participantes-btns');
   if (!container) return;
@@ -4277,7 +4277,7 @@ function renderParticipantesBtns() {
   container.innerHTML = options.map(name => {
     const isActive = selected.includes(name);
     return `<button class="operario-btn ${isActive ? 'active' : ''}" data-name="${escAttrEdit(name)}" onclick="toggleParticipante(this.dataset.name, this)">${name}</button>`;
-  }).join('') || `<div style="font-size:12px;color:var(--text3);font-style:italic">Sin operarios disponibles (todos están asignados como encargado).</div>`;
+  }).join('') || `<div style="font-size:12px;color:var(--text3);font-style:italic">Sin operarios disponibles (el piloto ya ocupa la posición).</div>`;
 }
 
 // Escape simple para atributo HTML
@@ -4491,7 +4491,7 @@ function selectEditOperario(name, el) {
   editState.operario = name;
   document.querySelectorAll('#edit-operario-btns .operario-btn').forEach(b => b.classList.remove('active'));
   if (el) el.classList.add('active');
-  // Si el nuevo encargado estaba en participantes, quitarlo (no puede ser ambos).
+  // Si el nuevo piloto estaba en ayudantes, quitarlo (no puede ser ambos).
   if (name && Array.isArray(editState.participantes)) {
     editState.participantes = editState.participantes.filter(p => p !== name);
   }
