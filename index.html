@@ -4187,7 +4187,17 @@ function renderPhotoGallery(props) {
 
 function coordServiceCard(s) {
   const props = s.properties || {};
-  const nombre = props['Nombre del servicio']?.title?.[0]?.plain_text || t('common.sinnombre');
+  const nombreRaw = props['Nombre del servicio']?.title?.[0]?.plain_text;
+  let nombre;
+  if (nombreRaw) {
+    nombre = nombreRaw;
+  } else {
+    // Bug fix defensivo: si Notion devuelve nombre vacío (fallback search devuelve properties parciales),
+    // mostrar warning visible + loguear para diagnóstico en consola.
+    const idShort = (s.id || '').slice(0, 8);
+    nombre = `<span style="color:#c67e25">⚠️ Servicio sin nombre (${idShort})</span>`;
+    console.warn('[fc] coord: servicio sin nombre', s.id, 'properties keys:', Object.keys(props));
+  }
   const estado = props['Estado']?.select?.name || '';
   const tipo = props['Tipo de servicio']?.select?.name || '';
   const operarioAppName = props['Operario App']?.select?.name || '';
@@ -4977,6 +4987,9 @@ async function renderCoordServicios() {
     if (!selectedCoordDay) selectedCoordDay = 'all';
     renderWeekStrip(_coordAllServices);
     renderCoordList();
+    // Bug fix: si el panel de filtros estaba abierto antes de que terminara el fetch,
+    // re-renderizar para que Estado/Operario aparezcan ahora que ya hay datos.
+    if (_coordFiltersPanelOpen) renderCoordFiltersPanel();
   } catch (e) {
     content.innerHTML = `<div class="coord-empty">${t('coord.error.load')}<br><small>${e.message}</small></div>`;
   }
@@ -4996,6 +5009,7 @@ async function renderCoordRelevamientos() {
     if (!selectedCoordDay) selectedCoordDay = 'all';
     renderWeekStrip(_coordAllServices);
     renderCoordList();
+    if (_coordFiltersPanelOpen) renderCoordFiltersPanel();
   } catch (e) {
     content.innerHTML = `<div class="coord-empty">${t('coord.error.load')}<br><small>${e.message}</small></div>`;
   }
@@ -5709,6 +5723,8 @@ async function renderCoordPropuestas() {
     });
     _coordAllProps = data.results || [];
     renderCoordPropuestasList();
+    // Bug fix: re-render panel filtros si estaba abierto durante el fetch.
+    if (_coordFiltersPanelOpen) renderCoordFiltersPanel();
   } catch (e) {
     content.innerHTML = `<div class="coord-empty">${t('coord.error.props')}<br><small>${e.message}</small></div>`;
   }
@@ -5732,7 +5748,16 @@ function renderCoordPropuestasList() {
   const dateLocale = currentLang === 'pt-BR' ? 'pt-BR' : 'es-UY';
   const cards = filtered.map(p => {
     const props = p.properties || {};
-    const nombre = props['Nombre de propuesta']?.title?.[0]?.plain_text || t('common.sinnombre');
+    const nombreRaw = props['Nombre de propuesta']?.title?.[0]?.plain_text;
+    let nombre;
+    if (nombreRaw) {
+      nombre = nombreRaw;
+    } else {
+      // Bug fix defensivo: visibilizar items sin nombre + loguear para diagnóstico.
+      const idShort = (p.id || '').slice(0, 8);
+      nombre = `<span style="color:#c67e25">⚠️ Propuesta sin nombre (${idShort})</span>`;
+      console.warn('[fc] coord: propuesta sin nombre', p.id, 'properties keys:', Object.keys(props));
+    }
     const estado = props['Estado pipeline']?.select?.name || '—';
     const pais = props['País']?.select?.name || '';
     const importe = props['Importe estimado']?.number;
