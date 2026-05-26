@@ -1,5 +1,10 @@
-// v4: sumar icons maskable + splash al app shell.
-const CACHE = 'flyclean-v4';
+// v5: cambiar estrategia de Notion API de stale-while-revalidate a NETWORK-FIRST con timeout
+// Razón del cambio: stale-while-revalidate podía servir respuestas cacheadas con properties
+// parciales (ej. cuando el proxy hacía search fallback en el pasado). Network-first asegura
+// datos frescos siempre que haya conexión; cache solo cuando la red falla u offline.
+// Cache de Notion bumpea a v2 para invalidar todas las respuestas viejas posiblemente corruptas.
+
+const CACHE = 'flyclean-v5';
 const SHELL = [
   '/',
   '/index.html',
@@ -10,7 +15,8 @@ const SHELL = [
   '/icon-512-maskable.png',
   '/splash.png'
 ];
-const NOTION_CACHE = 'flyclean-notion-cache-v1';
+const NOTION_CACHE = 'flyclean-notion-cache-v2';
+const NETWORK_TIMEOUT_MS = 5000;
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));
@@ -40,35 +46,41 @@ function isCacheableNotionRead(request, bodyText) {
   } catch (_) { return false; }
 }
 
+// Estrategia network-first con timeout + fallback a cache:
+// 1. Intenta red con timeout 5s.
+// 2. Si la red devuelve OK → usa esa respuesta + actualiza cache.
+// 3. Si la red falla o timeout → devuelve cache si existe.
+// 4. Si no hay cache → 503 con mensaje offline.
 async function handleNotionApi(event) {
-  // Tenemos que clonar el body antes de pasar el request a fetch.
   let bodyText = '';
   try { bodyText = await event.request.clone().text(); } catch (_) {}
   const cacheable = isCacheableNotionRead(event.request, bodyText);
   if (!cacheable) return fetch(event.request);
 
-  // Clave de cache: url + body (porque distintos queries van al mismo endpoint).
   const cacheKey = new Request(event.request.url + '#' + btoa(unescape(encodeURIComponent(bodyText))).slice(0, 64), { method: 'GET' });
   const cache = await caches.open(NOTION_CACHE);
-  const cached = await cache.match(cacheKey);
 
-  const networkPromise = fetch(event.request)
-    .then(res => {
-      if (res && res.ok) {
-        cache.put(cacheKey, res.clone()).catch(() => {});
-      }
-      return res;
-    })
-    .catch(err => null);
+  // Race: red con timeout vs. cache si la red tarda mucho.
+  const networkPromise = fetch(event.request).then(res => {
+    if (res && res.ok) {
+      cache.put(cacheKey, res.clone()).catch(() => {});
+    }
+    return res;
+  });
+  const timeoutPromise = new Promise((_, reject) =>
+    setTimeout(() => reject(new Error('network timeout')), NETWORK_TIMEOUT_MS)
+  );
 
-  if (cached) {
-    // Devuelvo cache inmediato; la red se actualiza en background.
-    networkPromise.then(() => {});
-    return cached;
+  try {
+    const res = await Promise.race([networkPromise, timeoutPromise]);
+    if (res) return res;
+  } catch (e) {
+    // network failed or timeout → fall through to cache
   }
-  // Sin cache previa: esperar red. Si la red falla, devolver error.
-  const net = await networkPromise;
-  if (net) return net;
+
+  const cached = await cache.match(cacheKey);
+  if (cached) return cached;
+
   return new Response(JSON.stringify({ error: 'offline', message: 'No hay conexión y no hay copia cacheada de esta consulta.' }), {
     status: 503,
     headers: { 'Content-Type': 'application/json' }
@@ -78,15 +90,12 @@ async function handleNotionApi(event) {
 self.addEventListener('fetch', e => {
   const url = e.request.url;
 
-  // Notion API: estrategia stale-while-revalidate para reads, never-cache para writes.
   if (url.includes('/api/notion')) {
     e.respondWith(handleNotionApi(e));
     return;
   }
-  // Cualquier otro /api/ pasa directo (upload-url, etc).
   if (url.includes('/api/')) return;
 
-  // Shell: solo GET cacheable.
   if (e.request.method !== 'GET') return;
   e.respondWith(
     caches.match(e.request).then(cached => {
