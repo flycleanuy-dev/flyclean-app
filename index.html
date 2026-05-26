@@ -556,6 +556,13 @@ body::before {
   .report-pdf-btn { margin: 8px 20px 0; width: calc(100% - 40px); padding: 12px; background: var(--card); border: 1px solid var(--border2); border-radius: var(--radius-sm); color: var(--text2); font-size: 13px; font-weight: 600; cursor: pointer; font-family: 'Exo 2', sans-serif; display: block; }
   .report-pdf-btn:active { background: var(--border); transform: scale(0.99); }
   .report-pdf-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+  .jornada-cta-wrap { padding: 16px 20px 0; }
+  .jornada-cta-card { background: var(--card); border: 1px dashed var(--purple, #a855f7); border-radius: var(--radius-sm); padding: 14px; text-align: center; }
+  .jornada-cta-title { font-size: 13px; font-weight: 700; color: var(--purple, #a855f7); margin-bottom: 4px; }
+  .jornada-cta-sub { font-size: 11px; color: var(--text3); margin-bottom: 12px; line-height: 1.4; }
+  .jornada-cta-btn { width: 100%; padding: 10px; background: transparent; border: 1px solid var(--purple, #a855f7); border-radius: var(--radius-sm); color: var(--purple, #a855f7); font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; }
+  .jornada-cta-btn:active { background: rgba(168, 85, 247, 0.12); }
+  #jornada-overlay { z-index: 10001; }
   .create-svc-btn { width: 100%; padding: 14px; background: var(--green-dark); border: 2px solid var(--green); border-radius: var(--radius-sm); color: var(--green); font-size: 14px; font-weight: 700; cursor: pointer; font-family: 'Exo 2', sans-serif; transition: all 0.15s; margin-top: 4px; }
   .create-svc-btn:hover, .create-svc-btn:active { background: var(--green); color: #fff; transform: scale(0.99); }
   .create-svc-btn:disabled { opacity: 0.6; cursor: not-allowed; }
@@ -886,9 +893,42 @@ body::before {
       </div>
       <button class="edit-save-btn" id="edit-save-btn" data-i18n="btn.save.notion" onclick="saveServiceEdit()">💾 GUARDAR EN NOTION</button>
       <button class="report-pdf-btn" id="report-pdf-btn" onclick="generateReportPDF()" style="display:none">📄 Generar reporte</button>
+      <div class="edit-section jornada-cta-wrap" id="edit-jornada-cta" style="display:none">
+        <div class="jornada-cta-card">
+          <div class="jornada-cta-title" data-i18n="sheet.edit.jornada.title">📅 Continuar como jornada</div>
+          <div class="jornada-cta-sub" data-i18n="sheet.edit.jornada.sub">Si este servicio se extiende a otro día, creá una jornada para mañana.</div>
+          <button class="jornada-cta-btn" onclick="openCreateJornadaSheet()" data-i18n="sheet.edit.jornada.btn">📅 Crear jornada para otro día</button>
+        </div>
+      </div>
       <button class="delete-svc-btn" id="delete-svc-btn" data-i18n="sheet.edit.delete" onclick="deleteService()">🗑️ Eliminar servicio</button>
     </div>
   </div>
+
+  <!-- Sub-modal: Crear jornada -->
+  <div class="edit-overlay" id="jornada-overlay" onclick="jornadaOverlayClick(event)">
+    <div class="edit-sheet" id="jornada-sheet">
+      <button class="sheet-close-btn" type="button" aria-label="Cerrar" onclick="closeCreateJornadaSheet()">×</button>
+      <div class="edit-sheet-handle"></div>
+      <div class="edit-sheet-header">
+        <div class="edit-sheet-title" data-i18n="sheet.jornada.title">📅 Crear jornada</div>
+        <div class="edit-sheet-sub" id="jornada-sheet-sub"></div>
+      </div>
+      <div class="edit-section">
+        <div class="edit-section-label" data-i18n="sheet.jornada.section.numero">JORNADA N°</div>
+        <input type="number" min="1" max="99" class="edit-date-input" id="jornada-numero" oninput="jornadaState.numero=this.value" style="font-size:18px;text-align:center;font-weight:700"/>
+      </div>
+      <div class="edit-section">
+        <div class="edit-section-label" data-i18n="sheet.jornada.section.fecha">FECHA</div>
+        <input type="date" class="edit-date-input" id="jornada-fecha" onchange="jornadaState.fecha=this.value"/>
+      </div>
+      <div class="edit-section">
+        <div class="edit-section-label" data-i18n="sheet.jornada.section.operario">OPERARIO ASIGNADO</div>
+        <div class="operario-btns" id="jornada-operario-btns"></div>
+      </div>
+      <button class="edit-save-btn" id="jornada-save-btn" onclick="submitCreateJornada()" data-i18n="sheet.jornada.btn.crear">✦ Crear jornada</button>
+    </div>
+  </div>
+
   <div class="edit-overlay" id="prop-overlay" onclick="propOverlayClick(event)">
     <div class="edit-sheet" id="prop-sheet">
       <button class="sheet-close-btn" type="button" aria-label="Cerrar" onclick="closePropSheet()">×</button>
@@ -1247,6 +1287,20 @@ const TRANSLATIONS = {
     'sheet.edit.section.estado': 'ESTADO',
     'sheet.edit.section.operario': 'OPERARIO ASIGNADO',
     'sheet.edit.section.fecha': 'FECHA PROGRAMADA',
+    'sheet.edit.jornada.title': '📅 Continuar como jornada',
+    'sheet.edit.jornada.sub': 'Si este servicio se extiende a otro día, creá una jornada para mañana.',
+    'sheet.edit.jornada.btn': '📅 Crear jornada para otro día',
+    'sheet.jornada.title': '📅 Crear jornada',
+    'sheet.jornada.section.numero': 'JORNADA N°',
+    'sheet.jornada.section.fecha': 'FECHA',
+    'sheet.jornada.section.operario': 'OPERARIO ASIGNADO',
+    'sheet.jornada.btn.crear': '✦ Crear jornada',
+    'sheet.jornada.btn.crear.short': 'Crear jornada',
+    'sheet.jornada.creating': 'Creando…',
+    'sheet.jornada.success': '✅ Jornada creada en Notion. Refrescando lista…',
+    'sheet.jornada.error.numero': 'El número de jornada debe ser un entero positivo.',
+    'sheet.jornada.error.fecha': 'Tenés que elegir una fecha para la jornada.',
+    'sheet.jornada.error.crear': '❌ Error al crear la jornada:',
     'sheet.edit.operario.sinasignar': '— Sin asignar',
     'sheet.edit.operario.nuevo': '+ Nuevo operario',
     'sheet.edit.operario.nombre': 'Nombre completo',
@@ -1593,6 +1647,20 @@ const TRANSLATIONS = {
     'sheet.edit.section.estado': 'STATUS',
     'sheet.edit.section.operario': 'OPERÁRIO ATRIBUÍDO',
     'sheet.edit.section.fecha': 'DATA PROGRAMADA',
+    'sheet.edit.jornada.title': '📅 Continuar como jornada',
+    'sheet.edit.jornada.sub': 'Se este serviço se estende para outro dia, crie uma jornada para amanhã.',
+    'sheet.edit.jornada.btn': '📅 Criar jornada para outro dia',
+    'sheet.jornada.title': '📅 Criar jornada',
+    'sheet.jornada.section.numero': 'JORNADA N°',
+    'sheet.jornada.section.fecha': 'DATA',
+    'sheet.jornada.section.operario': 'OPERÁRIO ATRIBUÍDO',
+    'sheet.jornada.btn.crear': '✦ Criar jornada',
+    'sheet.jornada.btn.crear.short': 'Criar jornada',
+    'sheet.jornada.creating': 'Criando…',
+    'sheet.jornada.success': '✅ Jornada criada no Notion. Atualizando lista…',
+    'sheet.jornada.error.numero': 'O número da jornada deve ser um inteiro positivo.',
+    'sheet.jornada.error.fecha': 'É preciso escolher uma data para a jornada.',
+    'sheet.jornada.error.crear': '❌ Erro ao criar a jornada:',
     'sheet.edit.operario.sinasignar': '— Sem atribuir',
     'sheet.edit.operario.nuevo': '+ Novo operário',
     'sheet.edit.operario.nombre': 'Nome completo',
@@ -4217,9 +4285,147 @@ async function openEditSheet(pageId) {
       reportBtn.disabled = false;
     }
   }
+  // Mostrar CTA de "Crear jornada" si NO es relevamiento
+  const jornadaCTA = document.getElementById('edit-jornada-cta');
+  if (jornadaCTA) {
+    const tipoReg = props['Tipo de registro']?.select?.name || '';
+    const isRelev = tipoReg.includes('Relevamiento');
+    jornadaCTA.style.display = isRelev ? 'none' : '';
+  }
+
   document.getElementById('edit-overlay').classList.add('open');
   await fetchOperarioOptions();
   renderOperarioBtns(operarioActual);
+}
+
+// ─────────────────────────────────────────────
+// CREAR JORNADA — sub-modal sobre el sheet edit del coord
+// ─────────────────────────────────────────────
+let jornadaState = { numero: 2, fecha: '', operario: null };
+
+function jornadaOverlayClick(e) { if (e.target.id === 'jornada-overlay') closeCreateJornadaSheet(); }
+function closeCreateJornadaSheet() { document.getElementById('jornada-overlay').classList.remove('open'); }
+
+function selectJornadaOperario(name, el) {
+  jornadaState.operario = name;
+  document.querySelectorAll('#jornada-operario-btns .operario-btn').forEach(b => b.classList.remove('active'));
+  if (el) el.classList.add('active');
+}
+
+function computeNextJornadaNumero(parentService) {
+  if (!parentService) return 2;
+  const parentProps = parentService.properties || {};
+  const parentPropuestaId = parentProps['Propuesta']?.relation?.[0]?.id;
+  const parentContactoId = parentProps['Contacto']?.relation?.[0]?.id;
+  const parentJornadaN = parentProps['Jornada N°']?.number;
+
+  // Buscar todos los servicios linkeados a la misma propuesta o contacto, ya en memoria
+  const relacionados = (_coordAllServices || []).filter(s => {
+    const sProps = s.properties || {};
+    if (parentPropuestaId && sProps['Propuesta']?.relation?.[0]?.id === parentPropuestaId) return true;
+    if (!parentPropuestaId && parentContactoId && sProps['Contacto']?.relation?.[0]?.id === parentContactoId) return true;
+    return false;
+  });
+
+  // Máximo Jornada N° entre los relacionados
+  const maxN = relacionados.reduce((max, s) => {
+    const n = s.properties?.['Jornada N°']?.number;
+    return (typeof n === 'number' && n > max) ? n : max;
+  }, 0);
+
+  // Si el padre ya tiene Jornada N°, el next es padre.N + 1.
+  // Si no hay ninguna jornada todavía, default = 2 (asumiendo orden original = jornada 1 implícita).
+  if (maxN > 0) return maxN + 1;
+  if (typeof parentJornadaN === 'number') return parentJornadaN + 1;
+  return 2;
+}
+
+async function openCreateJornadaSheet() {
+  if (!editingService) return;
+  const props = editingService.properties || {};
+  const nombre = props['Nombre del servicio']?.title?.[0]?.plain_text || '';
+
+  // Setear defaults
+  jornadaState.numero = computeNextJornadaNumero(editingService);
+  const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
+  jornadaState.fecha = tomorrow.toISOString().split('T')[0];
+  jornadaState.operario = props['Operario App']?.select?.name || null;
+
+  // Renderizar inputs
+  document.getElementById('jornada-numero').value = jornadaState.numero;
+  document.getElementById('jornada-fecha').value = jornadaState.fecha;
+  document.getElementById('jornada-sheet-sub').textContent = nombre;
+
+  // Botones de operario (reusa _operarioOptions ya cargado)
+  await fetchOperarioOptions();
+  const options = _operarioOptions || USERS.map(u => u.name);
+  document.getElementById('jornada-operario-btns').innerHTML =
+    `<button class="operario-btn ${!jornadaState.operario ? 'active' : ''}" onclick="selectJornadaOperario(null,this)">${t('sheet.edit.operario.sinasignar')}</button>` +
+    options.map(name => `<button class="operario-btn ${jornadaState.operario === name ? 'active' : ''}" onclick="selectJornadaOperario(${JSON.stringify(name)},this)">${name}</button>`).join('');
+
+  // Reset estado del botón submit
+  const btn = document.getElementById('jornada-save-btn');
+  btn.textContent = '✦ ' + t('sheet.jornada.btn.crear.short');
+  btn.disabled = false;
+
+  document.getElementById('jornada-overlay').classList.add('open');
+}
+
+async function submitCreateJornada() {
+  if (!editingService) { alert('No hay servicio padre activo.'); return; }
+  const numero = parseInt(document.getElementById('jornada-numero').value, 10);
+  const fecha = document.getElementById('jornada-fecha').value;
+  if (!numero || numero < 1) { alert(t('sheet.jornada.error.numero')); return; }
+  if (!fecha) { alert(t('sheet.jornada.error.fecha')); return; }
+
+  const btn = document.getElementById('jornada-save-btn');
+  btn.textContent = '⏳ ' + t('sheet.jornada.creating');
+  btn.disabled = true;
+
+  const parentProps = editingService.properties || {};
+  const nombreOriginal = parentProps['Nombre del servicio']?.title?.[0]?.plain_text || 'Servicio';
+  const nombreLimpio = nombreOriginal.replace(/—\s*Jornada\s*\d+\s*$/, '').trim();
+  const nombreNueva = `${nombreLimpio} — Jornada ${numero}`;
+
+  try {
+    const properties = {
+      'Nombre del servicio': { title: [{ text: { content: nombreNueva } }] },
+      'Estado': { select: { name: '📋 Pendiente' } },
+      'Tipo de registro': { select: { name: '📅 Jornada' } },
+      'Jornada N°': { number: numero },
+      'Fecha programada': { date: { start: fecha } }
+    };
+    const pais = parentProps['País']?.select?.name;
+    if (pais) properties['País'] = { select: { name: pais } };
+    const tipoSvc = parentProps['Tipo de servicio']?.select?.name;
+    if (tipoSvc) properties['Tipo de servicio'] = { select: { name: tipoSvc } };
+    const propuestaRel = parentProps['Propuesta']?.relation?.[0]?.id;
+    if (propuestaRel) properties['Propuesta'] = { relation: [{ id: propuestaRel }] };
+    const contactoRel = parentProps['Contacto']?.relation?.[0]?.id;
+    if (contactoRel) properties['Contacto'] = { relation: [{ id: contactoRel }] };
+    if (jornadaState.operario) {
+      properties['Operario App'] = { select: { name: jornadaState.operario } };
+      const userForOp = USERS.find(u => u.name === jornadaState.operario);
+      if (userForOp?.notionId) {
+        properties['Operario(s)'] = { people: [{ object: 'user', id: userForOp.notionId }] };
+      }
+    }
+
+    // La base Servicios usa data_source_id (multiple data sources)
+    await callNotion('pages', 'POST', {
+      parent: { type: 'data_source_id', data_source_id: '2fbc8a03-5c4f-445c-8516-71dd9b2eea78' },
+      properties
+    });
+
+    closeCreateJornadaSheet();
+    closeEditSheet();
+    await renderCoordServicios();
+    alert(t('sheet.jornada.success'));
+  } catch (e) {
+    btn.textContent = '✦ ' + t('sheet.jornada.btn.crear.short');
+    btn.disabled = false;
+    alert(t('sheet.jornada.error.crear') + ' ' + (e.message || ''));
+  }
 }
 
 function overlayClick(e) { if (e.target.id === 'edit-overlay') closeEditSheet(); }
