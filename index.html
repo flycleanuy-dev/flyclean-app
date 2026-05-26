@@ -4977,9 +4977,12 @@ async function renderCoordServicios() {
   const content = document.getElementById('coord-content');
   content.innerHTML = '<div style="text-align:center;padding:40px 0"><div class="spinner" style="margin:0 auto"></div></div>';
   document.getElementById('coord-week-strip').style.display = 'flex';
+  // Guard de race condition: si el usuario cambia de tab mientras este fetch está en vuelo,
+  // cuando termine NO sobrescribir el content del tab nuevo.
+  const myTab = 'servicios';
   try {
     const items = await fetchCoordItemsForMonth();
-    // EXCLUIR relevamientos (viven en su propio tab)
+    if (activeCoordTab !== myTab) return; // tab cambió → abortar
     _coordAllServices = items.filter(s => {
       const tipoReg = s.properties?.['Tipo de registro']?.select?.name || '';
       return !tipoReg.includes('Relevamiento');
@@ -4987,10 +4990,9 @@ async function renderCoordServicios() {
     if (!selectedCoordDay) selectedCoordDay = 'all';
     renderWeekStrip(_coordAllServices);
     renderCoordList();
-    // Bug fix: si el panel de filtros estaba abierto antes de que terminara el fetch,
-    // re-renderizar para que Estado/Operario aparezcan ahora que ya hay datos.
     if (_coordFiltersPanelOpen) renderCoordFiltersPanel();
   } catch (e) {
+    if (activeCoordTab !== myTab) return;
     content.innerHTML = `<div class="coord-empty">${t('coord.error.load')}<br><small>${e.message}</small></div>`;
   }
 }
@@ -4999,9 +5001,10 @@ async function renderCoordRelevamientos() {
   const content = document.getElementById('coord-content');
   content.innerHTML = '<div style="text-align:center;padding:40px 0"><div class="spinner" style="margin:0 auto"></div></div>';
   document.getElementById('coord-week-strip').style.display = 'flex';
+  const myTab = 'relevamientos';
   try {
     const items = await fetchCoordItemsForMonth();
-    // INCLUIR solo relevamientos
+    if (activeCoordTab !== myTab) return;
     _coordAllServices = items.filter(s => {
       const tipoReg = s.properties?.['Tipo de registro']?.select?.name || '';
       return tipoReg.includes('Relevamiento');
@@ -5011,6 +5014,7 @@ async function renderCoordRelevamientos() {
     renderCoordList();
     if (_coordFiltersPanelOpen) renderCoordFiltersPanel();
   } catch (e) {
+    if (activeCoordTab !== myTab) return;
     content.innerHTML = `<div class="coord-empty">${t('coord.error.load')}<br><small>${e.message}</small></div>`;
   }
 }
@@ -5327,14 +5331,17 @@ async function savePropEdit() {
 async function renderCoordContactos() {
   const content = document.getElementById('coord-content');
   content.innerHTML = '<div style="text-align:center;padding:40px 0"><div class="spinner" style="margin:0 auto"></div></div>';
+  const myTab = 'contactos';
   try {
     const cf = getCountryFilter();
     const queryBody = { sorts: [{ property: 'Nombre / Empresa', direction: 'ascending' }] };
     if (cf) queryBody.filter = cf;
     const data = await callNotion('databases/250115612de74e0582366549bbe5e389/query', 'POST', queryBody);
+    if (activeCoordTab !== myTab) return;
     _coordAllContacts = data.results || [];
     renderContactList(_coordAllContacts);
   } catch (e) {
+    if (activeCoordTab !== myTab) return;
     content.innerHTML = `<div class="coord-empty">${t('coord.error.contactos')}<br><small>${e.message}</small></div>`;
   }
 }
@@ -5376,7 +5383,15 @@ function filterContacts(val) {
 
 function coordContactCard(c) {
   const props = c.properties || {};
-  const nombre = props['Nombre / Empresa']?.title?.[0]?.plain_text || t('common.sinnombre');
+  const nombreRaw = props['Nombre / Empresa']?.title?.[0]?.plain_text;
+  let nombre;
+  if (nombreRaw) {
+    nombre = nombreRaw;
+  } else {
+    const idShort = (c.id || '').slice(0, 8);
+    nombre = `<span style="color:#c67e25">⚠️ Contacto sin nombre (${idShort})</span>`;
+    console.warn('[fc] coord: contacto sin nombre', c.id, 'properties keys:', Object.keys(props));
+  }
   const estado = props['Estado']?.select?.name || '';
   const tipo = props['Tipo de cliente']?.select?.name || '';
   const pais = props['País']?.select?.name || '';
@@ -5710,6 +5725,7 @@ async function openHistoryItem(type, id) {
 async function renderCoordPropuestas() {
   const content = document.getElementById('coord-content');
   content.innerHTML = '<div style="text-align:center;padding:40px 0"><div class="spinner" style="margin:0 auto"></div></div>';
+  const myTab = 'propuestas';
   try {
     const cf = getCountryFilter();
     const andConditions = [
@@ -5721,11 +5737,12 @@ async function renderCoordPropuestas() {
       filter: { and: andConditions },
       sorts: [{ property: 'Última interacción', direction: 'descending' }]
     });
+    if (activeCoordTab !== myTab) return;
     _coordAllProps = data.results || [];
     renderCoordPropuestasList();
-    // Bug fix: re-render panel filtros si estaba abierto durante el fetch.
     if (_coordFiltersPanelOpen) renderCoordFiltersPanel();
   } catch (e) {
+    if (activeCoordTab !== myTab) return;
     content.innerHTML = `<div class="coord-empty">${t('coord.error.props')}<br><small>${e.message}</small></div>`;
   }
 }
