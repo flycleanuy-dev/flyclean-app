@@ -1,6 +1,15 @@
-// Bumped a v3: nueva ventana stale-while-revalidate para /api/notion queries (modo offline mínimo).
-const CACHE = 'flyclean-v3';
-const SHELL = ['/', '/index.html', '/manifest.json', '/icon-192.png', '/icon-512.png'];
+// v4: sumar icons maskable + splash al app shell.
+const CACHE = 'flyclean-v4';
+const SHELL = [
+  '/',
+  '/index.html',
+  '/manifest.json',
+  '/icon-192.png',
+  '/icon-512.png',
+  '/icon-192-maskable.png',
+  '/icon-512-maskable.png',
+  '/splash.png'
+];
 const NOTION_CACHE = 'flyclean-notion-cache-v1';
 
 self.addEventListener('install', e => {
