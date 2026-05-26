@@ -210,6 +210,21 @@ body::before {
     padding: 2px 7px; border-radius: 999px;
     vertical-align: middle; margin-right: 6px;
   }
+  .cancelar-inicio-banner {
+    display: flex; justify-content: space-between; align-items: center;
+    gap: 10px; padding: 10px 12px; margin-bottom: 14px;
+    background: rgba(255, 200, 50, 0.08); border: 1px solid rgba(255, 200, 50, 0.4);
+    border-radius: var(--radius-sm); font-size: 13px; color: var(--text2);
+  }
+  .cancelar-inicio-banner button {
+    background: transparent; border: 1px solid var(--text3); color: var(--text2);
+    padding: 5px 10px; border-radius: 6px; font-size: 12px; font-weight: 600;
+    cursor: pointer; font-family: 'Exo 2', sans-serif; white-space: nowrap;
+    transition: all 0.15s;
+  }
+  .cancelar-inicio-banner button:hover, .cancelar-inicio-banner button:active {
+    color: var(--amber); border-color: var(--amber);
+  }
   .create-relev-btn { width: 100%; padding: 14px; background: var(--purple-dark); border: 2px solid var(--purple); border-radius: var(--radius-sm); color: var(--purple); font-size: 14px; font-weight: 700; cursor: pointer; font-family: 'Exo 2', sans-serif; transition: all 0.15s; margin-top: 4px; }
   .create-relev-btn:hover, .create-relev-btn:active { background: var(--purple); color: #fff; transform: scale(0.99); }
   .create-relev-btn:disabled { opacity: 0.6; cursor: not-allowed; }
@@ -1173,6 +1188,10 @@ const TRANSLATIONS = {
     'step.info.fecha': '📅 Fecha',
     'step.info.lugar': '📍 Lugar',
     'step.info.abrirmapa': 'Abrir mapa',
+    'step.iniciado.a.las': 'Iniciado a las',
+    'btn.cancelar.inicio': 'Cancelar inicio',
+    'cancelar.inicio.confirm': '¿Cancelar el inicio del servicio? Vas a tener que volver a iniciar cuando corresponda.',
+    'cancelar.inicio.blocked': 'Ya registraste el inicio efectivo del trabajo. No se puede cancelar (hay datos del trabajo en curso).',
     'step.info.tipo': '🪟 Tipo',
     'step.info.pais': '🌎 País',
     'step.info.m2': '📐 m² aprox.',
@@ -1552,6 +1571,10 @@ const TRANSLATIONS = {
     'step.info.fecha': '📅 Data',
     'step.info.lugar': '📍 Local',
     'step.info.abrirmapa': 'Abrir mapa',
+    'step.iniciado.a.las': 'Iniciado às',
+    'btn.cancelar.inicio': 'Cancelar início',
+    'cancelar.inicio.confirm': 'Cancelar o início do serviço? Você terá que iniciar novamente quando for o momento.',
+    'cancelar.inicio.blocked': 'Você já registrou o início efetivo do trabalho. Não é possível cancelar (há dados do trabalho em andamento).',
     'step.info.tipo': '🪟 Tipo',
     'step.info.pais': '🌎 País',
     'step.info.m2': '📐 m² aprox.',
@@ -2977,6 +3000,16 @@ function nextStep() {
   }
 }
 
+// Renderiza el banner de "Cancelar inicio" cuando el operario inició el servicio
+// pero todavía no apretó "Inicio efectivo" (la ventana donde des-iniciar es seguro).
+function renderCancelarBanner() {
+  if (!serviceState.horaInicio || serviceState.horaInicioEfectivo) return '';
+  return `<div class="cancelar-inicio-banner">
+    <span>⏱️ ${t('step.iniciado.a.las')} <strong>${serviceState.horaInicio}</strong></span>
+    <button onclick="cancelarInicio()">↩ ${t('btn.cancelar.inicio')}</button>
+  </div>`;
+}
+
 function renderStep() {
   const step = STEPS[currentStep];
   const props = currentService.properties;
@@ -3026,6 +3059,7 @@ function renderStep() {
   else if (step.id === 'checklist_pre') {
     const done = Object.values(serviceState.checklistPre).filter(Boolean).length;
     content.innerHTML = `
+      ${renderCancelarBanner()}
       <div class="step-title">${t('step.pre.title')}</div>
       <div class="step-sub">${t('step.pre.sub')}</div>
       <div class="hint hint-green">${t('step.pre.hint')}</div>
@@ -3046,6 +3080,7 @@ function renderStep() {
   // ── STEP 2: FOTOS ANTES ──
   else if (step.id === 'fotos_antes') {
     content.innerHTML = `
+      ${renderCancelarBanner()}
       <div class="step-title">${t('step.fotos.antes.title')}</div>
       <div class="step-sub">${t('step.fotos.antes.sub')}</div>
       <div class="hint hint-amber">${t('step.fotos.antes.hint')}</div>
@@ -3390,6 +3425,30 @@ async function iniciarServicio() {
     showSaving();
     persistServiceStateToLocal();
   } catch (e) { console.warn('Error al guardar inicio:', e); }
+  renderStep();
+}
+
+// Permite al operario "des-iniciar" un servicio si tocó iniciar por error.
+// Solo válido antes de Hora Inicio Efectivo (después hay datos reales del trabajo).
+async function cancelarInicio() {
+  if (serviceState.horaInicioEfectivo) {
+    alert(t('cancelar.inicio.blocked'));
+    return;
+  }
+  if (!confirm(t('cancelar.inicio.confirm'))) return;
+
+  serviceState.horaInicio = null;
+  serviceState.gpsInicio = null;
+  currentStep = 0;
+
+  try {
+    await queueableUpdateServiceProps(currentService.id, {
+      'Estado': { select: { name: '🔄 Asignado' } },
+      'Ubicación GPS': { url: null }
+    });
+    showSaving();
+  } catch (e) { console.warn('Error al cancelar inicio:', e); }
+  persistServiceStateToLocal();
   renderStep();
 }
 
