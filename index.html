@@ -907,6 +907,19 @@ body::before {
         <div class="edit-section-label" data-i18n="sheet.edit.section.fecha">FECHA PROGRAMADA</div>
         <input type="date" class="edit-date-input" id="edit-fecha" onchange="editState.fecha=this.value"/>
       </div>
+      <div class="edit-section">
+        <div class="edit-section-label" data-i18n="sheet.edit.section.hora">HORA DE INICIO PROGRAMADA</div>
+        <input type="time" class="edit-date-input" id="edit-hora" onchange="editState.hora=this.value"/>
+      </div>
+      <div class="edit-section">
+        <div class="edit-section-label" data-i18n="sheet.edit.section.lugar">LUGAR</div>
+        <input type="text" class="edit-date-input" id="edit-lugar" placeholder="Ej. Edificio Trento, Carrasco" oninput="editState.lugar=this.value"/>
+      </div>
+      <div class="edit-section">
+        <div class="edit-section-label" data-i18n="sheet.edit.section.mapa">LINK GOOGLE MAPS</div>
+        <div class="edit-section-hint" data-i18n="sheet.edit.section.mapa.hint" style="font-size:11px;color:var(--text3);margin-bottom:8px">Pegá el link de Google Maps (botón 'Compartir' → 'Copiar link'). El operario abre Maps/Waze directo.</div>
+        <input type="url" class="edit-date-input" id="edit-mapa" placeholder="https://maps.app.goo.gl/..." oninput="editState.mapa=this.value"/>
+      </div>
       <button class="edit-save-btn" id="edit-save-btn" data-i18n="btn.save.notion" onclick="saveServiceEdit()">💾 GUARDAR EN NOTION</button>
       <button class="report-pdf-btn" id="report-pdf-btn" onclick="generateReportPDF()" style="display:none">📄 Generar reporte</button>
       <div class="edit-section jornada-cta-wrap" id="edit-jornada-cta" style="display:none">
@@ -1158,6 +1171,8 @@ const TRANSLATIONS = {
     'step.inicio.recorded': '✅ Servicio iniciado a las',
     'step.info.nombre': '📋 Nombre',
     'step.info.fecha': '📅 Fecha',
+    'step.info.lugar': '📍 Lugar',
+    'step.info.abrirmapa': 'Abrir mapa',
     'step.info.tipo': '🪟 Tipo',
     'step.info.pais': '🌎 País',
     'step.info.m2': '📐 m² aprox.',
@@ -1316,6 +1331,10 @@ const TRANSLATIONS = {
     'sheet.edit.section.participantes': 'AYUDANTES',
     'sheet.edit.section.participantes.hint': 'Marcá a los que estuvieron en el campo además del piloto. Cada uno suma 1 jornal.',
     'sheet.edit.section.fecha': 'FECHA PROGRAMADA',
+    'sheet.edit.section.hora': 'HORA DE INICIO PROGRAMADA',
+    'sheet.edit.section.lugar': 'LUGAR',
+    'sheet.edit.section.mapa': 'LINK GOOGLE MAPS',
+    'sheet.edit.section.mapa.hint': "Pegá el link de Google Maps (botón 'Compartir' → 'Copiar link'). El operario abre Maps/Waze directo.",
     'sheet.edit.jornada.title': '📅 Continuar como jornada',
     'sheet.edit.jornada.sub': 'Si este servicio se extiende a otro día, creá una jornada para mañana.',
     'sheet.edit.jornada.btn': '📅 Crear jornada para otro día',
@@ -1531,6 +1550,8 @@ const TRANSLATIONS = {
     'step.inicio.recorded': '✅ Serviço iniciado às',
     'step.info.nombre': '📋 Nome',
     'step.info.fecha': '📅 Data',
+    'step.info.lugar': '📍 Local',
+    'step.info.abrirmapa': 'Abrir mapa',
     'step.info.tipo': '🪟 Tipo',
     'step.info.pais': '🌎 País',
     'step.info.m2': '📐 m² aprox.',
@@ -1689,6 +1710,10 @@ const TRANSLATIONS = {
     'sheet.edit.section.participantes': 'AJUDANTES',
     'sheet.edit.section.participantes.hint': 'Marque os que estiveram no campo além do piloto. Cada um soma 1 jornal.',
     'sheet.edit.section.fecha': 'DATA PROGRAMADA',
+    'sheet.edit.section.hora': 'HORÁRIO DE INÍCIO PROGRAMADO',
+    'sheet.edit.section.lugar': 'LOCAL',
+    'sheet.edit.section.mapa': 'LINK GOOGLE MAPS',
+    'sheet.edit.section.mapa.hint': "Cole o link do Google Maps (botão 'Compartilhar' → 'Copiar link'). O operário abre Maps/Waze direto.",
     'sheet.edit.jornada.title': '📅 Continuar como jornada',
     'sheet.edit.jornada.sub': 'Se este serviço se estende para outro dia, crie uma jornada para amanhã.',
     'sheet.edit.jornada.btn': '📅 Criar jornada para outro dia',
@@ -2137,10 +2162,11 @@ function persistServiceState({ immediateNotion = false } = {}) {
 function hydrateServiceStateFromNotion(svc) {
   const props = svc.properties || {};
   const fmtTime = iso => iso ? new Date(iso).toLocaleTimeString('es-UY', { hour: '2-digit', minute: '2-digit' }) : null;
-  const hi = props['Hora Inicio']?.date?.start;
+  // `Hora Inicio` en Notion ahora es la hora programada del coord. NO la usamos para
+  // rehidratar serviceState.horaInicio (ese campo refleja cuándo el operario apretó
+  // "Iniciar servicio" en su sesión, vive en localStorage).
   const hie = props['Hora Inicio Efectivo']?.date?.start;
   const hfe = props['Hora Fin Efectivo']?.date?.start;
-  if (hi) serviceState.horaInicio = fmtTime(hi);
   if (hie) serviceState.horaInicioEfectivo = fmtTime(hie);
   if (hfe) serviceState.horaCierreEfectivo = fmtTime(hfe);
 
@@ -2815,26 +2841,41 @@ function renderServices(services) {
 
   sub.textContent = `${services.length} ${services.length > 1 ? t('services.assigned.many') : t('services.assigned.one')}`;
 
+  // Sort por fecha programada + hora programada (asc). Servicios sin hora van al final del día.
+  services = services.slice().sort((a, b) => {
+    const fA = a.properties?.['Fecha programada']?.date?.start || '9999-12-31';
+    const fB = b.properties?.['Fecha programada']?.date?.start || '9999-12-31';
+    if (fA !== fB) return fA.localeCompare(fB);
+    const hA = a.properties?.['Hora Inicio']?.date?.start || '';
+    const hB = b.properties?.['Hora Inicio']?.date?.start || '';
+    if (!hA && hB) return 1;
+    if (hA && !hB) return -1;
+    return hA.localeCompare(hB);
+  });
+
   list.innerHTML = services.map((s, i) => {
     const props = s.properties;
     const nombre = props['Nombre del servicio']?.title?.[0]?.plain_text || t('common.sinnombre');
     const estado = props['Estado']?.select?.name || '📋 Pendiente';
     const fecha = props['Fecha programada']?.date?.start || '';
+    const horaInicio = props['Hora Inicio']?.date?.start || '';
     const tipo = props['Tipo de servicio']?.select?.name || '';
     const pais = props['País']?.select?.name || '';
     const tipoReg = props['Tipo de registro']?.select?.name || '';
     const jornadaN = props['Jornada N°']?.number;
     const isJornada = tipoReg.includes('Jornada');
+    const isPrueba = tipoReg.includes('Prueba');
 
     const dateLocale = currentLang === 'pt-BR' ? 'pt-BR' : 'es-UY';
     const fechaFmt = fecha ? new Date(fecha + 'T00:00:00').toLocaleDateString(dateLocale, { day: 'numeric', month: 'short' }) : '';
+    const horaFmt = (horaInicio && horaInicio.includes('T')) ? new Date(horaInicio).toTimeString().slice(0, 5) : '';
 
     return `
       <div class="service-card ${estado.includes('Pendiente') ? '' : ''}" onclick="openService(${i})" data-idx="${i}">
         <div class="service-estado ${getEstadoClass(estado)}">${estado}</div>
-        <div class="service-nombre">${nombre}</div>
+        <div class="service-nombre">${isPrueba ? `<span class="service-prueba-badge">${t('prueba.badge')}</span>` : ''}${nombre}</div>
         <div class="service-meta">
-          ${fechaFmt ? `<span class="service-tag">📅 ${fechaFmt}</span>` : ''}
+          ${fechaFmt ? `<span class="service-tag">📅 ${fechaFmt}${horaFmt ? ' · ' + horaFmt : ''}</span>` : ''}
           ${tipo ? `<span class="service-tag">${tipo}</span>` : ''}
           ${pais ? `<span class="service-tag">${pais}</span>` : ''}
         </div>
@@ -2941,6 +2982,10 @@ function renderStep() {
   const props = currentService.properties;
   const nombre = props['Nombre del servicio']?.title?.[0]?.plain_text || '';
   const fecha = props['Fecha programada']?.date?.start || '';
+  const horaInicio = props['Hora Inicio']?.date?.start || '';
+  const horaFmt = (horaInicio && horaInicio.includes('T')) ? new Date(horaInicio).toTimeString().slice(0, 5) : '';
+  const lugar = props['Lugar']?.rich_text?.[0]?.plain_text || '';
+  const mapa = props['Mapa']?.url || '';
   const tipo = props['Tipo de servicio']?.select?.name || '';
   const pais = props['País']?.select?.name || '';
   const tipoReg = props['Tipo de registro']?.select?.name || '';
@@ -2959,12 +3004,14 @@ function renderStep() {
       <div class="hint hint-blue">${t('step.inicio.hint')}</div>
       <div class="info-block">
         <div class="info-row"><span class="info-label">${t('step.info.nombre')}</span><span class="info-val">${nombre}</span></div>
-        <div class="info-row"><span class="info-label">${t('step.info.fecha')}</span><span class="info-val">${fechaFmt}</span></div>
+        <div class="info-row"><span class="info-label">${t('step.info.fecha')}</span><span class="info-val">${fechaFmt}${horaFmt ? ' · ' + horaFmt : ''}</span></div>
+        ${lugar ? `<div class="info-row"><span class="info-label">${t('step.info.lugar')}</span><span class="info-val">${lugar}</span></div>` : ''}
         <div class="info-row"><span class="info-label">${t('step.info.tipo')}</span><span class="info-val">${tipo}</span></div>
         <div class="info-row"><span class="info-label">${t('step.info.pais')}</span><span class="info-val">${pais}</span></div>
         ${m2 ? `<div class="info-row"><span class="info-label">${t('step.info.m2')}</span><span class="info-val">${m2} m²</span></div>` : ''}
         <div class="info-row"><span class="info-label">${t('step.info.tiporeg')}</span><span class="info-val">${tipoReg}</span></div>
       </div>
+      ${mapa ? `<a href="${mapa}" target="_blank" rel="noopener" class="btn-main btn-blue" style="display:block;text-align:center;text-decoration:none;margin:12px 0">🗺️ ${t('step.info.abrirmapa')}</a>` : ''}
       ${serviceState.horaInicio ? `<div class="ts-recorded"><div class="ts-label">${t('step.inicio.recorded')}</div><div class="ts-value">${serviceState.horaInicio}</div></div>` : ''}
     `;
 
@@ -3325,9 +3372,11 @@ async function iniciarServicio() {
 
   // M10 — Pedir GPS (no bloqueante: si lo rechaza, sigue sin GPS)
   const gps = await requestUserLocationWithConsent();
+  // `Hora Inicio` queda como hora PROGRAMADA por el coord (datetime).
+  // La hora real de inicio del operario se registra en `Hora Inicio Efectivo`
+  // via registrarInicioEfectivo(). Por eso acá solo movemos el Estado.
   const props = {
-    'Estado': { select: { name: '✈️ En curso' } },
-    'Hora Inicio': { date: { start: isoNow()} }
+    'Estado': { select: { name: '✈️ En curso' } }
   };
   if (gps) {
     // Property `Ubicación GPS` (tipo URL) en la DB Servicios.
@@ -4289,10 +4338,14 @@ function coordServiceCard(s) {
   const tipoReg = props['Tipo de registro']?.select?.name || '';
   const esJornada = jornadaN != null || tipoReg.includes('Jornada');
   const esPrueba = tipoReg.includes('Prueba');
+  const horaInicio = props['Hora Inicio']?.date?.start || '';
+  const horaFmt = (horaInicio && horaInicio.includes('T')) ? new Date(horaInicio).toTimeString().slice(0, 5) : '';
+  const lugar = props['Lugar']?.rich_text?.[0]?.plain_text || '';
   const estadoClass = estado.includes('Completado') ? 'estado-completado' : estado.includes('En curso') ? 'estado-en-curso' : estado.includes('Asignado') ? 'estado-asignado' : 'estado-pendiente';
   return `<div class="coord-service-card" style="cursor:pointer" onclick="openEditSheet('${s.id}')">
     <div class="coord-service-name">${esPrueba ? `<span class="service-prueba-badge">${t('prueba.badge')}</span>` : ''}${nombre}${esJornada && jornadaN != null ? ` <span style="color:var(--purple);font-size:12px">J${jornadaN}</span>` : ''}</div>
-    <div class="coord-service-meta"><span class="service-estado ${estadoClass}">${estado}</span>${tipo ? `<span class="coord-tag">${tipo}</span>` : ''}</div>
+    <div class="coord-service-meta"><span class="service-estado ${estadoClass}">${estado}</span>${horaFmt ? `<span class="coord-tag">🕐 ${horaFmt}</span>` : ''}${tipo ? `<span class="coord-tag">${tipo}</span>` : ''}</div>
+    ${lugar ? `<div class="coord-ops" style="color:var(--text3)">📍 ${lugar}</div>` : ''}
     <div class="coord-ops">👤 ${ops}</div>
     ${renderPhotoGallery(props)}
   </div>`;
@@ -4375,7 +4428,17 @@ async function openEditSheet(pageId) {
   const legacyOps = (props['Operario(s)']?.people || []).map(p => p.name);
   const operarioActual = operarioApp || legacyOps[0] || null;
   const participantesActuales = (props['Operarios participantes']?.multi_select || []).map(o => o.name);
-  editState = { estado: estadoActual, operario: operarioActual, fecha, participantes: participantesActuales };
+  // Hora Inicio (datetime) almacena la hora programada (ej. "2026-05-27T14:00:00.000Z").
+  // Extraemos solo HH:mm para el input type=time. Si no es datetime, hora queda vacía.
+  const horaInicioStart = props['Hora Inicio']?.date?.start || '';
+  let hora = '';
+  if (horaInicioStart && horaInicioStart.includes('T')) {
+    const d = new Date(horaInicioStart);
+    if (!isNaN(d)) hora = d.toTimeString().slice(0, 5);
+  }
+  const lugar = props['Lugar']?.rich_text?.[0]?.plain_text || '';
+  const mapa = props['Mapa']?.url || '';
+  editState = { estado: estadoActual, operario: operarioActual, fecha, hora, lugar, mapa, participantes: participantesActuales };
   document.getElementById('edit-sheet-title').textContent = nombre;
   const dateLocale = currentLang === 'pt-BR' ? 'pt-BR' : 'es-UY';
   document.getElementById('edit-sheet-sub').textContent = fecha ? new Date(fecha + 'T00:00:00').toLocaleDateString(dateLocale, { weekday: 'long', day: 'numeric', month: 'long' }) : t('sheet.alert.fecha');
@@ -4384,6 +4447,9 @@ async function openEditSheet(pageId) {
     `<button class="estado-btn ${editState.estado === e ? 'active' : ''}" onclick="selectEditEstado('${e}')">${e}</button>`
   ).join('');
   document.getElementById('edit-fecha').value = fecha;
+  document.getElementById('edit-hora').value = hora;
+  document.getElementById('edit-lugar').value = lugar;
+  document.getElementById('edit-mapa').value = mapa;
   document.getElementById('edit-save-btn').textContent = t('btn.save.notion');
   document.getElementById('edit-save-btn').disabled = false;
   const delBtn = document.getElementById('delete-svc-btn');
@@ -4574,6 +4640,15 @@ async function saveServiceEdit() {
     const props = {};
     if (editState.estado) props['Estado'] = { select: { name: editState.estado } };
     if (editState.fecha) props['Fecha programada'] = { date: { start: editState.fecha } };
+    // Hora Inicio: combinar fecha + hora en ISO con time. Si no hay hora, limpiar la property.
+    // Notamos la hora como "<fecha>T<hora>:00" sin Z (timezone local del cliente). Notion lo acepta como datetime.
+    if (editState.hora && editState.fecha) {
+      props['Hora Inicio'] = { date: { start: `${editState.fecha}T${editState.hora}:00` } };
+    } else if (!editState.hora) {
+      props['Hora Inicio'] = { date: null };
+    }
+    props['Lugar'] = editState.lugar ? { rich_text: [{ text: { content: editState.lugar } }] } : { rich_text: [] };
+    props['Mapa'] = editState.mapa ? { url: editState.mapa } : { url: null };
     props['Operario App'] = editState.operario ? { select: { name: editState.operario } } : { select: null };
     const userForOp = editState.operario ? USERS.find(u => u.name === editState.operario) : null;
     if (userForOp?.notionId) {
