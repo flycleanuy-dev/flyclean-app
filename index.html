@@ -1169,7 +1169,7 @@ const TRANSLATIONS = {
     'step.inicioef.title': '🕐 Inicio Efectivo',
     'step.inicioef.sub': 'Confirmá el clima y registrá el inicio de operativa',
     'step.clima.label': '🌤️ CONDICIÓN CLIMÁTICA',
-    'step.clima.hint': 'Seleccioná la condición actual antes de iniciar.',
+    'step.clima.hint': 'Marcá las condiciones actuales (podés elegir varias, ej. viento + KP).',
     'step.inicioef.hint': '🟠 Este botón registra el momento exacto en que el drone empieza a trabajar.',
     'step.inicioef.recorded': '✅ Inicio efectivo registrado',
     'step.inicioef.btn': '🕐 REGISTRAR INICIO EFECTIVO',
@@ -1531,7 +1531,7 @@ const TRANSLATIONS = {
     'step.inicioef.title': '🕐 Início Efetivo',
     'step.inicioef.sub': 'Confirme o clima e registre o início da operação',
     'step.clima.label': '🌤️ CONDIÇÃO CLIMÁTICA',
-    'step.clima.hint': 'Selecione a condição atual antes de iniciar.',
+    'step.clima.hint': 'Marque as condições atuais (pode escolher várias, ex. vento + KP).',
     'step.inicioef.hint': '🟠 Este botão registra o momento exato em que o drone começa a trabalhar.',
     'step.inicioef.recorded': '✅ Início efetivo registrado',
     'step.inicioef.btn': '🕐 REGISTRAR INÍCIO EFETIVO',
@@ -2032,7 +2032,7 @@ function resetServiceState() {
     notasPost: '',
     avance: '',
     resultado: '',
-    clima: '',
+    clima: [],
     isSaving: false,
     photos: { pre: [], post: [], relevamiento: [] },
     relevamiento: {
@@ -2073,7 +2073,8 @@ function buildIncrementalProps(s) {
   if (preFiles.length) properties['📸 Fotos pre-servicio'] = { files: preFiles };
   if (postFiles.length) properties['📸 Fotos post-servicio'] = { files: postFiles };
   if (relevFiles.length) properties['📸 Fotos relevamiento'] = { files: relevFiles };
-  if (s.clima) properties['Condición climática'] = { multi_select: [{ name: s.clima }] };
+  const climaArr = Array.isArray(s.clima) ? s.clima : (s.clima ? [s.clima] : []);
+  if (climaArr.length) properties['Condición climática'] = { multi_select: climaArr.map(name => ({ name })) };
   if (s.resultado) properties['Resultado'] = { select: { name: s.resultado } };
   return properties;
 }
@@ -2102,8 +2103,8 @@ function hydrateServiceStateFromNotion(svc) {
   if (hie) serviceState.horaInicioEfectivo = fmtTime(hie);
   if (hfe) serviceState.horaCierreEfectivo = fmtTime(hfe);
 
-  const clima = props['Condición climática']?.multi_select?.[0]?.name;
-  if (clima) serviceState.clima = clima;
+  const climaArr = (props['Condición climática']?.multi_select || []).map(o => o.name).filter(Boolean);
+  if (climaArr.length) serviceState.clima = climaArr;
   const resultado = props['Resultado']?.select?.name;
   if (resultado) serviceState.resultado = resultado;
 
@@ -2981,7 +2982,7 @@ function renderStep() {
         <div class="form-label">${t('step.clima.label')}</div>
         <div class="hint hint-blue" style="margin-bottom:10px">${t('step.clima.hint')}</div>
         <div class="clima-group">
-          ${climaOpts.map(o => `<div class="clima-opt ${o.cls} ${serviceState.clima === o.val ? 'selected' : ''}" onclick="selectClima('${o.val}')">${o.label}</div>`).join('')}
+          ${climaOpts.map(o => `<div class="clima-opt ${o.cls} ${(Array.isArray(serviceState.clima) ? serviceState.clima : []).includes(o.val) ? 'selected' : ''}" onclick="selectClima('${o.val}')">${o.label}</div>`).join('')}
         </div>
       </div>
 
@@ -3202,7 +3203,7 @@ function renderStep() {
         <div class="summary-row"><span class="summary-key">${t('summary.checklist.post')}</span><span class="summary-val">${postCount} / ${CHECKLIST_POST.length}</span></div>
         <div class="summary-row"><span class="summary-key">${t('summary.avance')}</span><span class="summary-val">${serviceState.avance ? serviceState.avance + '%' : '—'}</span></div>
         <div class="summary-row"><span class="summary-key">${t('summary.resultado')}</span><span class="summary-val">${serviceState.resultado || '—'}</span></div>
-        <div class="summary-row"><span class="summary-key">${t('summary.clima')}</span><span class="summary-val">${serviceState.clima || '—'}</span></div>
+        <div class="summary-row"><span class="summary-key">${t('summary.clima')}</span><span class="summary-val">${(Array.isArray(serviceState.clima) ? serviceState.clima : (serviceState.clima ? [serviceState.clima] : [])).join(', ') || '—'}</span></div>
       `;
     }
 
@@ -3349,7 +3350,12 @@ function relevToggleSugerido(val) {
 }
 
 function selectClima(val) {
-  serviceState.clima = val;
+  if (!Array.isArray(serviceState.clima)) {
+    serviceState.clima = serviceState.clima ? [serviceState.clima] : [];
+  }
+  const idx = serviceState.clima.indexOf(val);
+  if (idx === -1) serviceState.clima.push(val);
+  else serviceState.clima.splice(idx, 1);
   persistServiceState();
   renderStep();
 }
@@ -3391,8 +3397,9 @@ async function cerrarServicio() {
   if (serviceState.resultado) {
     properties['Resultado'] = { select: { name: serviceState.resultado } };
   }
-  if (serviceState.clima) {
-    properties['Condición climática'] = { multi_select: [{ name: serviceState.clima }] };
+  const climaArr = Array.isArray(serviceState.clima) ? serviceState.clima : (serviceState.clima ? [serviceState.clima] : []);
+  if (climaArr.length) {
+    properties['Condición climática'] = { multi_select: climaArr.map(name => ({ name })) };
   }
   const jornadaN = currentService?.properties?.['Jornada N°']?.number;
   const tipoReg = currentService?.properties?.['Tipo de registro']?.select?.name || '';
