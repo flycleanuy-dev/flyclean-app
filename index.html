@@ -204,9 +204,18 @@ body::before {
     padding: 2px 7px; border-radius: 999px;
     vertical-align: middle; margin-right: 6px;
   }
+  .service-prueba-badge {
+    display: inline-block; font-size: 10px; font-weight: 700; letter-spacing: 0.5px;
+    background: rgba(255, 105, 180, 0.15); color: #ff69b4;
+    padding: 2px 7px; border-radius: 999px;
+    vertical-align: middle; margin-right: 6px;
+  }
   .create-relev-btn { width: 100%; padding: 14px; background: var(--purple-dark); border: 2px solid var(--purple); border-radius: var(--radius-sm); color: var(--purple); font-size: 14px; font-weight: 700; cursor: pointer; font-family: 'Exo 2', sans-serif; transition: all 0.15s; margin-top: 4px; }
   .create-relev-btn:hover, .create-relev-btn:active { background: var(--purple); color: #fff; transform: scale(0.99); }
   .create-relev-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+  .create-prueba-btn { width: 100%; padding: 14px; background: rgba(255, 105, 180, 0.1); border: 2px solid #ff69b4; border-radius: var(--radius-sm); color: #ff69b4; font-size: 14px; font-weight: 700; cursor: pointer; font-family: 'Exo 2', sans-serif; transition: all 0.15s; margin-top: 4px; }
+  .create-prueba-btn:hover, .create-prueba-btn:active { background: #ff69b4; color: #fff; transform: scale(0.99); }
+  .create-prueba-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 
   .empty-state { padding: 60px 24px; text-align: center; }
   .empty-icon { font-size: 48px; margin-bottom: 16px; }
@@ -814,6 +823,7 @@ body::before {
   <div class="tab-bar">
     <div class="tab-btn active" id="tab-ordenes" data-i18n="services.tab.ordenes" onclick="setTab('ordenes')">📋 Órdenes</div>
     <div class="tab-btn" id="tab-jornadas" data-i18n="services.tab.jornadas" onclick="setTab('jornadas')">📅 Jornadas</div>
+    <div class="tab-btn" id="tab-pruebas" data-i18n="services.tab.pruebas" onclick="setTab('pruebas')">🧪 Pruebas</div>
     <div class="tab-btn" id="tab-relevamientos" data-i18n="services.tab.relevamientos" onclick="setTab('relevamientos')">🔍 Relevamientos</div>
   </div>
   <div id="alerts-banner-services"></div>
@@ -843,6 +853,7 @@ body::before {
   </div>
   <div class="coord-tab-bar">
     <div class="coord-tab active" id="ctab-servicios" data-i18n="coord.tab.servicios" onclick="setCoordTab('servicios')">📋 Servicios</div>
+    <div class="coord-tab" id="ctab-pruebas" data-i18n="coord.tab.pruebas" onclick="setCoordTab('pruebas')">🧪 Pruebas</div>
     <div class="coord-tab" id="ctab-relevamientos" data-i18n="coord.tab.relevamientos" onclick="setCoordTab('relevamientos')">🔍 Relevamientos</div>
     <div class="coord-tab" id="ctab-propuestas" data-i18n="coord.tab.propuestas" onclick="setCoordTab('propuestas')">💼 Propuestas</div>
     <div class="coord-tab" id="ctab-contactos" data-i18n="coord.tab.contactos" onclick="setCoordTab('contactos')">👥 Contactos</div>
@@ -1120,6 +1131,7 @@ const TRANSLATIONS = {
     'pinchange.success': '✅ PIN actualizado correctamente.',
     'services.tab.ordenes': '📋 Órdenes',
     'services.tab.jornadas': '📅 Jornadas',
+    'services.tab.pruebas': '🧪 Pruebas',
     'services.title': 'Mis servicios',
     'services.sub.loading': 'Cargando...',
     'services.sub.loading2': 'Cargando servicios...',
@@ -1231,6 +1243,16 @@ const TRANSLATIONS = {
     'coord.empty.month.relev': 'Sin relevamientos este mes.',
     'coord.tab.relevamientos': '🔍 Relevamientos',
     'services.tab.relevamientos': '🔍 Relevamientos',
+    'coord.tab.pruebas': '🧪 Pruebas',
+    'prueba.badge': 'PRUEBA',
+    'sheet.prop.pedir.prueba': 'Hacer prueba demo',
+    'sheet.prop.creating.prueba': 'Creando prueba…',
+    'coord.empty.day.pruebas': 'No hay pruebas para este día.',
+    'coord.empty.month.pruebas': 'No hay pruebas para este mes.',
+    'step.obs.resultado.prueba.label': '🧪 RESULTADO DE LA PRUEBA',
+    'prueba.resultado.avanza': '✅ Avanza a propuesta',
+    'prueba.resultado.nointeresado': '❌ No interesado',
+    'prueba.resultado.recontactar': '🔄 Re-contactar',
     'contact.history.title': '📜 HISTORIAL DEL CLIENTE',
     'contact.history.loading': 'Cargando historial...',
     'contact.history.empty': 'Sin actividad registrada aún.',
@@ -1482,6 +1504,7 @@ const TRANSLATIONS = {
     'pinchange.success': '✅ PIN atualizado com sucesso.',
     'services.tab.ordenes': '📋 Ordens',
     'services.tab.jornadas': '📅 Jornadas',
+    'services.tab.pruebas': '🧪 Testes',
     'services.title': 'Meus serviços',
     'services.sub.loading': 'Carregando...',
     'services.sub.loading2': 'Carregando serviços...',
@@ -1593,6 +1616,16 @@ const TRANSLATIONS = {
     'coord.empty.month.relev': 'Sem levantamentos este mês.',
     'coord.tab.relevamientos': '🔍 Levantamentos',
     'services.tab.relevamientos': '🔍 Levantamentos',
+    'coord.tab.pruebas': '🧪 Testes',
+    'prueba.badge': 'TESTE',
+    'sheet.prop.pedir.prueba': 'Fazer teste demo',
+    'sheet.prop.creating.prueba': 'Criando teste…',
+    'coord.empty.day.pruebas': 'Não há testes para este dia.',
+    'coord.empty.month.pruebas': 'Não há testes para este mês.',
+    'step.obs.resultado.prueba.label': '🧪 RESULTADO DO TESTE',
+    'prueba.resultado.avanza': '✅ Avança para proposta',
+    'prueba.resultado.nointeresado': '❌ Não interessado',
+    'prueba.resultado.recontactar': '🔄 Re-contatar',
     'contact.history.title': '📜 HISTÓRICO DO CLIENTE',
     'contact.history.loading': 'Carregando histórico...',
     'contact.history.empty': 'Sem atividade registrada ainda.',
@@ -1896,6 +1929,8 @@ function rerenderActiveContent() {
       renderStep();
     } else if (id === 'screen-coordinator' && currentUser) {
       if (activeCoordTab === 'servicios') renderCoordServicios();
+      else if (activeCoordTab === 'pruebas') renderCoordPruebas();
+      else if (activeCoordTab === 'relevamientos') renderCoordRelevamientos();
       else if (activeCoordTab === 'propuestas' && typeof renderCoordPropuestas === 'function') renderCoordPropuestas();
       else if (activeCoordTab === 'contactos') renderCoordContactos();
     } else if (id === 'screen-ceo' && currentUser) {
@@ -2032,6 +2067,7 @@ function resetServiceState() {
     notasPost: '',
     avance: '',
     resultado: '',
+    resultadoPrueba: '',
     clima: [],
     isSaving: false,
     photos: { pre: [], post: [], relevamiento: [] },
@@ -2075,7 +2111,12 @@ function buildIncrementalProps(s) {
   if (relevFiles.length) properties['📸 Fotos relevamiento'] = { files: relevFiles };
   const climaArr = Array.isArray(s.clima) ? s.clima : (s.clima ? [s.clima] : []);
   if (climaArr.length) properties['Condición climática'] = { multi_select: climaArr.map(name => ({ name })) };
-  if (s.resultado) properties['Resultado'] = { select: { name: s.resultado } };
+  const tipoReg = currentService?.properties?.['Tipo de registro']?.select?.name || '';
+  if (tipoReg.includes('Prueba')) {
+    if (s.resultadoPrueba) properties['Resultado prueba'] = { select: { name: s.resultadoPrueba } };
+  } else if (s.resultado) {
+    properties['Resultado'] = { select: { name: s.resultado } };
+  }
   return properties;
 }
 
@@ -2105,6 +2146,8 @@ function hydrateServiceStateFromNotion(svc) {
 
   const climaArr = (props['Condición climática']?.multi_select || []).map(o => o.name).filter(Boolean);
   if (climaArr.length) serviceState.clima = climaArr;
+  const resultadoPrueba = props['Resultado prueba']?.select?.name;
+  if (resultadoPrueba) serviceState.resultadoPrueba = resultadoPrueba;
   const resultado = props['Resultado']?.select?.name;
   if (resultado) serviceState.resultado = resultado;
 
@@ -2659,7 +2702,7 @@ async function pinConfirm() {
 
 function setTab(tab) {
   activeTab = tab;
-  ['ordenes', 'jornadas', 'relevamientos'].forEach(t => {
+  ['ordenes', 'jornadas', 'pruebas', 'relevamientos'].forEach(t => {
     const el = document.getElementById('tab-' + t);
     if (el) el.classList.toggle('active', t === tab);
   });
@@ -2669,7 +2712,7 @@ function setTab(tab) {
 function setCoordTab(tab) {
   activeCoordTab = tab;
   markUserActive();
-  ['servicios', 'relevamientos', 'propuestas', 'contactos', 'comunicaciones'].forEach(t => {
+  ['servicios', 'pruebas', 'relevamientos', 'propuestas', 'contactos', 'comunicaciones'].forEach(t => {
     const el = document.getElementById('ctab-' + t);
     if (el) el.classList.toggle('active', t === tab);
   });
@@ -2690,6 +2733,7 @@ function setCoordTab(tab) {
   if (monthNav) monthNav.classList.toggle('visible', tab === 'servicios' || tab === 'relevamientos');
 
   if (tab === 'servicios') renderCoordServicios();
+  else if (tab === 'pruebas') renderCoordPruebas();
   else if (tab === 'relevamientos') renderCoordRelevamientos();
   else if (tab === 'propuestas') renderCoordPropuestas();
   else if (tab === 'contactos') renderCoordContactos();
@@ -2747,10 +2791,12 @@ function renderServices(services) {
     const jornadaN = s.properties?.['Jornada N°']?.number;
     const isJornada = (jornadaN != null) || tipoReg.includes('Jornada');
     const isRelev = tipoReg.includes('Relevamiento');
+    const isPrueba = tipoReg.includes('Prueba');
     if (activeTab === 'jornadas') return isJornada;
     if (activeTab === 'relevamientos') return isRelev;
+    if (activeTab === 'pruebas') return isPrueba;
     // 'ordenes' (default): ni jornada ni relevamiento → solo órdenes de trabajo
-    return !isJornada && !isRelev;
+    return !isJornada && !isRelev && !isPrueba;
   });
   const sub = document.getElementById('services-sub');
   const list = document.getElementById('services-list');
@@ -3071,6 +3117,7 @@ function renderStep() {
     const jornadaN = currentService?.properties?.['Jornada N°']?.number;
     const tipoReg = currentService?.properties?.['Tipo de registro']?.select?.name || '';
     const isJornada = (jornadaN != null) || tipoReg.includes('Jornada');
+    const isPrueba = tipoReg.includes('Prueba');
     content.innerHTML = `
       <div class="step-title">${t('step.obs.title')}</div>
       <div class="step-sub">${t('step.obs.sub')}</div>
@@ -3090,10 +3137,13 @@ function renderStep() {
       ` : ''}
 
       <div class="field-group">
-        <div class="form-label">${t('step.obs.resultado.label')}</div>
+        <div class="form-label">${isPrueba ? t('step.obs.resultado.prueba.label') : t('step.obs.resultado.label')}</div>
         <div class="radio-group">
-          ${['✅ Exitoso', '⚠️ Con incidencia', '❌ Fallido'].map(r => `
-            <div class="radio-opt ${serviceState.resultado === r ? 'selected' : ''}" onclick="selectResultado('${r}')">${r}</div>
+          ${(isPrueba
+              ? [t('prueba.resultado.avanza'), t('prueba.resultado.nointeresado'), t('prueba.resultado.recontactar')]
+              : ['✅ Exitoso', '⚠️ Con incidencia', '❌ Fallido']
+            ).map(r => `
+            <div class="radio-opt ${(isPrueba ? serviceState.resultadoPrueba : serviceState.resultado) === r ? 'selected' : ''}" onclick="${isPrueba ? `selectResultadoPrueba('${r}')` : `selectResultado('${r}')`}">${r}</div>
           `).join('')}
         </div>
       </div>
@@ -3202,7 +3252,7 @@ function renderStep() {
         <div class="summary-row"><span class="summary-key">${t('summary.checklist.pre')}</span><span class="summary-val">${preCount} / ${CHECKLIST_PRE.length}</span></div>
         <div class="summary-row"><span class="summary-key">${t('summary.checklist.post')}</span><span class="summary-val">${postCount} / ${CHECKLIST_POST.length}</span></div>
         <div class="summary-row"><span class="summary-key">${t('summary.avance')}</span><span class="summary-val">${serviceState.avance ? serviceState.avance + '%' : '—'}</span></div>
-        <div class="summary-row"><span class="summary-key">${t('summary.resultado')}</span><span class="summary-val">${serviceState.resultado || '—'}</span></div>
+        <div class="summary-row"><span class="summary-key">${t('summary.resultado')}</span><span class="summary-val">${(currentService?.properties?.['Tipo de registro']?.select?.name || '').includes('Prueba') ? (serviceState.resultadoPrueba || '—') : (serviceState.resultado || '—')}</span></div>
         <div class="summary-row"><span class="summary-key">${t('summary.clima')}</span><span class="summary-val">${(Array.isArray(serviceState.clima) ? serviceState.clima : (serviceState.clima ? [serviceState.clima] : [])).join(', ') || '—'}</span></div>
       `;
     }
@@ -3327,6 +3377,12 @@ function toggleCheck(list, idx) {
   renderStep();
 }
 
+function selectResultadoPrueba(val) {
+  serviceState.resultadoPrueba = val;
+  persistServiceState();
+  renderStep();
+}
+
 function selectResultado(val) {
   serviceState.resultado = val;
   persistServiceState();
@@ -3394,15 +3450,20 @@ async function cerrarServicio() {
   if (serviceState.notasPost) {
     properties['Notas post-servicio'] = { rich_text: [{ text: { content: serviceState.notasPost } }] };
   }
-  if (serviceState.resultado) {
+  const jornadaN = currentService?.properties?.['Jornada N°']?.number;
+  const tipoReg = currentService?.properties?.['Tipo de registro']?.select?.name || '';
+  const isPrueba = tipoReg.includes('Prueba');
+  if (isPrueba) {
+    if (serviceState.resultadoPrueba) {
+      properties['Resultado prueba'] = { select: { name: serviceState.resultadoPrueba } };
+    }
+  } else if (serviceState.resultado) {
     properties['Resultado'] = { select: { name: serviceState.resultado } };
   }
   const climaArr = Array.isArray(serviceState.clima) ? serviceState.clima : (serviceState.clima ? [serviceState.clima] : []);
   if (climaArr.length) {
     properties['Condición climática'] = { multi_select: climaArr.map(name => ({ name })) };
   }
-  const jornadaN = currentService?.properties?.['Jornada N°']?.number;
-  const tipoReg = currentService?.properties?.['Tipo de registro']?.select?.name || '';
   if (((jornadaN != null) || tipoReg.includes('Jornada')) && serviceState.avance !== '') {
     properties['% de avance'] = { number: parseFloat(serviceState.avance) };
   }
@@ -3458,7 +3519,7 @@ function showDoneScreen() {
     <div class="done-stat-row"><span style="color:var(--text3)">${t('done.stat.inicio')}</span><span>${serviceState.horaInicio || '—'}</span></div>
     <div class="done-stat-row"><span style="color:var(--text3)">${t('done.stat.inicioef')}</span><span>${serviceState.horaInicioEfectivo || '—'}</span></div>
     <div class="done-stat-row"><span style="color:var(--text3)">${t('done.stat.cierreef')}</span><span>${serviceState.horaCierreEfectivo || '—'}</span></div>
-    <div class="done-stat-row"><span style="color:var(--text3)">${t('done.stat.resultado')}</span><span>${serviceState.resultado || '—'}</span></div>
+    <div class="done-stat-row"><span style="color:var(--text3)">${t('done.stat.resultado')}</span><span>${(currentService?.properties?.['Tipo de registro']?.select?.name || '').includes('Prueba') ? (serviceState.resultadoPrueba || '—') : (serviceState.resultado || '—')}</span></div>
     <div class="done-stat-row"><span style="color:var(--text3)">${t('done.stat.checklists')}</span><span>${preCount}/${CHECKLIST_PRE.length} · ${postCount}/${CHECKLIST_POST.length}</span></div>
   `;
   showScreen('done');
@@ -4120,7 +4181,8 @@ function renderCoordList() {
   const content = document.getElementById('coord-content');
   const dateLocale = currentLang === 'pt-BR' ? 'pt-BR' : 'es-UY';
   const isRelevTab = activeCoordTab === 'relevamientos';
-  const emptyMonthKey = isRelevTab ? 'coord.empty.month.relev' : 'coord.empty.month';
+  const isPruebasTab = activeCoordTab === 'pruebas';
+  const emptyMonthKey = isPruebasTab ? 'coord.empty.month.pruebas' : isRelevTab ? 'coord.empty.month.relev' : 'coord.empty.month';
 
   const filtered = applyCoordFilters(_coordAllServices, { isProps: false });
   if (!filtered.length) {
@@ -4226,9 +4288,10 @@ function coordServiceCard(s) {
   const jornadaN = props['Jornada N°']?.number;
   const tipoReg = props['Tipo de registro']?.select?.name || '';
   const esJornada = jornadaN != null || tipoReg.includes('Jornada');
+  const esPrueba = tipoReg.includes('Prueba');
   const estadoClass = estado.includes('Completado') ? 'estado-completado' : estado.includes('En curso') ? 'estado-en-curso' : estado.includes('Asignado') ? 'estado-asignado' : 'estado-pendiente';
   return `<div class="coord-service-card" style="cursor:pointer" onclick="openEditSheet('${s.id}')">
-    <div class="coord-service-name">${nombre}${esJornada && jornadaN != null ? ` <span style="color:var(--purple);font-size:12px">J${jornadaN}</span>` : ''}</div>
+    <div class="coord-service-name">${esPrueba ? `<span class="service-prueba-badge">${t('prueba.badge')}</span>` : ''}${nombre}${esJornada && jornadaN != null ? ` <span style="color:var(--purple);font-size:12px">J${jornadaN}</span>` : ''}</div>
     <div class="coord-service-meta"><span class="service-estado ${estadoClass}">${estado}</span>${tipo ? `<span class="coord-tag">${tipo}</span>` : ''}</div>
     <div class="coord-ops">👤 ${ops}</div>
     ${renderPhotoGallery(props)}
@@ -5044,7 +5107,29 @@ async function renderCoordServicios() {
     if (activeCoordTab !== myTab) return; // tab cambió → abortar
     _coordAllServices = items.filter(s => {
       const tipoReg = s.properties?.['Tipo de registro']?.select?.name || '';
-      return !tipoReg.includes('Relevamiento');
+      return !tipoReg.includes('Relevamiento') && !tipoReg.includes('Prueba');
+    });
+    if (!selectedCoordDay) selectedCoordDay = 'all';
+    renderWeekStrip(_coordAllServices);
+    renderCoordList();
+    if (_coordFiltersPanelOpen) renderCoordFiltersPanel();
+  } catch (e) {
+    if (activeCoordTab !== myTab) return;
+    content.innerHTML = `<div class="coord-empty">${t('coord.error.load')}<br><small>${e.message}</small></div>`;
+  }
+}
+
+async function renderCoordPruebas() {
+  const content = document.getElementById('coord-content');
+  content.innerHTML = '<div style="text-align:center;padding:40px 0"><div class="spinner" style="margin:0 auto"></div></div>';
+  document.getElementById('coord-week-strip').style.display = 'flex';
+  const myTab = 'pruebas';
+  try {
+    const items = await fetchCoordItemsForMonth();
+    if (activeCoordTab !== myTab) return;
+    _coordAllServices = items.filter(s => {
+      const tipoReg = s.properties?.['Tipo de registro']?.select?.name || '';
+      return tipoReg.includes('Prueba');
     });
     if (!selectedCoordDay) selectedCoordDay = 'all';
     renderWeekStrip(_coordAllServices);
@@ -5169,6 +5254,9 @@ function openPropSheet(pageId) {
     `<div class="edit-section" id="create-relev-section" style="padding-bottom:0;display:none">
       <button class="create-relev-btn" id="create-relev-btn" onclick="createRelevamientoFromPropuesta('${pageId}')"></button>
      </div>` +
+    `<div class="edit-section" id="create-prueba-section" style="padding-bottom:0;display:none">
+      <button class="create-prueba-btn" id="create-prueba-btn" onclick="createPruebaFromPropuesta('${pageId}')"></button>
+     </div>` +
     `<div class="edit-section" id="create-svc-section" style="padding-bottom:0;display:none">
       <button class="create-svc-btn" id="create-svc-btn" onclick="createServicioFromPropuesta('${pageId}')"></button>
      </div>`;
@@ -5259,6 +5347,46 @@ async function createServicioFromPropuesta(propPageId) {
   }
 }
 
+async function createPruebaFromPropuesta(propPageId) {
+  const prop = (editingProp && editingProp.id === propPageId) ? editingProp : _coordAllProps?.find(p => p.id === propPageId);
+  if (!prop) { alert('Propuesta no encontrada en memoria. Recargá la lista.'); return; }
+  const pp = prop.properties || {};
+  const nombrePropuesta = pp['Nombre de propuesta']?.title?.[0]?.plain_text || t('common.sinnombre');
+  const pais = pp['País']?.select?.name || '';
+  const contactRel = pp['Contacto']?.relation?.[0]?.id;
+
+  const btn = document.getElementById('create-prueba-btn');
+  if (btn) { btn.textContent = '⏳ ' + t('sheet.prop.creating.prueba'); btn.disabled = true; }
+
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    const properties = {
+      'Nombre del servicio': { title: [{ text: { content: '🧪 Prueba — ' + nombrePropuesta } }] },
+      'Estado': { select: { name: '📋 Pendiente' } },
+      'Tipo de registro': { select: { name: '🧪 Prueba' } },
+      'Fecha programada': { date: { start: today } },
+      'Propuesta': { relation: [{ id: propPageId }] }
+    };
+    if (pais) properties['País'] = { select: { name: pais } };
+    if (contactRel) properties['Contacto'] = { relation: [{ id: contactRel }] };
+
+    const created = await callNotion('pages', 'POST', {
+      parent: { type: 'data_source_id', data_source_id: '2fbc8a03-5c4f-445c-8516-71dd9b2eea78' },
+      properties
+    });
+
+    closePropSheet();
+    if (typeof setCoordTab === 'function') setCoordTab('pruebas');
+    await renderCoordPruebas();
+    setTimeout(() => {
+      if (typeof openEditSheet === 'function') openEditSheet(created.id);
+    }, 400);
+  } catch (e) {
+    if (btn) { btn.textContent = '🧪 ' + t('sheet.prop.pedir.prueba'); btn.disabled = false; }
+    alert(t('sheet.prop.create.error') + ' ' + e.message);
+  }
+}
+
 async function createRelevamientoFromPropuesta(propPageId) {
   const prop = (editingProp && editingProp.id === propPageId) ? editingProp : _coordAllProps?.find(p => p.id === propPageId);
   if (!prop) { alert('Propuesta no encontrada en memoria. Recargá la lista.'); return; }
@@ -5337,6 +5465,17 @@ function updateCreateSvcBtnVisibility() {
     if (showRelev) {
       relevBtn.textContent = '🔍 ' + t('sheet.prop.pedir.relev');
       relevBtn.disabled = false;
+    }
+  }
+
+  const pruebaSection = document.getElementById('create-prueba-section');
+  const pruebaBtn = document.getElementById('create-prueba-btn');
+  if (pruebaSection && pruebaBtn) {
+    const showPrueba = ESTADOS_PRE_VENTA.includes(estado);
+    pruebaSection.style.display = showPrueba ? '' : 'none';
+    if (showPrueba) {
+      pruebaBtn.textContent = '🧪 ' + t('sheet.prop.pedir.prueba');
+      pruebaBtn.disabled = false;
     }
   }
 }
