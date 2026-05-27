@@ -216,6 +216,17 @@ body::before {
     background: rgba(255, 200, 50, 0.08); border: 1px solid rgba(255, 200, 50, 0.4);
     border-radius: var(--radius-sm); font-size: 13px; color: var(--text2);
   }
+  .cargar-mas-wrap { padding: 16px; text-align: center; }
+  .cargar-mas-btn {
+    width: 100%; padding: 12px 16px;
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); color: var(--text2);
+    font-size: 13px; font-weight: 600; cursor: pointer;
+    font-family: 'Exo 2', sans-serif; transition: all 0.15s;
+  }
+  .cargar-mas-btn:hover, .cargar-mas-btn:active {
+    border-color: var(--green); color: var(--green); background: rgba(0,201,141,0.06);
+  }
   .cancelar-inicio-banner button {
     background: transparent; border: 1px solid var(--text3); color: var(--text2);
     padding: 5px 10px; border-radius: 6px; font-size: 12px; font-weight: 600;
@@ -1283,6 +1294,8 @@ const TRANSLATIONS = {
     'sheet.prop.creating.prueba': 'Creando prueba…',
     'coord.empty.day.pruebas': 'No hay pruebas para este día.',
     'coord.empty.month.pruebas': 'No hay pruebas para este mes.',
+    'coord.cargar.mas': 'Cargar {n} más',
+    'coord.restantes': '{n} restantes',
     'step.obs.resultado.prueba.label': '🧪 RESULTADO DE LA PRUEBA',
     'prueba.resultado.avanza': '✅ Avanza a propuesta',
     'prueba.resultado.nointeresado': '❌ No interesado',
@@ -1666,6 +1679,8 @@ const TRANSLATIONS = {
     'sheet.prop.creating.prueba': 'Criando teste…',
     'coord.empty.day.pruebas': 'Não há testes para este dia.',
     'coord.empty.month.pruebas': 'Não há testes para este mês.',
+    'coord.cargar.mas': 'Carregar mais {n}',
+    'coord.restantes': '{n} restantes',
     'step.obs.resultado.prueba.label': '🧪 RESULTADO DO TESTE',
     'prueba.resultado.avanza': '✅ Avança para proposta',
     'prueba.resultado.nointeresado': '❌ Não interessado',
@@ -2090,6 +2105,12 @@ let _allServices = [];
 let activeCoordTab = 'servicios';
 let selectedCoordDay = null;
 let coordMonthOffset = 0;
+// Paginación lazy del coord: solo se renderizan los primeros N items + botón "Cargar más".
+// Se resetea automáticamente al cambiar tab/filtro/sort (todos los renderCoord* lo reset
+// cuando se llaman sin keepLimit=true). cargarMasCoord() es el único que mantiene el limit.
+const COORD_PAGE_SIZE = 15;
+let _coordVisibleLimit = COORD_PAGE_SIZE;
+
 let _coordAllServices = [];
 let _operarioOptions = null;
 let _coordAllProps = [];
@@ -4285,24 +4306,44 @@ function setCoordDay(day) {
   renderCoordList();
 }
 
-function renderCoordList() {
+function renderCargarMasButton(remaining) {
+  if (remaining <= 0) return '';
+  const next = Math.min(COORD_PAGE_SIZE, remaining);
+  return `<div class="cargar-mas-wrap">
+    <button class="cargar-mas-btn" onclick="cargarMasCoord()">↓ ${t('coord.cargar.mas').replace('{n}', next)} · ${t('coord.restantes').replace('{n}', remaining)}</button>
+  </div>`;
+}
+
+function cargarMasCoord() {
+  _coordVisibleLimit += COORD_PAGE_SIZE;
+  // Re-render según tab activa, manteniendo el limit incrementado.
+  if (activeCoordTab === 'propuestas') renderCoordPropuestasList(true);
+  else if (activeCoordTab === 'contactos') renderContactList(_coordAllContacts, true);
+  else renderCoordList(true);
+}
+
+function renderCoordList(keepLimit) {
+  if (!keepLimit) _coordVisibleLimit = COORD_PAGE_SIZE;
   const content = document.getElementById('coord-content');
   const dateLocale = currentLang === 'pt-BR' ? 'pt-BR' : 'es-UY';
   const isRelevTab = activeCoordTab === 'relevamientos';
   const isPruebasTab = activeCoordTab === 'pruebas';
   const emptyMonthKey = isPruebasTab ? 'coord.empty.month.pruebas' : isRelevTab ? 'coord.empty.month.relev' : 'coord.empty.month';
 
-  const filtered = applyCoordFilters(_coordAllServices, { isProps: false });
-  if (!filtered.length) {
+  const filteredAll = applyCoordFilters(_coordAllServices, { isProps: false });
+  if (!filteredAll.length) {
     content.innerHTML = `<div class="coord-empty">${getActiveFilterCount() ? '🔎 Sin resultados para los filtros actuales' : t(emptyMonthKey)}</div>`;
     return;
   }
+  const total = filteredAll.length;
+  const filtered = filteredAll.slice(0, _coordVisibleLimit);
+  const remaining = total - filtered.length;
 
   // Para sort cronológico (date-asc / date-desc) agrupamos en buckets temporales con headers
   // semánticos. Para sort alfabético mostramos una lista plana — los headers no aportan.
   const isChronological = coordFilters.sort === 'date-asc' || coordFilters.sort === 'date-desc';
   if (!isChronological) {
-    content.innerHTML = '<div class="day-group">' + filtered.map(coordServiceCard).join('') + '</div>';
+    content.innerHTML = '<div class="day-group">' + filtered.map(coordServiceCard).join('') + '</div>' + renderCargarMasButton(remaining);
     return;
   }
 
@@ -4347,7 +4388,7 @@ function renderCoordList() {
     const isHoy = b === 'hoy';
     return `<div class="day-group"><div class="day-label ${isHoy ? 'today' : ''}">${bucketLabels[b]} (${items.length})</div>${items.map(coordServiceCard).join('')}</div>`;
   }).filter(Boolean).join('');
-  content.innerHTML = html || `<div class="coord-empty">${t(emptyMonthKey)}</div>`;
+  content.innerHTML = (html || `<div class="coord-empty">${t(emptyMonthKey)}</div>`) + renderCargarMasButton(remaining);
 }
 
 function extractServiceFiles(props) {
@@ -5678,39 +5719,41 @@ async function renderCoordContactos() {
   }
 }
 
-function renderContactList(contacts) {
+function renderContactList(contacts, keepLimit) {
+  if (!keepLimit) _coordVisibleLimit = COORD_PAGE_SIZE;
   const content = document.getElementById('coord-content');
   const searchVal = document.getElementById('contact-search-input')?.value?.toLowerCase() || '';
-  const filtered = searchVal
-    ? contacts.filter(c => (c.properties?.['Nombre / Empresa']?.title?.[0]?.plain_text || '').toLowerCase().includes(searchVal))
+  const filteredAll = searchVal
+    ? contacts.filter(c => {
+        const nombre = (c.properties?.['Nombre / Empresa']?.title?.[0]?.plain_text || '').toLowerCase();
+        const ciudad = (c.properties?.['Ciudad / Zona']?.rich_text?.[0]?.plain_text || '').toLowerCase();
+        return nombre.includes(searchVal) || ciudad.includes(searchVal);
+      })
     : contacts;
+  const total = filteredAll.length;
+  const filtered = filteredAll.slice(0, _coordVisibleLimit);
+  const remaining = total - filtered.length;
 
   const listHTML = filtered.length
-    ? filtered.map(c => coordContactCard(c)).join('')
+    ? filtered.map(c => coordContactCard(c)).join('') + renderCargarMasButton(remaining)
     : `<div class="coord-empty" style="margin-top:0">${t('coord.empty.search')}</div>`;
 
   content.innerHTML =
     `<div class="contact-search-wrap"><input class="contact-search" id="contact-search-input" type="text" placeholder="${t('coord.search.contacts.placeholder')}" oninput="filterContacts(this.value)" value="${searchVal}"/></div>` +
     `<div style="padding:10px 16px 0"><button class="nueva-prop-btn" onclick="openNewContactSheet()">${t('coord.new.contact')}</button></div>` +
     `<div style="height:4px"></div>` + listHTML;
+  // Re-foco al input para no perder cursor durante search
+  const inp = document.getElementById('contact-search-input');
+  if (inp && document.activeElement !== inp && searchVal) {
+    inp.focus();
+    inp.setSelectionRange(searchVal.length, searchVal.length);
+  }
 }
 
 function filterContacts(val) {
-  const lower = val.toLowerCase();
-  const filtered = lower
-    ? _coordAllContacts.filter(c => {
-        const nombre = (c.properties?.['Nombre / Empresa']?.title?.[0]?.plain_text || '').toLowerCase();
-        const ciudad = (c.properties?.['Ciudad / Zona']?.rich_text?.[0]?.plain_text || '').toLowerCase();
-        return nombre.includes(lower) || ciudad.includes(lower);
-      })
-    : _coordAllContacts;
-  const content = document.getElementById('coord-content');
-  const existing = content.querySelectorAll('.contact-card, .coord-empty');
-  existing.forEach(el => el.remove());
-  const html = filtered.length
-    ? filtered.map(c => coordContactCard(c)).join('')
-    : `<div class="coord-empty" style="margin-top:8px">${t('coord.empty.search')}</div>`;
-  content.insertAdjacentHTML('beforeend', html);
+  // Cambio de búsqueda → reset paginación + re-render unificado (reusa renderContactList).
+  _coordVisibleLimit = COORD_PAGE_SIZE;
+  renderContactList(_coordAllContacts, true);
 }
 
 function coordContactCard(c) {
@@ -6079,7 +6122,8 @@ async function renderCoordPropuestas() {
   }
 }
 
-function renderCoordPropuestasList() {
+function renderCoordPropuestasList(keepLimit) {
+  if (!keepLimit) _coordVisibleLimit = COORD_PAGE_SIZE;
   const content = document.getElementById('coord-content');
   if (!_coordAllProps.length) {
     content.innerHTML =
@@ -6087,13 +6131,16 @@ function renderCoordPropuestasList() {
       `<div class="coord-empty">${t('coord.empty.props')}</div>`;
     return;
   }
-  const filtered = applyCoordFilters(_coordAllProps, { isProps: true });
-  if (!filtered.length) {
+  const filteredAll = applyCoordFilters(_coordAllProps, { isProps: true });
+  if (!filteredAll.length) {
     content.innerHTML =
       `<div style="padding:12px 16px 0"><button class="nueva-prop-btn" onclick="openNewPropSheet()">${t('coord.new.prop')}</button></div>` +
       `<div class="coord-empty">${getActiveFilterCount() ? '🔎 Sin propuestas para los filtros actuales' : t('coord.empty.props')}</div>`;
     return;
   }
+  const total = filteredAll.length;
+  const filtered = filteredAll.slice(0, _coordVisibleLimit);
+  const remaining = total - filtered.length;
   const dateLocale = currentLang === 'pt-BR' ? 'pt-BR' : 'es-UY';
   const cards = filtered.map(p => {
     const props = p.properties || {};
@@ -6132,7 +6179,7 @@ function renderCoordPropuestasList() {
   }).join('');
   content.innerHTML =
     `<div style="padding:12px 16px 0"><button class="nueva-prop-btn" onclick="openNewPropSheet()">${t('coord.new.prop')}</button></div>` +
-    '<div style="height:8px"></div>' + cards;
+    '<div style="height:8px"></div>' + cards + renderCargarMasButton(remaining);
 }
 
 // ─────────────────────────────────────────────
