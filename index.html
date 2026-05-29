@@ -1203,6 +1203,8 @@ const TRANSLATIONS = {
     'btn.cancelar.inicio': 'Cancelar inicio',
     'cancelar.inicio.confirm': '¿Cancelar el inicio del servicio? Vas a tener que volver a iniciar cuando corresponda.',
     'cancelar.inicio.blocked': 'Ya registraste el inicio efectivo del trabajo. No se puede cancelar (hay datos del trabajo en curso).',
+    'close.need.resultado': 'Marcá un resultado (Exitoso / Con incidencia / Fallido) antes de cerrar.',
+    'close.prueba.need.resultado': 'Marcá un resultado de la prueba (Avanza / No interesado / Re-contactar) antes de cerrar.',
     'step.info.tipo': '🪟 Tipo',
     'step.info.pais': '🌎 País',
     'step.info.m2': '📐 m² aprox.',
@@ -1588,6 +1590,8 @@ const TRANSLATIONS = {
     'btn.cancelar.inicio': 'Cancelar início',
     'cancelar.inicio.confirm': 'Cancelar o início do serviço? Você terá que iniciar novamente quando for o momento.',
     'cancelar.inicio.blocked': 'Você já registrou o início efetivo do trabalho. Não é possível cancelar (há dados do trabalho em andamento).',
+    'close.need.resultado': 'Marque um resultado (Bem-sucedido / Com incidência / Falho) antes de fechar.',
+    'close.prueba.need.resultado': 'Marque um resultado do teste (Avança / Não interessado / Re-contatar) antes de fechar.',
     'step.info.tipo': '🪟 Tipo',
     'step.info.pais': '🌎 País',
     'step.info.m2': '📐 m² aprox.',
@@ -2315,15 +2319,20 @@ async function uploadPhoto(file, fotoType) {
   serviceState.photos[fotoType].push(photo);
   renderStep();
 
+  // Capturamos el serviceId al inicio del upload para que el resultado se
+  // asocie al servicio correcto aunque el operario cambie de servicio durante
+  // el PUT a R2. Si al volver currentService es otro, no mutamos el state
+  // visible — la foto queda guardada al servicio original via persistServiceState.
+  const targetServiceId = currentService?.id;
   try {
-    if (!currentService?.id) throw new Error('Sin servicio activo');
+    if (!targetServiceId) throw new Error('Sin servicio activo');
 
     // 1. Pedir URL presignada
     const resp = await fetch('/api/upload-url', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        serviceId: currentService.id,
+        serviceId: targetServiceId,
         fotoType,
         filename: file.name,
         contentType: mime
@@ -2343,15 +2352,35 @@ async function uploadPhoto(file, fotoType) {
     });
     if (!putResp.ok) throw new Error('Upload ' + putResp.status);
 
-    photo.status = 'done';
-    photo.publicUrl = publicUrl;
+    finalizePhotoUpload(targetServiceId, fotoType, id, { status: 'done', publicUrl });
+  } catch (e) {
+    finalizePhotoUpload(targetServiceId, fotoType, id, { status: 'error', error: e.message || 'Error' });
+  }
+}
+
+// Aplica el resultado final de un upload al photo identificado por id, sin importar
+// si el operario sigue en el mismo servicio o se movió a otro. Si está en el mismo,
+// muta in-memory + persiste + re-renderiza. Si cambió, parchea solo el localStorage
+// del servicio original (la mutación se hace visible al reabrirlo).
+function finalizePhotoUpload(targetServiceId, fotoType, photoId, patch) {
+  if (currentService?.id === targetServiceId) {
+    const arr = serviceState.photos?.[fotoType] || [];
+    const ph = arr.find(p => p.id === photoId);
+    if (ph) Object.assign(ph, patch);
     persistServiceState();
     renderStep();
-  } catch (e) {
-    photo.status = 'error';
-    photo.error = e.message || 'Error';
-    renderStep();
+    return;
   }
+  try {
+    const key = storageKeyForService(targetServiceId);
+    const raw = localStorage.getItem(key);
+    if (!raw) return;
+    const st = JSON.parse(raw);
+    const arr = st.photos?.[fotoType] || [];
+    const idx = arr.findIndex(p => p.id === photoId);
+    if (idx >= 0) arr[idx] = { ...arr[idx], ...patch };
+    localStorage.setItem(key, JSON.stringify(st));
+  } catch (_) {}
 }
 
 function retryPhoto(fotoType, photoId) {
@@ -3124,6 +3153,7 @@ function renderStep() {
       { val: '🔴 Suspendido +KP4', label: '🔴 Suspendido — KP +4', cls: 'red' },
     ];
     content.innerHTML = `
+      ${renderCancelarBanner()}
       <div class="step-title">${t('step.inicioef.title')}</div>
       <div class="step-sub">${t('step.inicioef.sub')}</div>
 
@@ -3568,6 +3598,19 @@ async function cerrarServicio() {
     return;
   }
 
+  // Validar resultado obligatorio. Relevamientos no tienen flow de resultado;
+  // las pruebas usan 'Resultado prueba'; el resto usa 'Resultado' estándar.
+  const tipoReg = currentService?.properties?.['Tipo de registro']?.select?.name || '';
+  const isPrueba = tipoReg.includes('Prueba');
+  const isRelev = tipoReg.includes('Relevamiento');
+  if (!isRelev) {
+    const valor = isPrueba ? serviceState.resultadoPrueba : serviceState.resultado;
+    if (!valor) {
+      alert(t(isPrueba ? 'close.prueba.need.resultado' : 'close.need.resultado'));
+      return;
+    }
+  }
+
   const btn = document.querySelector('.btn-red');
   if (btn) { btn.textContent = t('btn.saving.notion'); btn.disabled = true; }
 
@@ -3580,8 +3623,6 @@ async function cerrarServicio() {
     properties['Notas post-servicio'] = { rich_text: [{ text: { content: serviceState.notasPost } }] };
   }
   const jornadaN = currentService?.properties?.['Jornada N°']?.number;
-  const tipoReg = currentService?.properties?.['Tipo de registro']?.select?.name || '';
-  const isPrueba = tipoReg.includes('Prueba');
   if (isPrueba) {
     if (serviceState.resultadoPrueba) {
       properties['Resultado prueba'] = { select: { name: serviceState.resultadoPrueba } };
