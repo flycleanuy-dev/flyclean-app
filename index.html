@@ -1155,6 +1155,9 @@ const TRANSLATIONS = {
     'login.back': '‹ Cambiar región',
     'pin.sub': 'Ingresá tu PIN de 4 dígitos',
     'pin.error.wrong': 'PIN incorrecto. Intentá de nuevo.',
+    'pin.error.wrong.attempt': 'PIN incorrecto · intento {n}',
+    'gps.locating.title': 'Localizando…',
+    'gps.locating.body': 'Tu navegador está buscando tu ubicación. Puede tardar unos segundos.',
     'pin.back.user': '← Cambiar usuario',
     'pin.back.region': '← Cambiar región',
     'pinchange.title': 'Cambiar PIN',
@@ -1542,6 +1545,9 @@ const TRANSLATIONS = {
     'login.back': '‹ Trocar região',
     'pin.sub': 'Digite seu PIN de 4 dígitos',
     'pin.error.wrong': 'PIN incorreto. Tente novamente.',
+    'pin.error.wrong.attempt': 'PIN incorreto · tentativa {n}',
+    'gps.locating.title': 'Localizando…',
+    'gps.locating.body': 'Seu navegador está buscando sua localização. Pode demorar alguns segundos.',
     'pin.back.user': '← Trocar usuário',
     'pin.back.region': '← Trocar região',
     'pinchange.title': 'Trocar PIN',
@@ -2129,6 +2135,7 @@ let propEditState = {};
 let propSheetMode = 'edit';
 let pinBuffer = '';
 let pinUser = null;
+let pinAttempts = 0;
 
 function resetServiceState() {
   serviceState = {
@@ -2785,14 +2792,18 @@ async function routeByRole(role) {
 
 async function pinConfirm() {
   if (pinBuffer !== getEffectivePin(pinUser.id)) {
+    pinAttempts++;
     pinBuffer = '';
     updatePinDots();
-    document.getElementById('pin-error').textContent = t('pin.error.wrong');
+    // Mensaje con contador para que el operario sepa qué le pasó.
+    const msg = t('pin.error.wrong.attempt').replace('{n}', pinAttempts);
+    document.getElementById('pin-error').textContent = msg;
     const dots = document.getElementById('pin-dots');
     dots.classList.add('shake');
     setTimeout(() => dots.classList.remove('shake'), 400);
     return;
   }
+  pinAttempts = 0;
   currentUser = { id: pinUser.id, name: pinUser.name, role: pinUser.role, emoji: pinUser.emoji, country: pinUser.country };
   localStorage.setItem('fc_user', JSON.stringify(currentUser));
   markUserActive();
@@ -3438,10 +3449,21 @@ function requestUserLocationWithConsent(timeoutMs = 10000) {
     const cleanup = () => { try { document.body.removeChild(overlay); } catch (_) {} };
     document.getElementById('gps-skip').onclick = () => { cleanup(); resolve(null); };
     document.getElementById('gps-allow').onclick = () => {
-      cleanup();
+      // En vez de cleanup inmediato, mostramos un spinner mientras el browser
+      // resuelve la ubicación (puede tardar varios segundos en redes lentas
+      // o GPS frío). Sin esto el operario ve la pantalla "colgada".
+      const modal = overlay.querySelector('.gps-modal');
+      if (modal) {
+        modal.innerHTML = `
+          <div class="gps-emoji">📍</div>
+          <div class="gps-title">${t('gps.locating.title')}</div>
+          <div class="gps-body">${t('gps.locating.body')}</div>
+          <div style="margin:18px 0"><div class="spinner" style="margin:0 auto"></div></div>
+        `;
+      }
       navigator.geolocation.getCurrentPosition(
-        pos => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: pos.coords.accuracy }),
-        err => { console.warn('[gps] denied or failed:', err.message); resolve(null); },
+        pos => { cleanup(); resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: pos.coords.accuracy }); },
+        err => { cleanup(); console.warn('[gps] denied or failed:', err.message); resolve(null); },
         { enableHighAccuracy: true, timeout: timeoutMs, maximumAge: 60000 }
       );
     };
