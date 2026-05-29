@@ -597,7 +597,21 @@ body::before {
   .jornada-cta-sub { font-size: 11px; color: var(--text3); margin-bottom: 12px; line-height: 1.4; }
   .jornada-cta-btn { width: 100%; padding: 10px; background: transparent; border: 1px solid var(--purple, #a855f7); border-radius: var(--radius-sm); color: var(--purple, #a855f7); font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; }
   .jornada-cta-btn:active { background: rgba(168, 85, 247, 0.12); }
+  /* Equipos asignados */
+  .equipo-chip { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 12px; background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius-sm); margin-bottom: 6px; font-size: 13px; color: var(--text2); }
+  .equipo-chip-info { flex: 1; min-width: 0; }
+  .equipo-chip-name { font-weight: 600; color: var(--text); }
+  .equipo-chip-meta { font-size: 11px; color: var(--text3); margin-top: 2px; }
+  .equipo-chip-remove { background: transparent; border: 1px solid var(--border2); border-radius: 6px; color: var(--text3); padding: 5px 9px; cursor: pointer; font-size: 12px; font-family: inherit; transition: all 0.15s; }
+  .equipo-chip-remove:hover, .equipo-chip-remove:active { color: var(--red); border-color: var(--red); }
+  .add-equipo-btn { width: 100%; padding: 12px; background: transparent; border: 1px dashed var(--green); border-radius: var(--radius-sm); color: var(--green); font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; margin-top: 8px; }
+  .add-equipo-btn:hover, .add-equipo-btn:active { background: rgba(0,201,141,0.05); }
+  .equipo-option { padding: 12px; background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius-sm); margin-bottom: 6px; cursor: pointer; transition: all 0.15s; }
+  .equipo-option:hover, .equipo-option:active { border-color: var(--green); color: var(--green); }
+  .equipo-option.disabled { opacity: 0.5; cursor: not-allowed; }
+  .equipos-empty { padding: 16px; text-align: center; color: var(--text3); font-size: 12px; font-style: italic; }
   #jornada-overlay { z-index: 10001; }
+  #equipo-overlay { z-index: 10002; }
   .create-svc-btn { width: 100%; padding: 14px; background: var(--green-dark); border: 2px solid var(--green); border-radius: var(--radius-sm); color: var(--green); font-size: 14px; font-weight: 700; cursor: pointer; font-family: 'Exo 2', sans-serif; transition: all 0.15s; margin-top: 4px; }
   .create-svc-btn:hover, .create-svc-btn:active { background: var(--green); color: #fff; transform: scale(0.99); }
   .create-svc-btn:disabled { opacity: 0.6; cursor: not-allowed; }
@@ -955,6 +969,12 @@ body::before {
           <button class="jornada-cta-btn" onclick="openCreateJornadaSheet()" data-i18n="sheet.edit.jornada.btn">📅 Crear jornada para otro día</button>
         </div>
       </div>
+      <div class="edit-section" id="edit-equipos-section" style="display:none">
+        <div class="edit-section-label" data-i18n="sheet.edit.section.equipos">🚁 EQUIPOS ASIGNADOS</div>
+        <div class="edit-section-hint" data-i18n="sheet.edit.section.equipos.hint" style="font-size:11px;color:var(--text3);margin-bottom:8px">Drones, hidrolavadoras, vehículos, trailers usados en este trabajo.</div>
+        <div id="edit-equipos-chips"></div>
+        <button class="add-equipo-btn" onclick="openAddEquipoSheet()" data-i18n="sheet.edit.equipos.add">+ Agregar equipo</button>
+      </div>
       <button class="delete-svc-btn" id="delete-svc-btn" data-i18n="sheet.edit.delete" onclick="deleteService()">🗑️ Eliminar servicio</button>
     </div>
   </div>
@@ -981,6 +1001,21 @@ body::before {
         <div class="operario-btns" id="jornada-operario-btns"></div>
       </div>
       <button class="edit-save-btn" id="jornada-save-btn" onclick="submitCreateJornada()" data-i18n="sheet.jornada.btn.crear">✦ Crear jornada</button>
+    </div>
+  </div>
+
+  <!-- Sub-modal: Agregar equipo al servicio -->
+  <div class="edit-overlay" id="equipo-overlay" onclick="equipoOverlayClick(event)">
+    <div class="edit-sheet" id="equipo-sheet">
+      <button class="sheet-close-btn" type="button" aria-label="Cerrar" onclick="closeAddEquipoSheet()">×</button>
+      <div class="edit-sheet-handle"></div>
+      <div class="edit-sheet-header">
+        <div class="edit-sheet-title" data-i18n="sheet.equipo.title">🚁 Agregar equipo</div>
+        <div class="edit-sheet-sub" id="equipo-sheet-sub"></div>
+      </div>
+      <div id="equipo-options-list" style="padding:0 0 24px">
+        <div class="equipos-empty">Cargando equipos disponibles…</div>
+      </div>
     </div>
   </div>
 
@@ -1208,6 +1243,18 @@ const TRANSLATIONS = {
     'cancelar.inicio.blocked': 'Ya registraste el inicio efectivo del trabajo. No se puede cancelar (hay datos del trabajo en curso).',
     'close.need.resultado': 'Marcá un resultado (Exitoso / Con incidencia / Fallido) antes de cerrar.',
     'close.prueba.need.resultado': 'Marcá un resultado de la prueba (Avanza / No interesado / Re-contactar) antes de cerrar.',
+    'sheet.edit.section.equipos': '🚁 EQUIPOS ASIGNADOS',
+    'sheet.edit.section.equipos.hint': 'Drones, hidrolavadoras, vehículos, trailers usados en este trabajo.',
+    'sheet.edit.equipos.add': '+ Agregar equipo',
+    'sheet.equipo.title': '🚁 Agregar equipo',
+    'equipos.empty': 'Sin equipos asignados todavía.',
+    'equipos.loading': 'Cargando equipos…',
+    'equipos.none.available': 'No hay equipos disponibles para asignar.',
+    'equipos.remove': 'Quitar',
+    'equipos.remove.confirm': '¿Quitar este equipo del servicio?',
+    'equipos.add.error': 'Error al agregar equipo: ',
+    'equipos.remove.error': 'Error al quitar equipo: ',
+    'op.equipos.label': '🚁 EQUIPOS DEL SERVICIO',
     'step.info.tipo': '🪟 Tipo',
     'step.info.pais': '🌎 País',
     'step.info.m2': '📐 m² aprox.',
@@ -1598,6 +1645,18 @@ const TRANSLATIONS = {
     'cancelar.inicio.blocked': 'Você já registrou o início efetivo do trabalho. Não é possível cancelar (há dados do trabalho em andamento).',
     'close.need.resultado': 'Marque um resultado (Bem-sucedido / Com incidência / Falho) antes de fechar.',
     'close.prueba.need.resultado': 'Marque um resultado do teste (Avança / Não interessado / Re-contatar) antes de fechar.',
+    'sheet.edit.section.equipos': '🚁 EQUIPAMENTOS ATRIBUÍDOS',
+    'sheet.edit.section.equipos.hint': 'Drones, lavadoras, veículos, trailers usados neste trabalho.',
+    'sheet.edit.equipos.add': '+ Adicionar equipamento',
+    'sheet.equipo.title': '🚁 Adicionar equipamento',
+    'equipos.empty': 'Sem equipamentos atribuídos ainda.',
+    'equipos.loading': 'Carregando equipamentos…',
+    'equipos.none.available': 'Não há equipamentos disponíveis para atribuir.',
+    'equipos.remove': 'Remover',
+    'equipos.remove.confirm': 'Remover este equipamento do serviço?',
+    'equipos.add.error': 'Erro ao adicionar equipamento: ',
+    'equipos.remove.error': 'Erro ao remover equipamento: ',
+    'op.equipos.label': '🚁 EQUIPAMENTOS DO SERVIÇO',
     'step.info.tipo': '🪟 Tipo',
     'step.info.pais': '🌎 País',
     'step.info.m2': '📐 m² aprox.',
@@ -3130,7 +3189,25 @@ function renderStep() {
       </div>
       ${mapa ? `<a href="${mapa}" target="_blank" rel="noopener" class="btn-main btn-blue" style="display:block;text-align:center;text-decoration:none;margin:12px 0">🗺️ ${t('step.info.abrirmapa')}</a>` : ''}
       ${serviceState.horaInicio ? `<div class="ts-recorded"><div class="ts-label">${t('step.inicio.recorded')}</div><div class="ts-value">${serviceState.horaInicio}</div></div>` : ''}
+      <div id="op-equipos-section" style="margin-top:14px"></div>
     `;
+    // Equipos asignados (read-only para el operario, solo si no es relevamiento)
+    const tipoRegOp = currentService?.properties?.['Tipo de registro']?.select?.name || '';
+    if (!tipoRegOp.includes('Relevamiento')) {
+      Promise.all([fetchEquiposDelServicio(currentService.id), fetchActivosDisponibles()])
+        .then(([equipos]) => {
+          const sec = document.getElementById('op-equipos-section');
+          if (!sec || !equipos.length) return;
+          const byId = new Map((_activosCache?.items || []).map(a => [a.id, a]));
+          sec.innerHTML = `<div class="edit-section-label" style="font-size:11px;color:var(--text3);margin-bottom:6px">${t('op.equipos.label')}</div>` +
+            equipos.map(e => {
+              const a = byId.get(e.activoId);
+              const name = a ? a.name : e.activoName;
+              const meta = a ? [a.tipo, a.serie ? `S/N ${a.serie}` : '', a.marca].filter(Boolean).join(' · ') : '';
+              return `<div class="equipo-chip"><div class="equipo-chip-info"><div class="equipo-chip-name">${esc(name)}</div>${meta ? `<div class="equipo-chip-meta">${esc(meta)}</div>` : ''}</div></div>`;
+            }).join('');
+        });
+    }
 
     if (!serviceState.horaInicio) {
       bar.innerHTML = `<button class="btn-main btn-green" onclick="iniciarServicio()">${t('step.inicio.btn')}</button>`;
@@ -4674,6 +4751,24 @@ async function openEditSheet(pageId) {
     const isRelev = tipoReg.includes('Relevamiento');
     jornadaCTA.style.display = isRelev ? 'none' : '';
   }
+  // Mostrar sección Equipos si NO es relevamiento (no se llevan equipos a relevar).
+  const equiposSection = document.getElementById('edit-equipos-section');
+  if (equiposSection) {
+    const tipoReg = props['Tipo de registro']?.select?.name || '';
+    const isRelev = tipoReg.includes('Relevamiento');
+    equiposSection.style.display = isRelev ? 'none' : '';
+    _equiposDelServicio = [];
+    document.getElementById('edit-equipos-chips').innerHTML = `<div class="equipos-empty">${t('equipos.loading')}</div>`;
+    if (!isRelev) {
+      // Cargar equipos asignados en paralelo (no bloqueante).
+      Promise.all([fetchEquiposDelServicio(pageId), fetchActivosDisponibles()])
+        .then(([equipos]) => {
+          if (editingService?.id !== pageId) return; // sheet cerrado / cambió de servicio
+          _equiposDelServicio = equipos;
+          renderEquiposChips();
+        });
+    }
+  }
 
   document.getElementById('edit-overlay').classList.add('open');
   await fetchOperarioOptions();
@@ -4688,6 +4783,165 @@ let jornadaState = { numero: 2, fecha: '', operario: null };
 
 function jornadaOverlayClick(e) { if (e.target.id === 'jornada-overlay') closeCreateJornadaSheet(); }
 function closeCreateJornadaSheet() { document.getElementById('jornada-overlay').classList.remove('open'); }
+
+// ─────────────────────────────────────────────
+// FEATURE B — EQUIPOS ASIGNADOS AL SERVICIO
+// ─────────────────────────────────────────────
+// La DB Notion 'Activos / Equipamiento' contiene drones, vehículos, etc.
+// La DB intermedia 'Registro de Uso de Equipo' (RUE) vincula Activos ↔ Servicios.
+// Cada page en RUE = 1 asignación de equipo a un servicio.
+
+const ACTIVOS_DB_ID = 'e75449eeb78143f1b74006a4796c1f95';
+const RUE_DB_ID = '57bc613af5d04908a9f2342cf6a1a5a7';
+
+let _activosCache = null; // { items, byPais: Map<pais, items[]> }
+let _equiposDelServicio = []; // [{ rueId, activoId, activoName, activoTipo, activoSerie }]
+
+// Trae todos los activos operativos. Cache simple (no cambian seguido).
+async function fetchActivosDisponibles() {
+  if (_activosCache) return _activosCache.items;
+  try {
+    const data = await callNotion(`databases/${ACTIVOS_DB_ID}/query`, 'POST', {
+      filter: { property: 'Estado', select: { equals: '✅ Operativo' } },
+      page_size: 100
+    });
+    const items = (data.results || []).map(r => {
+      const props = r.properties || {};
+      const titleProp = Object.values(props).find(p => p.type === 'title');
+      const name = titleProp?.title?.[0]?.plain_text || '(sin nombre)';
+      return {
+        id: r.id,
+        name,
+        tipo: props['Tipo']?.select?.name || '',
+        serie: props['Nro. Serie']?.rich_text?.[0]?.plain_text || props['Número de serie']?.rich_text?.[0]?.plain_text || '',
+        marca: props['Marca/Modelo']?.rich_text?.[0]?.plain_text || props['Marca']?.rich_text?.[0]?.plain_text || '',
+        pais: props['País']?.select?.name || ''
+      };
+    });
+    _activosCache = { items, time: Date.now() };
+    return items;
+  } catch (e) {
+    console.warn('[equipos] fetchActivosDisponibles error:', e.message);
+    return [];
+  }
+}
+
+// Trae los equipos ya asignados a un servicio. Filtra por relation Servicio.
+async function fetchEquiposDelServicio(serviceId) {
+  if (!serviceId) return [];
+  try {
+    const data = await callNotion(`databases/${RUE_DB_ID}/query`, 'POST', {
+      filter: { property: 'Servicio', relation: { contains: serviceId } },
+      page_size: 50
+    });
+    return (data.results || []).map(r => {
+      const props = r.properties || {};
+      const equipoRel = props['Equipo']?.relation?.[0]?.id || null;
+      const titleProp = Object.values(props).find(p => p.type === 'title');
+      return {
+        rueId: r.id,
+        activoId: equipoRel,
+        activoName: titleProp?.title?.[0]?.plain_text || '(equipo)',
+        archived: r.archived || false
+      };
+    }).filter(x => !x.archived && x.activoId);
+  } catch (e) {
+    console.warn('[equipos] fetchEquiposDelServicio error:', e.message);
+    return [];
+  }
+}
+
+function renderEquiposChips() {
+  const container = document.getElementById('edit-equipos-chips');
+  if (!container) return;
+  if (!_equiposDelServicio.length) {
+    container.innerHTML = `<div class="equipos-empty">${t('equipos.empty')}</div>`;
+    return;
+  }
+  // Lookup name + tipo desde el cache de Activos (si está cargado)
+  const byId = new Map((_activosCache?.items || []).map(a => [a.id, a]));
+  container.innerHTML = _equiposDelServicio.map(e => {
+    const a = byId.get(e.activoId);
+    const name = a ? a.name : e.activoName;
+    const meta = a ? [a.tipo, a.serie ? `S/N ${a.serie}` : '', a.marca].filter(Boolean).join(' · ') : '';
+    return `<div class="equipo-chip">
+      <div class="equipo-chip-info">
+        <div class="equipo-chip-name">${esc(name)}</div>
+        ${meta ? `<div class="equipo-chip-meta">${esc(meta)}</div>` : ''}
+      </div>
+      <button class="equipo-chip-remove" onclick="removeEquipoFromServicio('${esc(e.rueId)}')">${t('equipos.remove')}</button>
+    </div>`;
+  }).join('');
+}
+
+async function openAddEquipoSheet() {
+  if (!editingService) return;
+  document.getElementById('equipo-overlay').classList.add('open');
+  const list = document.getElementById('equipo-options-list');
+  list.innerHTML = `<div class="equipos-empty">${t('equipos.loading')}</div>`;
+  const activos = await fetchActivosDisponibles();
+  const pais = editingService.properties?.['País']?.select?.name || '';
+  const yaAsignados = new Set(_equiposDelServicio.map(e => e.activoId));
+  // Filtrar por país del servicio si los activos tienen país. Si un activo no
+  // tiene país, lo mostramos igual (puede ser equipo compartido entre países).
+  const disponibles = activos.filter(a => (!a.pais || !pais || a.pais === pais) && !yaAsignados.has(a.id));
+  if (!disponibles.length) {
+    list.innerHTML = `<div class="equipos-empty">${t('equipos.none.available')}</div>`;
+    return;
+  }
+  list.innerHTML = disponibles.map(a => {
+    const meta = [a.tipo, a.serie ? `S/N ${a.serie}` : '', a.marca].filter(Boolean).join(' · ');
+    return `<div class="equipo-option" onclick="addEquipoToServicio('${esc(a.id)}', '${esc(a.name).replace(/'/g, '\\\'')}')">
+      <div class="equipo-chip-name">${esc(a.name)}</div>
+      ${meta ? `<div class="equipo-chip-meta">${esc(meta)}</div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+function equipoOverlayClick(e) { if (e.target.id === 'equipo-overlay') closeAddEquipoSheet(); }
+function closeAddEquipoSheet() { document.getElementById('equipo-overlay').classList.remove('open'); }
+
+async function addEquipoToServicio(activoId, activoName) {
+  if (!editingService) return;
+  const pais = editingService.properties?.['País']?.select?.name || '';
+  const properties = {
+    'Equipo': { relation: [{ id: activoId }] },
+    'Servicio': { relation: [{ id: editingService.id }] }
+  };
+  if (pais) properties['País'] = { select: { name: pais } };
+  // Persona = piloto asignado si tiene notionId
+  const operarioName = editingService.properties?.['Operario App']?.select?.name;
+  const user = operarioName ? USERS.find(u => u.name === operarioName) : null;
+  if (user?.notionId) {
+    properties['Persona'] = { people: [{ object: 'user', id: user.notionId }] };
+  }
+  // Fecha programada del servicio
+  const fecha = editingService.properties?.['Fecha programada']?.date?.start;
+  if (fecha) properties['Fecha'] = { date: { start: fecha } };
+
+  closeAddEquipoSheet();
+  try {
+    const created = await callNotion('pages', 'POST', {
+      parent: { database_id: RUE_DB_ID },
+      properties
+    });
+    _equiposDelServicio.push({ rueId: created.id, activoId, activoName, archived: false });
+    renderEquiposChips();
+  } catch (e) {
+    alert((t('equipos.add.error') || 'Error al agregar equipo: ') + e.message);
+  }
+}
+
+async function removeEquipoFromServicio(rueId) {
+  if (!confirm(t('equipos.remove.confirm'))) return;
+  try {
+    await callNotion('pages/' + rueId, 'PATCH', { archived: true });
+    _equiposDelServicio = _equiposDelServicio.filter(e => e.rueId !== rueId);
+    renderEquiposChips();
+  } catch (e) {
+    alert((t('equipos.remove.error') || 'Error al quitar equipo: ') + e.message);
+  }
+}
 
 function selectJornadaOperario(name, el) {
   jornadaState.operario = name;
