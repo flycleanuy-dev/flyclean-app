@@ -2666,7 +2666,7 @@ async function queueableUpdateServiceProps(pageId, properties) {
 // Auto-process al recuperar conexión + cada 30s mientras haya items.
 window.addEventListener('online', () => { processQueue(); renderOfflineBadge(); });
 window.addEventListener('offline', () => { renderOfflineBadge(); });
-setInterval(() => { if (navigator.onLine) processQueue(); }, 30000);
+let _processQueueIntervalId = setInterval(() => { if (navigator.onLine) processQueue(); }, 30000);
 
 // ─────────────────────────────────────────────
 // SCREENS
@@ -2851,8 +2851,31 @@ function setCoordTab(tab) {
 }
 
 function logout() {
+  // M8 — Reset de variables globales en memoria para que el siguiente login
+  // no vea data residual. localStorage de servicios (fc_service_*) se mantiene
+  // porque pertenece al operario, no a la sesión.
   localStorage.removeItem('fc_user');
   currentUser = null;
+  _coordAllServices = [];
+  _coordAllProps = [];
+  _coordAllContacts = [];
+  _allServices = [];
+  editingService = null;
+  editingProp = null;
+  editState = {};
+  propEditState = {};
+  serviceState = {};
+  currentService = null;
+  currentStep = 0;
+  activeTab = 'ordenes';
+  activeCoordTab = 'servicios';
+  _coordVisibleLimit = COORD_PAGE_SIZE;
+  pinAttempts = 0;
+  // M10 — Limpiar interval de processQueue. Se vuelve a crear al próximo login
+  // si hace falta, pero por simplicidad lo dejamos vivo (es cheap).
+  // No clearInterval acá para que la queue siga procesándose offline-online
+  // incluso sin user logueado (puede haber writes pendientes del user anterior
+  // que esperan reconectarse).
   renderLogin();
   showScreen('login');
 }
@@ -4478,14 +4501,12 @@ function renderPhotoGallery(props) {
 function coordServiceCard(s) {
   const props = s.properties || {};
   const nombreRaw = props['Nombre del servicio']?.title?.[0]?.plain_text;
-  let nombre;
+  let nombreHTML;
   if (nombreRaw) {
-    nombre = nombreRaw;
+    nombreHTML = esc(nombreRaw);
   } else {
-    // Bug fix defensivo: si Notion devuelve nombre vacío (fallback search devuelve properties parciales),
-    // mostrar warning visible + loguear para diagnóstico en consola.
-    const idShort = (s.id || '').slice(0, 8);
-    nombre = `<span style="color:#c67e25">⚠️ Servicio sin nombre (${idShort})</span>`;
+    const idShort = esc((s.id || '').slice(0, 8));
+    nombreHTML = `<span style="color:#c67e25">⚠️ Servicio sin nombre (${idShort})</span>`;
     console.warn('[fc] coord: servicio sin nombre', s.id, 'properties keys:', Object.keys(props));
   }
   const estado = props['Estado']?.select?.name || '';
@@ -4495,8 +4516,8 @@ function coordServiceCard(s) {
   const participantes = (props['Operarios participantes']?.multi_select || []).map(o => o.name);
   const baseOp = operarioAppName || legacyOpsNames || t('coord.unassigned');
   const ops = participantes.length > 0
-    ? `${baseOp} <span style="color:var(--text3);font-size:11px">+${participantes.length} ayudante${participantes.length > 1 ? 's' : ''}</span>`
-    : baseOp;
+    ? `${esc(baseOp)} <span style="color:var(--text3);font-size:11px">+${participantes.length} ayudante${participantes.length > 1 ? 's' : ''}</span>`
+    : esc(baseOp);
   const jornadaN = props['Jornada N°']?.number;
   const tipoReg = props['Tipo de registro']?.select?.name || '';
   const esJornada = jornadaN != null || tipoReg.includes('Jornada');
@@ -4505,10 +4526,10 @@ function coordServiceCard(s) {
   const horaFmt = (horaInicio && horaInicio.includes('T')) ? new Date(horaInicio).toTimeString().slice(0, 5) : '';
   const lugar = props['Lugar']?.rich_text?.[0]?.plain_text || '';
   const estadoClass = estado.includes('Completado') ? 'estado-completado' : estado.includes('En curso') ? 'estado-en-curso' : estado.includes('Asignado') ? 'estado-asignado' : 'estado-pendiente';
-  return `<div class="coord-service-card" style="cursor:pointer" onclick="openEditSheet('${s.id}')">
-    <div class="coord-service-name">${esPrueba ? `<span class="service-prueba-badge">${t('prueba.badge')}</span>` : ''}${nombre}${esJornada && jornadaN != null ? ` <span style="color:var(--purple);font-size:12px">J${jornadaN}</span>` : ''}</div>
-    <div class="coord-service-meta"><span class="service-estado ${estadoClass}">${estado}</span>${horaFmt ? `<span class="coord-tag">🕐 ${horaFmt}</span>` : ''}${tipo ? `<span class="coord-tag">${tipo}</span>` : ''}</div>
-    ${lugar ? `<div class="coord-ops" style="color:var(--text3)">📍 ${lugar}</div>` : ''}
+  return `<div class="coord-service-card" style="cursor:pointer" onclick="openEditSheet('${esc(s.id)}')">
+    <div class="coord-service-name">${esPrueba ? `<span class="service-prueba-badge">${t('prueba.badge')}</span>` : ''}${nombreHTML}${esJornada && jornadaN != null ? ` <span style="color:var(--purple);font-size:12px">J${jornadaN}</span>` : ''}</div>
+    <div class="coord-service-meta"><span class="service-estado ${estadoClass}">${esc(estado)}</span>${horaFmt ? `<span class="coord-tag">🕐 ${esc(horaFmt)}</span>` : ''}${tipo ? `<span class="coord-tag">${esc(tipo)}</span>` : ''}</div>
+    ${lugar ? `<div class="coord-ops" style="color:var(--text3)">📍 ${esc(lugar)}</div>` : ''}
     <div class="coord-ops">👤 ${ops}</div>
     ${renderPhotoGallery(props)}
   </div>`;
@@ -4570,6 +4591,16 @@ function renderParticipantesBtns() {
 function escAttrEdit(s) {
   return String(s == null ? '' : s)
     .replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+// Escape para texto HTML — usar SIEMPRE al interpolar strings que vienen de
+// Notion (nombres de servicio/contacto/propuesta, notas, lugar, etc) dentro de
+// innerHTML. Sin esto un usuario con acceso a Notion puede romper la app o
+// inyectar HTML metiendo `<img>` o `<script>` en un campo de texto.
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
 function toggleParticipante(name, btnEl) {
@@ -5822,12 +5853,12 @@ function filterContacts(val) {
 function coordContactCard(c) {
   const props = c.properties || {};
   const nombreRaw = props['Nombre / Empresa']?.title?.[0]?.plain_text;
-  let nombre;
+  let nombreHTML;
   if (nombreRaw) {
-    nombre = nombreRaw;
+    nombreHTML = esc(nombreRaw);
   } else {
-    const idShort = (c.id || '').slice(0, 8);
-    nombre = `<span style="color:#c67e25">⚠️ Contacto sin nombre (${idShort})</span>`;
+    const idShort = esc((c.id || '').slice(0, 8));
+    nombreHTML = `<span style="color:#c67e25">⚠️ Contacto sin nombre (${idShort})</span>`;
     console.warn('[fc] coord: contacto sin nombre', c.id, 'properties keys:', Object.keys(props));
   }
   const estado = props['Estado']?.select?.name || '';
@@ -5837,16 +5868,16 @@ function coordContactCard(c) {
   const email = props['Email']?.email || '';
   const servicios = (props['Servicio de interés']?.multi_select || []).map(s => s.name).join(' · ');
   const estadoClass = estado.includes('activo') ? 'activo' : estado.includes('Inactivo') ? 'inactivo' : '';
-  return `<div class="contact-card" onclick="openContactSheet('${c.id}')">
-    <div class="contact-name">${nombre}</div>
+  return `<div class="contact-card" onclick="openContactSheet('${esc(c.id)}')">
+    <div class="contact-name">${nombreHTML}</div>
     <div class="contact-badges">
-      ${estado ? `<span class="contact-estado ${estadoClass}">${estado}</span>` : ''}
-      ${tipo ? `<span class="coord-tag">${tipo}</span>` : ''}
-      ${pais ? `<span class="coord-tag">${pais}</span>` : ''}
+      ${estado ? `<span class="contact-estado ${estadoClass}">${esc(estado)}</span>` : ''}
+      ${tipo ? `<span class="coord-tag">${esc(tipo)}</span>` : ''}
+      ${pais ? `<span class="coord-tag">${esc(pais)}</span>` : ''}
     </div>
-    ${servicios ? `<div class="contact-detail">🛠 ${servicios}</div>` : ''}
-    ${tel ? `<div class="contact-detail">📞 ${tel}</div>` : ''}
-    ${email ? `<div class="contact-detail">✉️ ${email}</div>` : ''}
+    ${servicios ? `<div class="contact-detail">🛠 ${esc(servicios)}</div>` : ''}
+    ${tel ? `<div class="contact-detail">📞 ${esc(tel)}</div>` : ''}
+    ${email ? `<div class="contact-detail">✉️ ${esc(email)}</div>` : ''}
   </div>`;
 }
 
@@ -6208,13 +6239,12 @@ function renderCoordPropuestasList(keepLimit) {
   const cards = filtered.map(p => {
     const props = p.properties || {};
     const nombreRaw = props['Nombre de propuesta']?.title?.[0]?.plain_text;
-    let nombre;
+    let nombreHTML;
     if (nombreRaw) {
-      nombre = nombreRaw;
+      nombreHTML = esc(nombreRaw);
     } else {
-      // Bug fix defensivo: visibilizar items sin nombre + loguear para diagnóstico.
-      const idShort = (p.id || '').slice(0, 8);
-      nombre = `<span style="color:#c67e25">⚠️ Propuesta sin nombre (${idShort})</span>`;
+      const idShort = esc((p.id || '').slice(0, 8));
+      nombreHTML = `<span style="color:#c67e25">⚠️ Propuesta sin nombre (${idShort})</span>`;
       console.warn('[fc] coord: propuesta sin nombre', p.id, 'properties keys:', Object.keys(props));
     }
     const estado = props['Estado pipeline']?.select?.name || '—';
@@ -6227,11 +6257,11 @@ function renderCoordPropuestasList(keepLimit) {
       estado.includes('Negociando') ? 'negociando' :
       estado.toLowerCase().includes('enviada') ? 'enviada' : '';
 
-    return `<div class="prop-card" style="cursor:pointer" onclick="openPropSheet('${p.id}')">
-      <div class="prop-nombre">${nombre}</div>
+    return `<div class="prop-card" style="cursor:pointer" onclick="openPropSheet('${esc(p.id)}')">
+      <div class="prop-nombre">${nombreHTML}</div>
       <div class="prop-meta">
-        <span class="prop-estado ${estadoClass}">${estado}</span>
-        ${pais ? `<span class="coord-tag">${pais}</span>` : ''}
+        <span class="prop-estado ${estadoClass}">${esc(estado)}</span>
+        ${pais ? `<span class="coord-tag">${esc(pais)}</span>` : ''}
         ${importe ? `<span class="prop-importe">$${importe.toLocaleString()}</span>` : ''}
       </div>
       <div class="prop-dias ${dias != null && dias > 14 ? 'alert' : ''}">
