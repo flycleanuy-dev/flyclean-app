@@ -83,8 +83,13 @@ export default async function handler(req, res) {
         const filtered = (sd.results || []).filter(r => r.parent?.database_id === dbId);
         allResults = allResults.concat(filtered);
         cursor = sd.has_more ? sd.next_cursor : null;
-      } while (cursor && allResults.length < 500);
-      return res.status(200).json({ object: 'list', results: allResults, has_more: false });
+      } while (cursor && allResults.length < 2000);
+      // Si quedó cursor pendiente al alcanzar el cap (allResults.length === 2000),
+      // devolvemos has_more=true para que el cliente sepa que la lista está truncada.
+      // Hoy el coord muestra 50-150 items/mes, así que 2000 da buffer cómodo.
+      const truncated = cursor !== null;
+      if (truncated) console.warn('[notion-proxy] fallback search reached 2000 cap for db', dbId);
+      return res.status(200).json({ object: 'list', results: allResults, has_more: truncated });
     }
 
     return res.status(response.status).json(data);
