@@ -1095,23 +1095,6 @@ body::before {
     </div>
   </div>
 
-  <!-- Modal: Nuevo gasto (con OCR Claude API) -->
-  <div class="edit-overlay" id="gasto-overlay" onclick="gastoOverlayClick(event)">
-    <div class="edit-sheet" id="gasto-sheet">
-      <button class="sheet-close-btn" type="button" aria-label="Cerrar" onclick="closeGastoSheet()">×</button>
-      <div class="edit-sheet-handle"></div>
-      <div class="edit-sheet-header">
-        <div class="edit-sheet-title" data-i18n="sheet.gasto.title">💸 Nuevo gasto</div>
-        <div class="edit-sheet-sub" id="gasto-sheet-sub" data-i18n="sheet.gasto.sub">Sacá foto del recibo y la IA lo lee por vos.</div>
-      </div>
-      <div id="gasto-sheet-body" style="padding:0 0 24px"></div>
-    </div>
-  </div>
-  <!-- Cámara: sólo imagen, fuerza el rear camera en móvil. -->
-  <input type="file" accept="image/*" capture="environment" id="gasto-recibo-input-camera" style="display:none" onchange="onGastoReciboSelected(this)"/>
-  <!-- Galería / archivos: imagen O PDF, sin capture (abre file picker / galería). -->
-  <input type="file" accept="image/*,application/pdf" id="gasto-recibo-input-file" style="display:none" onchange="onGastoReciboSelected(this)"/>
-
   <div class="edit-overlay" id="prop-overlay" onclick="propOverlayClick(event)">
     <div class="edit-sheet" id="prop-sheet">
       <button class="sheet-close-btn" type="button" aria-label="Cerrar" onclick="closePropSheet()">×</button>
@@ -1138,6 +1121,25 @@ body::before {
     </div>
   </div>
 </div>
+
+<!-- Modal: Nuevo gasto (con OCR Claude API) — fuera de screen-coordinator
+     para que funcione en operario / coord / CEO / Finanzas sin importar
+     qué screen esté activo. (Antes estaba adentro y se ocultaba.) -->
+<div class="edit-overlay" id="gasto-overlay" onclick="gastoOverlayClick(event)">
+  <div class="edit-sheet" id="gasto-sheet">
+    <button class="sheet-close-btn" type="button" aria-label="Cerrar" onclick="closeGastoSheet()">×</button>
+    <div class="edit-sheet-handle"></div>
+    <div class="edit-sheet-header">
+      <div class="edit-sheet-title" data-i18n="sheet.gasto.title">💸 Nuevo gasto</div>
+      <div class="edit-sheet-sub" id="gasto-sheet-sub" data-i18n="sheet.gasto.sub">Sacá foto del recibo y la IA lo lee por vos.</div>
+    </div>
+    <div id="gasto-sheet-body" style="padding:0 0 24px"></div>
+  </div>
+</div>
+<!-- Cámara: sólo imagen, fuerza el rear camera en móvil. -->
+<input type="file" accept="image/*" capture="environment" id="gasto-recibo-input-camera" style="display:none" onchange="onGastoReciboSelected(this)"/>
+<!-- Galería / archivos: imagen O PDF, sin capture (abre file picker / galería). -->
+<input type="file" accept="image/*,application/pdf" id="gasto-recibo-input-file" style="display:none" onchange="onGastoReciboSelected(this)"/>
 
 <div class="screen" id="screen-ceo">
   <div class="ceo-header">
