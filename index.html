@@ -628,6 +628,34 @@ body::before {
   .equipos-empty { padding: 16px; text-align: center; color: var(--text3); font-size: 12px; font-style: italic; }
   #jornada-overlay { z-index: 10001; }
   #equipo-overlay { z-index: 10002; }
+  #gasto-overlay { z-index: 10003; }
+  .gasto-step-photo { padding: 24px 16px; text-align: center; }
+  .gasto-step-photo-emoji { font-size: 48px; margin-bottom: 12px; }
+  .gasto-step-photo-title { font-weight: 700; font-size: 16px; margin-bottom: 6px; }
+  .gasto-step-photo-sub { font-size: 13px; color: var(--text2); margin-bottom: 18px; }
+  .gasto-photo-btn { display: inline-block; padding: 14px 22px; background: var(--green); border: none; border-radius: var(--radius-sm); color: #fff; font-family: 'Exo 2', sans-serif; font-size: 14px; font-weight: 700; cursor: pointer; }
+  .gasto-photo-btn-secondary { display: inline-block; margin-top: 12px; padding: 10px 18px; background: transparent; border: 1px solid var(--border2); border-radius: var(--radius-sm); color: var(--text2); font-family: 'Exo 2', sans-serif; font-size: 13px; cursor: pointer; }
+  .gasto-step-analyzing { padding: 40px 24px; text-align: center; }
+  .gasto-step-analyzing .spinner { margin: 0 auto 18px; }
+  .gasto-confianza-warn { padding: 10px 12px; margin: 0 16px 12px; border-radius: var(--radius-sm); background: rgba(255, 200, 50, 0.1); border: 1px solid rgba(255, 200, 50, 0.4); font-size: 12px; color: var(--text2); display: flex; gap: 10px; align-items: flex-start; }
+  .gasto-thumb-wrap { padding: 0 16px 12px; }
+  .gasto-thumb-wrap img { max-width: 100%; max-height: 180px; border-radius: var(--radius-sm); border: 1px solid var(--border); cursor: pointer; display: block; margin: 0 auto; }
+  .gasto-form-row { padding: 8px 16px; }
+  .gasto-form-row label { display: block; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text3); font-weight: 700; margin-bottom: 4px; }
+  .gasto-form-row input, .gasto-form-row select, .gasto-form-row textarea { width: 100%; padding: 10px 12px; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); font-family: 'Exo 2', sans-serif; font-size: 14px; box-sizing: border-box; }
+  .gasto-form-row textarea { resize: vertical; min-height: 60px; }
+  .gasto-form-row.warn input, .gasto-form-row.warn select { border-color: rgba(255, 165, 0, 0.6); }
+  .gasto-clase-toggle { display: flex; gap: 8px; padding: 4px 16px; }
+  .gasto-clase-btn { flex: 1; padding: 12px; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text2); font-family: 'Exo 2', sans-serif; font-size: 12px; font-weight: 600; cursor: pointer; }
+  .gasto-clase-btn.active { background: var(--green-dark); border-color: var(--green); color: var(--green); }
+  .gasto-checkbox-row { padding: 8px 16px; display: flex; gap: 8px; align-items: center; }
+  .gasto-checkbox-row input { width: 18px; height: 18px; cursor: pointer; }
+  .gasto-checkbox-row label { font-size: 13px; color: var(--text2); cursor: pointer; }
+  .gasto-actions { padding: 12px 16px; display: flex; gap: 8px; flex-direction: column; }
+  .gasto-actions .edit-save-btn { margin-top: 4px; }
+  .gasto-reanalyze-btn { padding: 10px; background: transparent; border: 1px solid var(--border2); border-radius: var(--radius-sm); color: var(--text2); font-family: 'Exo 2', sans-serif; font-size: 12px; cursor: pointer; }
+  .nuevo-gasto-fab { position: fixed; right: 18px; bottom: 18px; width: 56px; height: 56px; border-radius: 50%; background: var(--green); border: none; color: #fff; font-size: 28px; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.3); z-index: 50; display: flex; align-items: center; justify-content: center; font-family: 'Exo 2', sans-serif; }
+  .nuevo-gasto-fab:active { transform: scale(0.95); }
   .create-svc-btn { width: 100%; padding: 14px; background: var(--green-dark); border: 2px solid var(--green); border-radius: var(--radius-sm); color: var(--green); font-size: 14px; font-weight: 700; cursor: pointer; font-family: 'Exo 2', sans-serif; transition: all 0.15s; margin-top: 4px; }
   .create-svc-btn:hover, .create-svc-btn:active { background: var(--green); color: #fff; transform: scale(0.99); }
   .create-svc-btn:disabled { opacity: 0.6; cursor: not-allowed; }
@@ -1035,6 +1063,20 @@ body::before {
     </div>
   </div>
 
+  <!-- Modal: Nuevo gasto (con OCR Claude API) -->
+  <div class="edit-overlay" id="gasto-overlay" onclick="gastoOverlayClick(event)">
+    <div class="edit-sheet" id="gasto-sheet">
+      <button class="sheet-close-btn" type="button" aria-label="Cerrar" onclick="closeGastoSheet()">×</button>
+      <div class="edit-sheet-handle"></div>
+      <div class="edit-sheet-header">
+        <div class="edit-sheet-title" data-i18n="sheet.gasto.title">💸 Nuevo gasto</div>
+        <div class="edit-sheet-sub" id="gasto-sheet-sub" data-i18n="sheet.gasto.sub">Sacá foto del recibo y la IA lo lee por vos.</div>
+      </div>
+      <div id="gasto-sheet-body" style="padding:0 0 24px"></div>
+    </div>
+  </div>
+  <input type="file" accept="image/*" capture="environment" id="gasto-recibo-input" style="display:none" onchange="onGastoReciboSelected(this)"/>
+
   <div class="edit-overlay" id="prop-overlay" onclick="propOverlayClick(event)">
     <div class="edit-sheet" id="prop-sheet">
       <button class="sheet-close-btn" type="button" aria-label="Cerrar" onclick="closePropSheet()">×</button>
@@ -1426,6 +1468,46 @@ const TRANSLATIONS = {
     'finanzas.reportes.mensual': 'Reporte mensual',
     'finanzas.reportes.servicio': 'Reporte por servicio',
     'finanzas.reportes.disabled': '(Disponible en el próximo milestone — Milestone 5)',
+    'sheet.gasto.title': '💸 Nuevo gasto',
+    'sheet.gasto.sub': 'Sacá foto del recibo y la IA lo lee por vos.',
+    'gasto.foto.title': 'Cargá la foto del recibo',
+    'gasto.foto.sub': 'Claude AI extrae monto, fecha, proveedor y categoría automáticamente.',
+    'gasto.foto.btn': '📷 Sacar foto del recibo',
+    'gasto.foto.skip': 'Cargar manual (sin foto)',
+    'gasto.analyzing.title': 'Claude está leyendo tu recibo…',
+    'gasto.analyzing.sub': 'Esto puede tardar 5-15 segundos.',
+    'gasto.warn.title': 'Revisá los datos',
+    'gasto.warn.check': 'No estoy 100% seguro de lo que leí. Verificá antes de guardar.',
+    'gasto.warn.motivo.borrosa': '📷 La foto está borrosa.',
+    'gasto.warn.motivo.recortada': '📷 La foto parece recortada.',
+    'gasto.warn.motivo.ilegible': '📷 La foto es difícil de leer.',
+    'gasto.warn.motivo.parcial': '📷 Algunos campos no se ven completos.',
+    'gasto.warn.motivo.ninguno': '',
+    'gasto.field.concepto': 'CONCEPTO',
+    'gasto.field.monto': 'MONTO',
+    'gasto.field.moneda': 'MONEDA',
+    'gasto.field.fecha': 'FECHA',
+    'gasto.field.proveedor': 'PROVEEDOR / TIENDA',
+    'gasto.field.categoria': 'CATEGORÍA',
+    'gasto.field.clase': 'CLASE DE GASTO',
+    'gasto.clase.directo': 'Directo (vinculado a un servicio)',
+    'gasto.clase.indirecto': 'Indirecto (sueldos, alquiler, etc)',
+    'gasto.field.servicio': 'SERVICIO VINCULADO',
+    'gasto.servicio.none': '— Sin vincular —',
+    'gasto.servicio.empty': 'No hay servicios cargados. Probá la categoría "Indirecto".',
+    'gasto.field.formapago': 'FORMA DE PAGO',
+    'gasto.field.detalle': 'DETALLE (opcional)',
+    'gasto.field.factura': 'Tiene factura formal',
+    'gasto.reanalyze': 'Re-analizar foto',
+    'gasto.save': 'Guardar gasto',
+    'gasto.saving': '⏳ Guardando…',
+    'gasto.error.concepto': 'El concepto es obligatorio.',
+    'gasto.error.monto': 'El monto debe ser mayor a 0.',
+    'gasto.error.fecha': 'La fecha es obligatoria.',
+    'gasto.error.save': '❌ Error al guardar el gasto:',
+    'gasto.ocr.error': '⚠️ No pude leer la foto con IA. Cargá los datos manualmente.',
+    'photo.error.maxsize': 'La foto es muy grande (máximo 10 MB).',
+    'photo.error.mime': 'Tipo de archivo no permitido.',
     'ceo.tab.metricas': '📊 Métricas',
     'ceo.tab.servicios': '📋 Servicios',
     'ceo.tab.finanzas': '💰 Finanzas',
@@ -1844,6 +1926,46 @@ const TRANSLATIONS = {
     'finanzas.reportes.mensual': 'Relatório mensal',
     'finanzas.reportes.servicio': 'Relatório por serviço',
     'finanzas.reportes.disabled': '(Disponível no próximo milestone — Milestone 5)',
+    'sheet.gasto.title': '💸 Nova despesa',
+    'sheet.gasto.sub': 'Tire foto do recibo e a IA lê para você.',
+    'gasto.foto.title': 'Carregue a foto do recibo',
+    'gasto.foto.sub': 'Claude AI extrai valor, data, fornecedor e categoria automaticamente.',
+    'gasto.foto.btn': '📷 Tirar foto do recibo',
+    'gasto.foto.skip': 'Carregar manual (sem foto)',
+    'gasto.analyzing.title': 'Claude está lendo seu recibo…',
+    'gasto.analyzing.sub': 'Isso pode levar 5-15 segundos.',
+    'gasto.warn.title': 'Revise os dados',
+    'gasto.warn.check': 'Não tenho 100% de certeza do que li. Verifique antes de salvar.',
+    'gasto.warn.motivo.borrosa': '📷 A foto está embaçada.',
+    'gasto.warn.motivo.recortada': '📷 A foto parece cortada.',
+    'gasto.warn.motivo.ilegible': '📷 A foto é difícil de ler.',
+    'gasto.warn.motivo.parcial': '📷 Alguns campos não estão completos.',
+    'gasto.warn.motivo.ninguno': '',
+    'gasto.field.concepto': 'CONCEITO',
+    'gasto.field.monto': 'VALOR',
+    'gasto.field.moneda': 'MOEDA',
+    'gasto.field.fecha': 'DATA',
+    'gasto.field.proveedor': 'FORNECEDOR / LOJA',
+    'gasto.field.categoria': 'CATEGORIA',
+    'gasto.field.clase': 'CLASSE DE DESPESA',
+    'gasto.clase.directo': 'Direta (vinculada a um serviço)',
+    'gasto.clase.indirecto': 'Indireta (salários, aluguel, etc)',
+    'gasto.field.servicio': 'SERVIÇO VINCULADO',
+    'gasto.servicio.none': '— Sem vincular —',
+    'gasto.servicio.empty': 'Sem serviços carregados. Tente a categoria "Indireta".',
+    'gasto.field.formapago': 'FORMA DE PAGAMENTO',
+    'gasto.field.detalle': 'DETALHE (opcional)',
+    'gasto.field.factura': 'Tem nota fiscal formal',
+    'gasto.reanalyze': 'Re-analisar foto',
+    'gasto.save': 'Salvar despesa',
+    'gasto.saving': '⏳ Salvando…',
+    'gasto.error.concepto': 'O conceito é obrigatório.',
+    'gasto.error.monto': 'O valor deve ser maior que 0.',
+    'gasto.error.fecha': 'A data é obrigatória.',
+    'gasto.error.save': '❌ Erro ao salvar a despesa:',
+    'gasto.ocr.error': '⚠️ Não consegui ler a foto com IA. Carregue os dados manualmente.',
+    'photo.error.maxsize': 'A foto é muito grande (máximo 10 MB).',
+    'photo.error.mime': 'Tipo de arquivo não permitido.',
     'ceo.tab.metricas': '📊 Métricas',
     'ceo.tab.servicios': '📋 Serviços',
     'ceo.tab.finanzas': '💰 Finanças',
@@ -3058,7 +3180,8 @@ function renderGastosListInner() {
 
   const empty = total === 0 ? `<div class="coord-empty">${t('finanzas.gastos.none')}</div>` : '';
   const cargarMas = remaining > 0 ? renderCargarMasButton(remaining) : '';
-  content.innerHTML = filtersHTML + (cards || empty) + cargarMas;
+  const fab = `<button class="nuevo-gasto-fab" onclick="openNuevoGastoSheet()" aria-label="Nuevo gasto">+</button>`;
+  content.innerHTML = filtersHTML + (cards || empty) + cargarMas + fab;
 }
 
 async function renderIngresosList() {
@@ -3149,6 +3272,387 @@ function cargarMasFinanzas() {
   _finanzasVisibleLimit += COORD_PAGE_SIZE;
   if (activeFinanzasTab === 'gastos') renderGastosListInner();
   else if (activeFinanzasTab === 'ingresos') renderIngresosListInner();
+}
+
+// ─────────────────────────────────────────────
+// MODAL NUEVO GASTO (M3) — captura foto + OCR Claude + guardar Notion
+// ─────────────────────────────────────────────
+
+// Reusa constants definidas para fotos de servicios (~línea 2417).
+// Si en el futuro se refactoriza, mantener nombres canónicos.
+const GASTOS_DS_ID = '58fd9475-9baf-4d0e-9128-486185bf7ed8';
+const GASTO_MONEDA_MAP = {
+  'USD': '🇺🇸 USD',
+  'UYU': '🇺🇾 UY$',
+  'BRL': '🇺🇸 USD',  // BRL no está en el enum Notion, se mapea a USD con TC = 0
+  'PAB': '🇺🇸 USD',
+  'GTQ': '🇺🇸 USD',
+  'MXN': '🇺🇸 USD',
+  'PYG': '🇺🇸 USD',
+  'ARS': '🇺🇸 USD',
+  'OTRO': '🇺🇸 USD',
+};
+const GASTO_FORMA_PAGO = ['💳 Débito', '🏦 Transferencia', '💵 Efectivo'];
+const GASTO_CATEGORIAS = [
+  '⛽ Combustible', '👥 Sueldos', '🧴 Productos', '🔧 Herramientas',
+  '🛡️ Seguros', '📣 Marketing', '🔩 Repuestos', '🏛️ Impuestos',
+  '🍔 Comida', '✈️ Viajes', '🚗 Patente', '🏢 Alquiler',
+  '🛡️ Insumos limpieza', '📝 Servicios profesionales', '🏠 Otros',
+];
+
+let gastoState = null;
+
+// UUID v4 client-side para path R2 del recibo + idempotency.
+function uuidV4() {
+  if (window.crypto && window.crypto.randomUUID) return window.crypto.randomUUID();
+  // Fallback simple para browsers viejos.
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+}
+
+// Sube una foto del recibo a R2. Retorna { publicUrl }.
+async function uploadReceiptPhoto(file, gastoId) {
+  if (file.size > PHOTO_MAX_BYTES) throw new Error(t('photo.error.maxsize') || 'Foto >10MB');
+  const mime = (file.type || '').toLowerCase();
+  if (!PHOTO_ALLOWED_MIMES.includes(mime)) throw new Error(t('photo.error.mime') || 'Tipo no permitido');
+  const resp = await fetch('/api/upload-url', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ gastoId, fotoType: 'recibo', filename: file.name, contentType: mime }),
+  });
+  if (!resp.ok) {
+    const data = await resp.json().catch(() => ({}));
+    throw new Error(data.error || ('Backend ' + resp.status));
+  }
+  const { uploadUrl, publicUrl } = await resp.json();
+  const put = await fetch(uploadUrl, { method: 'PUT', headers: { 'Content-Type': mime }, body: file });
+  if (!put.ok) throw new Error('Upload ' + put.status);
+  return { publicUrl };
+}
+
+// Llama el endpoint OCR. Retorna el JSON estructurado.
+async function extractReceiptViaAI(imageUrl) {
+  const resp = await fetch('/api/extract-receipt', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ imageUrl }),
+  });
+  if (!resp.ok) {
+    const data = await resp.json().catch(() => ({}));
+    throw new Error(data.error || 'OCR failed');
+  }
+  return resp.json();
+}
+
+function openNuevoGastoSheet(opts = {}) {
+  gastoState = {
+    step: 'select-photo',
+    gastoId: uuidV4(),
+    reciboUrl: null,
+    reciboPreview: null,
+    ocr: null,
+    form: {
+      concepto: '',
+      monto: 0,
+      moneda: '🇺🇸 USD',
+      fecha: new Date().toISOString().slice(0, 10),
+      proveedor: '',
+      categoria: '🏠 Otros',
+      clase: opts.defaultClase || '🔁 Indirecto',
+      servicioId: opts.servicioId || null,
+      detalle: '',
+      formaPago: '💳 Débito',
+      factura: false,
+    },
+    saving: false,
+  };
+  document.getElementById('gasto-overlay').classList.add('open');
+  renderGastoSheet();
+  // Pre-cargar servicios del último mes para el dropdown de vinculación.
+  // Si _coordAllServices ya está poblado (porque el user vino del panel coord),
+  // se reutiliza. Si no, fetch en background.
+  if (!_coordAllServices || _coordAllServices.length === 0) {
+    if (typeof fetchCoordItemsForMonth === 'function') {
+      fetchCoordItemsForMonth().then(items => {
+        _coordAllServices = items || [];
+        if (gastoState && gastoState.step === 'edit-form' && gastoState.form.clase === '📌 Directo') {
+          renderGastoSheet();
+        }
+      }).catch(() => {});
+    }
+  }
+}
+
+function closeGastoSheet() {
+  document.getElementById('gasto-overlay').classList.remove('open');
+  if (gastoState?.reciboPreview) {
+    try { URL.revokeObjectURL(gastoState.reciboPreview); } catch (_) {}
+  }
+  gastoState = null;
+}
+
+function gastoOverlayClick(e) {
+  if (e.target.id === 'gasto-overlay') closeGastoSheet();
+}
+
+function renderGastoSheet() {
+  if (!gastoState) return;
+  const body = document.getElementById('gasto-sheet-body');
+  if (!body) return;
+
+  if (gastoState.step === 'select-photo') {
+    body.innerHTML = `
+      <div class="gasto-step-photo">
+        <div class="gasto-step-photo-emoji">📷</div>
+        <div class="gasto-step-photo-title">${t('gasto.foto.title')}</div>
+        <div class="gasto-step-photo-sub">${t('gasto.foto.sub')}</div>
+        <button class="gasto-photo-btn" onclick="document.getElementById('gasto-recibo-input').click()">${t('gasto.foto.btn')}</button>
+        <div><button class="gasto-photo-btn-secondary" onclick="gastoSkipFoto()">${t('gasto.foto.skip')}</button></div>
+      </div>
+    `;
+    return;
+  }
+
+  if (gastoState.step === 'analyzing') {
+    body.innerHTML = `
+      <div class="gasto-step-analyzing">
+        <div class="spinner"></div>
+        <div style="font-weight:700;margin-bottom:6px">${t('gasto.analyzing.title')}</div>
+        <div style="font-size:12px;color:var(--text2)">${t('gasto.analyzing.sub')}</div>
+      </div>
+    `;
+    return;
+  }
+
+  // Step 'edit-form'
+  const f = gastoState.form;
+  const ocr = gastoState.ocr;
+  const warnBanner = ocr && ocr.confianza !== 'alta'
+    ? `<div class="gasto-confianza-warn">
+        <div style="font-size:18px">⚠️</div>
+        <div><strong>${t('gasto.warn.title')}</strong><br>
+        ${esc(t('gasto.warn.motivo.' + (ocr.motivo_baja_confianza || 'ilegible')) || '')}
+        — ${t('gasto.warn.check')}</div>
+      </div>`
+    : '';
+
+  const warnClass = ocr && ocr.confianza !== 'alta' ? 'warn' : '';
+
+  const thumb = gastoState.reciboPreview
+    ? `<div class="gasto-thumb-wrap"><img src="${esc(gastoState.reciboPreview)}" onclick="window.open('${esc(gastoState.reciboPreview)}','_blank')"/></div>`
+    : '';
+
+  const reanalyzeBtn = gastoState.reciboUrl
+    ? `<button class="gasto-reanalyze-btn" onclick="reanalyzeReceipt()">🔄 ${t('gasto.reanalyze')}</button>`
+    : '';
+
+  const servicios = (_coordAllServices && _coordAllServices.length > 0)
+    ? _coordAllServices.slice(0, 30)
+    : [];
+
+  body.innerHTML = `
+    ${warnBanner}
+    ${thumb}
+    <div class="gasto-form-row ${warnClass}">
+      <label>${t('gasto.field.concepto')}</label>
+      <input type="text" id="g-concepto" value="${esc(f.concepto)}" oninput="gastoState.form.concepto=this.value" maxlength="120"/>
+    </div>
+    <div class="gasto-form-row ${warnClass}" style="display:flex;gap:8px">
+      <div style="flex:1">
+        <label>${t('gasto.field.monto')}</label>
+        <input type="number" id="g-monto" value="${f.monto}" step="0.01" min="0" oninput="gastoState.form.monto=parseFloat(this.value)||0"/>
+      </div>
+      <div style="width:120px">
+        <label>${t('gasto.field.moneda')}</label>
+        <select id="g-moneda" onchange="gastoState.form.moneda=this.value">
+          <option value="🇺🇸 USD" ${f.moneda==='🇺🇸 USD'?'selected':''}>USD</option>
+          <option value="🇺🇾 UY$" ${f.moneda==='🇺🇾 UY$'?'selected':''}>UY$</option>
+        </select>
+      </div>
+    </div>
+    <div class="gasto-form-row ${warnClass}">
+      <label>${t('gasto.field.fecha')}</label>
+      <input type="date" id="g-fecha" value="${esc(f.fecha)}" oninput="gastoState.form.fecha=this.value"/>
+    </div>
+    <div class="gasto-form-row">
+      <label>${t('gasto.field.proveedor')}</label>
+      <input type="text" id="g-proveedor" value="${esc(f.proveedor)}" oninput="gastoState.form.proveedor=this.value" maxlength="80"/>
+    </div>
+    <div class="gasto-form-row">
+      <label>${t('gasto.field.categoria')}</label>
+      <select id="g-categoria" onchange="gastoState.form.categoria=this.value">
+        ${GASTO_CATEGORIAS.map(c => `<option value="${esc(c)}" ${f.categoria===c?'selected':''}>${esc(c)}</option>`).join('')}
+      </select>
+    </div>
+    <div class="gasto-form-row">
+      <label>${t('gasto.field.clase')}</label>
+      <div class="gasto-clase-toggle">
+        <button type="button" class="gasto-clase-btn ${f.clase==='📌 Directo'?'active':''}" onclick="gastoState.form.clase='📌 Directo';renderGastoSheet()">📌 ${t('gasto.clase.directo')}</button>
+        <button type="button" class="gasto-clase-btn ${f.clase==='🔁 Indirecto'?'active':''}" onclick="gastoState.form.clase='🔁 Indirecto';gastoState.form.servicioId=null;renderGastoSheet()">🔁 ${t('gasto.clase.indirecto')}</button>
+      </div>
+    </div>
+    ${f.clase === '📌 Directo' ? `
+      <div class="gasto-form-row">
+        <label>${t('gasto.field.servicio')}</label>
+        <select id="g-servicio" onchange="gastoState.form.servicioId=this.value||null">
+          <option value="">${t('gasto.servicio.none')}</option>
+          ${servicios.map(s => {
+            const name = s.properties?.['Nombre del servicio']?.title?.[0]?.plain_text || '(sin nombre)';
+            return `<option value="${esc(s.id)}" ${f.servicioId===s.id?'selected':''}>${esc(name)}</option>`;
+          }).join('')}
+        </select>
+        ${servicios.length === 0 ? `<div style="font-size:11px;color:var(--text3);margin-top:6px">${t('gasto.servicio.empty')}</div>` : ''}
+      </div>
+    ` : ''}
+    <div class="gasto-form-row">
+      <label>${t('gasto.field.formapago')}</label>
+      <select id="g-formapago" onchange="gastoState.form.formaPago=this.value">
+        ${GASTO_FORMA_PAGO.map(fp => `<option value="${esc(fp)}" ${f.formaPago===fp?'selected':''}>${esc(fp)}</option>`).join('')}
+      </select>
+    </div>
+    <div class="gasto-form-row">
+      <label>${t('gasto.field.detalle')}</label>
+      <textarea id="g-detalle" oninput="gastoState.form.detalle=this.value" maxlength="500">${esc(f.detalle)}</textarea>
+    </div>
+    <div class="gasto-checkbox-row">
+      <input type="checkbox" id="g-factura" ${f.factura?'checked':''} onchange="gastoState.form.factura=this.checked"/>
+      <label for="g-factura">${t('gasto.field.factura')}</label>
+    </div>
+    <div class="gasto-actions">
+      ${reanalyzeBtn}
+      <button class="edit-save-btn" id="gasto-save-btn" onclick="saveGasto()" ${gastoState.saving?'disabled':''}>${gastoState.saving ? t('gasto.saving') : ('💾 ' + t('gasto.save'))}</button>
+    </div>
+  `;
+}
+
+async function onGastoReciboSelected(input) {
+  const file = input.files && input.files[0];
+  input.value = ''; // reset para permitir re-elegir el mismo archivo
+  if (!file || !gastoState) return;
+  if (file.size > PHOTO_MAX_BYTES) { alert(t('photo.error.maxsize') || 'Foto >10MB'); return; }
+  const mime = (file.type || '').toLowerCase();
+  if (!PHOTO_ALLOWED_MIMES.includes(mime)) { alert(t('photo.error.mime') || 'Tipo no permitido'); return; }
+  gastoState.reciboPreview = URL.createObjectURL(file);
+  gastoState.step = 'analyzing';
+  renderGastoSheet();
+  try {
+    const { publicUrl } = await uploadReceiptPhoto(file, gastoState.gastoId);
+    gastoState.reciboUrl = publicUrl;
+    const ocr = await extractReceiptViaAI(publicUrl);
+    gastoState.ocr = ocr;
+    // Mapear OCR al form.
+    gastoState.form.concepto = ocr.descripcion || gastoState.form.concepto;
+    gastoState.form.monto = ocr.monto || 0;
+    gastoState.form.moneda = GASTO_MONEDA_MAP[ocr.moneda] || '🇺🇸 USD';
+    gastoState.form.fecha = ocr.fecha || gastoState.form.fecha;
+    gastoState.form.proveedor = ocr.proveedor || '';
+    gastoState.form.categoria = ocr.categoria_sugerida || '🏠 Otros';
+    gastoState.step = 'edit-form';
+    renderGastoSheet();
+  } catch (e) {
+    console.warn('[gasto] OCR error:', e.message);
+    // Fallback: ir al form con datos en blanco. El usuario carga manual.
+    gastoState.ocr = { confianza: 'baja', motivo_baja_confianza: 'ilegible' };
+    gastoState.step = 'edit-form';
+    renderGastoSheet();
+    alert(t('gasto.ocr.error'));
+  }
+}
+
+function gastoSkipFoto() {
+  // Salto de foto → form vacío, sin OCR ni recibo subido.
+  if (!gastoState) return;
+  gastoState.step = 'edit-form';
+  renderGastoSheet();
+}
+
+async function reanalyzeReceipt() {
+  if (!gastoState || !gastoState.reciboUrl) return;
+  gastoState.step = 'analyzing';
+  renderGastoSheet();
+  try {
+    const ocr = await extractReceiptViaAI(gastoState.reciboUrl);
+    gastoState.ocr = ocr;
+    gastoState.form.concepto = ocr.descripcion || gastoState.form.concepto;
+    gastoState.form.monto = ocr.monto || gastoState.form.monto;
+    gastoState.form.moneda = GASTO_MONEDA_MAP[ocr.moneda] || gastoState.form.moneda;
+    gastoState.form.fecha = ocr.fecha || gastoState.form.fecha;
+    gastoState.form.proveedor = ocr.proveedor || gastoState.form.proveedor;
+    gastoState.form.categoria = ocr.categoria_sugerida || gastoState.form.categoria;
+    gastoState.step = 'edit-form';
+    renderGastoSheet();
+  } catch (e) {
+    gastoState.step = 'edit-form';
+    renderGastoSheet();
+    alert(t('gasto.ocr.error'));
+  }
+}
+
+async function saveGasto() {
+  if (!gastoState || gastoState.saving) return;
+  const f = gastoState.form;
+  if (!f.concepto.trim()) { alert(t('gasto.error.concepto')); return; }
+  if (!f.monto || f.monto <= 0) { alert(t('gasto.error.monto')); return; }
+  if (!f.fecha) { alert(t('gasto.error.fecha')); return; }
+
+  gastoState.saving = true;
+  renderGastoSheet();
+
+  // Calcular Mes desde fecha (no desde new Date()).
+  const meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  const [yy, mm] = f.fecha.split('-').map(Number);
+  const mesLabel = `${meses[mm-1]} ${yy}`;
+
+  const countryMap = {
+    'Uruguay': '🇺🇾 UY',
+    'Brasil': '🇧🇷 BR',
+    'Panamá': '🇵🇦 PA',
+    'Guatemala': '🇬🇹 GT',
+    'México': '🇲🇽 MX',
+  };
+
+  const properties = {
+    'Concepto': { title: [{ text: { content: f.concepto.trim() } }] },
+    'Monto USD': { number: f.monto },
+    'Fecha': { date: { start: f.fecha } },
+    'Mes': { select: { name: mesLabel } },
+    'Categoría': { select: { name: f.categoria } },
+    'Clase': { select: { name: f.clase } },
+    'Moneda': { select: { name: f.moneda } },
+    'Forma de pago': { select: { name: f.formaPago } },
+    'Factura': { checkbox: !!f.factura },
+    'País': { select: { name: countryMap[currentUser.country] || '🇺🇾 UY' } },
+  };
+  if (f.proveedor) properties['Tienda / Proveedor'] = { rich_text: [{ text: { content: f.proveedor } }] };
+  if (f.detalle) properties['Detalle'] = { rich_text: [{ text: { content: f.detalle } }] };
+  if (f.servicioId && f.clase === '📌 Directo') {
+    properties['Servicio'] = { relation: [{ id: f.servicioId }] };
+  }
+  if (gastoState.reciboUrl) {
+    properties['Foto del recibo'] = {
+      files: [{ type: 'external', name: 'recibo.jpg', external: { url: gastoState.reciboUrl } }],
+    };
+  }
+
+  try {
+    await callNotion('pages', 'POST', {
+      parent: { type: 'data_source_id', data_source_id: GASTOS_DS_ID },
+      properties,
+    });
+    // Invalidar cache para que la próxima vez Gastos se refresque.
+    _gastosCache = null;
+    closeGastoSheet();
+    if (typeof renderGastosList === 'function' && activeFinanzasTab === 'gastos') {
+      renderGastosList();
+    }
+  } catch (e) {
+    gastoState.saving = false;
+    renderGastoSheet();
+    alert((t('gasto.error.save') || 'Error al guardar:') + ' ' + e.message);
+  }
 }
 
 async function pinConfirm() {

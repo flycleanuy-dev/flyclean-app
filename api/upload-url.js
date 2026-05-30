@@ -18,7 +18,9 @@ const ALLOWED_MIMES = new Set([
   'image/heif',
 ]);
 
-const ALLOWED_FOTO_TYPES = new Set(['pre', 'post', 'relevamiento']);
+// Servicios: pre/post/relevamiento → key servicios/{serviceId}/{fotoType}/...
+// Gastos: recibo → key gastos/{gastoId}/...
+const ALLOWED_FOTO_TYPES = new Set(['pre', 'post', 'relevamiento', 'recibo']);
 
 function getR2Client() {
   const accountId = process.env.R2_ACCOUNT_ID;
@@ -73,11 +75,8 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'R2 bucket not configured' });
   }
 
-  const { serviceId, fotoType, filename, contentType } = req.body || {};
+  const { serviceId, gastoId, fotoType, filename, contentType } = req.body || {};
 
-  if (!serviceId || typeof serviceId !== 'string' || !/^[a-f0-9-]{32,36}$/i.test(serviceId)) {
-    return res.status(400).json({ error: 'Invalid serviceId' });
-  }
   if (!ALLOWED_FOTO_TYPES.has(fotoType)) {
     return res.status(400).json({ error: 'Invalid fotoType' });
   }
@@ -92,7 +91,21 @@ export default async function handler(req, res) {
   const safeExt = /^[a-z0-9]{1,5}$/.test(ext) ? ext : 'jpg';
   const rand = crypto.randomBytes(6).toString('hex');
   const timestamp = Date.now();
-  const key = `servicios/${serviceId}/${fotoType}/${timestamp}-${rand}.${safeExt}`;
+
+  // Servicios: pre/post/relevamiento exigen serviceId (UUID Notion 32-36 chars).
+  // Gastos: recibo exige gastoId (UUID v4 generado client-side, 8-36 chars).
+  let key;
+  if (fotoType === 'recibo') {
+    if (!gastoId || typeof gastoId !== 'string' || !/^[a-z0-9-]{8,36}$/i.test(gastoId)) {
+      return res.status(400).json({ error: 'Invalid gastoId' });
+    }
+    key = `gastos/${gastoId}/${timestamp}-${rand}.${safeExt}`;
+  } else {
+    if (!serviceId || typeof serviceId !== 'string' || !/^[a-f0-9-]{32,36}$/i.test(serviceId)) {
+      return res.status(400).json({ error: 'Invalid serviceId' });
+    }
+    key = `servicios/${serviceId}/${fotoType}/${timestamp}-${rand}.${safeExt}`;
+  }
 
   try {
     const r2 = getR2Client();
