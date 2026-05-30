@@ -1,10 +1,10 @@
-// v5: cambiar estrategia de Notion API de stale-while-revalidate a NETWORK-FIRST con timeout
-// Razón del cambio: stale-while-revalidate podía servir respuestas cacheadas con properties
-// parciales (ej. cuando el proxy hacía search fallback en el pasado). Network-first asegura
-// datos frescos siempre que haya conexión; cache solo cuando la red falla u offline.
-// Cache de Notion bumpea a v2 para invalidar todas las respuestas viejas posiblemente corruptas.
+// v6: bump tras PR #28 (fix gasto-overlay fuera de screen-coordinator).
+// Sin este bump los clientes con la PWA instalada seguirían viendo el index.html
+// viejo desde caché y el bug del modal de gasto se mantendría visible aun con el
+// deploy live. Cache de Notion no necesita bump (solo cambió HTML).
+// v5: cambiar estrategia de Notion API de stale-while-revalidate a NETWORK-FIRST con timeout.
 
-const CACHE = 'flyclean-v5';
+const CACHE = 'flyclean-v6';
 const SHELL = [
   '/',
   '/index.html',
