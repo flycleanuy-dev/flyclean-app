@@ -210,6 +210,22 @@ body::before {
     padding: 2px 7px; border-radius: 999px;
     vertical-align: middle; margin-right: 6px;
   }
+  .finanzas-filters { display: flex; gap: 8px; padding: 12px 16px 4px; flex-wrap: wrap; }
+  .finanzas-filter-select { flex: 1; min-width: 140px; padding: 8px 10px; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); font-family: 'Exo 2', sans-serif; font-size: 12px; cursor: pointer; }
+  .finanzas-summary { padding: 8px 16px 12px; font-size: 13px; color: var(--text2); border-bottom: 1px solid var(--border); margin-bottom: 4px; }
+  .gasto-card { display: flex; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--border); align-items: center; }
+  .gasto-card-main { flex: 1; min-width: 0; }
+  .gasto-card-concepto { font-weight: 600; font-size: 14px; color: var(--text); margin-bottom: 4px; }
+  .gasto-card-meta { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 4px; }
+  .gasto-tag { display: inline-block; padding: 2px 8px; background: var(--bg2); border: 1px solid var(--border); border-radius: 999px; font-size: 10px; color: var(--text2); }
+  .gasto-tag-clase { background: rgba(33, 150, 243, 0.1); border-color: rgba(33, 150, 243, 0.3); color: #2196F3; }
+  .gasto-tag-svc { background: rgba(0, 201, 141, 0.1); border-color: rgba(0, 201, 141, 0.3); color: var(--green); }
+  .gasto-card-bottom { display: flex; gap: 8px; align-items: center; }
+  .gasto-card-monto { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0; }
+  .gasto-monto-val { font-weight: 700; font-size: 15px; color: var(--red); }
+  .gasto-recibo-thumb { width: 36px; height: 36px; object-fit: cover; border-radius: 4px; border: 1px solid var(--border); cursor: pointer; }
+  .reportes-grid { display: flex; flex-direction: column; gap: 10px; }
+  .reporte-btn { padding: 14px 18px; background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text2); font-family: 'Exo 2', sans-serif; font-size: 14px; font-weight: 600; cursor: not-allowed; text-align: left; opacity: 0.6; }
   .cancelar-inicio-banner {
     display: flex; justify-content: space-between; align-items: center;
     gap: 10px; padding: 10px 12px; margin-bottom: 14px;
@@ -1401,6 +1417,15 @@ const TRANSLATIONS = {
     'finanzas.gastos.empty': '💸 Tab Gastos — pronto vas a poder cargar gastos con foto del recibo (Claude AI extrae los datos).',
     'finanzas.ingresos.empty': '💵 Tab Ingresos — lista de cobros del mes (pronto).',
     'finanzas.reportes.empty': '📊 Tab Reportes — generador de reportes PDF semanal/mensual (pronto).',
+    'finanzas.gastos.total': '💸 Total gastos:',
+    'finanzas.ingresos.total': '💵 Total cobros:',
+    'finanzas.gastos.none': 'No hay gastos registrados todavía.',
+    'finanzas.ingresos.none': 'No hay cobros registrados todavía.',
+    'finanzas.reportes.intro': '📊 Generá reportes financieros con un click. Los PDFs se descargan directo.',
+    'finanzas.reportes.semanal': 'Reporte semanal',
+    'finanzas.reportes.mensual': 'Reporte mensual',
+    'finanzas.reportes.servicio': 'Reporte por servicio',
+    'finanzas.reportes.disabled': '(Disponible en el próximo milestone — Milestone 5)',
     'ceo.tab.metricas': '📊 Métricas',
     'ceo.tab.servicios': '📋 Servicios',
     'ceo.tab.finanzas': '💰 Finanzas',
@@ -1810,6 +1835,15 @@ const TRANSLATIONS = {
     'finanzas.gastos.empty': '💸 Tab Despesas — em breve poderá registrar despesas com foto do recibo (Claude AI extrai os dados).',
     'finanzas.ingresos.empty': '💵 Tab Receitas — lista de cobranças do mês (em breve).',
     'finanzas.reportes.empty': '📊 Tab Relatórios — gerador de relatórios PDF semanal/mensal (em breve).',
+    'finanzas.gastos.total': '💸 Total despesas:',
+    'finanzas.ingresos.total': '💵 Total cobranças:',
+    'finanzas.gastos.none': 'Ainda não há despesas registradas.',
+    'finanzas.ingresos.none': 'Ainda não há cobranças registradas.',
+    'finanzas.reportes.intro': '📊 Gere relatórios financeiros com um clique. Os PDFs são baixados direto.',
+    'finanzas.reportes.semanal': 'Relatório semanal',
+    'finanzas.reportes.mensual': 'Relatório mensal',
+    'finanzas.reportes.servicio': 'Relatório por serviço',
+    'finanzas.reportes.disabled': '(Disponível no próximo milestone — Milestone 5)',
     'ceo.tab.metricas': '📊 Métricas',
     'ceo.tab.servicios': '📋 Serviços',
     'ceo.tab.finanzas': '💰 Finanças',
@@ -2894,6 +2928,45 @@ async function loadFinanzas() {
 }
 
 let activeFinanzasTab = 'gastos';
+const GASTOS_DB_ID = '1e20cdab-ad5d-4152-8d07-0ed2f6e9dad3';
+const INGRESOS_DB_ID = 'd1e15376-e83a-408a-8a52-f47da33c249a';
+let _finanzasVisibleLimit = COORD_PAGE_SIZE;
+let _gastosCache = null;
+let _ingresosCache = null;
+let _finanzasFilterCategoria = '';
+let _finanzasFilterClase = '';
+let _finanzasFilterTipo = '';
+
+// Helper: convierte yyyy-mm-dd a label "Mayo 2026" (mismo formato que las options en Notion)
+function notionMesLabel(yearMonth) {
+  const [y, m] = yearMonth.split('-').map(Number);
+  const meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  return `${meses[m-1]} ${y}`;
+}
+
+function currentYearMonth() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+}
+
+async function fetchGastosForMonth() {
+  // Trae los gastos del mes actual. Para v1 sin filtro server-side de mes
+  // (Notion devuelve max 100 sin paginar) — toda la lista del último mes.
+  const data = await callNotion(`databases/${GASTOS_DB_ID}/query`, 'POST', {
+    page_size: 100,
+    sorts: [{ property: 'Fecha', direction: 'descending' }]
+  });
+  return data.results || [];
+}
+
+async function fetchIngresosForMonth() {
+  const data = await callNotion(`databases/${INGRESOS_DB_ID}/query`, 'POST', {
+    page_size: 100,
+    sorts: [{ property: 'Fecha', direction: 'descending' }]
+  });
+  return data.results || [];
+}
+
 function setFinanzasTab(tab) {
   activeFinanzasTab = tab;
   markUserActive();
@@ -2901,12 +2974,181 @@ function setFinanzasTab(tab) {
     const el = document.getElementById('ftab-' + t);
     if (el) el.classList.toggle('active', t === tab);
   });
+  _finanzasVisibleLimit = COORD_PAGE_SIZE;
+  _finanzasFilterCategoria = '';
+  _finanzasFilterClase = '';
+  _finanzasFilterTipo = '';
+  if (tab === 'gastos') renderGastosList();
+  else if (tab === 'ingresos') renderIngresosList();
+  else renderReportesShell();
+}
+
+async function renderGastosList() {
+  const myTab = 'gastos';
   const content = document.getElementById('finanzas-content');
-  if (!content) return;
-  // En milestone 1 son placeholders. El render real va en M2.
-  if (tab === 'gastos') content.innerHTML = `<div class="coord-empty">${t('finanzas.gastos.empty')}</div>`;
-  else if (tab === 'ingresos') content.innerHTML = `<div class="coord-empty">${t('finanzas.ingresos.empty')}</div>`;
-  else content.innerHTML = `<div class="coord-empty">${t('finanzas.reportes.empty')}</div>`;
+  content.innerHTML = '<div style="text-align:center;padding:40px 0"><div class="spinner" style="margin:0 auto"></div></div>';
+  try {
+    if (!_gastosCache) _gastosCache = await fetchGastosForMonth();
+    if (activeFinanzasTab !== myTab) return;
+    renderGastosListInner();
+  } catch (e) {
+    if (activeFinanzasTab !== myTab) return;
+    content.innerHTML = `<div class="coord-empty">${t('coord.error.load')}<br><small>${esc(e.message)}</small></div>`;
+  }
+}
+
+function renderGastosListInner() {
+  const content = document.getElementById('finanzas-content');
+  let items = _gastosCache || [];
+  if (_finanzasFilterCategoria) items = items.filter(g => g.properties?.['Categoría']?.select?.name === _finanzasFilterCategoria);
+  if (_finanzasFilterClase) items = items.filter(g => g.properties?.['Clase']?.select?.name === _finanzasFilterClase);
+  const total = items.length;
+  const visible = items.slice(0, _finanzasVisibleLimit);
+  const remaining = total - visible.length;
+
+  let totalMonto = 0;
+  items.forEach(g => { totalMonto += (g.properties?.['Monto USD']?.number || 0); });
+
+  const categorias = [...new Set((_gastosCache || []).map(g => g.properties?.['Categoría']?.select?.name).filter(Boolean))].sort();
+  const filtersHTML = `
+    <div class="finanzas-filters">
+      <select class="finanzas-filter-select" onchange="_finanzasFilterCategoria=this.value;_finanzasVisibleLimit=COORD_PAGE_SIZE;renderGastosListInner()">
+        <option value="">📂 Todas las categorías</option>
+        ${categorias.map(c => `<option value="${esc(c)}" ${_finanzasFilterCategoria===c?'selected':''}>${esc(c)}</option>`).join('')}
+      </select>
+      <select class="finanzas-filter-select" onchange="_finanzasFilterClase=this.value;_finanzasVisibleLimit=COORD_PAGE_SIZE;renderGastosListInner()">
+        <option value="">🏷 Todas (directos + indirectos)</option>
+        <option value="📌 Directo" ${_finanzasFilterClase==='📌 Directo'?'selected':''}>📌 Solo Directos</option>
+        <option value="🔁 Indirecto" ${_finanzasFilterClase==='🔁 Indirecto'?'selected':''}>🔁 Solo Indirectos</option>
+      </select>
+    </div>
+    <div class="finanzas-summary">${t('finanzas.gastos.total')} <strong>$${totalMonto.toLocaleString('en-US',{maximumFractionDigits:2})}</strong> <span style="color:var(--text3);font-size:12px">(${total} ${total===1?'gasto':'gastos'})</span></div>
+  `;
+
+  const cards = visible.map(g => {
+    const props = g.properties || {};
+    const concepto = props['Concepto']?.title?.[0]?.plain_text || '(sin concepto)';
+    const categoria = props['Categoría']?.select?.name || '';
+    const clase = props['Clase']?.select?.name || '';
+    const monto = props['Monto USD']?.number || 0;
+    const fecha = props['Fecha']?.date?.start || '';
+    const proveedor = props['Tienda / Proveedor']?.rich_text?.[0]?.plain_text || '';
+    const servicioVinculado = (props['Servicio']?.relation || []).length > 0;
+    const fotoFiles = props['Foto del recibo']?.files || [];
+    const fotoUrl = fotoFiles[0]?.external?.url || fotoFiles[0]?.file?.url || '';
+    return `<div class="gasto-card">
+      <div class="gasto-card-main">
+        <div class="gasto-card-concepto">${esc(concepto)}</div>
+        <div class="gasto-card-meta">
+          ${categoria ? `<span class="gasto-tag">${esc(categoria)}</span>` : ''}
+          ${clase ? `<span class="gasto-tag gasto-tag-clase">${esc(clase)}</span>` : ''}
+          ${servicioVinculado ? `<span class="gasto-tag gasto-tag-svc">🔗 Servicio</span>` : ''}
+        </div>
+        <div class="gasto-card-bottom">
+          ${proveedor ? `<span style="font-size:11px;color:var(--text3)">${esc(proveedor)}</span>` : ''}
+          <span style="font-size:11px;color:var(--text3)">${esc(fecha)}</span>
+        </div>
+      </div>
+      <div class="gasto-card-monto">
+        <div class="gasto-monto-val">$${monto.toLocaleString('en-US',{maximumFractionDigits:2})}</div>
+        ${fotoUrl ? `<img src="${esc(fotoUrl)}" loading="lazy" class="gasto-recibo-thumb" onclick="window.open('${esc(fotoUrl)}','_blank')"/>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+
+  const empty = total === 0 ? `<div class="coord-empty">${t('finanzas.gastos.none')}</div>` : '';
+  const cargarMas = remaining > 0 ? renderCargarMasButton(remaining) : '';
+  content.innerHTML = filtersHTML + (cards || empty) + cargarMas;
+}
+
+async function renderIngresosList() {
+  const myTab = 'ingresos';
+  const content = document.getElementById('finanzas-content');
+  content.innerHTML = '<div style="text-align:center;padding:40px 0"><div class="spinner" style="margin:0 auto"></div></div>';
+  try {
+    if (!_ingresosCache) _ingresosCache = await fetchIngresosForMonth();
+    if (activeFinanzasTab !== myTab) return;
+    renderIngresosListInner();
+  } catch (e) {
+    if (activeFinanzasTab !== myTab) return;
+    content.innerHTML = `<div class="coord-empty">${t('coord.error.load')}<br><small>${esc(e.message)}</small></div>`;
+  }
+}
+
+function renderIngresosListInner() {
+  const content = document.getElementById('finanzas-content');
+  let items = _ingresosCache || [];
+  if (_finanzasFilterTipo) items = items.filter(i => i.properties?.['Tipo']?.select?.name === _finanzasFilterTipo);
+  const total = items.length;
+  const visible = items.slice(0, _finanzasVisibleLimit);
+  const remaining = total - visible.length;
+
+  let totalMonto = 0;
+  items.forEach(i => { totalMonto += (i.properties?.['Monto USD']?.number || 0); });
+
+  const tipos = [...new Set((_ingresosCache || []).map(i => i.properties?.['Tipo']?.select?.name).filter(Boolean))].sort();
+  const filtersHTML = `
+    <div class="finanzas-filters">
+      <select class="finanzas-filter-select" onchange="_finanzasFilterTipo=this.value;_finanzasVisibleLimit=COORD_PAGE_SIZE;renderIngresosListInner()">
+        <option value="">🛠 Todos los tipos</option>
+        ${tipos.map(tp => `<option value="${esc(tp)}" ${_finanzasFilterTipo===tp?'selected':''}>${esc(tp)}</option>`).join('')}
+      </select>
+    </div>
+    <div class="finanzas-summary">${t('finanzas.ingresos.total')} <strong>$${totalMonto.toLocaleString('en-US',{maximumFractionDigits:2})}</strong> <span style="color:var(--text3);font-size:12px">(${total} ${total===1?'cobro':'cobros'})</span></div>
+  `;
+
+  const cards = visible.map(i => {
+    const props = i.properties || {};
+    const servicioTitle = props['Servicio']?.title?.[0]?.plain_text || '(sin nombre)';
+    const cliente = props['Cliente']?.rich_text?.[0]?.plain_text || '';
+    const tipo = props['Tipo']?.select?.name || '';
+    const monto = props['Monto USD']?.number || 0;
+    const fecha = props['Fecha']?.date?.start || '';
+    const facturado = props['Facturado']?.checkbox || false;
+    return `<div class="gasto-card">
+      <div class="gasto-card-main">
+        <div class="gasto-card-concepto">${esc(servicioTitle)}</div>
+        <div class="gasto-card-meta">
+          ${tipo ? `<span class="gasto-tag">${esc(tipo)}</span>` : ''}
+          ${facturado ? `<span class="gasto-tag gasto-tag-svc">📄 Facturado</span>` : ''}
+        </div>
+        <div class="gasto-card-bottom">
+          ${cliente ? `<span style="font-size:11px;color:var(--text3)">${esc(cliente)}</span>` : ''}
+          <span style="font-size:11px;color:var(--text3)">${esc(fecha)}</span>
+        </div>
+      </div>
+      <div class="gasto-card-monto">
+        <div class="gasto-monto-val" style="color:var(--green)">+$${monto.toLocaleString('en-US',{maximumFractionDigits:2})}</div>
+      </div>
+    </div>`;
+  }).join('');
+
+  const empty = total === 0 ? `<div class="coord-empty">${t('finanzas.ingresos.none')}</div>` : '';
+  const cargarMas = remaining > 0 ? renderCargarMasButton(remaining) : '';
+  content.innerHTML = filtersHTML + (cards || empty) + cargarMas;
+}
+
+function renderReportesShell() {
+  const content = document.getElementById('finanzas-content');
+  content.innerHTML = `
+    <div style="padding:20px">
+      <div class="hint hint-blue" style="margin-bottom:16px">${t('finanzas.reportes.intro')}</div>
+      <div class="reportes-grid">
+        <button class="reporte-btn" disabled>📄 ${t('finanzas.reportes.semanal')}</button>
+        <button class="reporte-btn" disabled>📅 ${t('finanzas.reportes.mensual')}</button>
+        <button class="reporte-btn" disabled>📊 ${t('finanzas.reportes.servicio')}</button>
+      </div>
+      <div style="font-size:11px;color:var(--text3);margin-top:12px;text-align:center">${t('finanzas.reportes.disabled')}</div>
+    </div>
+  `;
+}
+
+// Override de cargarMasCoord para finanzas
+const _originalCargarMasCoord = typeof cargarMasCoord === 'function' ? cargarMasCoord : null;
+function cargarMasFinanzas() {
+  _finanzasVisibleLimit += COORD_PAGE_SIZE;
+  if (activeFinanzasTab === 'gastos') renderGastosListInner();
+  else if (activeFinanzasTab === 'ingresos') renderIngresosListInner();
 }
 
 async function pinConfirm() {
@@ -4538,6 +4780,12 @@ function renderCargarMasButton(remaining) {
 }
 
 function cargarMasCoord() {
+  // Router: delega a finanzas si esa pantalla está activa.
+  const finanzasScreen = document.getElementById('screen-finanzas');
+  if (finanzasScreen && finanzasScreen.classList.contains('active')) {
+    if (typeof cargarMasFinanzas === 'function') cargarMasFinanzas();
+    return;
+  }
   _coordVisibleLimit += COORD_PAGE_SIZE;
   // Re-render según tab activa, manteniendo el limit incrementado.
   if (activeCoordTab === 'propuestas') renderCoordPropuestasList(true);
