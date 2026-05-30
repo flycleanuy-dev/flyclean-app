@@ -224,6 +224,7 @@ body::before {
   .gasto-card-monto { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0; }
   .gasto-monto-val { font-weight: 700; font-size: 15px; color: var(--red); }
   .gasto-recibo-thumb { width: 36px; height: 36px; object-fit: cover; border-radius: 4px; border: 1px solid var(--border); cursor: pointer; }
+  .gasto-recibo-pdf-thumb { width: 36px; height: 36px; border-radius: 4px; border: 1px solid rgba(255,90,90,0.3); background: rgba(255,90,90,0.08); color: #ff5a5a; display: inline-flex; align-items: center; justify-content: center; font-size: 18px; cursor: pointer; box-sizing: border-box; }
   .reportes-grid { display: flex; flex-direction: column; gap: 10px; }
   .reporte-btn { padding: 14px 18px; background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text2); font-family: 'Exo 2', sans-serif; font-size: 14px; font-weight: 600; cursor: not-allowed; text-align: left; opacity: 0.6; }
   .cancelar-inicio-banner {
@@ -3293,7 +3294,7 @@ function renderGastosListInner() {
       </div>
       <div class="gasto-card-monto">
         <div class="gasto-monto-val">$${monto.toLocaleString('en-US',{maximumFractionDigits:2})}</div>
-        ${fotoUrl ? `<img src="${esc(fotoUrl)}" loading="lazy" class="gasto-recibo-thumb" onclick="window.open('${esc(fotoUrl)}','_blank')"/>` : ''}
+        ${renderReciboThumb(fotoUrl)}
       </div>
     </div>`;
   }).join('');
@@ -3433,6 +3434,19 @@ function uuidV4() {
     const v = c === 'x' ? r : (r & 0x3 | 0x8);
     return v.toString(16);
   });
+}
+
+// Renderiza el thumbnail del recibo: <img> para imagen, icono 📄 para PDF.
+// Querystring (`?X-Amz-...`) en R2 presigned URLs no afecta el match — usamos
+// el path. Si no hay URL retorna string vacío.
+function renderReciboThumb(url) {
+  if (!url) return '';
+  const safeUrl = esc(url);
+  const isPdf = /\.pdf(\?|$)/i.test(url);
+  if (isPdf) {
+    return `<div class="gasto-recibo-pdf-thumb" title="PDF" onclick="event.stopPropagation();window.open('${safeUrl}','_blank')">📄</div>`;
+  }
+  return `<img src="${safeUrl}" loading="lazy" class="gasto-recibo-thumb" onclick="event.stopPropagation();window.open('${safeUrl}','_blank')"/>`;
 }
 
 // Sube una foto del recibo a R2. Retorna { publicUrl }.
@@ -3672,7 +3686,7 @@ function renderGastoCard(g) {
     </div>
     <div class="gasto-card-monto">
       <div class="gasto-monto-val">$${monto.toLocaleString('en-US',{maximumFractionDigits:2})}</div>
-      ${fotoUrl ? `<img src="${esc(fotoUrl)}" loading="lazy" class="gasto-recibo-thumb" onclick="window.open('${esc(fotoUrl)}','_blank')"/>` : ''}
+      ${renderReciboThumb(fotoUrl)}
     </div>
   </div>`;
 }
