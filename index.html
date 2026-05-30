@@ -665,6 +665,17 @@ body::before {
   .gasto-chip-coord-monto { font-size: 13px; font-weight: 700; color: var(--red); }
   .ceo-nuevo-gasto-btn { padding: 8px 14px; background: var(--green); border: none; border-radius: var(--radius-sm); color: #fff; font-family: 'Exo 2', sans-serif; font-size: 12px; font-weight: 700; cursor: pointer; }
   .ceo-nuevo-gasto-btn:active { transform: scale(0.97); }
+  .historial-filters { display: flex; gap: 6px; padding: 10px 14px; background: var(--bg); border-bottom: 1px solid var(--border); }
+  .historial-range-btn { flex: 1; padding: 8px 10px; background: var(--card); border: 1px solid var(--border); border-radius: 999px; color: var(--text2); font-family: 'Exo 2', sans-serif; font-size: 12px; font-weight: 600; cursor: pointer; }
+  .historial-range-btn.active { background: var(--green-dark); border-color: var(--green); color: var(--green); }
+  .historial-item { display: flex; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--border); cursor: pointer; align-items: flex-start; }
+  .historial-item:active { background: var(--bg2); }
+  .historial-icon { font-size: 22px; flex-shrink: 0; line-height: 1; padding-top: 2px; }
+  .historial-body { flex: 1; min-width: 0; }
+  .historial-title { font-weight: 600; font-size: 14px; color: var(--text); margin-bottom: 3px; line-height: 1.3; }
+  .historial-subtitle { font-size: 12px; color: var(--text2); margin-bottom: 4px; }
+  .historial-meta { display: flex; flex-wrap: wrap; gap: 8px; font-size: 11px; color: var(--text3); }
+  .historial-meta span:not(:last-child)::after { content: '·'; margin-left: 8px; opacity: 0.5; }
   .create-svc-btn { width: 100%; padding: 14px; background: var(--green-dark); border: 2px solid var(--green); border-radius: var(--radius-sm); color: var(--green); font-size: 14px; font-weight: 700; cursor: pointer; font-family: 'Exo 2', sans-serif; transition: all 0.15s; margin-top: 4px; }
   .create-svc-btn:hover, .create-svc-btn:active { background: var(--green); color: #fff; transform: scale(0.99); }
   .create-svc-btn:disabled { opacity: 0.6; cursor: not-allowed; }
@@ -909,6 +920,7 @@ body::before {
       <div class="header-logo"><svg class="fly-mark" style="color:#00C98D"><use href="#fc-mark"/></svg>FlyClean</div>
     </div>
     <div style="display:flex;align-items:center;gap:8px">
+      <button onclick="openHistorial()" title="Historial" style="background:none;border:1px solid var(--border2);border-radius:8px;color:var(--text3);font-size:11px;padding:5px 10px;cursor:pointer;font-family:'Exo 2',sans-serif">📜</button>
       <button onclick="openPinChange()" style="background:none;border:1px solid var(--border2);border-radius:8px;color:var(--text3);font-size:11px;padding:5px 10px;cursor:pointer;font-family:'Exo 2',sans-serif">🔑 PIN</button>
       <div class="header-user" id="header-user-name" onclick="logout()">Salir ↩</div>
     </div>
@@ -940,6 +952,7 @@ body::before {
     <div class="coord-logo" id="coord-logo-title"><svg class="fly-mark" style="color:#00C98D"><use href="#fc-mark"/></svg>FlyClean — Coordinador</div>
     <div style="display:flex;align-items:center;gap:8px">
       <button id="coord-ceo-btn" onclick="goToCEOFromCoord()" style="display:none;background:none;border:1px solid var(--border2);border-radius:8px;color:var(--text2);font-size:11px;font-weight:600;padding:5px 10px;cursor:pointer;font-family:'Exo 2',sans-serif">📊 CEO</button>
+      <button onclick="openHistorial()" title="Historial" style="background:none;border:1px solid var(--border2);border-radius:8px;color:var(--text3);font-size:11px;padding:5px 10px;cursor:pointer;font-family:'Exo 2',sans-serif">📜</button>
       <button onclick="openPinChange()" style="background:none;border:1px solid var(--border2);border-radius:8px;color:var(--text3);font-size:11px;padding:5px 10px;cursor:pointer;font-family:'Exo 2',sans-serif">🔑</button>
       <div class="coord-user" id="coord-user-name" onclick="logout()">Salir ↩</div>
     </div>
@@ -1124,6 +1137,7 @@ body::before {
     <button class="ceo-back-btn" id="ceo-back-btn" onclick="backFromCEO()">←</button>
     <div class="ceo-brand" id="ceo-brand-title"><svg class="fly-mark" style="color:#00C98D"><use href="#fc-mark"/></svg>FlyClean</div>
     <div style="display:flex;align-items:center;gap:8px">
+      <button onclick="openHistorial()" title="Historial" style="background:none;border:1px solid var(--border2);border-radius:8px;color:var(--text3);font-size:11px;padding:5px 10px;cursor:pointer;font-family:'Exo 2',sans-serif">📜</button>
       <button onclick="openPinChange()" style="background:none;border:1px solid var(--border2);border-radius:8px;color:var(--text3);font-size:11px;padding:5px 10px;cursor:pointer;font-family:'Exo 2',sans-serif">🔑</button>
       <div class="ceo-user-tag" id="ceo-user-name">CEO</div>
     </div>
@@ -1148,6 +1162,7 @@ body::before {
     <button class="ceo-back-btn" onclick="logout()">←</button>
     <div class="ceo-brand"><svg class="fly-mark" style="color:#00C98D"><use href="#fc-mark"/></svg>FlyClean</div>
     <div style="display:flex;align-items:center;gap:8px">
+      <button onclick="openHistorial()" title="Historial" style="background:none;border:1px solid var(--border2);border-radius:8px;color:var(--text3);font-size:11px;padding:5px 10px;cursor:pointer;font-family:'Exo 2',sans-serif">📜</button>
       <button onclick="openPinChange()" style="background:none;border:1px solid var(--border2);border-radius:8px;color:var(--text3);font-size:11px;padding:5px 10px;cursor:pointer;font-family:'Exo 2',sans-serif">🔑</button>
       <div class="ceo-user-tag" id="finanzas-header-user">Finanzas</div>
     </div>
@@ -1158,6 +1173,25 @@ body::before {
     <div class="ceo-tab" id="ftab-reportes" data-i18n="finanzas.tab.reportes" onclick="setFinanzasTab('reportes')">📊 Reportes</div>
   </div>
   <div class="ceo-content" id="finanzas-content">
+    <div style="text-align:center;padding:40px 0"><div class="spinner" style="margin:0 auto"></div></div>
+  </div>
+</div>
+
+<!-- HISTORIAL DE ACTIVIDAD (todos los roles) -->
+<div class="screen" id="screen-historial">
+  <div class="ceo-header">
+    <button class="ceo-back-btn" onclick="closeHistorial()">←</button>
+    <div class="ceo-brand"><svg class="fly-mark" style="color:#00C98D"><use href="#fc-mark"/></svg>FlyClean</div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <div class="ceo-user-tag">📜 <span data-i18n="historial.title">Historial</span></div>
+    </div>
+  </div>
+  <div class="historial-filters">
+    <button class="historial-range-btn active" id="hrange-7" onclick="setHistorialRange(7)" data-i18n="historial.range.week">Esta semana</button>
+    <button class="historial-range-btn" id="hrange-30" onclick="setHistorialRange(30)" data-i18n="historial.range.month">Este mes</button>
+    <button class="historial-range-btn" id="hrange-90" onclick="setHistorialRange(90)" data-i18n="historial.range.3months">3 meses</button>
+  </div>
+  <div class="ceo-content" id="historial-content">
     <div style="text-align:center;padding:40px 0"><div class="spinner" style="margin:0 auto"></div></div>
   </div>
 </div>
@@ -1530,6 +1564,14 @@ const TRANSLATIONS = {
     'gasto.coord.empty': 'Sin gastos vinculados todavía.',
     'gasto.coord.total': '💸 Total gastado en este servicio:',
     'ceo.gasto.add': 'Nuevo gasto',
+    'historial.title': 'Historial',
+    'historial.range.week': 'Esta semana',
+    'historial.range.month': 'Este mes',
+    'historial.range.3months': '3 meses',
+    'historial.today': 'Hoy',
+    'historial.yesterday': 'Ayer',
+    'historial.empty': '📜 Sin actividad en este período.',
+    'historial.error': '❌ Error al cargar el historial.',
     'ceo.tab.metricas': '📊 Métricas',
     'ceo.tab.servicios': '📋 Servicios',
     'ceo.tab.finanzas': '💰 Finanzas',
@@ -1995,6 +2037,14 @@ const TRANSLATIONS = {
     'gasto.coord.empty': 'Sem despesas vinculadas ainda.',
     'gasto.coord.total': '💸 Total gasto neste serviço:',
     'ceo.gasto.add': 'Nova despesa',
+    'historial.title': 'Histórico',
+    'historial.range.week': 'Esta semana',
+    'historial.range.month': 'Este mês',
+    'historial.range.3months': '3 meses',
+    'historial.today': 'Hoje',
+    'historial.yesterday': 'Ontem',
+    'historial.empty': '📜 Sem atividade neste período.',
+    'historial.error': '❌ Erro ao carregar o histórico.',
     'ceo.tab.metricas': '📊 Métricas',
     'ceo.tab.servicios': '📋 Serviços',
     'ceo.tab.finanzas': '💰 Finanças',
@@ -3374,6 +3424,240 @@ async function extractReceiptViaAI(imageUrl) {
     throw new Error(data.error || 'OCR failed');
   }
   return resp.json();
+}
+
+// ─────────────────────────────────────────────
+// HISTORIAL DE ACTIVIDAD — feed cronológico unificado
+// ─────────────────────────────────────────────
+// Estrategia v1: derivar de las DBs existentes sin agregar properties nuevas.
+// Cada evento es: { ts, role, who, action, target_type, target_id, target_name, meta }
+// El filtro por rol determina qué entries se muestran:
+//   - operario: solo lo suyo (Operario App == name, gastos vinculados)
+//   - coord/CEO: todo del país
+//   - finanzas: solo gastos + ingresos
+
+let _historialRangeDays = 7;
+let _historialPrevScreen = 'coordinator';
+
+function openHistorial() {
+  // Recordar de qué pantalla venimos para volver al cerrar.
+  if (document.getElementById('screen-coordinator')?.classList.contains('active')) _historialPrevScreen = 'coordinator';
+  else if (document.getElementById('screen-services')?.classList.contains('active')) _historialPrevScreen = 'services';
+  else if (document.getElementById('screen-ceo')?.classList.contains('active')) _historialPrevScreen = 'ceo';
+  else if (document.getElementById('screen-finanzas')?.classList.contains('active')) _historialPrevScreen = 'finanzas';
+  else _historialPrevScreen = 'coordinator';
+  showScreen('historial');
+  setHistorialRange(_historialRangeDays);
+}
+
+function closeHistorial() {
+  showScreen(_historialPrevScreen);
+}
+
+function setHistorialRange(days) {
+  _historialRangeDays = days;
+  markUserActive();
+  [7, 30, 90].forEach(d => {
+    const el = document.getElementById('hrange-' + d);
+    if (el) el.classList.toggle('active', d === days);
+  });
+  renderHistorialList();
+}
+
+// Construye una fecha YYYY-MM-DD a X días atrás.
+function daysAgo(days) {
+  const d = new Date(Date.now() - days * 24 * 3600 * 1000);
+  return d.toISOString().slice(0, 10);
+}
+
+// Tiempo relativo "hace X horas / días".
+function relativeTime(iso) {
+  if (!iso) return '';
+  const now = Date.now();
+  const then = new Date(iso).getTime();
+  const diff = now - then;
+  if (diff < 60000) return 'hace unos segundos';
+  if (diff < 3600000) return `hace ${Math.floor(diff/60000)} min`;
+  if (diff < 86400000) return `hace ${Math.floor(diff/3600000)} h`;
+  const days = Math.floor(diff/86400000);
+  if (days === 1) return 'ayer';
+  if (days < 7) return `hace ${days} días`;
+  if (days < 30) return `hace ${Math.floor(days/7)} sem`;
+  return new Date(iso).toLocaleDateString('es-UY', { day: 'numeric', month: 'short' });
+}
+
+async function renderHistorialList() {
+  const content = document.getElementById('historial-content');
+  if (!content) return;
+  content.innerHTML = '<div style="text-align:center;padding:40px 0"><div class="spinner" style="margin:0 auto"></div></div>';
+
+  const role = currentUser?.role || '';
+  const isOperario = role.includes('Operario');
+  const isFinanzas = role.includes('Administración');
+  const isCoordOrCEO = role.includes('Coordinador') || role.includes('Dirección') || role.includes('CEO');
+  const dateFrom = daysAgo(_historialRangeDays);
+
+  try {
+    // Queries paralelas a las DBs relevantes según el rol.
+    const queries = [];
+
+    // Servicios — todos los roles excepto Finanzas (Finanzas solo ve $).
+    if (!isFinanzas) {
+      queries.push(callNotion(`databases/${DB_ID}/query`, 'POST', {
+        filter: { property: 'Fecha de creación', date: { on_or_after: dateFrom } },
+        sorts: [{ timestamp: 'last_edited_time', direction: 'descending' }],
+        page_size: 50,
+      }).catch(() => ({ results: [] })));
+    } else { queries.push(Promise.resolve({ results: [] })); }
+
+    // Gastos — todos los roles excepto operarios (los operarios no ven todos los $)
+    if (!isOperario) {
+      queries.push(callNotion(`databases/${GASTOS_DB_ID}/query`, 'POST', {
+        filter: { property: 'Fecha', date: { on_or_after: dateFrom } },
+        sorts: [{ property: 'Fecha', direction: 'descending' }],
+        page_size: 50,
+      }).catch(() => ({ results: [] })));
+    } else { queries.push(Promise.resolve({ results: [] })); }
+
+    // Propuestas — solo coord/CEO.
+    if (isCoordOrCEO) {
+      queries.push(callNotion('databases/2c0a4257-f429-4941-b994-dfebc1098633/query', 'POST', {
+        sorts: [{ timestamp: 'last_edited_time', direction: 'descending' }],
+        page_size: 30,
+      }).catch(() => ({ results: [] })));
+    } else { queries.push(Promise.resolve({ results: [] })); }
+
+    const [svcRes, gastosRes, propsRes] = await Promise.all(queries);
+
+    // Construir feed unificado.
+    const events = [];
+
+    (svcRes.results || []).forEach(s => {
+      const props = s.properties || {};
+      const tipoReg = props['Tipo de registro']?.select?.name || 'Servicio';
+      const nombre = props['Nombre del servicio']?.title?.[0]?.plain_text || '(sin nombre)';
+      const estado = props['Estado']?.select?.name || '';
+      const operarioApp = props['Operario App']?.select?.name || '';
+      const pais = props['País']?.select?.name || '';
+      const fecha = s.last_edited_time || s.created_time;
+      // Filtro operario: solo sus servicios.
+      if (isOperario && operarioApp !== currentUser.name) return;
+      const icon = tipoReg.includes('Prueba') ? '🧪'
+                : tipoReg.includes('Relevamiento') ? '🔍'
+                : tipoReg.includes('Jornada') ? '📅'
+                : '📋';
+      events.push({
+        ts: fecha,
+        icon,
+        type: 'servicio',
+        target_id: s.id,
+        title: nombre,
+        subtitle: `${tipoReg} · ${estado || 'sin estado'}`,
+        who: operarioApp || '—',
+        country: pais,
+      });
+    });
+
+    (gastosRes.results || []).forEach(g => {
+      const props = g.properties || {};
+      const concepto = props['Concepto']?.title?.[0]?.plain_text || '(sin concepto)';
+      const monto = props['Monto USD']?.number || 0;
+      const cat = props['Categoría']?.select?.name || '';
+      const clase = props['Clase']?.select?.name || '';
+      const fecha = g.last_edited_time || g.created_time;
+      const pais = props['País']?.select?.name || '';
+      events.push({
+        ts: fecha,
+        icon: '💸',
+        type: 'gasto',
+        target_id: g.id,
+        title: concepto,
+        subtitle: `${cat} · ${clase} · $${monto.toLocaleString('en-US', { maximumFractionDigits: 2 })}`,
+        who: '',
+        country: pais,
+      });
+    });
+
+    (propsRes.results || []).forEach(p => {
+      const props = p.properties || {};
+      const nombre = props['Nombre de propuesta']?.title?.[0]?.plain_text || '(sin nombre)';
+      const estado = props['Estado pipeline']?.select?.name || '';
+      const importe = props['Importe estimado']?.number;
+      const pais = props['País']?.select?.name || '';
+      const fecha = p.last_edited_time || p.created_time;
+      // Filtrar por rango
+      if (new Date(fecha).getTime() < new Date(dateFrom).getTime()) return;
+      events.push({
+        ts: fecha,
+        icon: '💼',
+        type: 'propuesta',
+        target_id: p.id,
+        title: nombre,
+        subtitle: `${estado || 'sin estado'}${importe ? ' · $' + importe.toLocaleString('en-US') : ''}`,
+        who: '',
+        country: pais,
+      });
+    });
+
+    // Ordenar por timestamp descendente.
+    events.sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime());
+
+    if (events.length === 0) {
+      content.innerHTML = `<div class="coord-empty">${t('historial.empty')}</div>`;
+      return;
+    }
+
+    // Agrupar por día (Hoy / Ayer / Esta semana / fecha).
+    const groups = {};
+    events.forEach(ev => {
+      const d = new Date(ev.ts);
+      const key = d.toISOString().slice(0, 10);
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(ev);
+    });
+
+    const todayISO = new Date().toISOString().slice(0, 10);
+    const yesterdayISO = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+
+    const html = Object.keys(groups).sort().reverse().map(dayKey => {
+      let label;
+      if (dayKey === todayISO) label = '📍 ' + t('historial.today');
+      else if (dayKey === yesterdayISO) label = '⏪ ' + t('historial.yesterday');
+      else label = new Date(dayKey + 'T12:00:00').toLocaleDateString('es-UY', { weekday: 'long', day: 'numeric', month: 'short' });
+
+      const items = groups[dayKey].map(ev => `
+        <div class="historial-item" onclick="openHistorialItem('${ev.type}', '${esc(ev.target_id)}')">
+          <div class="historial-icon">${ev.icon}</div>
+          <div class="historial-body">
+            <div class="historial-title">${esc(ev.title)}</div>
+            <div class="historial-subtitle">${esc(ev.subtitle)}</div>
+            <div class="historial-meta">
+              ${ev.who ? `<span>👤 ${esc(ev.who)}</span>` : ''}
+              ${ev.country ? `<span>${esc(ev.country)}</span>` : ''}
+              <span>${esc(relativeTime(ev.ts))}</span>
+            </div>
+          </div>
+        </div>
+      `).join('');
+      return `<div class="day-group"><div class="day-label">${label} (${groups[dayKey].length})</div>${items}</div>`;
+    }).join('');
+
+    content.innerHTML = html;
+  } catch (e) {
+    content.innerHTML = `<div class="coord-empty">${t('historial.error')}<br><small>${esc(e.message)}</small></div>`;
+  }
+}
+
+function openHistorialItem(type, targetId) {
+  if (type === 'servicio') {
+    // Para coord/CEO: openEditSheet. Para operario: openService (necesita lookup).
+    if (typeof openEditSheet === 'function' && (currentUser?.role?.includes('Coordinador') || currentUser?.role?.includes('Dirección'))) {
+      closeHistorial();
+      setTimeout(() => openEditSheet(targetId), 200);
+    }
+    // Operario: en v1 no abre el detail desde el historial (necesita refetch). Solo lectura.
+  }
+  // Gastos y propuestas: v1 solo muestra info en el historial, no abre detail.
 }
 
 // Trae los gastos vinculados a un servicio específico (filter por relation).
