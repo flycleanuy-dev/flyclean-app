@@ -676,6 +676,7 @@ body::before {
   .historial-subtitle { font-size: 12px; color: var(--text2); margin-bottom: 4px; }
   .historial-meta { display: flex; flex-wrap: wrap; gap: 8px; font-size: 11px; color: var(--text3); }
   .historial-meta span:not(:last-child)::after { content: '·'; margin-left: 8px; opacity: 0.5; }
+  .gastos-section-title { padding: 14px 16px 6px; font-size: 13px; font-weight: 700; color: var(--text2); text-transform: uppercase; letter-spacing: 0.5px; border-top: 1px solid var(--border); background: var(--bg); }
   .create-svc-btn { width: 100%; padding: 14px; background: var(--green-dark); border: 2px solid var(--green); border-radius: var(--radius-sm); color: var(--green); font-size: 14px; font-weight: 700; cursor: pointer; font-family: 'Exo 2', sans-serif; transition: all 0.15s; margin-top: 4px; }
   .create-svc-btn:hover, .create-svc-btn:active { background: var(--green); color: #fff; transform: scale(0.99); }
   .create-svc-btn:disabled { opacity: 0.6; cursor: not-allowed; }
@@ -920,7 +921,7 @@ body::before {
       <div class="header-logo"><svg class="fly-mark" style="color:#00C98D"><use href="#fc-mark"/></svg>FlyClean</div>
     </div>
     <div style="display:flex;align-items:center;gap:8px">
-      <button onclick="openHistorial()" title="Historial" style="background:none;border:1px solid var(--border2);border-radius:8px;color:var(--text3);font-size:11px;padding:5px 10px;cursor:pointer;font-family:'Exo 2',sans-serif">📜</button>
+      <button onclick="openGastos()" title="Gastos" style="background:none;border:1px solid var(--border2);border-radius:8px;color:var(--text3);font-size:11px;padding:5px 10px;cursor:pointer;font-family:'Exo 2',sans-serif">💸</button>
       <button onclick="openPinChange()" style="background:none;border:1px solid var(--border2);border-radius:8px;color:var(--text3);font-size:11px;padding:5px 10px;cursor:pointer;font-family:'Exo 2',sans-serif">🔑 PIN</button>
       <div class="header-user" id="header-user-name" onclick="logout()">Salir ↩</div>
     </div>
@@ -952,7 +953,7 @@ body::before {
     <div class="coord-logo" id="coord-logo-title"><svg class="fly-mark" style="color:#00C98D"><use href="#fc-mark"/></svg>FlyClean — Coordinador</div>
     <div style="display:flex;align-items:center;gap:8px">
       <button id="coord-ceo-btn" onclick="goToCEOFromCoord()" style="display:none;background:none;border:1px solid var(--border2);border-radius:8px;color:var(--text2);font-size:11px;font-weight:600;padding:5px 10px;cursor:pointer;font-family:'Exo 2',sans-serif">📊 CEO</button>
-      <button onclick="openHistorial()" title="Historial" style="background:none;border:1px solid var(--border2);border-radius:8px;color:var(--text3);font-size:11px;padding:5px 10px;cursor:pointer;font-family:'Exo 2',sans-serif">📜</button>
+      <button onclick="openGastos()" title="Gastos" style="background:none;border:1px solid var(--border2);border-radius:8px;color:var(--text3);font-size:11px;padding:5px 10px;cursor:pointer;font-family:'Exo 2',sans-serif">💸</button>
       <button onclick="openPinChange()" style="background:none;border:1px solid var(--border2);border-radius:8px;color:var(--text3);font-size:11px;padding:5px 10px;cursor:pointer;font-family:'Exo 2',sans-serif">🔑</button>
       <div class="coord-user" id="coord-user-name" onclick="logout()">Salir ↩</div>
     </div>
@@ -1137,7 +1138,7 @@ body::before {
     <button class="ceo-back-btn" id="ceo-back-btn" onclick="backFromCEO()">←</button>
     <div class="ceo-brand" id="ceo-brand-title"><svg class="fly-mark" style="color:#00C98D"><use href="#fc-mark"/></svg>FlyClean</div>
     <div style="display:flex;align-items:center;gap:8px">
-      <button onclick="openHistorial()" title="Historial" style="background:none;border:1px solid var(--border2);border-radius:8px;color:var(--text3);font-size:11px;padding:5px 10px;cursor:pointer;font-family:'Exo 2',sans-serif">📜</button>
+      <button onclick="openGastos()" title="Gastos" style="background:none;border:1px solid var(--border2);border-radius:8px;color:var(--text3);font-size:11px;padding:5px 10px;cursor:pointer;font-family:'Exo 2',sans-serif">💸</button>
       <button onclick="openPinChange()" style="background:none;border:1px solid var(--border2);border-radius:8px;color:var(--text3);font-size:11px;padding:5px 10px;cursor:pointer;font-family:'Exo 2',sans-serif">🔑</button>
       <div class="ceo-user-tag" id="ceo-user-name">CEO</div>
     </div>
@@ -1162,7 +1163,7 @@ body::before {
     <button class="ceo-back-btn" onclick="logout()">←</button>
     <div class="ceo-brand"><svg class="fly-mark" style="color:#00C98D"><use href="#fc-mark"/></svg>FlyClean</div>
     <div style="display:flex;align-items:center;gap:8px">
-      <button onclick="openHistorial()" title="Historial" style="background:none;border:1px solid var(--border2);border-radius:8px;color:var(--text3);font-size:11px;padding:5px 10px;cursor:pointer;font-family:'Exo 2',sans-serif">📜</button>
+      <button onclick="openGastos()" title="Gastos" style="background:none;border:1px solid var(--border2);border-radius:8px;color:var(--text3);font-size:11px;padding:5px 10px;cursor:pointer;font-family:'Exo 2',sans-serif">💸</button>
       <button onclick="openPinChange()" style="background:none;border:1px solid var(--border2);border-radius:8px;color:var(--text3);font-size:11px;padding:5px 10px;cursor:pointer;font-family:'Exo 2',sans-serif">🔑</button>
       <div class="ceo-user-tag" id="finanzas-header-user">Finanzas</div>
     </div>
@@ -1177,21 +1178,25 @@ body::before {
   </div>
 </div>
 
-<!-- HISTORIAL DE ACTIVIDAD (todos los roles) -->
-<div class="screen" id="screen-historial">
+<!-- GASTOS — pantalla dedicada (operario / coord / CEO) -->
+<div class="screen" id="screen-gastos">
   <div class="ceo-header">
-    <button class="ceo-back-btn" onclick="closeHistorial()">←</button>
+    <button class="ceo-back-btn" onclick="closeGastos()">←</button>
     <div class="ceo-brand"><svg class="fly-mark" style="color:#00C98D"><use href="#fc-mark"/></svg>FlyClean</div>
     <div style="display:flex;align-items:center;gap:8px">
-      <div class="ceo-user-tag">📜 <span data-i18n="historial.title">Historial</span></div>
+      <div class="ceo-user-tag">💸 <span data-i18n="gastos.title">Gastos</span></div>
     </div>
   </div>
-  <div class="historial-filters">
-    <button class="historial-range-btn active" id="hrange-7" onclick="setHistorialRange(7)" data-i18n="historial.range.week">Esta semana</button>
-    <button class="historial-range-btn" id="hrange-30" onclick="setHistorialRange(30)" data-i18n="historial.range.month">Este mes</button>
-    <button class="historial-range-btn" id="hrange-90" onclick="setHistorialRange(90)" data-i18n="historial.range.3months">3 meses</button>
+  <div style="padding:14px 16px 4px">
+    <button class="edit-save-btn" onclick="openNuevoGastoSheet()" data-i18n="gastos.add">📷 + Cargar gasto</button>
   </div>
-  <div class="ceo-content" id="historial-content">
+  <div class="historial-filters">
+    <button class="historial-range-btn active" id="grange-7" onclick="setGastosRange(7)" data-i18n="historial.range.week">Esta semana</button>
+    <button class="historial-range-btn" id="grange-30" onclick="setGastosRange(30)" data-i18n="historial.range.month">Este mes</button>
+    <button class="historial-range-btn" id="grange-90" onclick="setGastosRange(90)" data-i18n="historial.range.3months">3 meses</button>
+  </div>
+  <div id="gastos-tabs-bar"></div>
+  <div class="ceo-content" id="gastos-screen-content">
     <div style="text-align:center;padding:40px 0"><div class="spinner" style="margin:0 auto"></div></div>
   </div>
 </div>
@@ -1564,14 +1569,25 @@ const TRANSLATIONS = {
     'gasto.coord.empty': 'Sin gastos vinculados todavía.',
     'gasto.coord.total': '💸 Total gastado en este servicio:',
     'ceo.gasto.add': 'Nuevo gasto',
-    'historial.title': 'Historial',
+    'finanzas.gastos.add': 'Cargar gasto',
+    'gastos.title': 'Gastos',
+    'gastos.add': '📷 + Cargar gasto',
+    'gastos.total': '💸 Total:',
+    'gastos.error': '❌ Error al cargar los gastos.',
+    'gastos.empty': 'Sin gastos en este período.',
+    'gastos.operario.empty': '💸 Todavía no cargaste gastos en este período.',
+    'gastos.coord.equipo': 'Cargados por el equipo',
+    'gastos.coord.equipo.empty': 'Sin gastos del equipo en este período.',
+    'gastos.coord.mios': 'Cargados por mí',
+    'gastos.coord.mios.empty': 'Todavía no cargaste gastos en este período.',
+    'gastos.ceo.empty': 'Sin gastos en este período.',
+    'gastos.tab.todos': 'Todos',
+    'gastos.tab.equipo': 'Equipo',
+    'gastos.tab.mios': 'Míos',
+    'gasto.sinasignar': 'Sin asignar',
     'historial.range.week': 'Esta semana',
     'historial.range.month': 'Este mes',
     'historial.range.3months': '3 meses',
-    'historial.today': 'Hoy',
-    'historial.yesterday': 'Ayer',
-    'historial.empty': '📜 Sin actividad en este período.',
-    'historial.error': '❌ Error al cargar el historial.',
     'ceo.tab.metricas': '📊 Métricas',
     'ceo.tab.servicios': '📋 Servicios',
     'ceo.tab.finanzas': '💰 Finanzas',
@@ -2037,14 +2053,25 @@ const TRANSLATIONS = {
     'gasto.coord.empty': 'Sem despesas vinculadas ainda.',
     'gasto.coord.total': '💸 Total gasto neste serviço:',
     'ceo.gasto.add': 'Nova despesa',
-    'historial.title': 'Histórico',
+    'finanzas.gastos.add': 'Carregar despesa',
+    'gastos.title': 'Despesas',
+    'gastos.add': '📷 + Carregar despesa',
+    'gastos.total': '💸 Total:',
+    'gastos.error': '❌ Erro ao carregar as despesas.',
+    'gastos.empty': 'Sem despesas neste período.',
+    'gastos.operario.empty': '💸 Ainda não registrou despesas neste período.',
+    'gastos.coord.equipo': 'Registradas pela equipe',
+    'gastos.coord.equipo.empty': 'Sem despesas da equipe neste período.',
+    'gastos.coord.mios': 'Registradas por mim',
+    'gastos.coord.mios.empty': 'Ainda não registrou despesas neste período.',
+    'gastos.ceo.empty': 'Sem despesas neste período.',
+    'gastos.tab.todos': 'Todas',
+    'gastos.tab.equipo': 'Equipe',
+    'gastos.tab.mios': 'Minhas',
+    'gasto.sinasignar': 'Sem atribuir',
     'historial.range.week': 'Esta semana',
     'historial.range.month': 'Este mês',
     'historial.range.3months': '3 meses',
-    'historial.today': 'Hoje',
-    'historial.yesterday': 'Ontem',
-    'historial.empty': '📜 Sem atividade neste período.',
-    'historial.error': '❌ Erro ao carregar o histórico.',
     'ceo.tab.metricas': '📊 Métricas',
     'ceo.tab.servicios': '📋 Serviços',
     'ceo.tab.finanzas': '💰 Finanças',
@@ -3259,8 +3286,10 @@ function renderGastosListInner() {
 
   const empty = total === 0 ? `<div class="coord-empty">${t('finanzas.gastos.none')}</div>` : '';
   const cargarMas = remaining > 0 ? renderCargarMasButton(remaining) : '';
-  const fab = `<button class="nuevo-gasto-fab" onclick="openNuevoGastoSheet()" aria-label="Nuevo gasto">+</button>`;
-  content.innerHTML = filtersHTML + (cards || empty) + cargarMas + fab;
+  // M3 usaba un FAB con position:fixed que rompía dentro del scroll container en
+  // iOS (Safari quirk). Reemplazado por botón inline al tope (mismo UX que CEO).
+  const addBtn = `<div style="padding:12px 16px 4px"><button class="edit-save-btn" onclick="openNuevoGastoSheet()">📷 + ${t('finanzas.gastos.add')}</button></div>`;
+  content.innerHTML = addBtn + filtersHTML + (cards || empty) + cargarMas;
 }
 
 async function renderIngresosList() {
@@ -3427,56 +3456,75 @@ async function extractReceiptViaAI(imageUrl) {
 }
 
 // ─────────────────────────────────────────────
-// HISTORIAL DE ACTIVIDAD — feed cronológico unificado
+// SCREEN-GASTOS — panel dedicado por rol
 // ─────────────────────────────────────────────
-// Estrategia v1: derivar de las DBs existentes sin agregar properties nuevas.
-// Cada evento es: { ts, role, who, action, target_type, target_id, target_name, meta }
-// El filtro por rol determina qué entries se muestran:
-//   - operario: solo lo suyo (Operario App == name, gastos vinculados)
-//   - coord/CEO: todo del país
-//   - finanzas: solo gastos + ingresos
+// Operario: solo sus gastos (Cargado por === currentUser.name).
+// Coord: 2 secciones (Equipo / Míos).
+// CEO/Dirección: 3 tabs (Todos / Equipo / Míos).
+// Finanzas: el botón 💸 NO está en su panel (ya tiene tab Gastos directamente).
+//
+// Tiempo relativo y rango de días son helpers compartidos con futuras pantallas
+// que necesiten visualizar timestamps en formato humano.
 
-let _historialRangeDays = 7;
-let _historialPrevScreen = 'coordinator';
+let _gastosScreenRangeDays = 7;
+let _gastosScreenPrevScreen = 'coordinator';
+let _gastosScreenTab = 'todos';
+let _gastosScreenCache = null;
 
-function openHistorial() {
-  // Recordar de qué pantalla venimos para volver al cerrar.
-  if (document.getElementById('screen-coordinator')?.classList.contains('active')) _historialPrevScreen = 'coordinator';
-  else if (document.getElementById('screen-services')?.classList.contains('active')) _historialPrevScreen = 'services';
-  else if (document.getElementById('screen-ceo')?.classList.contains('active')) _historialPrevScreen = 'ceo';
-  else if (document.getElementById('screen-finanzas')?.classList.contains('active')) _historialPrevScreen = 'finanzas';
-  else _historialPrevScreen = 'coordinator';
-  showScreen('historial');
-  setHistorialRange(_historialRangeDays);
+function openGastos() {
+  if (document.getElementById('screen-coordinator')?.classList.contains('active')) _gastosScreenPrevScreen = 'coordinator';
+  else if (document.getElementById('screen-services')?.classList.contains('active')) _gastosScreenPrevScreen = 'services';
+  else if (document.getElementById('screen-ceo')?.classList.contains('active')) _gastosScreenPrevScreen = 'ceo';
+  else _gastosScreenPrevScreen = 'coordinator';
+  // Finanzas tiene su propio panel — el botón 💸 no debería estar visible para
+  // ese rol, pero por defensa: si llega acá, redirigir al panel Finanzas.
+  if (currentUser?.role?.includes('Administración')) {
+    showScreen('finanzas');
+    setFinanzasTab('gastos');
+    return;
+  }
+  _gastosScreenCache = null;
+  _gastosScreenTab = 'todos';
+  showScreen('gastos');
+  setGastosRange(_gastosScreenRangeDays);
 }
 
-function closeHistorial() {
-  showScreen(_historialPrevScreen);
+function closeGastos() {
+  showScreen(_gastosScreenPrevScreen);
 }
 
-function setHistorialRange(days) {
-  _historialRangeDays = days;
+function setGastosRange(days) {
+  _gastosScreenRangeDays = days;
   markUserActive();
   [7, 30, 90].forEach(d => {
-    const el = document.getElementById('hrange-' + d);
+    const el = document.getElementById('grange-' + d);
     if (el) el.classList.toggle('active', d === days);
   });
-  renderHistorialList();
+  _gastosScreenCache = null;
+  renderGastosScreen();
 }
 
-// Construye una fecha YYYY-MM-DD a X días atrás.
-function daysAgo(days) {
+function setGastosScreenTab(tab) {
+  _gastosScreenTab = tab;
+  markUserActive();
+  ['todos', 'equipo', 'mios'].forEach(t => {
+    const el = document.getElementById('gstab-' + t);
+    if (el) el.classList.toggle('active', t === tab);
+  });
+  renderGastosScreen(true);
+}
+
+function gastosDaysAgo(days) {
   const d = new Date(Date.now() - days * 24 * 3600 * 1000);
   return d.toISOString().slice(0, 10);
 }
 
-// Tiempo relativo "hace X horas / días".
-function relativeTime(iso) {
+function gastosRelativeTime(iso) {
   if (!iso) return '';
   const now = Date.now();
   const then = new Date(iso).getTime();
   const diff = now - then;
-  if (diff < 60000) return 'hace unos segundos';
+  if (diff < 60000) return 'hace unos seg';
   if (diff < 3600000) return `hace ${Math.floor(diff/60000)} min`;
   if (diff < 86400000) return `hace ${Math.floor(diff/3600000)} h`;
   const days = Math.floor(diff/86400000);
@@ -3486,179 +3534,142 @@ function relativeTime(iso) {
   return new Date(iso).toLocaleDateString('es-UY', { day: 'numeric', month: 'short' });
 }
 
-async function renderHistorialList() {
-  const content = document.getElementById('historial-content');
+async function renderGastosScreen(skipFetch) {
+  const content = document.getElementById('gastos-screen-content');
+  const tabsBar = document.getElementById('gastos-tabs-bar');
   if (!content) return;
-  content.innerHTML = '<div style="text-align:center;padding:40px 0"><div class="spinner" style="margin:0 auto"></div></div>';
 
   const role = currentUser?.role || '';
   const isOperario = role.includes('Operario');
-  const isFinanzas = role.includes('Administración');
-  const isCoordOrCEO = role.includes('Coordinador') || role.includes('Dirección') || role.includes('CEO');
-  const dateFrom = daysAgo(_historialRangeDays);
+  const isCoord = role.includes('Coordinador');
+  const isCEO = role.includes('CEO') || role.includes('Dirección');
 
-  try {
-    // Queries paralelas a las DBs relevantes según el rol.
-    const queries = [];
+  // Tabs solo para CEO/Dirección. Coord muestra 2 secciones inline.
+  if (isCEO) {
+    tabsBar.innerHTML = `
+      <div class="historial-filters" style="border-top:1px solid var(--border);background:var(--bg)">
+        <button class="historial-range-btn ${_gastosScreenTab==='todos'?'active':''}" id="gstab-todos" onclick="setGastosScreenTab('todos')">${t('gastos.tab.todos')}</button>
+        <button class="historial-range-btn ${_gastosScreenTab==='equipo'?'active':''}" id="gstab-equipo" onclick="setGastosScreenTab('equipo')">${t('gastos.tab.equipo')}</button>
+        <button class="historial-range-btn ${_gastosScreenTab==='mios'?'active':''}" id="gstab-mios" onclick="setGastosScreenTab('mios')">${t('gastos.tab.mios')}</button>
+      </div>
+    `;
+  } else {
+    tabsBar.innerHTML = '';
+  }
 
-    // Servicios — todos los roles excepto Finanzas (Finanzas solo ve $).
-    if (!isFinanzas) {
-      queries.push(callNotion(`databases/${DB_ID}/query`, 'POST', {
-        filter: { property: 'Fecha de creación', date: { on_or_after: dateFrom } },
-        sorts: [{ timestamp: 'last_edited_time', direction: 'descending' }],
-        page_size: 50,
-      }).catch(() => ({ results: [] })));
-    } else { queries.push(Promise.resolve({ results: [] })); }
-
-    // Gastos — todos los roles excepto operarios (los operarios no ven todos los $)
-    if (!isOperario) {
-      queries.push(callNotion(`databases/${GASTOS_DB_ID}/query`, 'POST', {
+  if (!skipFetch || !_gastosScreenCache) {
+    content.innerHTML = '<div style="text-align:center;padding:40px 0"><div class="spinner" style="margin:0 auto"></div></div>';
+    try {
+      const dateFrom = gastosDaysAgo(_gastosScreenRangeDays);
+      const data = await callNotion(`databases/${GASTOS_DB_ID}/query`, 'POST', {
         filter: { property: 'Fecha', date: { on_or_after: dateFrom } },
         sorts: [{ property: 'Fecha', direction: 'descending' }],
-        page_size: 50,
-      }).catch(() => ({ results: [] })));
-    } else { queries.push(Promise.resolve({ results: [] })); }
-
-    // Propuestas — solo coord/CEO.
-    if (isCoordOrCEO) {
-      queries.push(callNotion('databases/2c0a4257-f429-4941-b994-dfebc1098633/query', 'POST', {
-        sorts: [{ timestamp: 'last_edited_time', direction: 'descending' }],
-        page_size: 30,
-      }).catch(() => ({ results: [] })));
-    } else { queries.push(Promise.resolve({ results: [] })); }
-
-    const [svcRes, gastosRes, propsRes] = await Promise.all(queries);
-
-    // Construir feed unificado.
-    const events = [];
-
-    (svcRes.results || []).forEach(s => {
-      const props = s.properties || {};
-      const tipoReg = props['Tipo de registro']?.select?.name || 'Servicio';
-      const nombre = props['Nombre del servicio']?.title?.[0]?.plain_text || '(sin nombre)';
-      const estado = props['Estado']?.select?.name || '';
-      const operarioApp = props['Operario App']?.select?.name || '';
-      const pais = props['País']?.select?.name || '';
-      const fecha = s.last_edited_time || s.created_time;
-      // Filtro operario: solo sus servicios.
-      if (isOperario && operarioApp !== currentUser.name) return;
-      const icon = tipoReg.includes('Prueba') ? '🧪'
-                : tipoReg.includes('Relevamiento') ? '🔍'
-                : tipoReg.includes('Jornada') ? '📅'
-                : '📋';
-      events.push({
-        ts: fecha,
-        icon,
-        type: 'servicio',
-        target_id: s.id,
-        title: nombre,
-        subtitle: `${tipoReg} · ${estado || 'sin estado'}`,
-        who: operarioApp || '—',
-        country: pais,
+        page_size: 100,
       });
-    });
-
-    (gastosRes.results || []).forEach(g => {
-      const props = g.properties || {};
-      const concepto = props['Concepto']?.title?.[0]?.plain_text || '(sin concepto)';
-      const monto = props['Monto USD']?.number || 0;
-      const cat = props['Categoría']?.select?.name || '';
-      const clase = props['Clase']?.select?.name || '';
-      const fecha = g.last_edited_time || g.created_time;
-      const pais = props['País']?.select?.name || '';
-      events.push({
-        ts: fecha,
-        icon: '💸',
-        type: 'gasto',
-        target_id: g.id,
-        title: concepto,
-        subtitle: `${cat} · ${clase} · $${monto.toLocaleString('en-US', { maximumFractionDigits: 2 })}`,
-        who: '',
-        country: pais,
-      });
-    });
-
-    (propsRes.results || []).forEach(p => {
-      const props = p.properties || {};
-      const nombre = props['Nombre de propuesta']?.title?.[0]?.plain_text || '(sin nombre)';
-      const estado = props['Estado pipeline']?.select?.name || '';
-      const importe = props['Importe estimado']?.number;
-      const pais = props['País']?.select?.name || '';
-      const fecha = p.last_edited_time || p.created_time;
-      // Filtrar por rango
-      if (new Date(fecha).getTime() < new Date(dateFrom).getTime()) return;
-      events.push({
-        ts: fecha,
-        icon: '💼',
-        type: 'propuesta',
-        target_id: p.id,
-        title: nombre,
-        subtitle: `${estado || 'sin estado'}${importe ? ' · $' + importe.toLocaleString('en-US') : ''}`,
-        who: '',
-        country: pais,
-      });
-    });
-
-    // Ordenar por timestamp descendente.
-    events.sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime());
-
-    if (events.length === 0) {
-      content.innerHTML = `<div class="coord-empty">${t('historial.empty')}</div>`;
+      _gastosScreenCache = data.results || [];
+    } catch (e) {
+      content.innerHTML = `<div class="coord-empty">${t('gastos.error')}<br><small>${esc(e.message)}</small></div>`;
       return;
     }
+  }
 
-    // Agrupar por día (Hoy / Ayer / Esta semana / fecha).
-    const groups = {};
-    events.forEach(ev => {
-      const d = new Date(ev.ts);
-      const key = d.toISOString().slice(0, 10);
-      if (!groups[key]) groups[key] = [];
-      groups[key].push(ev);
+  const items = _gastosScreenCache || [];
+  const myName = currentUser?.name || '';
+
+  // Operario: filtra solo SUS gastos.
+  if (isOperario) {
+    const mine = items.filter(g => g.properties?.['Cargado por']?.select?.name === myName);
+    content.innerHTML = renderGastosListSimple(mine, t('gastos.operario.empty'));
+    return;
+  }
+
+  // Coord: 2 secciones inline.
+  if (isCoord) {
+    const equipo = items.filter(g => {
+      const autor = g.properties?.['Cargado por']?.select?.name || '';
+      return autor && autor !== myName && !autor.includes('CEO') && !autor.includes('Coordinador') && autor !== 'Finanzas';
     });
-
-    const todayISO = new Date().toISOString().slice(0, 10);
-    const yesterdayISO = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
-
-    const html = Object.keys(groups).sort().reverse().map(dayKey => {
-      let label;
-      if (dayKey === todayISO) label = '📍 ' + t('historial.today');
-      else if (dayKey === yesterdayISO) label = '⏪ ' + t('historial.yesterday');
-      else label = new Date(dayKey + 'T12:00:00').toLocaleDateString('es-UY', { weekday: 'long', day: 'numeric', month: 'short' });
-
-      const items = groups[dayKey].map(ev => `
-        <div class="historial-item" onclick="openHistorialItem('${ev.type}', '${esc(ev.target_id)}')">
-          <div class="historial-icon">${ev.icon}</div>
-          <div class="historial-body">
-            <div class="historial-title">${esc(ev.title)}</div>
-            <div class="historial-subtitle">${esc(ev.subtitle)}</div>
-            <div class="historial-meta">
-              ${ev.who ? `<span>👤 ${esc(ev.who)}</span>` : ''}
-              ${ev.country ? `<span>${esc(ev.country)}</span>` : ''}
-              <span>${esc(relativeTime(ev.ts))}</span>
-            </div>
-          </div>
-        </div>
-      `).join('');
-      return `<div class="day-group"><div class="day-label">${label} (${groups[dayKey].length})</div>${items}</div>`;
-    }).join('');
-
+    const mios = items.filter(g => g.properties?.['Cargado por']?.select?.name === myName);
+    let html = '';
+    html += `<div class="gastos-section-title">👥 ${t('gastos.coord.equipo')} (${equipo.length})</div>`;
+    html += equipo.length ? equipo.map(renderGastoCard).join('') : `<div class="coord-empty" style="padding:20px 16px;font-size:13px">${t('gastos.coord.equipo.empty')}</div>`;
+    html += `<div class="gastos-section-title">🙋 ${t('gastos.coord.mios')} (${mios.length})</div>`;
+    html += mios.length ? mios.map(renderGastoCard).join('') : `<div class="coord-empty" style="padding:20px 16px;font-size:13px">${t('gastos.coord.mios.empty')}</div>`;
     content.innerHTML = html;
-  } catch (e) {
-    content.innerHTML = `<div class="coord-empty">${t('historial.error')}<br><small>${esc(e.message)}</small></div>`;
+    return;
   }
+
+  // CEO: filter por tab seleccionada.
+  if (isCEO) {
+    let filtered;
+    if (_gastosScreenTab === 'equipo') {
+      filtered = items.filter(g => {
+        const autor = g.properties?.['Cargado por']?.select?.name || '';
+        return autor && autor !== myName && !autor.includes('CEO') && !autor.includes('Dirección') && autor !== 'Finanzas';
+      });
+    } else if (_gastosScreenTab === 'mios') {
+      filtered = items.filter(g => g.properties?.['Cargado por']?.select?.name === myName);
+    } else {
+      filtered = items;
+    }
+    content.innerHTML = renderGastosListSimple(filtered, t('gastos.ceo.empty'));
+    return;
+  }
+
+  // Fallback: lista plana sin agrupación.
+  content.innerHTML = renderGastosListSimple(items, t('gastos.empty'));
 }
 
-function openHistorialItem(type, targetId) {
-  if (type === 'servicio') {
-    // Para coord/CEO: openEditSheet. Para operario: openService (necesita lookup).
-    if (typeof openEditSheet === 'function' && (currentUser?.role?.includes('Coordinador') || currentUser?.role?.includes('Dirección'))) {
-      closeHistorial();
-      setTimeout(() => openEditSheet(targetId), 200);
-    }
-    // Operario: en v1 no abre el detail desde el historial (necesita refetch). Solo lectura.
-  }
-  // Gastos y propuestas: v1 solo muestra info en el historial, no abre detail.
+function renderGastosListSimple(items, emptyMsg) {
+  if (!items.length) return `<div class="coord-empty" style="padding:20px 16px">${emptyMsg}</div>`;
+  // Total al tope.
+  let total = 0;
+  items.forEach(g => { total += (g.properties?.['Monto USD']?.number || 0); });
+  const header = `<div class="finanzas-summary">${t('gastos.total')} <strong>$${total.toLocaleString('en-US',{maximumFractionDigits:2})}</strong> <span style="color:var(--text3);font-size:12px">(${items.length})</span></div>`;
+  return header + items.map(renderGastoCard).join('');
 }
+
+function renderGastoCard(g) {
+  const props = g.properties || {};
+  const concepto = props['Concepto']?.title?.[0]?.plain_text || '(sin concepto)';
+  const categoria = props['Categoría']?.select?.name || '';
+  const clase = props['Clase']?.select?.name || '';
+  const monto = props['Monto USD']?.number || 0;
+  const fecha = props['Fecha']?.date?.start || '';
+  const proveedor = props['Tienda / Proveedor']?.rich_text?.[0]?.plain_text || '';
+  const cargadoPor = props['Cargado por']?.select?.name || t('gasto.sinasignar');
+  const servicioVinculado = (props['Servicio']?.relation || []).length > 0;
+  const fotoFiles = props['Foto del recibo']?.files || [];
+  const fotoUrl = fotoFiles[0]?.external?.url || fotoFiles[0]?.file?.url || '';
+  return `<div class="gasto-card">
+    <div class="gasto-card-main">
+      <div class="gasto-card-concepto">${esc(concepto)}</div>
+      <div class="gasto-card-meta">
+        ${categoria ? `<span class="gasto-tag">${esc(categoria)}</span>` : ''}
+        ${clase ? `<span class="gasto-tag gasto-tag-clase">${esc(clase)}</span>` : ''}
+        ${servicioVinculado ? `<span class="gasto-tag gasto-tag-svc">🔗 Servicio</span>` : ''}
+        <span class="gasto-tag" style="background:rgba(150,150,150,0.1)">👤 ${esc(cargadoPor)}</span>
+      </div>
+      <div class="gasto-card-bottom">
+        ${proveedor ? `<span style="font-size:11px;color:var(--text3)">${esc(proveedor)}</span>` : ''}
+        <span style="font-size:11px;color:var(--text3)">${esc(gastosRelativeTime(fecha))}</span>
+      </div>
+    </div>
+    <div class="gasto-card-monto">
+      <div class="gasto-monto-val">$${monto.toLocaleString('en-US',{maximumFractionDigits:2})}</div>
+      ${fotoUrl ? `<img src="${esc(fotoUrl)}" loading="lazy" class="gasto-recibo-thumb" onclick="window.open('${esc(fotoUrl)}','_blank')"/>` : ''}
+    </div>
+  </div>`;
+}
+
+// ─────────────────────────────────────────────
+// HISTORIAL VIEJO — ELIMINADO en el rework de Gastos.
+// Funciones openHistorial / closeHistorial / setHistorialRange /
+// renderHistorialList / openHistorialItem reemplazadas por screen-gastos.
+// El operario ve historial de servicios filtrando por Estado=Completado en
+// sus tabs principales (ya existe).
+// ─────────────────────────────────────────────
+
 
 // Trae los gastos vinculados a un servicio específico (filter por relation).
 async function fetchGastosDelServicio(serviceId) {
@@ -3981,6 +3992,7 @@ async function saveGasto() {
     'Forma de pago': { select: { name: f.formaPago } },
     'Factura': { checkbox: !!f.factura },
     'País': { select: { name: countryMap[currentUser.country] || '🇺🇾 UY' } },
+    'Cargado por': { select: { name: currentUser.name } },
   };
   if (f.proveedor) properties['Tienda / Proveedor'] = { rich_text: [{ text: { content: f.proveedor } }] };
   if (f.detalle) properties['Detalle'] = { rich_text: [{ text: { content: f.detalle } }] };
@@ -4000,6 +4012,7 @@ async function saveGasto() {
     });
     // Invalidar cache para que la próxima vez Gastos se refresque.
     _gastosCache = null;
+    _gastosScreenCache = null;
     // Capturar referencias antes de closeGastoSheet() las limpie.
     const servicioVinculado = f.servicioId;
     closeGastoSheet();
@@ -4368,9 +4381,6 @@ function renderStep() {
       ${mapa ? `<a href="${mapa}" target="_blank" rel="noopener" class="btn-main btn-blue" style="display:block;text-align:center;text-decoration:none;margin:12px 0">🗺️ ${t('step.info.abrirmapa')}</a>` : ''}
       ${serviceState.horaInicio ? `<div class="ts-recorded"><div class="ts-label">${t('step.inicio.recorded')}</div><div class="ts-value">${serviceState.horaInicio}</div></div>` : ''}
       <div id="op-equipos-section" style="margin-top:14px"></div>
-      <button class="op-gasto-btn" onclick="openNuevoGastoSheet({ defaultClase: '📌 Directo', servicioId: currentService.id })">
-        💸 ${t('op.gasto.add')}
-      </button>
     `;
     // Equipos asignados (read-only para el operario, solo si no es relevamiento)
     const tipoRegOp = currentService?.properties?.['Tipo de registro']?.select?.name || '';
