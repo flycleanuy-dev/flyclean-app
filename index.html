@@ -1069,6 +1069,26 @@ body::before {
   </div>
 </div>
 
+<!-- FINANZAS (rol Administración) -->
+<div class="screen" id="screen-finanzas">
+  <div class="ceo-header">
+    <button class="ceo-back-btn" onclick="logout()">←</button>
+    <div class="ceo-brand"><svg class="fly-mark" style="color:#00C98D"><use href="#fc-mark"/></svg>FlyClean</div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <button onclick="openPinChange()" style="background:none;border:1px solid var(--border2);border-radius:8px;color:var(--text3);font-size:11px;padding:5px 10px;cursor:pointer;font-family:'Exo 2',sans-serif">🔑</button>
+      <div class="ceo-user-tag" id="finanzas-header-user">Finanzas</div>
+    </div>
+  </div>
+  <div class="ceo-tab-bar">
+    <div class="ceo-tab active" id="ftab-gastos" data-i18n="finanzas.tab.gastos" onclick="setFinanzasTab('gastos')">💸 Gastos</div>
+    <div class="ceo-tab" id="ftab-ingresos" data-i18n="finanzas.tab.ingresos" onclick="setFinanzasTab('ingresos')">💵 Ingresos</div>
+    <div class="ceo-tab" id="ftab-reportes" data-i18n="finanzas.tab.reportes" onclick="setFinanzasTab('reportes')">📊 Reportes</div>
+  </div>
+  <div class="ceo-content" id="finanzas-content">
+    <div style="text-align:center;padding:40px 0"><div class="spinner" style="margin:0 auto"></div></div>
+  </div>
+</div>
+
 <div class="pin-change-overlay" id="pin-change-overlay" onclick="pinChangeOverlayClick(event)">
   <div class="pin-change-sheet">
     <button class="sheet-close-btn" type="button" aria-label="Cerrar" onclick="closePinChange()">×</button>
@@ -1168,7 +1188,8 @@ const USERS = [
   { id: 'ceo-brasil',       name: 'CEO Brasil',         role: '👔 CEO',          emoji: '🧑‍💼', pin: '1234', notionId: null, country: 'Brasil' },
   { id: 'ceo-panama',       name: 'CEO Panamá',         role: '👔 CEO',          emoji: '🧑‍💼', pin: '1234', notionId: null, country: 'Panamá' },
   { id: 'ceo-guatemala',    name: 'CEO Guatemala',      role: '👔 CEO',          emoji: '🧑‍💼', pin: '1234', notionId: null, country: 'Guatemala' },
-  { id: 'ceo-mexico',       name: 'CEO México',         role: '👔 CEO',          emoji: '🧑‍💼', pin: '1234', notionId: null, country: 'México' }
+  { id: 'ceo-mexico',       name: 'CEO México',         role: '👔 CEO',          emoji: '🧑‍💼', pin: '1234', notionId: null, country: 'México' },
+  { id: 'finanzas-uy',      name: 'Finanzas',           role: '📊 Administración', emoji: '💼', pin: '7777', notionId: null, country: 'Uruguay' }
 ];
 
 const COUNTRY_NOTION_MAP = {
@@ -1373,6 +1394,13 @@ const TRANSLATIONS = {
     'role.coordinador': '🔧 Coordinador',
     'role.operario': '🛠️ Operario',
     'role.ceo': '👔 CEO',
+    'role.finanzas': '📊 Administración',
+    'finanzas.tab.gastos': '💸 Gastos',
+    'finanzas.tab.ingresos': '💵 Ingresos',
+    'finanzas.tab.reportes': '📊 Reportes',
+    'finanzas.gastos.empty': '💸 Tab Gastos — pronto vas a poder cargar gastos con foto del recibo (Claude AI extrae los datos).',
+    'finanzas.ingresos.empty': '💵 Tab Ingresos — lista de cobros del mes (pronto).',
+    'finanzas.reportes.empty': '📊 Tab Reportes — generador de reportes PDF semanal/mensual (pronto).',
     'ceo.tab.metricas': '📊 Métricas',
     'ceo.tab.servicios': '📋 Servicios',
     'ceo.tab.finanzas': '💰 Finanzas',
@@ -1775,6 +1803,13 @@ const TRANSLATIONS = {
     'role.coordinador': '🔧 Coordenador',
     'role.operario': '🛠️ Operário',
     'role.ceo': '👔 CEO',
+    'role.finanzas': '📊 Administração',
+    'finanzas.tab.gastos': '💸 Despesas',
+    'finanzas.tab.ingresos': '💵 Receitas',
+    'finanzas.tab.reportes': '📊 Relatórios',
+    'finanzas.gastos.empty': '💸 Tab Despesas — em breve poderá registrar despesas com foto do recibo (Claude AI extrai os dados).',
+    'finanzas.ingresos.empty': '💵 Tab Receitas — lista de cobranças do mês (em breve).',
+    'finanzas.reportes.empty': '📊 Tab Relatórios — gerador de relatórios PDF semanal/mensal (em breve).',
     'ceo.tab.metricas': '📊 Métricas',
     'ceo.tab.servicios': '📋 Serviços',
     'ceo.tab.finanzas': '💰 Finanças',
@@ -2846,7 +2881,32 @@ function isSessionFresh() {
 async function routeByRole(role) {
   if (role === '🔧 Coordinador' || role === '🎯 Dirección') return loadCoordinator();
   if (role === '👔 CEO') return loadCEO();
+  if (role === '📊 Administración') return loadFinanzas();
   return loadServices();
+}
+
+async function loadFinanzas() {
+  if (!currentUser) { showScreen('login'); return; }
+  markUserActive();
+  showScreen('finanzas');
+  document.getElementById('finanzas-header-user').textContent = (currentUser.emoji + ' ' + currentUser.name);
+  setFinanzasTab('gastos');
+}
+
+let activeFinanzasTab = 'gastos';
+function setFinanzasTab(tab) {
+  activeFinanzasTab = tab;
+  markUserActive();
+  ['gastos', 'ingresos', 'reportes'].forEach(t => {
+    const el = document.getElementById('ftab-' + t);
+    if (el) el.classList.toggle('active', t === tab);
+  });
+  const content = document.getElementById('finanzas-content');
+  if (!content) return;
+  // En milestone 1 son placeholders. El render real va en M2.
+  if (tab === 'gastos') content.innerHTML = `<div class="coord-empty">${t('finanzas.gastos.empty')}</div>`;
+  else if (tab === 'ingresos') content.innerHTML = `<div class="coord-empty">${t('finanzas.ingresos.empty')}</div>`;
+  else content.innerHTML = `<div class="coord-empty">${t('finanzas.reportes.empty')}</div>`;
 }
 
 async function pinConfirm() {
