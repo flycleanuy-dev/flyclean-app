@@ -634,7 +634,10 @@ body::before {
   .gasto-step-photo-title { font-weight: 700; font-size: 16px; margin-bottom: 6px; }
   .gasto-step-photo-sub { font-size: 13px; color: var(--text2); margin-bottom: 18px; }
   .gasto-photo-btn { display: inline-block; padding: 14px 22px; background: var(--green); border: none; border-radius: var(--radius-sm); color: #fff; font-family: 'Exo 2', sans-serif; font-size: 14px; font-weight: 700; cursor: pointer; }
+  .gasto-photo-btn-file { display: inline-block; margin-top: 10px; padding: 13px 20px; background: transparent; border: 1.5px solid var(--green); border-radius: var(--radius-sm); color: var(--green); font-family: 'Exo 2', sans-serif; font-size: 14px; font-weight: 700; cursor: pointer; }
   .gasto-photo-btn-secondary { display: inline-block; margin-top: 12px; padding: 10px 18px; background: transparent; border: 1px solid var(--border2); border-radius: var(--radius-sm); color: var(--text2); font-family: 'Exo 2', sans-serif; font-size: 13px; cursor: pointer; }
+  .gasto-pdf-preview { display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 6px; width: 70px; height: 70px; border-radius: var(--radius-sm); background: rgba(255,90,90,0.08); border: 1px solid rgba(255,90,90,0.25); color: #ff5a5a; font-size: 11px; font-weight: 700; cursor: pointer; }
+  .gasto-pdf-preview-emoji { font-size: 26px; line-height: 1; }
   .gasto-step-analyzing { padding: 40px 24px; text-align: center; }
   .gasto-step-analyzing .spinner { margin: 0 auto 18px; }
   .gasto-confianza-warn { padding: 10px 12px; margin: 0 16px 12px; border-radius: var(--radius-sm); background: rgba(255, 200, 50, 0.1); border: 1px solid rgba(255, 200, 50, 0.4); font-size: 12px; color: var(--text2); display: flex; gap: 10px; align-items: flex-start; }
@@ -1104,7 +1107,10 @@ body::before {
       <div id="gasto-sheet-body" style="padding:0 0 24px"></div>
     </div>
   </div>
-  <input type="file" accept="image/*" capture="environment" id="gasto-recibo-input" style="display:none" onchange="onGastoReciboSelected(this)"/>
+  <!-- Cámara: sólo imagen, fuerza el rear camera en móvil. -->
+  <input type="file" accept="image/*" capture="environment" id="gasto-recibo-input-camera" style="display:none" onchange="onGastoReciboSelected(this)"/>
+  <!-- Galería / archivos: imagen O PDF, sin capture (abre file picker / galería). -->
+  <input type="file" accept="image/*,application/pdf" id="gasto-recibo-input-file" style="display:none" onchange="onGastoReciboSelected(this)"/>
 
   <div class="edit-overlay" id="prop-overlay" onclick="propOverlayClick(event)">
     <div class="edit-sheet" id="prop-sheet">
@@ -1523,11 +1529,13 @@ const TRANSLATIONS = {
     'finanzas.reportes.servicio': 'Reporte por servicio',
     'finanzas.reportes.disabled': '(Disponible en el próximo milestone — Milestone 5)',
     'sheet.gasto.title': '💸 Nuevo gasto',
-    'sheet.gasto.sub': 'Sacá foto del recibo y la IA lo lee por vos.',
-    'gasto.foto.title': 'Cargá la foto del recibo',
-    'gasto.foto.sub': 'Claude AI extrae monto, fecha, proveedor y categoría automáticamente.',
+    'sheet.gasto.sub': 'Sacá foto o subí un PDF del recibo y la IA lo lee por vos.',
+    'gasto.foto.title': 'Cargá el recibo',
+    'gasto.foto.sub': 'Foto o PDF. Claude AI extrae monto, fecha, proveedor y categoría automáticamente.',
     'gasto.foto.btn': '📷 Sacar foto del recibo',
-    'gasto.foto.skip': 'Cargar manual (sin foto)',
+    'gasto.foto.btn.file': '📎 Elegir archivo (foto o PDF)',
+    'gasto.foto.skip': 'Cargar manual (sin recibo)',
+    'gasto.recibo.error.mime': 'Tipo no permitido. Aceptamos JPG, PNG, WEBP, HEIC o PDF.',
     'gasto.analyzing.title': 'Claude está leyendo tu recibo…',
     'gasto.analyzing.sub': 'Esto puede tardar 5-15 segundos.',
     'gasto.warn.title': 'Revisá los datos',
@@ -2007,11 +2015,13 @@ const TRANSLATIONS = {
     'finanzas.reportes.servicio': 'Relatório por serviço',
     'finanzas.reportes.disabled': '(Disponível no próximo milestone — Milestone 5)',
     'sheet.gasto.title': '💸 Nova despesa',
-    'sheet.gasto.sub': 'Tire foto do recibo e a IA lê para você.',
-    'gasto.foto.title': 'Carregue a foto do recibo',
-    'gasto.foto.sub': 'Claude AI extrai valor, data, fornecedor e categoria automaticamente.',
+    'sheet.gasto.sub': 'Tire foto ou envie um PDF do recibo e a IA lê para você.',
+    'gasto.foto.title': 'Carregue o recibo',
+    'gasto.foto.sub': 'Foto ou PDF. Claude AI extrai valor, data, fornecedor e categoria automaticamente.',
     'gasto.foto.btn': '📷 Tirar foto do recibo',
-    'gasto.foto.skip': 'Carregar manual (sem foto)',
+    'gasto.foto.btn.file': '📎 Escolher arquivo (foto ou PDF)',
+    'gasto.foto.skip': 'Carregar manual (sem recibo)',
+    'gasto.recibo.error.mime': 'Tipo não permitido. Aceitamos JPG, PNG, WEBP, HEIC ou PDF.',
     'gasto.analyzing.title': 'Claude está lendo seu recibo…',
     'gasto.analyzing.sub': 'Isso pode levar 5-15 segundos.',
     'gasto.warn.title': 'Revise os dados',
@@ -2644,6 +2654,8 @@ function computeStepFromState() {
 // ─────────────────────────────────────────────
 const PHOTO_MAX_BYTES = 10 * 1024 * 1024; // 10 MB
 const PHOTO_ALLOWED_MIMES = ['image/jpeg','image/jpg','image/png','image/webp','image/heic','image/heif'];
+// Recibos aceptan también PDF (factura formal); las fotos de servicio NO.
+const RECIBO_ALLOWED_MIMES = [...PHOTO_ALLOWED_MIMES, 'application/pdf'];
 
 function ensurePhotosBucket(fotoType) {
   if (!serviceState.photos) serviceState.photos = { pre: [], post: [], relevamiento: [] };
@@ -3423,9 +3435,10 @@ function uuidV4() {
 
 // Sube una foto del recibo a R2. Retorna { publicUrl }.
 async function uploadReceiptPhoto(file, gastoId) {
-  if (file.size > PHOTO_MAX_BYTES) throw new Error(t('photo.error.maxsize') || 'Foto >10MB');
+  // Recibo acepta imagen O PDF (validado también server-side en /api/upload-url).
+  if (file.size > PHOTO_MAX_BYTES) throw new Error(t('photo.error.maxsize') || 'Archivo >10MB');
   const mime = (file.type || '').toLowerCase();
-  if (!PHOTO_ALLOWED_MIMES.includes(mime)) throw new Error(t('photo.error.mime') || 'Tipo no permitido');
+  if (!RECIBO_ALLOWED_MIMES.includes(mime)) throw new Error(t('gasto.recibo.error.mime') || t('photo.error.mime') || 'Tipo no permitido');
   const resp = await fetch('/api/upload-url', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -3776,7 +3789,8 @@ function renderGastoSheet() {
         <div class="gasto-step-photo-emoji">📷</div>
         <div class="gasto-step-photo-title">${t('gasto.foto.title')}</div>
         <div class="gasto-step-photo-sub">${t('gasto.foto.sub')}</div>
-        <button class="gasto-photo-btn" onclick="document.getElementById('gasto-recibo-input').click()">${t('gasto.foto.btn')}</button>
+        <button class="gasto-photo-btn" onclick="document.getElementById('gasto-recibo-input-camera').click()">${t('gasto.foto.btn')}</button>
+        <button class="gasto-photo-btn-file" onclick="document.getElementById('gasto-recibo-input-file').click()">${t('gasto.foto.btn.file')}</button>
         <div><button class="gasto-photo-btn-secondary" onclick="gastoSkipFoto()">${t('gasto.foto.skip')}</button></div>
       </div>
     `;
@@ -3808,9 +3822,13 @@ function renderGastoSheet() {
 
   const warnClass = ocr && ocr.confianza !== 'alta' ? 'warn' : '';
 
-  const thumb = gastoState.reciboPreview
-    ? `<div class="gasto-thumb-wrap"><img src="${esc(gastoState.reciboPreview)}" onclick="window.open('${esc(gastoState.reciboPreview)}','_blank')"/></div>`
-    : '';
+  // PDF → icono clickeable (abre el PDF en R2 ya subido). Imagen → thumbnail.
+  let thumb = '';
+  if (gastoState.isPdf && gastoState.reciboUrl) {
+    thumb = `<div class="gasto-thumb-wrap"><div class="gasto-pdf-preview" onclick="window.open('${esc(gastoState.reciboUrl)}','_blank')"><span class="gasto-pdf-preview-emoji">📄</span><span>PDF</span></div></div>`;
+  } else if (gastoState.reciboPreview) {
+    thumb = `<div class="gasto-thumb-wrap"><img src="${esc(gastoState.reciboPreview)}" onclick="window.open('${esc(gastoState.reciboPreview)}','_blank')"/></div>`;
+  }
 
   const reanalyzeBtn = gastoState.reciboUrl
     ? `<button class="gasto-reanalyze-btn" onclick="reanalyzeReceipt()">🔄 ${t('gasto.reanalyze')}</button>`
@@ -3899,10 +3917,13 @@ async function onGastoReciboSelected(input) {
   const file = input.files && input.files[0];
   input.value = ''; // reset para permitir re-elegir el mismo archivo
   if (!file || !gastoState) return;
-  if (file.size > PHOTO_MAX_BYTES) { alert(t('photo.error.maxsize') || 'Foto >10MB'); return; }
+  if (file.size > PHOTO_MAX_BYTES) { alert(t('photo.error.maxsize') || 'Archivo >10MB'); return; }
   const mime = (file.type || '').toLowerCase();
-  if (!PHOTO_ALLOWED_MIMES.includes(mime)) { alert(t('photo.error.mime') || 'Tipo no permitido'); return; }
-  gastoState.reciboPreview = URL.createObjectURL(file);
+  if (!RECIBO_ALLOWED_MIMES.includes(mime)) { alert(t('gasto.recibo.error.mime') || t('photo.error.mime') || 'Tipo no permitido'); return; }
+  gastoState.isPdf = mime === 'application/pdf';
+  // Preview: para PDF no se renderiza inline (se muestra icono); para imagen sí.
+  gastoState.reciboPreview = gastoState.isPdf ? null : URL.createObjectURL(file);
+  gastoState.reciboFilename = file.name || (gastoState.isPdf ? 'recibo.pdf' : 'recibo.jpg');
   gastoState.step = 'analyzing';
   renderGastoSheet();
   try {
@@ -4000,8 +4021,9 @@ async function saveGasto() {
     properties['Servicio'] = { relation: [{ id: f.servicioId }] };
   }
   if (gastoState.reciboUrl) {
+    const reciboName = gastoState.reciboFilename || (gastoState.isPdf ? 'recibo.pdf' : 'recibo.jpg');
     properties['Foto del recibo'] = {
-      files: [{ type: 'external', name: 'recibo.jpg', external: { url: gastoState.reciboUrl } }],
+      files: [{ type: 'external', name: reciboName, external: { url: gastoState.reciboUrl } }],
     };
   }
 

@@ -9,13 +9,25 @@ const ALLOWED_ORIGINS = [
 ];
 const ALLOWED_ORIGIN_REGEX = /^https:\/\/flyclean-app-[a-z0-9]+-fly-clean-app-s-projects\.vercel\.app$/;
 
-const ALLOWED_MIMES = new Set([
+// Servicios solo aceptan imágenes (fotos pre/post/relevamiento).
+const ALLOWED_IMAGE_MIMES = new Set([
   'image/jpeg',
   'image/jpg',
   'image/png',
   'image/webp',
   'image/heic',
   'image/heif',
+]);
+
+// Recibos aceptan imágenes O PDFs (factura formal en PDF es común).
+const ALLOWED_RECIBO_MIMES = new Set([
+  'image/jpeg',
+  'image/jpg',
+  'image/png',
+  'image/webp',
+  'image/heic',
+  'image/heif',
+  'application/pdf',
 ]);
 
 // Servicios: pre/post/relevamiento → key servicios/{serviceId}/{fotoType}/...
@@ -83,7 +95,9 @@ export default async function handler(req, res) {
   if (!filename || typeof filename !== 'string' || filename.length > 200) {
     return res.status(400).json({ error: 'Invalid filename' });
   }
-  if (!ALLOWED_MIMES.has(String(contentType).toLowerCase())) {
+  // Recibos aceptan también PDF; fotos de servicio solo imágenes.
+  const allowedMimes = fotoType === 'recibo' ? ALLOWED_RECIBO_MIMES : ALLOWED_IMAGE_MIMES;
+  if (!allowedMimes.has(String(contentType).toLowerCase())) {
     return res.status(400).json({ error: 'Invalid contentType' });
   }
 
