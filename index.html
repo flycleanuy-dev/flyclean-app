@@ -3898,8 +3898,12 @@ function renderGastoSheet() {
     ? `<button class="gasto-reanalyze-btn" onclick="reanalyzeReceipt()">🔄 ${t('gasto.reanalyze')}</button>`
     : '';
 
+  // Mostrar los servicios MÁS RECIENTES arriba (los últimos primero) para que sea
+  // fácil encontrar el servicio a asociar. Ordenamos una COPIA (no mutar
+  // _coordAllServices, que el calendario del coord usa en orden ascendente).
+  const _svcFecha = (s) => s.properties?.['Fecha programada']?.date?.start || s.created_time || '';
   const servicios = (_coordAllServices && _coordAllServices.length > 0)
-    ? _coordAllServices.slice(0, 30)
+    ? [..._coordAllServices].sort((a, b) => _svcFecha(b).localeCompare(_svcFecha(a))).slice(0, 30)
     : [];
 
   body.innerHTML = `
