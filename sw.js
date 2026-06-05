@@ -1,3 +1,4 @@
+// v8: bump tras fix selector de servicios recientes en alta de gasto.
 // v7: bump tras claridad de monedas (UY$ vs USD separadas) + tab Equipo desde Notion.
 // v6: bump tras PR #28 (fix gasto-overlay fuera de screen-coordinator).
 // Sin este bump los clientes con la PWA instalada seguirían viendo el index.html
@@ -5,7 +6,7 @@
 // deploy live. Cache de Notion no necesita bump (solo cambió HTML).
 // v5: cambiar estrategia de Notion API de stale-while-revalidate a NETWORK-FIRST con timeout.
 
-const CACHE = 'flyclean-v7';
+const CACHE = 'flyclean-v8';
 const SHELL = [
   '/',
   '/index.html',
