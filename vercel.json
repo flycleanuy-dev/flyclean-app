@@ -22,6 +22,6 @@
     { "path": "/api/cron-report", "schedule": "0 11 * * 1" }
   ],
   "functions": {
-    "api/report-pdf.js": { "memory": 2048, "maxDuration": 60 }
+    "api/report-pdf.js": { "memory": 2048, "maxDuration": 60, "includeFiles": "node_modules/@sparticuz/chromium/**" }
   }
 }
