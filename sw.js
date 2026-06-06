@@ -1,3 +1,4 @@
+// v15: reducir tamaño de fotos en el PDF (máx 1100px) para poder enviarlo.
 // v14: PDF de devolución generado con jsPDF (cliente, self-hosted) — confiable.
 // v13: PDF generado en el servidor (Chrome real, api/report-pdf) — confiable.
 // v12: fix PDF en blanco — render del reporte en position:absolute (no fixed) + overlay.
@@ -12,7 +13,7 @@
 // deploy live. Cache de Notion no necesita bump (solo cambió HTML).
 // v5: cambiar estrategia de Notion API de stale-while-revalidate a NETWORK-FIRST con timeout.
 
-const CACHE = 'flyclean-v14';
+const CACHE = 'flyclean-v15';
 const SHELL = [
   '/',
   '/index.html',
