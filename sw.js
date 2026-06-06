@@ -1,3 +1,4 @@
+// v10: bump tras fix del PDF de devolución (proxy de fotos + render) + generación desde el CEO.
 // v9: bump tras fix de overflow horizontal en las tab bars (coord/CEO).
 // v8: bump tras fix selector de servicios recientes en alta de gasto.
 // v7: bump tras claridad de monedas (UY$ vs USD separadas) + tab Equipo desde Notion.
@@ -7,7 +8,7 @@
 // deploy live. Cache de Notion no necesita bump (solo cambió HTML).
 // v5: cambiar estrategia de Notion API de stale-while-revalidate a NETWORK-FIRST con timeout.
 
-const CACHE = 'flyclean-v9';
+const CACHE = 'flyclean-v10';
 const SHELL = [
   '/',
   '/index.html',
