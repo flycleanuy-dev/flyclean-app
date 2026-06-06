@@ -9,7 +9,7 @@
 <meta name="theme-color" content="#ffffff"/>
 <link rel="manifest" href="/manifest.json"/>
 <link rel="apple-touch-icon" href="/icon-192.png"/>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<!-- html2pdf se aloja en /vendor y se carga on-demand (ensureHtml2pdf) solo al generar un PDF -->
 <title>FlyClean</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Exo+2:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap');
@@ -6520,17 +6520,34 @@ async function deleteService() {
 // ─────────────────────────────────────────────
 // PDF Reports — Task 1 (Servicio template; Relevamiento/Jornada = Task 2)
 // ─────────────────────────────────────────────
+// Carga html2pdf on-demand desde /vendor (self-hosted) — robusto ante fallas del CDN.
+let _html2pdfLoad = null;
+function ensureHtml2pdf() {
+  if (typeof html2pdf !== 'undefined') return Promise.resolve(true);
+  if (_html2pdfLoad) return _html2pdfLoad;
+  _html2pdfLoad = new Promise(resolve => {
+    const s = document.createElement('script');
+    s.src = '/vendor/html2pdf.bundle.min.js';
+    s.onload = () => resolve(typeof html2pdf !== 'undefined');
+    s.onerror = () => { _html2pdfLoad = null; resolve(false); };
+    document.head.appendChild(s);
+  });
+  return _html2pdfLoad;
+}
+
 async function generateReportPDF(svc) {
   svc = svc || editingService;
   if (!svc) return;
-  if (typeof html2pdf === 'undefined') {
-    alert(t('pdf.notloaded'));
-    return;
-  }
   const tipoReg = svc.properties?.['Tipo de registro']?.select?.name || '';
   const btn = document.getElementById('report-pdf-btn');
   const originalText = btn?.textContent;
   if (btn) { btn.textContent = '⏳ ' + t('pdf.generating'); btn.disabled = true; }
+  // Asegurar que la librería esté cargada (la baja del propio servidor si hace falta).
+  if (!(await ensureHtml2pdf())) {
+    alert(t('pdf.notloaded'));
+    if (btn && originalText) { btn.textContent = originalText; btn.disabled = false; }
+    return;
+  }
 
   let container = null;
   try {

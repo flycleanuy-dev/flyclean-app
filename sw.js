@@ -1,3 +1,4 @@
+// v11: html2pdf self-hosted en /vendor (carga on-demand) — evita el "html2pdf no cargado" del CDN.
 // v10: bump tras fix del PDF de devolución (proxy de fotos + render) + generación desde el CEO.
 // v9: bump tras fix de overflow horizontal en las tab bars (coord/CEO).
 // v8: bump tras fix selector de servicios recientes en alta de gasto.
@@ -8,7 +9,7 @@
 // deploy live. Cache de Notion no necesita bump (solo cambió HTML).
 // v5: cambiar estrategia de Notion API de stale-while-revalidate a NETWORK-FIRST con timeout.
 
-const CACHE = 'flyclean-v10';
+const CACHE = 'flyclean-v11';
 const SHELL = [
   '/',
   '/index.html',
@@ -17,7 +18,8 @@ const SHELL = [
   '/icon-512.png',
   '/icon-192-maskable.png',
   '/icon-512-maskable.png',
-  '/splash.png'
+  '/splash.png',
+  '/vendor/html2pdf.bundle.min.js'
 ];
 const NOTION_CACHE = 'flyclean-notion-cache-v2';
 const NETWORK_TIMEOUT_MS = 5000;
