@@ -6546,6 +6546,10 @@ async function generateReportPDF(svc) {
       filenameTipo = tipoReg.includes('Prueba') ? 'Prueba' : 'Servicio';
     }
 
+    // Rutear las fotos del CDN por un proxy same-origin → html2canvas las captura sin
+    // trabas de CORS/CSP (si no, el PDF sale sin fotos / en blanco).
+    html = html.replace(/src="(https:\/\/cdn\.flyclean\.app\/[^"]+)"/g, (m, u) => `src="/api/img?u=${encodeURIComponent(u)}"`);
+
     container = document.createElement('div');
     container.style.position = 'fixed';
     container.style.left = '0';
