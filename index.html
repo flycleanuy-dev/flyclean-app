@@ -6520,39 +6520,175 @@ async function deleteService() {
 // ─────────────────────────────────────────────
 // PDF Reports — Task 1 (Servicio template; Relevamiento/Jornada = Task 2)
 // ─────────────────────────────────────────────
-// Carga html2pdf on-demand desde /vendor (self-hosted) — robusto ante fallas del CDN.
-let _html2pdfLoad = null;
-function ensureHtml2pdf() {
-  if (typeof html2pdf !== 'undefined') return Promise.resolve(true);
-  if (_html2pdfLoad) return _html2pdfLoad;
-  _html2pdfLoad = new Promise(resolve => {
+// Carga jsPDF on-demand desde /vendor (self-hosted, robusto ante fallas del CDN/sw).
+let _jspdfLoad = null;
+function ensureJsPDF() {
+  const get = () => (window.jspdf && window.jspdf.jsPDF) || null;
+  if (get()) return Promise.resolve(get());
+  if (_jspdfLoad) return _jspdfLoad;
+  _jspdfLoad = new Promise(resolve => {
     const s = document.createElement('script');
-    s.src = '/vendor/html2pdf.bundle.min.js';
-    s.onload = () => resolve(typeof html2pdf !== 'undefined');
-    s.onerror = () => { _html2pdfLoad = null; resolve(false); };
+    s.src = '/vendor/jspdf.umd.min.js';
+    s.onload = () => resolve(get());
+    s.onerror = () => { _jspdfLoad = null; resolve(null); };
     document.head.appendChild(s);
   });
-  return _html2pdfLoad;
+  return _jspdfLoad;
 }
 
+// Baja una foto del CDN por el proxy same-origin → { url(dataURL), dims } (para jsPDF.addImage).
+async function fetchReportImg(cdnUrl) {
+  try {
+    const resp = await fetch('/api/img?u=' + encodeURIComponent(cdnUrl));
+    if (!resp.ok) return null;
+    const blob = await resp.blob();
+    const url = await new Promise(r => { const fr = new FileReader(); fr.onload = () => r(fr.result); fr.onerror = () => r(null); fr.readAsDataURL(blob); });
+    if (!url) return null;
+    const dims = await new Promise(r => { const im = new Image(); im.onload = () => r({ w: im.naturalWidth, h: im.naturalHeight }); im.onerror = () => r(null); im.src = url; });
+    return { url, dims };
+  } catch (_) { return null; }
+}
+
+// Genera el PDF de devolución dibujándolo directo con jsPDF (sin html2canvas ni Chrome).
+// Determinístico y confiable: texto nítido + fotos antes/después + marca FlyClean.
 async function generateReportPDF(svc) {
   svc = svc || editingService;
-  if (!svc || !svc.id) return;
+  if (!svc) return;
   const btn = document.getElementById('report-pdf-btn');
   const originalText = btn?.textContent;
   if (btn) { btn.textContent = '⏳ ' + t('pdf.generating'); btn.disabled = true; }
   try {
-    // El PDF se genera en el SERVIDOR con un Chrome real (api/report-pdf) y se descarga.
-    // Mucho más confiable que html2canvas en el cliente (texto nítido + fotos siempre).
-    const resp = await fetch('/api/report-pdf?id=' + encodeURIComponent(svc.id));
-    if (!resp.ok) { const msg = await resp.text().catch(() => ''); throw new Error(msg || ('servidor ' + resp.status)); }
-    const blob = await resp.blob();
-    const nombre = (svc.properties?.['Nombre del servicio']?.title?.[0]?.plain_text || 'servicio').replace(/[^a-z0-9-_ ]/gi, '').trim().replace(/\s+/g, '-') || 'servicio';
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = 'FlyClean-' + nombre + '.pdf';
-    document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 8000);
+    const JS = await ensureJsPDF();
+    if (!JS) { alert(t('pdf.notloaded')); return; }
+    const p = svc.properties || {};
+    const sel = (k) => p[k]?.select?.name || '';
+    const rtxt = (k) => p[k]?.rich_text?.[0]?.plain_text || '';
+    const fileUrls = (k) => (p[k]?.files || []).map(f => f.external?.url || f.file?.url).filter(Boolean);
+    const tipoReg = sel('Tipo de registro');
+    const isRelev = /Relevamiento/.test(tipoReg), isJornada = /Jornada/.test(tipoReg), isPrueba = /Prueba/.test(tipoReg);
+    const titulo = isRelev ? 'Reporte de Relevamiento' : isJornada ? 'Reporte de Jornada' : isPrueba ? 'Reporte de Prueba' : 'Reporte de Servicio';
+    const nombre = p['Nombre del servicio']?.title?.[0]?.plain_text || 'Servicio';
+    const piloto = sel('Operario App');
+    const ayudantes = (p['Operarios participantes']?.multi_select || []).map(o => o.name).filter(a => a && a !== piloto);
+    const resultado = isPrueba ? sel('Resultado prueba') : sel('Resultado');
+    const lugar = rtxt('Lugar');
+    const m2 = p['m² aproximados']?.number;
+    const notas = rtxt('Notas post-servicio') || rtxt('Notas');
+    const fmtDate = (iso) => { if (!iso) return '—'; const d = new Date(iso.length === 10 ? iso + 'T00:00:00' : iso); return isNaN(d) ? iso : d.toLocaleDateString('es-UY', { day: '2-digit', month: '2-digit', year: 'numeric' }); };
+    const hoy = new Date().toLocaleDateString('es-UY', { day: '2-digit', month: '2-digit', year: 'numeric' });
+
+    let clienteName = '—';
+    const rel = p['Contacto']?.relation || p['Contactos']?.relation || [];
+    if (rel[0]?.id && typeof _coordAllContacts !== 'undefined' && Array.isArray(_coordAllContacts)) {
+      const fc = _coordAllContacts.find(c => c.id === rel[0].id);
+      if (fc) clienteName = fc.properties?.['Nombre']?.title?.[0]?.plain_text || fc.properties?.['Name']?.title?.[0]?.plain_text || '—';
+    }
+
+    const fotosA = (isRelev ? fileUrls('📸 Fotos relevamiento') : fileUrls('📸 Fotos pre-servicio')).slice(0, 3);
+    const fotosB = (isRelev ? [] : fileUrls('📸 Fotos post-servicio')).slice(0, 3);
+    const [imgsA, imgsB] = await Promise.all([
+      Promise.all(fotosA.map(fetchReportImg)).then(a => a.filter(Boolean)),
+      Promise.all(fotosB.map(fetchReportImg)).then(a => a.filter(Boolean)),
+    ]);
+
+    const doc = new JS({ unit: 'mm', format: 'a4' });
+    const PW = 210, M = 14, BOT = 285;
+    let y = 0;
+    const newPageIf = (need) => { if (y + need > BOT) { doc.addPage(); y = 18; } };
+
+    doc.setFillColor(0, 201, 141); doc.rect(0, 0, PW, 38, 'F');
+    doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold');
+    doc.setFontSize(26); doc.text('FlyClean', M, 18);
+    doc.setFontSize(15); doc.text(titulo, M, 28);
+    doc.setFontSize(9); doc.setFont('helvetica', 'normal'); doc.text('Fecha: ' + hoy, PW - M, 14, { align: 'right' });
+    y = 48;
+
+    const section = (title) => {
+      newPageIf(12);
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(0, 165, 120);
+      doc.text(title.toUpperCase(), M, y);
+      doc.setDrawColor(179, 237, 217); doc.setLineWidth(0.3); doc.line(M, y + 1.5, PW - M, y + 1.5);
+      y += 7;
+    };
+    const row = (label, value) => {
+      if (value == null || value === '') return;
+      const vlines = doc.splitTextToSize(String(value), 120);
+      newPageIf(5.5 * vlines.length + 2);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(10.5); doc.setTextColor(70, 107, 94);
+      doc.text(String(label), M, y);
+      doc.setFont('helvetica', 'bold'); doc.setTextColor(20, 31, 25);
+      doc.text(vlines, PW - M, y, { align: 'right' });
+      y += 5.5 * vlines.length + 1.5;
+      doc.setDrawColor(232, 240, 236); doc.setLineWidth(0.2); doc.line(M, y - 1.5, PW - M, y - 1.5);
+    };
+
+    section('Datos generales');
+    row('Cliente', clienteName);
+    row(isRelev ? 'Relevamiento' : 'Servicio', nombre);
+    row('Tipo', sel('Tipo de servicio'));
+    if (lugar) row('Lugar', lugar);
+    if (m2 != null) row('m² aprox.', m2 + ' m²');
+    row('País', sel('País'));
+    row('Fecha programada', fmtDate(p['Fecha programada']?.date?.start));
+    if (piloto) row('Piloto', piloto);
+    if (ayudantes.length) row('Ayudantes', ayudantes.join(', '));
+
+    section('Resultado');
+    row('Estado', sel('Estado'));
+    if (resultado) row('Resultado', resultado);
+
+    section(isRelev ? 'Fotos del relevamiento' : 'Fotos antes / después');
+    newPageIf(20);
+    const gap = 6;
+    const colW = isRelev ? (PW - M * 2) : (PW - M * 2 - gap) / 2;
+    const drawCol = (imgs, x, label) => {
+      let yy = y;
+      doc.setFillColor(13, 31, 25); doc.rect(x, yy, colW, 6, 'F');
+      doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5);
+      doc.text(label, x + colW / 2, yy + 4.2, { align: 'center' });
+      yy += 9;
+      if (!imgs.length) {
+        doc.setTextColor(150, 160, 156); doc.setFont('helvetica', 'normal'); doc.setFontSize(9);
+        doc.text('— Sin fotos —', x + colW / 2, yy + 6, { align: 'center' }); yy += 16;
+      } else {
+        for (const im of imgs) {
+          const h = im.dims ? Math.min(colW * im.dims.h / im.dims.w, 80) : 60;
+          try { doc.addImage(im.url, 'JPEG', x, yy, colW, h, undefined, 'FAST'); } catch (_) {}
+          yy += h + 4;
+        }
+      }
+      return yy;
+    };
+    if (isRelev) {
+      y = drawCol(imgsA, M, 'RELEVAMIENTO');
+    } else {
+      const yLeft = drawCol(imgsA, M, 'ANTES');
+      const yRight = drawCol(imgsB, M + colW + gap, 'DESPUÉS');
+      y = Math.max(yLeft, yRight);
+    }
+    y += 4;
+
+    if (notas) {
+      section('Notas');
+      const nl = doc.splitTextToSize(notas, PW - M * 2 - 8);
+      const boxH = nl.length * 5 + 8;
+      newPageIf(boxH);
+      doc.setFillColor(244, 248, 246); doc.setDrawColor(221, 234, 228); doc.setLineWidth(0.2);
+      doc.roundedRect(M, y, PW - M * 2, boxH, 2, 2, 'FD');
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(10.5); doc.setTextColor(20, 31, 25);
+      doc.text(nl, M + 4, y + 6);
+      y += boxH + 4;
+    }
+
+    const pages = doc.getNumberOfPages();
+    for (let i = 1; i <= pages; i++) {
+      doc.setPage(i);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(150, 160, 156);
+      doc.text('Generado el ' + hoy + ' — FlyClean SAS · www.flyclean.app', PW / 2, 292, { align: 'center' });
+    }
+
+    const fname = (nombre || 'servicio').replace(/[^a-z0-9-_ ]/gi, '').trim().replace(/\s+/g, '-') || 'servicio';
+    doc.save('FlyClean-' + fname + '.pdf');
   } catch (e) {
     console.error('PDF error', e);
     alert(t('pdf.error') + ' ' + (e.message || ''));
