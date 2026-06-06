@@ -56,6 +56,9 @@ body::before {
   pointer-events: none;
 }
 
+  /* El <html> rebotaba lateralmente (overflow-x:visible + overscroll-behavior-x:auto) aunque
+     el body estuviera bloqueado → daba sensación de "balanceo". Lo fijamos también acá. */
+  html { overflow-x: hidden; overscroll-behavior: none; }
   body {
     font-family: 'Exo 2', sans-serif;
     background: var(--bg);
@@ -65,7 +68,7 @@ body::before {
     margin: 0 auto;
     position: relative;
     overflow-x: hidden;
-    overscroll-behavior-x: none;
+    overscroll-behavior: none;
   }
 
   body::before {
@@ -6717,10 +6720,12 @@ async function generateReportPDF(svc, extra = {}) {
     const sel = (k) => cleanLabel(p[k]?.select?.name || '');
     const rtxt = (k) => p[k]?.rich_text?.[0]?.plain_text || '';
     const fileUrls = (k) => (p[k]?.files || []).map(f => f.external?.url || f.file?.url).filter(Boolean);
+    const TIPO_DESC = { 'Vidrios': 'Limpieza de vidrios', 'Fachada': 'Limpieza de fachada', 'Paneles solares': 'Limpieza de paneles solares' };
+    const tipoServ = sel('Tipo de servicio');
     const tipoReg = sel('Tipo de registro');
     const isRelev = /Relevamiento/.test(tipoReg), isJornada = /Jornada/.test(tipoReg), isPrueba = /Prueba/.test(tipoReg);
     const titulo = isRelev ? 'Reporte de Relevamiento' : isJornada ? 'Reporte de Jornada' : isPrueba ? 'Reporte de Prueba' : 'Reporte de Servicio';
-    const nombre = p['Nombre del servicio']?.title?.[0]?.plain_text || 'Servicio';
+    const nombre = cleanLabel(p['Nombre del servicio']?.title?.[0]?.plain_text || 'Servicio');
     const piloto = sel('Operario App');
     const ayudantes = (p['Operarios participantes']?.multi_select || []).map(o => o.name).filter(a => a && a !== piloto);
     const resultado = isPrueba ? sel('Resultado prueba') : sel('Resultado');
@@ -6731,9 +6736,13 @@ async function generateReportPDF(svc, extra = {}) {
 
     let clienteName = '—';
     const rel = p['Contacto']?.relation || p['Contactos']?.relation || [];
-    if (rel[0]?.id && typeof _coordAllContacts !== 'undefined' && Array.isArray(_coordAllContacts)) {
-      const fc = _coordAllContacts.find(c => c.id === rel[0].id);
-      if (fc) clienteName = fc.properties?.['Nombre']?.title?.[0]?.plain_text || fc.properties?.['Name']?.title?.[0]?.plain_text || '—';
+    if (rel[0]?.id) {
+      try {
+        const c = await callNotion('pages/' + rel[0].id, 'GET');
+        const cp = c?.properties || {};
+        // El título del contacto está en la property tipo "title" (en Notion es "Nombre / Empresa", no "Nombre").
+        for (const k in cp) { const tt = cp[k]?.title; if (Array.isArray(tt) && tt.length) { clienteName = tt.map(x => x.plain_text).join('') || '—'; break; } }
+      } catch (_) {}
     }
 
     const fotosA = (isRelev ? fileUrls('📸 Fotos relevamiento') : fileUrls('📸 Fotos pre-servicio')).slice(0, 3);
@@ -6777,7 +6786,7 @@ async function generateReportPDF(svc, extra = {}) {
     section('Datos generales');
     row('Cliente', clienteName);
     row(isRelev ? 'Relevamiento' : 'Servicio', nombre);
-    row('Tipo', sel('Tipo de servicio'));
+    row('Tipo', TIPO_DESC[tipoServ] || tipoServ);
     if (lugar) row('Lugar', lugar);
     if (m2 != null) row('m² aprox.', m2 + ' m²');
     row('País', sel('País'));
@@ -8412,6 +8421,13 @@ function renderVersionLabel() {
     el.textContent = `v${APP_VERSION}`;
   }
 }
+
+// Guardia anti-tap: si el dedo se desliza (>10px) antes de soltar, se cancela el click —
+// evita asignar operarios / tocar botones sin querer al scrollear. (Tap real = sin movimiento.)
+let _gMoved = false, _gx = 0, _gy = 0;
+document.addEventListener('touchstart', e => { _gMoved = false; const tt = e.touches[0]; if (tt) { _gx = tt.clientX; _gy = tt.clientY; } }, { passive: true, capture: true });
+document.addEventListener('touchmove', e => { const tt = e.touches[0]; if (tt && (Math.abs(tt.clientX - _gx) > 10 || Math.abs(tt.clientY - _gy) > 10)) _gMoved = true; }, { passive: true, capture: true });
+document.addEventListener('click', e => { if (_gMoved) { e.stopPropagation(); e.preventDefault(); _gMoved = false; } }, { capture: true });
 
 async function init() {
   initLang();
