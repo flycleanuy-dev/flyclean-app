@@ -58,8 +58,9 @@ export default async function handler(req, res) {
 
     let emailed = false;
     if (!dryRun && (movidas.length || nuevasRecontacto.length)) {
-      const li = (arr) => arr.map(x => `<li><b>${x.nombre}</b> — ${x.dias} días</li>`).join('');
-      const body =
+      const li = (arr) => arr.map(x => `<li style="margin:3px 0;color:#cfe0d9"><b>${x.nombre}</b> — ${x.dias} días</li>`).join('');
+      const btn = `<div style="margin:8px 0 16px"><a href="https://www.flyclean.app/" style="display:inline-block;background:#00C98D;color:#062019;font-weight:800;text-decoration:none;padding:12px 26px;border-radius:8px;font-size:15px">Abrir FlyClean →</a></div>`;
+      const body = btn +
         (nuevasRecontacto.length ? `<p><b>📞 Para re-contactar (${nuevasRecontacto.length})</b></p><ul>${li(nuevasRecontacto)}</ul>` : '') +
         (movidas.length ? `<p><b>😶 Movidas a "Sin respuesta" automáticamente (${movidas.length})</b></p><ul>${li(movidas)}</ul>` : '');
       await sendEmail({
