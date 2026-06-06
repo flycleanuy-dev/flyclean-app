@@ -460,6 +460,11 @@ body::before {
   .photo-gallery { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
   .photo-gallery a { display: block; width: 56px; height: 56px; border-radius: 6px; overflow: hidden; border: 1px solid var(--border); background: var(--bg); }
   .photo-gallery img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .photo-collapse { margin-top: 8px; }
+  .photo-toggle { display: inline-flex; align-items: center; gap: 6px; background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; color: var(--text2); font-family: 'Exo 2', sans-serif; font-size: 12px; font-weight: 600; padding: 6px 12px; cursor: pointer; }
+  .photo-toggle:active { transform: scale(0.98); }
+  .photo-arrow { font-size: 10px; color: var(--text3); }
+  .photo-collapse .photo-gallery { margin-top: 8px; }
 
   /* ── Historial del cliente (en sheet de Contacto) ── */
   .history-loading, .history-empty { font-size: 12px; color: var(--text3); padding: 12px; text-align: center; background: var(--bg); border-radius: 8px; }
@@ -5934,9 +5939,25 @@ function renderPhotoGallery(props) {
   const files = extractServiceFiles(props);
   const all = [...files.pre, ...files.post, ...files.relevamiento];
   if (!all.length) return '';
-  const thumbs = all.slice(0, 6).map(url => `<a href="${url}" target="_blank" rel="noopener" onclick="event.stopPropagation()"><img loading="lazy" src="${url}" alt=""></a>`).join('');
-  const more = all.length > 6 ? `<a href="#" onclick="event.stopPropagation();return false" class="photo-more">+${all.length - 6}</a>` : '';
-  return `<div class="photo-gallery">${thumbs}${more}</div>`;
+  // Las fotos NO se cargan hasta tocar "Ver fotos" (data-src), y van por el proxy
+  // same-origin /api/img (el <img> directo al CDN falla en la app → signo de pregunta).
+  const px = (url) => '/api/img?u=' + encodeURIComponent(url);
+  const thumbs = all.slice(0, 12).map(url => `<a href="${px(url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()"><img loading="lazy" data-src="${px(url)}" alt=""></a>`).join('');
+  return `<div class="photo-collapse">` +
+    `<button type="button" class="photo-toggle" onclick="togglePhotos(this, event)">📷 Ver fotos (${all.length}) <span class="photo-arrow">▾</span></button>` +
+    `<div class="photo-gallery" style="display:none">${thumbs}</div>` +
+    `</div>`;
+}
+
+function togglePhotos(btn, ev) {
+  ev.stopPropagation(); ev.preventDefault();
+  const g = btn.nextElementSibling;
+  if (!g) return;
+  const open = g.style.display === 'none';
+  g.style.display = open ? 'flex' : 'none';
+  const arrow = btn.querySelector('.photo-arrow');
+  if (arrow) arrow.textContent = open ? '▴' : '▾';
+  if (open) g.querySelectorAll('img[data-src]').forEach(im => { im.src = im.dataset.src; im.removeAttribute('data-src'); });
 }
 
 function coordServiceCard(s) {
@@ -6575,7 +6596,9 @@ async function generateReportPDF(svc) {
     const JS = await ensureJsPDF();
     if (!JS) { alert(t('pdf.notloaded')); return; }
     const p = svc.properties || {};
-    const sel = (k) => p[k]?.select?.name || '';
+    // Limpia los emojis de los valores (jsPDF/helvetica no los dibuja → salían "siglas raras").
+    const cleanLabel = (s) => String(s || '').replace(/[\p{Extended_Pictographic}\u{1F1E6}-\u{1F1FF}️‍]/gu, '').replace(/\s+/g, ' ').trim();
+    const sel = (k) => cleanLabel(p[k]?.select?.name || '');
     const rtxt = (k) => p[k]?.rich_text?.[0]?.plain_text || '';
     const fileUrls = (k) => (p[k]?.files || []).map(f => f.external?.url || f.file?.url).filter(Boolean);
     const tipoReg = sel('Tipo de registro');
@@ -6587,7 +6610,6 @@ async function generateReportPDF(svc) {
     const resultado = isPrueba ? sel('Resultado prueba') : sel('Resultado');
     const lugar = rtxt('Lugar');
     const m2 = p['m² aproximados']?.number;
-    const notas = rtxt('Notas post-servicio') || rtxt('Notas');
     const fmtDate = (iso) => { if (!iso) return '—'; const d = new Date(iso.length === 10 ? iso + 'T00:00:00' : iso); return isNaN(d) ? iso : d.toLocaleDateString('es-UY', { day: '2-digit', month: '2-digit', year: 'numeric' }); };
     const hoy = new Date().toLocaleDateString('es-UY', { day: '2-digit', month: '2-digit', year: 'numeric' });
 
@@ -6681,18 +6703,6 @@ async function generateReportPDF(svc) {
       y = Math.max(yLeft, yRight);
     }
     y += 4;
-
-    if (notas) {
-      section('Notas');
-      const nl = doc.splitTextToSize(notas, PW - M * 2 - 8);
-      const boxH = nl.length * 5 + 8;
-      newPageIf(boxH);
-      doc.setFillColor(244, 248, 246); doc.setDrawColor(221, 234, 228); doc.setLineWidth(0.2);
-      doc.roundedRect(M, y, PW - M * 2, boxH, 2, 2, 'FD');
-      doc.setFont('helvetica', 'normal'); doc.setFontSize(10.5); doc.setTextColor(20, 31, 25);
-      doc.text(nl, M + 4, y + 6);
-      y += boxH + 4;
-    }
 
     const pages = doc.getNumberOfPages();
     for (let i = 1; i <= pages; i++) {
