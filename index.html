@@ -8016,13 +8016,14 @@ async function loadAlerts(role, bannerId) {
       }
     }
 
-    // Proposals overdue 15+ days (coord + CEO)
+    // Pipeline: propuestas para re-contactar (esperando respuesta del cliente, +15 días) — coord + CEO
     if (isCoord || isCEO) {
       const cf = isCoord ? getCountryFilter() : getCEOFilter();
+      // Mismos estados "esperando respuesta" que usa el cron diario (api/cron-pipeline.js).
+      const ESPERANDO = ['📞 Contactado', '📤 Enviada al cliente', '🤝 Negociando'];
       const propFilter = { and: [
         ...(cf ? [cf] : []),
-        { property: 'Estado pipeline', select: { does_not_equal: '❌ Rechazada' } },
-        { property: 'Estado pipeline', select: { does_not_equal: '😶 Sin respuesta' } }
+        { or: ESPERANDO.map(s => ({ property: 'Estado pipeline', select: { equals: s } })) }
       ]};
       const propData = await callNotion('databases/2c0a4257-f429-4941-b994-dfebc1098633/query', 'POST', { filter: propFilter });
       const vencidas = (propData.results || []).filter(r => {
@@ -8031,7 +8032,7 @@ async function loadAlerts(role, bannerId) {
       });
       if (vencidas.length) {
         const max = Math.max(...vencidas.map(r => r.properties?.['Días sin respuesta']?.formula?.number || 0));
-        alerts.push({ level: max >= 30 ? 'critical' : 'warn', icon: '💼', message: vencidas.length + ' propuesta' + (vencidas.length > 1 ? 's' : '') + ' sin actividad (máx ' + max + ' días)' });
+        alerts.push({ level: max >= 45 ? 'critical' : 'warn', icon: '📞', message: vencidas.length + ' propuesta' + (vencidas.length > 1 ? 's' : '') + ' para re-contactar (máx ' + max + ' días sin respuesta)' });
       }
     }
   } catch (e) {
