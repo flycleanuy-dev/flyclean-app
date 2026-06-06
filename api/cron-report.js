@@ -36,12 +36,14 @@ function svcEquipo(s) {
 }
 function svcCard(s, { resultado = false } = {}) {
   const meta = [svcFecha(s) && '📅 ' + svcFecha(s), svcTipo(s) && '🏢 ' + esc(svcTipo(s)), svcLugar(s) && '📍 ' + esc(svcLugar(s))].filter(Boolean).join(' · ');
-  const equipo = svcEquipo(s);
+  const piloto = s.properties?.['Operario App']?.select?.name || '';
+  const ayud = (s.properties?.['Operarios participantes']?.multi_select || []).map(o => o.name).filter(a => a && a !== piloto);
   const res = resultado && svcResultado(s) ? ` <span style="color:#00C98D;font-size:12px">${esc(svcResultado(s))}</span>` : '';
   return `<div style="padding:10px 0;border-bottom:1px solid #1d2a25">
     <div style="font-weight:700;color:#ffffff">${esc(svcNombre(s))}${res}</div>
     ${meta ? `<div style="font-size:13px;color:#9fb5ac;margin-top:2px">${meta}</div>` : ''}
-    ${equipo.length ? `<div style="font-size:13px;color:#9fb5ac;margin-top:2px">👥 ${esc(equipo.join(', '))}</div>` : ''}
+    ${piloto ? `<div style="font-size:13px;color:#9fb5ac;margin-top:2px">👨‍✈️ Piloto: ${esc(piloto)}</div>` : ''}
+    ${ayud.length ? `<div style="font-size:13px;color:#9fb5ac;margin-top:2px">👥 Ayudantes: ${esc(ayud.join(', '))}</div>` : ''}
   </div>`;
 }
 const section = (title) => `<h2 style="font-size:15px;color:#ffffff;margin:22px 0 6px;border-top:1px solid #1d2a25;padding-top:16px">${title}</h2>`;
