@@ -1041,7 +1041,7 @@ body::before {
         <input type="url" class="edit-date-input" id="edit-mapa" placeholder="https://maps.app.goo.gl/..." oninput="editState.mapa=this.value"/>
       </div>
       <button class="edit-save-btn" id="edit-save-btn" data-i18n="btn.save.notion" onclick="saveServiceEdit()">💾 GUARDAR EN NOTION</button>
-      <button class="report-pdf-btn" id="report-pdf-btn" onclick="generateReportPDF()" style="display:none">📄 Generar reporte</button>
+      <button class="report-pdf-btn" id="report-pdf-btn" onclick="openReportStep(editingService)" style="display:none">📄 Generar reporte</button>
       <div class="edit-section jornada-cta-wrap" id="edit-jornada-cta" style="display:none">
         <div class="jornada-cta-card">
           <div class="jornada-cta-title" data-i18n="sheet.edit.jornada.title">📅 Continuar como jornada</div>
@@ -1144,6 +1144,19 @@ body::before {
       <div class="edit-sheet-sub" id="gasto-sheet-sub" data-i18n="sheet.gasto.sub">Sacá foto del recibo y la IA lo lee por vos.</div>
     </div>
     <div id="gasto-sheet-body" style="padding:0 0 24px"></div>
+  </div>
+</div>
+<!-- Paso previo al PDF: observación al cliente (+ monto en pruebas/relevamientos).
+     Sibling de body para funcionar desde coord y CEO (igual que gasto-overlay). -->
+<div class="edit-overlay" id="report-step-overlay" onclick="reportStepOverlayClick(event)">
+  <div class="edit-sheet" id="report-step-sheet">
+    <button class="sheet-close-btn" type="button" aria-label="Cerrar" onclick="closeReportStep()">×</button>
+    <div class="edit-sheet-handle"></div>
+    <div class="edit-sheet-header">
+      <div class="edit-sheet-title" id="report-step-title">📄 Generar reporte</div>
+      <div class="edit-sheet-sub" id="report-step-sub">Agregá una observación para el cliente (opcional).</div>
+    </div>
+    <div id="report-step-body" style="padding:16px 20px 24px"></div>
   </div>
 </div>
 <!-- Cámara: sólo imagen, fuerza el rear camera en móvil. -->
@@ -1787,7 +1800,16 @@ const TRANSLATIONS = {
     'pdf.generating': 'Generando PDF...',
     'pdf.coming.soon': 'Reporte de este tipo: próximamente.',
     'pdf.error': 'Error al generar PDF:',
-    'pdf.notloaded': 'html2pdf no está cargado todavía. Reintentá en 1 segundo.',
+    'pdf.notloaded': 'jsPDF no está cargado todavía. Reintentá en 1 segundo.',
+    'report.step.title': '📄 Generar reporte',
+    'report.step.sub': 'Agregá una observación para el cliente (opcional).',
+    'report.step.obs.label': 'Observación para el cliente',
+    'report.step.obs.hint': 'Comentario que verá el cliente en el PDF (opcional).',
+    'report.step.monto.label': 'Monto / Presupuesto',
+    'report.step.generate': 'Generar PDF',
+    'report.step.cancel': 'Cancelar',
+    'pdf.field.presupuesto': 'Presupuesto estimado',
+    'pdf.section.observaciones': 'Observaciones',
     'pdf.field.servicio': 'Servicio',
     'pdf.field.inicio': 'Inicio',
     'pdf.field.fin': 'Fin',
@@ -2273,7 +2295,16 @@ const TRANSLATIONS = {
     'pdf.generating': 'Gerando PDF...',
     'pdf.coming.soon': 'Relatório deste tipo: em breve.',
     'pdf.error': 'Erro ao gerar PDF:',
-    'pdf.notloaded': 'html2pdf ainda não carregou. Tente novamente em 1 segundo.',
+    'pdf.notloaded': 'jsPDF ainda não carregou. Tente novamente em 1 segundo.',
+    'report.step.title': '📄 Gerar relatório',
+    'report.step.sub': 'Adicione uma observação para o cliente (opcional).',
+    'report.step.obs.label': 'Observação para o cliente',
+    'report.step.obs.hint': 'Comentário que o cliente verá no PDF (opcional).',
+    'report.step.monto.label': 'Valor / Orçamento',
+    'report.step.generate': 'Gerar PDF',
+    'report.step.cancel': 'Cancelar',
+    'pdf.field.presupuesto': 'Orçamento estimado',
+    'pdf.section.observaciones': 'Observações',
     'pdf.field.servicio': 'Serviço',
     'pdf.field.inicio': 'Início',
     'pdf.field.fin': 'Fim',
@@ -6584,9 +6615,94 @@ async function fetchReportImg(cdnUrl) {
   } catch (_) { return null; }
 }
 
+// ── Paso previo a generar el PDF: observación al cliente + (Prueba/Relevamiento) monto ──
+let reportStepState = null;
+
+async function openReportStep(svc) {
+  svc = svc || editingService;
+  if (!svc) return;
+  const props = svc.properties || {};
+  const tipoReg = props['Tipo de registro']?.select?.name || '';
+  const preSale = /Prueba|Relevamiento/.test(tipoReg);
+  const obs = props['Observación cliente']?.rich_text?.[0]?.plain_text || '';
+  reportStepState = { svc, obs, monto: null, moneda: '🇺🇸 USD', preSale, loadingMonto: preSale };
+  document.getElementById('report-step-overlay').classList.add('open');
+  renderReportStep();
+  // Trae el importe de la propuesta vinculada (solo Prueba/Relevamiento) para pre-cargar el monto.
+  if (preSale) {
+    const propId = props['Propuesta']?.relation?.[0]?.id;
+    if (propId) {
+      try {
+        const prop = await callNotion('pages/' + propId, 'GET');
+        const imp = prop?.properties?.['Importe estimado']?.number;
+        if (imp != null && reportStepState) reportStepState.monto = imp;
+      } catch (_) {}
+    }
+    if (reportStepState) { reportStepState.loadingMonto = false; renderReportStep(); }
+  }
+}
+
+function renderReportStep() {
+  const s = reportStepState;
+  if (!s) return;
+  const body = document.getElementById('report-step-body');
+  if (!body) return;
+  const montoBlock = s.preSale ? `
+    <div class="gasto-form-row" style="margin-top:14px">
+      <label>${t('report.step.monto.label')}</label>
+      <div style="display:flex;gap:8px">
+        <input type="number" id="rs-monto" step="0.01" min="0" inputmode="decimal" placeholder="${s.loadingMonto ? '…' : '0'}" value="${s.monto != null ? s.monto : ''}" oninput="reportStepState.monto = this.value === '' ? null : (parseFloat(this.value) || 0)" style="flex:1"/>
+        <select id="rs-moneda" onchange="reportStepState.moneda=this.value" style="width:108px">
+          <option value="🇺🇸 USD" ${s.moneda === '🇺🇸 USD' ? 'selected' : ''}>USD</option>
+          <option value="🇺🇾 UY$" ${s.moneda === '🇺🇾 UY$' ? 'selected' : ''}>UY$</option>
+        </select>
+      </div>
+    </div>` : '';
+  body.innerHTML = `
+    <div class="gasto-form-row">
+      <label>${t('report.step.obs.label')}</label>
+      <textarea id="rs-obs" rows="4" placeholder="${esc(t('report.step.obs.hint'))}" oninput="reportStepState.obs=this.value" style="resize:vertical;min-height:84px">${esc(s.obs || '')}</textarea>
+    </div>
+    ${montoBlock}
+    <div style="display:flex;gap:10px;margin-top:20px">
+      <button type="button" onclick="closeReportStep()" style="flex:1;padding:13px;background:var(--bg);border:1px solid var(--border);border-radius:12px;color:var(--text2);font-family:'Exo 2',sans-serif;font-size:14px;font-weight:600;cursor:pointer">${t('report.step.cancel')}</button>
+      <button type="button" id="rs-generate-btn" onclick="submitReportStep()" style="flex:2;padding:13px;background:#00C98D;border:none;border-radius:12px;color:#04130d;font-family:'Exo 2',sans-serif;font-size:14px;font-weight:700;cursor:pointer">📄 ${t('report.step.generate')}</button>
+    </div>`;
+}
+
+function closeReportStep() {
+  const ov = document.getElementById('report-step-overlay');
+  if (ov) ov.classList.remove('open');
+  reportStepState = null;
+}
+
+function reportStepOverlayClick(e) {
+  if (e.target.id === 'report-step-overlay') closeReportStep();
+}
+
+async function submitReportStep() {
+  const s = reportStepState;
+  if (!s) return;
+  const svc = s.svc;
+  const obs = (s.obs || '').trim();
+  const monto = (s.preSale && s.monto != null && s.monto !== '') ? Number(s.monto) : null;
+  const moneda = s.moneda || '🇺🇸 USD';
+  const genBtn = document.getElementById('rs-generate-btn');
+  if (genBtn) { genBtn.textContent = '⏳ ' + t('pdf.generating'); genBtn.disabled = true; }
+  // Guarda la observación en Notion (persiste) + en memoria para que al reabrir aparezca.
+  if (svc && svc.id) {
+    const rt = obs ? [{ text: { content: obs } }] : [];
+    svc.properties = svc.properties || {};
+    svc.properties['Observación cliente'] = { rich_text: rt };
+    callNotion('pages/' + svc.id, 'PATCH', { properties: { 'Observación cliente': { rich_text: rt } } }).catch(() => {});
+  }
+  await generateReportPDF(svc, { obs, monto, moneda });
+  closeReportStep();
+}
+
 // Genera el PDF de devolución dibujándolo directo con jsPDF (sin html2canvas ni Chrome).
 // Determinístico y confiable: texto nítido + fotos antes/después + marca FlyClean.
-async function generateReportPDF(svc) {
+async function generateReportPDF(svc, extra = {}) {
   svc = svc || editingService;
   if (!svc) return;
   const btn = document.getElementById('report-pdf-btn');
@@ -6672,6 +6788,7 @@ async function generateReportPDF(svc) {
     section('Resultado');
     row('Estado', sel('Estado'));
     if (resultado) row('Resultado', resultado);
+    if (extra.monto != null) row('Presupuesto estimado', cleanLabel(extra.moneda || '') + ' ' + Number(extra.monto).toLocaleString('es-UY'));
 
     section(isRelev ? 'Fotos del relevamiento' : 'Fotos antes / después');
     newPageIf(20);
@@ -6704,6 +6821,18 @@ async function generateReportPDF(svc) {
     }
     y += 4;
 
+    if (extra.obs) {
+      section('Observaciones');
+      const nl = doc.splitTextToSize(extra.obs, PW - M * 2 - 8);
+      const boxH = nl.length * 5 + 8;
+      newPageIf(boxH);
+      doc.setFillColor(244, 248, 246); doc.setDrawColor(221, 234, 228); doc.setLineWidth(0.2);
+      doc.roundedRect(M, y, PW - M * 2, boxH, 2, 2, 'FD');
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(10.5); doc.setTextColor(20, 31, 25);
+      doc.text(nl, M + 4, y + 6);
+      y += boxH + 4;
+    }
+
     const pages = doc.getNumberOfPages();
     for (let i = 1; i <= pages; i++) {
       doc.setPage(i);
@@ -6724,7 +6853,7 @@ async function generateReportPDF(svc) {
 // Genera el PDF de un servicio desde la vista del CEO (busca el servicio en el cache por id).
 function generateReportPDFFromCEO(id) {
   const svc = (_ceoServiciosCache || []).find(s => s.id === id);
-  if (svc) generateReportPDF(svc);
+  if (svc) openReportStep(svc);
 }
 
 function buildReportServicio(svc) {
