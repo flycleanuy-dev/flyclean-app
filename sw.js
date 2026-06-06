@@ -1,3 +1,4 @@
+// v14: PDF de devolución generado con jsPDF (cliente, self-hosted) — confiable.
 // v13: PDF generado en el servidor (Chrome real, api/report-pdf) — confiable.
 // v12: fix PDF en blanco — render del reporte en position:absolute (no fixed) + overlay.
 // v11: html2pdf self-hosted en /vendor (carga on-demand) — evita el "html2pdf no cargado" del CDN.
@@ -11,7 +12,7 @@
 // deploy live. Cache de Notion no necesita bump (solo cambió HTML).
 // v5: cambiar estrategia de Notion API de stale-while-revalidate a NETWORK-FIRST con timeout.
 
-const CACHE = 'flyclean-v13';
+const CACHE = 'flyclean-v14';
 const SHELL = [
   '/',
   '/index.html',
@@ -21,7 +22,7 @@ const SHELL = [
   '/icon-192-maskable.png',
   '/icon-512-maskable.png',
   '/splash.png',
-  '/vendor/html2pdf.bundle.min.js'
+  '/vendor/jspdf.umd.min.js'
 ];
 const NOTION_CACHE = 'flyclean-notion-cache-v2';
 const NETWORK_TIMEOUT_MS = 5000;
