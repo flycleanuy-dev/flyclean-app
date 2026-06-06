@@ -19,6 +19,8 @@ export default async function handler(req, res) {
 
   const forced = (req.query?.tipo || '').toString();
   const tipo = forced || (new Date().getUTCDay() === 1 ? 'lunes' : 'viernes');
+  // Override de destinatario solo para test (gated por CRON_SECRET). En prod normal va al CEO.
+  const toOverride = req.query?.to ? String(req.query.to) : null;
 
   try {
     const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10);
@@ -72,8 +74,8 @@ export default async function handler(req, res) {
         `<p><b>📋 Servicios sin operario: ${svcSinOp.length}</b></p>`;
     }
 
-    await sendEmail({ to: CEO_EMAIL, subject, html: emailLayout(subject, body) });
-    return res.status(200).json({ ok: true, tipo, svcDone: svcDone.length, recontactar: recontactar.length, svcSinOp: svcSinOp.length });
+    const emailRes = await sendEmail({ to: toOverride || CEO_EMAIL, subject, html: emailLayout(subject, body) });
+    return res.status(200).json({ ok: true, tipo, to: toOverride || CEO_EMAIL, svcDone: svcDone.length, recontactar: recontactar.length, svcSinOp: svcSinOp.length, email: emailRes });
   } catch (e) {
     console.error('[cron-report]', e);
     return res.status(500).json({ error: String(e.message || e) });
