@@ -2518,7 +2518,10 @@ const COUNTRY_FINANCE_MAP = { 'Uruguay': '🇺🇾 UY', 'Brasil': '🇧🇷 BR',
 function getCEOFinanceFilter() {
   if (ceoViewCountry === 'all') return null;
   const val = COUNTRY_FINANCE_MAP[ceoViewCountry];
-  return val ? { property: 'País', select: { equals: val } } : null;
+  if (!val) return null;
+  // Uruguay (HQ): incluir también los registros SIN País (algunos cobros se cargaron sin el campo; todo es UY).
+  if (ceoViewCountry === 'Uruguay') return { or: [{ property: 'País', select: { equals: val } }, { property: 'País', select: { is_empty: true } }] };
+  return { property: 'País', select: { equals: val } };
 }
 
 const CHECKLIST_PRE = [
