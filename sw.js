@@ -1,3 +1,4 @@
+// v21: servicios completados/activos del CEO (traer todos + filtrar en cliente).
 // v20: fix clave de cache del SW (no truncar) → totales año/rango correctos; conteo servicios robusto.
 // v19: CEO filtros de período (mes/semana/año/rango/todo) + KPIs nuevos + paginación + gastos desplegables.
 // v18: PDF cliente+tipo descriptivo; guardia anti-tap al scrollear; fija balanceo lateral.
@@ -18,7 +19,7 @@
 // deploy live. Cache de Notion no necesita bump (solo cambió HTML).
 // v5: cambiar estrategia de Notion API de stale-while-revalidate a NETWORK-FIRST con timeout.
 
-const CACHE = 'flyclean-v20';
+const CACHE = 'flyclean-v21';
 const SHELL = [
   '/',
   '/index.html',

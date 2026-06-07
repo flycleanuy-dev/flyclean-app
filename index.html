@@ -5266,19 +5266,17 @@ async function renderCEOMetricas() {
     const yearStart = now.getFullYear() + '-01-01';
     const yearEnd   = now.getFullYear() + '-12-31';
     const dFilter = (s, e) => ({ and: [ ...(fcf ? [fcf] : []), { property: 'Fecha', date: { on_or_after: s } }, { property: 'Fecha', date: { on_or_before: e } } ] });
-    const svcCompFilter = { and: [ ...(cf ? [cf] : []), { property: 'Estado', select: { equals: '✅ Completado' } } ] };
-    const svcActivoFilter = { and: [ ...(cf ? [cf] : []), { or: [ { property: 'Estado', select: { equals: '✈️ En curso' } }, { property: 'Estado', select: { equals: '🔄 Asignado' } } ] } ] };
     const propFilter    = { and: [ ...(cf ? [cf] : []), { property: 'Estado pipeline', select: { does_not_equal: '❌ Rechazada' } }, { property: 'Estado pipeline', select: { does_not_equal: '😶 Sin respuesta' } } ] };
     const contactFilter = cf ? { and: [cf, { property: 'Estado', select: { equals: '✅ Cliente activo' } }] } : { property: 'Estado', select: { equals: '✅ Cliente activo' } };
 
     // Gastos/Ingresos PAGINADOS (año/rango pueden tener >100 filas). Servicios/props/contactos: 1 página (pocos).
-    const [ingData, gasData, ingYearData, gasYearData, svcCompData, svcActivoData, propData, contactData] = await Promise.all([
+    // Servicios SIN filtro (el multi-data-source ignora/rompe el filtro del server) → se filtra en el cliente.
+    const [ingData, gasData, ingYearData, gasYearData, svcAllData, propData, contactData] = await Promise.all([
       callNotionAll('databases/d1e15376e83a408a8a52f47da33c249a/query', { filter: dFilter(start, end) }),
       callNotionAll('databases/1e20cdabad5d41528d070ed2f6e9dad3/query', { filter: dFilter(start, end) }),
       callNotionAll('databases/d1e15376e83a408a8a52f47da33c249a/query', { filter: dFilter(yearStart, yearEnd) }),
       callNotionAll('databases/1e20cdabad5d41528d070ed2f6e9dad3/query', { filter: dFilter(yearStart, yearEnd) }),
-      callNotion('databases/ccaf276c-7f6a-460c-aeb3-d2800deab2e5/query', 'POST', { filter: svcCompFilter }),
-      callNotion('databases/ccaf276c-7f6a-460c-aeb3-d2800deab2e5/query', 'POST', { filter: svcActivoFilter }),
+      callNotion('databases/ccaf276c-7f6a-460c-aeb3-d2800deab2e5/query', 'POST', { page_size: 100 }),
       callNotion('databases/2c0a4257-f429-4941-b994-dfebc1098633/query', 'POST', { filter: propFilter }),
       callNotion('databases/250115612de74e0582366549bbe5e389/query', 'POST', { filter: contactFilter })
     ]);
@@ -5292,8 +5290,8 @@ async function renderCEOMetricas() {
     // El fallback de búsqueda de Servicios ignora el filtro del server → filtramos por Estado en el cliente.
     const estadoDe = s => (s.properties?.['Estado']?.select?.name) || '';
     const enPeriodo = s => { const f = s.properties?.['Fecha programada']?.date?.start || ''; return f ? (f >= start && f <= end) : (ceoPeriod.mode === 'todo'); };
-    const svcComp   = applyCountryFilter(svcCompData.results || []).filter(s => estadoDe(s).includes('Completado') && enPeriodo(s));
-    const svcActivo = applyCountryFilter(svcActivoData.results || []).filter(s => estadoDe(s).includes('En curso') || estadoDe(s).includes('Asignado'));
+    const svcComp   = applyCountryFilter(svcAllData.results || []).filter(s => estadoDe(s).includes('Completado') && enPeriodo(s));
+    const svcActivo = applyCountryFilter(svcAllData.results || []).filter(s => estadoDe(s).includes('En curso') || estadoDe(s).includes('Asignado'));
 
     const ingSplit     = sumByMoneda(ingData.results,     'ingreso');
     const gasSplit     = sumByMoneda(gasData.results,     'gasto');
