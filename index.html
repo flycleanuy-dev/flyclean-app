@@ -1265,9 +1265,9 @@ body::before {
     </div>
   </div>
   <div class="ceo-tab-bar">
-    <div class="ceo-tab active" id="ftab-gastos" data-i18n="finanzas.tab.gastos" onclick="setFinanzasTab('gastos')">💸 Gastos</div>
+    <div class="ceo-tab active" id="ftab-resumen" onclick="setFinanzasTab('resumen')">📊 Resumen</div>
+    <div class="ceo-tab" id="ftab-gastos" data-i18n="finanzas.tab.gastos" onclick="setFinanzasTab('gastos')">💸 Gastos</div>
     <div class="ceo-tab" id="ftab-ingresos" data-i18n="finanzas.tab.ingresos" onclick="setFinanzasTab('ingresos')">💵 Ingresos</div>
-    <div class="ceo-tab" id="ftab-reportes" data-i18n="finanzas.tab.reportes" onclick="setFinanzasTab('reportes')">📊 Reportes</div>
   </div>
   <div class="ceo-content" id="finanzas-content">
     <div style="text-align:center;padding:40px 0"><div class="spinner" style="margin:0 auto"></div></div>
@@ -2582,6 +2582,8 @@ let activeCEOTab = 'metricas';
 let ceoViewCountry = 'all';
 let ceoPeriod = { mode: 'mes', off: 0, from: '', to: '' }; // selector de período del CEO (Métricas + Finanzas)
 let _ceoServiciosAll = null; // cache de TODOS los servicios (no cambia por período; el fetch del multi-data-source es frágil)
+let _ceoContentId = 'ceo-content'; // contenedor donde renderiza Métricas/Finanzas (CEO: ceo-content; panel Finanzas: finanzas-content)
+let _ceoRerender = renderCEOMetricas; // qué re-renderiza el selector de período / refrescar según el contexto
 let ceoFinCurrency = 'uyu'; // moneda activa en el tab Finanzas del CEO: 'uyu' | 'usd'
 let _ceoServiciosCache = []; // servicios del CEO (para generar PDF por id)
 let currentService = null;
@@ -3290,7 +3292,9 @@ async function loadFinanzas() {
   markUserActive();
   showScreen('finanzas');
   document.getElementById('finanzas-header-user').textContent = (currentUser.emoji + ' ' + currentUser.name);
-  setFinanzasTab('gastos');
+  ceoViewCountry = 'Uruguay';
+  ceoPeriod = { mode: 'mes', off: 0, from: '', to: '' };
+  setFinanzasTab('resumen');
 }
 
 let activeFinanzasTab = 'gastos';
@@ -3336,7 +3340,7 @@ async function fetchIngresosForMonth() {
 function setFinanzasTab(tab) {
   activeFinanzasTab = tab;
   markUserActive();
-  ['gastos', 'ingresos', 'reportes'].forEach(t => {
+  ['resumen', 'gastos', 'ingresos'].forEach(t => {
     const el = document.getElementById('ftab-' + t);
     if (el) el.classList.toggle('active', t === tab);
   });
@@ -3344,9 +3348,13 @@ function setFinanzasTab(tab) {
   _finanzasFilterCategoria = '';
   _finanzasFilterClase = '';
   _finanzasFilterTipo = '';
-  if (tab === 'gastos') renderGastosList();
-  else if (tab === 'ingresos') renderIngresosList();
-  else renderReportesShell();
+  if (tab === 'resumen') {
+    _ceoContentId = 'finanzas-content';
+    ceoViewCountry = 'Uruguay';
+    _ceoRerender = renderCEOFinanzas;
+    renderCEOFinanzas();
+  } else if (tab === 'gastos') renderGastosList();
+  else renderIngresosList();
 }
 
 async function renderGastosList() {
@@ -5240,7 +5248,9 @@ async function loadCEO() {
   const flagMap = { 'Uruguay': '🇺🇾', 'Brasil': '🇧🇷', 'Panamá': '🇵🇦', 'Guatemala': '🇬🇹', 'México': '🇲🇽' };
   document.getElementById('ceo-brand-title').innerHTML = '<svg class="fly-mark" style="color:#00C98D"><use href="#fc-mark"/></svg>FlyClean ' + (flagMap[currentUser.country] || '') + ' — ' + t('ceo.user.fallback');
   ceoViewCountry = (currentUser.country === 'Uruguay') ? 'all' : currentUser.country;
-  ceoMonthOffset = 0;
+  ceoPeriod = { mode: 'mes', off: 0, from: '', to: '' };
+  _ceoContentId = 'ceo-content';
+  _ceoRerender = renderCEOMetricas;
   loadAlerts(currentUser.role, 'alerts-banner-ceo');
   activeCEOTab = 'metricas';
   ['metricas','servicios','finanzas','equipo'].forEach(t =>
@@ -5274,15 +5284,16 @@ async function setCEOCountry(country) {
 
 async function setCEOTab(tab) {
   activeCEOTab = tab;
+  _ceoContentId = 'ceo-content';
   ['metricas','servicios','finanzas','equipo','comunicaciones'].forEach(t =>
     document.getElementById('ceotab-' + t).classList.toggle('active', t === tab)
   );
   // Global country tabs: hidden while in Métricas (it has its own sub-tabs)
   const globalTabs = document.getElementById('ceo-country-tabs');
   if (globalTabs) globalTabs.style.display = tab === 'metricas' ? 'none' : '';
-  if (tab === 'metricas') await renderCEOMetricas();
+  if (tab === 'metricas') { _ceoRerender = renderCEOMetricas; await renderCEOMetricas(); }
   else if (tab === 'servicios') await renderCEOServicios();
-  else if (tab === 'finanzas') await renderCEOFinanzas();
+  else if (tab === 'finanzas') { _ceoRerender = renderCEOFinanzas; await renderCEOFinanzas(); }
   else if (tab === 'equipo') await renderCEOEquipo();
   else renderComunicaciones();
 }
@@ -5301,7 +5312,7 @@ function goToCEOFromCoord() {
 }
 
 async function renderCEOMetricas() {
-  const content = document.getElementById('ceo-content');
+  const content = document.getElementById(_ceoContentId);
   content.innerHTML = '<div style="text-align:center;padding:40px 0"><div class="spinner" style="margin:0 auto"></div></div>';
   try {
     const isUruguayCEO = currentUser.country === 'Uruguay';
@@ -5534,7 +5545,7 @@ function renderCEOPeriodSelector() {
 function setCEOPeriodMode(m) { ceoPeriod.mode = m; if (m !== 'rango' && m !== 'todo') ceoPeriod.off = 0; rerenderCEOActive(); }
 function shiftCEOPeriod(d) { ceoPeriod.off += d; rerenderCEOActive(); }
 function setCEORange(from, to) { ceoPeriod.from = from || ''; ceoPeriod.to = to || ''; rerenderCEOActive(); }
-function rerenderCEOActive() { if (activeCEOTab === 'finanzas') renderCEOFinanzas(); else renderCEOMetricas(); }
+function rerenderCEOActive() { return (_ceoRerender || renderCEOMetricas)(); }
 
 // ── Rediseño "Cuenta del negocio": frescura de datos + refrescar + header + sparkline + acordeón ──
 let _ceoDataTime = 0;
@@ -5553,7 +5564,7 @@ async function refreshCEO(btn) {
 }
 // Header común: título + país (dropdown, no 6 chips) + frescura + botón refrescar.
 function ceoHeaderHTML(titulo) {
-  const isU = currentUser.country === 'Uruguay';
+  const isU = (currentUser?.role === '👔 CEO' && currentUser?.country === 'Uruguay') || (currentUser?.role || '').includes('Dirección');
   const opts = [['all', '🌎 Global'], ['Uruguay', '🇺🇾 UY'], ['Brasil', '🇧🇷 BR'], ['Panamá', '🇵🇦 PA'], ['Guatemala', '🇬🇹 GT'], ['México', '🇲🇽 MX']];
   const pais = isU ? '<select class="ceo-pais-select" onchange="setCEOCountry(this.value)">' + opts.map(([v, l]) => '<option value="' + v + '"' + (ceoViewCountry === v ? ' selected' : '') + '>' + l + '</option>').join('') + '</select>' : '';
   return '<div class="ceo-header"><div class="ceo-header-title">' + titulo + '</div><div class="ceo-header-right">' + pais + ceoFreshHTML() + '<button class="ceo-refresh-btn" onclick="refreshCEO(this)" aria-label="Actualizar">↻</button></div></div>';
@@ -5628,7 +5639,7 @@ function buildFinanceChart(ingByMonth, gasByMonth, year, activeMonth) {
 }
 
 async function renderCEOFinanzas() {
-  const content = document.getElementById('ceo-content');
+  const content = document.getElementById(_ceoContentId);
   content.innerHTML = '<div style="text-align:center;padding:40px 0"><div class="spinner" style="margin:0 auto"></div></div>';
   try {
     const fcf = getCEOFinanceFilter();
