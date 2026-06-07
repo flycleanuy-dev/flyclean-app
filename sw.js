@@ -1,3 +1,4 @@
+// v24: rediseño CEO 'Cuenta del negocio' — balance héroe, estado de cuenta, refrescar, salud, margen real.
 // v23: servicios del CEO cacheados (1 fetch por sesión, aparte) → conteo confiable.
 // v22: servicios del CEO en 2da tanda + reintento (evita vacíos por rate-limit de Notion).
 // v21: servicios completados/activos del CEO (traer todos + filtrar en cliente).
@@ -21,7 +22,7 @@
 // deploy live. Cache de Notion no necesita bump (solo cambió HTML).
 // v5: cambiar estrategia de Notion API de stale-while-revalidate a NETWORK-FIRST con timeout.
 
-const CACHE = 'flyclean-v23';
+const CACHE = 'flyclean-v24';
 const SHELL = [
   '/',
   '/index.html',
