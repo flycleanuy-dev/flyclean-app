@@ -804,6 +804,51 @@ body::before {
   .fin-detail-title { font-size: 12.5px; color: var(--text); font-weight: 600; }
   .fin-detail-sub { font-size: 11px; color: var(--text3); margin-top: 1px; }
   .fin-detail-amt { font-size: 12.5px; font-weight: 700; white-space: nowrap; }
+  /* ── Rediseño "Cuenta del negocio" (Métricas + Finanzas CEO) ── */
+  .ceo-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px 4px; gap: 10px; }
+  .ceo-header-title { font-size: 20px; font-weight: 800; }
+  .ceo-header-right { display: flex; align-items: center; gap: 8px; }
+  .ceo-pais-select { background: var(--bg); border: 1px solid var(--border); color: var(--text2); border-radius: 8px; font-family: 'Exo 2', sans-serif; font-size: 12px; font-weight: 600; padding: 5px 6px; }
+  .ceo-fresh { font-size: 11px; font-weight: 600; white-space: nowrap; }
+  .ceo-refresh-btn { background: var(--bg); border: 1px solid var(--border); color: var(--text2); width: 32px; height: 32px; border-radius: 8px; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .ceo-refresh-btn.ceo-spin { animation: ceospin 0.7s linear infinite; }
+  @keyframes ceospin { to { transform: rotate(360deg); } }
+  .acct { padding: 0 0 28px; }
+  .salud-band { display: flex; align-items: center; font-size: 10px; font-weight: 800; letter-spacing: 0.6px; padding: 10px 16px 2px; }
+  .salud-chip { margin-left: auto; font-weight: 800; font-size: 13px; }
+  .hero-block { padding: 6px 16px 14px; border-bottom: 1px solid var(--border); }
+  .hero-label { font-size: 10px; font-weight: 700; color: var(--text3); letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 4px; }
+  .hero-line { font-size: 30px; font-weight: 800; line-height: 1.22; letter-spacing: -0.5px; }
+  .hero-delta { font-size: 12px; font-weight: 700; vertical-align: middle; }
+  .hero-delta.up { color: var(--green); } .hero-delta.dn { color: var(--red); }
+  .hero-spark { margin-top: 10px; }
+  .hero-spark-cap { font-size: 10px; color: var(--text3); margin-top: 2px; }
+  .kpi-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--border); border-bottom: 1px solid var(--border); }
+  .kpi-card { background: var(--bg); padding: 12px 14px; }
+  .kpi-label { font-size: 10px; font-weight: 700; color: var(--text3); text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 3px; }
+  .kpi-num { font-size: 18px; font-weight: 800; line-height: 1.25; }
+  .kpi-num.big { font-size: 24px; }
+  .kpi-unit { font-size: 11px; font-weight: 600; color: var(--text3); }
+  .kpi-sub { font-size: 10px; color: var(--text3); margin-top: 2px; }
+  .ceo-acc-head { width: 100%; display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: none; border: none; border-bottom: 1px solid var(--border); color: var(--text); font-family: 'Exo 2', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; text-align: left; }
+  .ceo-acc-head.warn { color: #F5A623; }
+  .ceo-acc-body { background: var(--bg); border-bottom: 1px solid var(--border); }
+  .tipo-row { display: flex; align-items: center; gap: 8px; padding: 7px 16px; }
+  .tipo-name { font-size: 12.5px; color: var(--text2); width: 92px; flex-shrink: 0; }
+  .tipo-bar { flex: 1; height: 7px; background: var(--border); border-radius: 4px; overflow: hidden; }
+  .tipo-bar span { display: block; height: 100%; background: var(--green); border-radius: 4px; }
+  .tipo-val { font-size: 12.5px; font-weight: 700; width: 28px; text-align: right; }
+  .estado-cuenta { padding: 14px 16px; border-bottom: 1px solid var(--border); }
+  .ec-title { font-size: 10px; font-weight: 800; color: var(--text3); letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 10px; }
+  .ec-row { display: flex; justify-content: space-between; font-size: 14px; padding: 5px 0; color: var(--text2); }
+  .ec-row span:last-child { font-weight: 700; }
+  .ec-sep { height: 1px; background: var(--border); margin: 6px 0; }
+  .ec-saldo { display: flex; justify-content: space-between; align-items: center; font-size: 14px; font-weight: 800; padding: 4px 0; }
+  .ec-saldo span:last-child { font-size: 22px; font-weight: 800; }
+  .ec-counts { font-size: 11px; color: var(--text3); margin-top: 6px; }
+  .ec-section-total { display: flex; justify-content: space-between; align-items: center; padding: 16px 16px 8px; font-size: 11px; font-weight: 800; color: var(--text3); letter-spacing: 0.5px; text-transform: uppercase; }
+  .ec-section-total span:last-child { font-size: 13px; }
+  .ver-mas { width: 100%; text-align: center; background: none; border: none; border-top: 1px dotted var(--border); color: var(--text3); font-family: 'Exo 2', sans-serif; font-size: 12px; font-weight: 600; padding: 8px; cursor: pointer; }
   .equipo-card { display: flex; align-items: center; gap: 14px; padding: 14px 16px; border-bottom: 1px solid var(--border); }
   .equipo-emoji { font-size: 28px; }
   .equipo-name { font-size: 14px; font-weight: 600; }
@@ -5301,69 +5346,95 @@ async function renderCEOMetricas() {
     const svcComp   = applyCountryFilter(svcAllData.results || []).filter(s => estadoDe(s).includes('Completado') && enPeriodo(s));
     const svcActivo = applyCountryFilter(svcAllData.results || []).filter(s => estadoDe(s).includes('En curso') || estadoDe(s).includes('Asignado'));
 
-    const ingSplit     = sumByMoneda(ingData.results,     'ingreso');
-    const gasSplit     = sumByMoneda(gasData.results,     'gasto');
-    const ingAnioSplit = sumByMoneda(ingYearData.results, 'ingreso');
-    const gasAnioSplit = sumByMoneda(gasYearData.results, 'gasto');
-    const balSplit     = { uyu: ingSplit.uyu - gasSplit.uyu, usd: ingSplit.usd - gasSplit.usd };
-    const svcCount     = svcComp.length;
-    const svcActivos   = svcActivo.length;
-    const propCount    = (propData.results    || []).length;
-    const clientCount  = (contactData.results || []).length;
+    _ceoDataTime = Date.now();
+    const ingSplit = sumByMoneda(ingData.results, 'ingreso');
+    const gasSplit = sumByMoneda(gasData.results, 'gasto');
+    const balSplit = { uyu: ingSplit.uyu - gasSplit.uyu, usd: ingSplit.usd - gasSplit.usd };
+    const svcCount = svcComp.length, svcActivos = svcActivo.length;
+    const propCount = (propData.results || []).length;
 
-    // Margen / rentabilidad (aprox): convierte todo a USD con el TC del registro (fallback 40) — única forma de un % unificado.
+    // Margen REAL por moneda (sin mezclar) — el principal.
+    const margenReal = {
+      uyu: ingSplit.uyu > 0 ? Math.round((ingSplit.uyu - gasSplit.uyu) / ingSplit.uyu * 100) : null,
+      usd: ingSplit.usd > 0 ? Math.round((ingSplit.usd - gasSplit.usd) / ingSplit.usd * 100) : null,
+    };
+    // Margen unificado aprox (secundario, rotulado): convierte a USD con el TC del registro (fallback 40).
     const TC_FB = 40;
     const toUSD = (props, kind) => { const { esUY, monto } = montoOf(props, kind); if (!esUY) return monto; const tc = props?.[kind === 'gasto' ? 'TC usado' : 'TC aplicado']?.number || TC_FB; return tc ? monto / tc : 0; };
-    const ingUSD = (ingData.results || []).reduce((s, r) => s + toUSD(r.properties || {}, 'ingreso'), 0);
-    const gasUSD = (gasData.results || []).reduce((s, r) => s + toUSD(r.properties || {}, 'gasto'), 0);
-    const margen = ingUSD > 0 ? Math.round((ingUSD - gasUSD) / ingUSD * 100) : null;
+    const ingUSDc = (ingData.results || []).reduce((s, r) => s + toUSD(r.properties || {}, 'ingreso'), 0);
+    const gasUSDc = (gasData.results || []).reduce((s, r) => s + toUSD(r.properties || {}, 'gasto'), 0);
+    const margenUnif = ingUSDc > 0 ? Math.round((ingUSDc - gasUSDc) / ingUSDc * 100) : null;
 
-    // Ticket promedio (por moneda) = ingresos del período / servicios completados.
     const ticketSplit = svcCount ? { uyu: ingSplit.uyu / svcCount, usd: ingSplit.usd / svcCount } : null;
 
-    // Desglose por tipo de servicio (servicios completados del período).
+    // Mensual del año (para sparkline + delta vs mes anterior).
+    const ms = {};
+    const accM = (results, kind) => (results || []).forEach(r => { const m = (r.properties?.['Fecha']?.date?.start || '').slice(0, 7); if (!m) return; const { esUY, monto } = montoOf(r.properties || {}, kind); (ms[m] = ms[m] || { iu: 0, id: 0, gu: 0, gd: 0 }); if (kind === 'ingreso') { if (esUY) ms[m].iu += monto; else ms[m].id += monto; } else { if (esUY) ms[m].gu += monto; else ms[m].gd += monto; } });
+    accM(ingYearData.results, 'ingreso'); accM(gasYearData.results, 'gasto');
+    const monthKeys = Object.keys(ms).sort();
+    const balU = m => (ms[m] ? ms[m].iu - ms[m].gu : 0), balD = m => (ms[m] ? ms[m].id - ms[m].gd : 0);
+    const spark = monthKeys.slice(-6).map(m => balD(m) + balU(m) / TC_FB);
+    let deltaU = null, deltaD = null;
+    if (ceoPeriod.mode === 'mes') {
+      const curM = start.slice(0, 7), idx = monthKeys.indexOf(curM), prevM = idx > 0 ? monthKeys[idx - 1] : null;
+      const pct = (c, p) => (p ? Math.max(-999, Math.min(999, Math.round((c - p) / Math.abs(p) * 100))) : null);
+      if (prevM) { deltaU = pct(balU(curM), balU(prevM)); deltaD = pct(balD(curM), balD(prevM)); }
+    }
+
+    const balOk = balSplit.uyu >= 0 && balSplit.usd >= 0;
+    const salud = balOk ? { t: '🟢 Sana', c: 'var(--green)' } : ((balSplit.uyu < 0 && balSplit.usd < 0) ? { t: '🔴 Atención', c: 'var(--red)' } : { t: '🟡 Ojo', c: '#F5A623' });
+
+    const ingSinVinc = (ingYearData.results || []).filter(r => !(r.properties?.['Servicio vinculado']?.relation || []).length).length;
+    const svcSinFecha = applyCountryFilter(svcAllData.results || []).filter(s => estadoDe(s).includes('Completado') && !(s.properties?.['Fecha programada']?.date?.start)).length;
+    const aRevisar = [];
+    if (ingSinVinc) aRevisar.push(ingSinVinc + ' cobros sin servicio vinculado');
+    if (svcSinFecha) aRevisar.push(svcSinFecha + ' servicios completados sin fecha programada');
+
     const tipoCount = {};
     svcComp.forEach(s => { const tp = s.properties?.['Tipo de servicio']?.select?.name || 'Otros'; tipoCount[tp] = (tipoCount[tp] || 0) + 1; });
+    const maxTipo = Math.max(1, ...Object.values(tipoCount));
+    const tipoHTML = Object.entries(tipoCount).sort((a, b) => b[1] - a[1]).map(([k, v]) => '<div class="tipo-row"><span class="tipo-name">' + esc(k) + '</span><span class="tipo-bar"><span style="width:' + Math.round(v / maxTipo * 100) + '%"></span></span><span class="tipo-val">' + v + '</span></div>').join('') || '<div class="kpi-sub" style="padding:8px 16px">— sin servicios completados en este período —</div>';
 
-    // Render de un valor monetario en dos líneas separadas (UY$ y USD). Omite la línea en 0.
-    const fmtSplitLines = (split, opts = {}) => {
+    // valor monetario tipo HÉROE (2 líneas UY$ / USD), con delta opcional.
+    const heroLines = (split, opts = {}) => {
       const rows = [];
-      const push = (n, mon) => {
-        const neg = n < 0;
-        const col = opts.balance ? (neg ? 'var(--red)' : 'var(--green)') : (opts.color || 'var(--text)');
-        const sgn = opts.balance ? (neg ? '-' : '+') : '';
-        rows.push('<div style="font-size:18px;font-weight:800;line-height:1.3;color:' + col + '">' + sgn + fmtMoneda(n, mon) + '</div>');
+      const push = (n, mon, delta) => {
+        const neg = n < 0, col = opts.bal ? (neg ? 'var(--red)' : 'var(--green)') : (opts.color || 'var(--text)');
+        const sgn = opts.bal ? (neg ? '−' : '+') : '';
+        const d = (delta != null) ? ' <span class="hero-delta ' + (delta >= 0 ? 'up' : 'dn') + '">' + (delta >= 0 ? '▲' : '▼') + ' ' + Math.abs(delta) + '%</span>' : '';
+        rows.push('<div class="hero-line" style="color:' + col + '">' + sgn + fmtMoneda(n, mon) + d + '</div>');
       };
+      if (split.uyu || (!split.uyu && !split.usd)) push(split.uyu, '🇺🇾 UY$', opts.deltaU);
+      if (split.usd) push(split.usd, '🇺🇸 USD', opts.deltaD);
+      return rows.join('');
+    };
+    const kpiLines = (split) => {
+      const rows = [];
+      const push = (n, mon) => rows.push('<div class="kpi-num">' + fmtMoneda(n, mon) + '</div>');
       if (split.uyu || (!split.uyu && !split.usd)) push(split.uyu, '🇺🇾 UY$');
       if (split.usd) push(split.usd, '🇺🇸 USD');
       return rows.join('');
     };
+    const margenCard = (margenReal.uyu == null && margenReal.usd == null)
+      ? '<div class="kpi-num" style="color:var(--text3)">—</div>'
+      : ((margenReal.uyu != null ? '<div class="kpi-num" style="color:' + (margenReal.uyu >= 0 ? 'var(--green)' : 'var(--red)') + '">UY$ ' + (margenReal.uyu >= 0 ? '+' : '') + margenReal.uyu + '%</div>' : '') + (margenReal.usd != null ? '<div class="kpi-num" style="color:' + (margenReal.usd >= 0 ? 'var(--green)' : 'var(--red)') + '">USD ' + (margenReal.usd >= 0 ? '+' : '') + margenReal.usd + '%</div>' : ''));
 
-    // Sub-tabs (only for Uruguay CEO)
-    let subTabsHTML = '';
-    if (isUruguayCEO) {
-      const opts = [['all','🌎 Global'],['Uruguay','🇺🇾 Uruguay'],['Brasil','🇧🇷 Brasil'],['Panamá','🇵🇦 Panamá'],['Guatemala','🇬🇹 Guatemala'],['México','🇲🇽 México']];
-      subTabsHTML = '<div style="display:flex;gap:6px;padding:12px 16px 0;flex-wrap:wrap">' +
-        opts.map(([val, lbl]) => '<button class="ceo-country-tab ' + (ceoViewCountry === val ? 'active' : '') + '" onclick="setCEOCountry(\'' + val + '\')">' + lbl + '</button>').join('') +
-        '</div>';
-    }
-
-    const countryLabel = ceoViewCountry === 'all' ? t('ceo.country.all') : ceoViewCountry;
-    const tipoHTML = Object.entries(tipoCount).sort((a,b)=>b[1]-a[1]).map(([k,v]) => '<div class="finance-row"><span class="finance-row-label">' + k + '</span><span class="finance-row-value">' + v + '</span></div>').join('') || '<div class="metric-sub" style="padding:4px 0">— sin servicios completados —</div>';
-
-    content.innerHTML = subTabsHTML + renderCEOPeriodSelector() +
-      '<div class="metric-grid">' +
-        '<div class="metric-card"><div class="metric-icon">💰</div><div class="metric-label">Ingresos</div><div class="metric-value">' + fmtSplitLines(ingSplit) + '</div><div class="metric-sub">' + periodLabel + '</div></div>' +
-        '<div class="metric-card"><div class="metric-icon">💸</div><div class="metric-label">Gastos</div><div class="metric-value">' + fmtSplitLines(gasSplit, {color:'var(--red)'}) + '</div><div class="metric-sub">' + periodLabel + '</div></div>' +
-        '<div class="metric-card" style="grid-column:1/-1"><div class="metric-icon">⚖️</div><div class="metric-label">Balance</div><div class="metric-value">' + fmtSplitLines(balSplit, {balance:true}) + '</div><div class="metric-sub">' + periodLabel + ' · ' + countryLabel + '</div></div>' +
-        '<div class="metric-card"><div class="metric-icon">🎫</div><div class="metric-label">Ticket promedio</div><div class="metric-value">' + (ticketSplit ? fmtSplitLines(ticketSplit) : '<div style="font-size:18px;font-weight:800;color:var(--text3)">—</div>') + '</div><div class="metric-sub">por servicio completado</div></div>' +
-        '<div class="metric-card"><div class="metric-icon">📊</div><div class="metric-label">Margen</div><div class="metric-value"><div style="font-size:22px;font-weight:800;color:' + (margen==null?'var(--text3)':(margen>=0?'var(--green)':'var(--red)')) + '">' + (margen==null?'—':(margen+'%')) + '</div></div><div class="metric-sub">rentabilidad aprox. (USD)</div></div>' +
-        '<div class="metric-card"><div class="metric-icon">✅</div><div class="metric-label">' + t('ceo.metric.svcs.completados') + '</div><div class="metric-value">' + svcCount + '</div><div class="metric-sub">' + periodLabel + '</div></div>' +
-        '<div class="metric-card"><div class="metric-icon">✈️</div><div class="metric-label">' + t('ceo.metric.svcs.activos') + '</div><div class="metric-value">' + svcActivos + '</div><div class="metric-sub">' + t('ceo.metric.svcs.activos.sub') + '</div></div>' +
-        '<div class="metric-card"><div class="metric-icon">💼</div><div class="metric-label">' + t('ceo.metric.props') + '</div><div class="metric-value">' + propCount + '</div><div class="metric-sub">' + t('ceo.metric.props.sub') + '</div></div>' +
-        '<div class="metric-card"><div class="metric-icon">👥</div><div class="metric-label">' + t('ceo.metric.clientes') + '</div><div class="metric-value">' + clientCount + '</div><div class="metric-sub">' + t('ceo.metric.clientes.sub') + '</div></div>' +
-        '<div class="metric-card" style="grid-column:1/-1;border-color:var(--green-mid)"><div class="metric-icon">📈</div><div class="metric-label">Año ' + now.getFullYear() + '</div><div class="metric-value"><div class="metric-sub" style="margin-bottom:2px">Ingresos</div>' + fmtSplitLines(ingAnioSplit, {color:'var(--green)'}) + '<div class="metric-sub" style="margin:8px 0 2px">Gastos</div>' + fmtSplitLines(gasAnioSplit, {color:'var(--red)'}) + '</div><div class="metric-sub">acumulado · ' + countryLabel + '</div></div>' +
-        '<div class="metric-card" style="grid-column:1/-1"><div class="metric-icon">🧰</div><div class="metric-label">Servicios por tipo</div><div style="margin-top:6px">' + tipoHTML + '</div><div class="metric-sub" style="margin-top:6px">' + periodLabel + '</div></div>' +
+    content.innerHTML = ceoHeaderHTML('Métricas') + renderCEOPeriodSelector() +
+      '<div class="acct">' +
+        '<div class="salud-band" style="color:' + salud.c + '">SALUD DEL NEGOCIO<span class="salud-chip">' + salud.t + '</span></div>' +
+        '<div class="hero-block"><div class="hero-label">BALANCE · ' + periodLabel + '</div>' +
+          heroLines(balSplit, { bal: true, deltaU, deltaD }) +
+          (spark.length >= 2 ? '<div class="hero-spark">' + buildSparkline(spark) + '<div class="hero-spark-cap">tendencia ' + spark.length + ' meses</div></div>' : '') +
+        '</div>' +
+        '<div class="kpi-grid">' +
+          '<div class="kpi-card"><div class="kpi-label">Ticket promedio</div>' + (ticketSplit ? kpiLines(ticketSplit) : '<div class="kpi-num" style="color:var(--text3)">—</div>') + '<div class="kpi-sub">por servicio</div></div>' +
+          '<div class="kpi-card"><div class="kpi-label">Servicios</div><div class="kpi-num big">' + svcCount + '</div><div class="kpi-sub">completados</div></div>' +
+          '<div class="kpi-card"><div class="kpi-label">Margen real</div>' + margenCard + '<div class="kpi-sub">' + (margenUnif != null ? '~' + margenUnif + '% unif. (aprox)' : 'por moneda') + '</div></div>' +
+          '<div class="kpi-card"><div class="kpi-label">Pipeline</div><div class="kpi-num big">' + svcActivos + ' <span class="kpi-unit">en curso</span></div><div class="kpi-num" style="font-size:15px">' + propCount + ' <span class="kpi-unit">propuestas</span></div></div>' +
+        '</div>' +
+        '<button class="ceo-acc-head" onclick="toggleCeoAcc(this)"><span>🧰 Servicios por tipo</span><span class="fin-arrow">▾</span></button>' +
+        '<div class="ceo-acc-body" style="display:none">' + tipoHTML + '</div>' +
+        (aRevisar.length ? '<button class="ceo-acc-head warn" onclick="toggleCeoAcc(this)"><span>⚠️ A revisar (' + aRevisar.length + ')</span><span class="fin-arrow">▾</span></button><div class="ceo-acc-body" style="display:none">' + aRevisar.map(x => '<div class="fin-detail-row"><div class="fin-detail-main"><div class="fin-detail-title">• ' + esc(x) + '</div></div></div>').join('') + '<div class="kpi-sub" style="padding:8px 16px 4px">Completalos desde el proyecto FlyClean-Finanzas para KPIs exactos por período y por cliente.</div></div>' : '') +
       '</div>';
   } catch (e) {
     content.innerHTML = '<div class="coord-empty">' + t('ceo.error.metricas') + '<br><small>' + e.message + '</small></div>';
@@ -5465,6 +5536,46 @@ function shiftCEOPeriod(d) { ceoPeriod.off += d; rerenderCEOActive(); }
 function setCEORange(from, to) { ceoPeriod.from = from || ''; ceoPeriod.to = to || ''; rerenderCEOActive(); }
 function rerenderCEOActive() { if (activeCEOTab === 'finanzas') renderCEOFinanzas(); else renderCEOMetricas(); }
 
+// ── Rediseño "Cuenta del negocio": frescura de datos + refrescar + header + sparkline + acordeón ──
+let _ceoDataTime = 0;
+function ceoFreshHTML() {
+  if (!_ceoDataTime) return '';
+  const mins = Math.floor((Date.now() - _ceoDataTime) / 60000);
+  const txt = mins < 1 ? 'recién' : 'hace ' + mins + ' min';
+  const col = mins < 5 ? 'var(--green)' : (mins < 30 ? 'var(--text3)' : '#F5A623');
+  return '<span class="ceo-fresh" style="color:' + col + '">● ' + txt + '</span>';
+}
+async function refreshCEO(btn) {
+  if (btn) btn.classList.add('ceo-spin');
+  try { if (window.caches) await caches.delete('flyclean-notion-cache-v2'); } catch (_) {}
+  _ceoServiciosAll = null;
+  await rerenderCEOActive();
+}
+// Header común: título + país (dropdown, no 6 chips) + frescura + botón refrescar.
+function ceoHeaderHTML(titulo) {
+  const isU = currentUser.country === 'Uruguay';
+  const opts = [['all', '🌎 Global'], ['Uruguay', '🇺🇾 UY'], ['Brasil', '🇧🇷 BR'], ['Panamá', '🇵🇦 PA'], ['Guatemala', '🇬🇹 GT'], ['México', '🇲🇽 MX']];
+  const pais = isU ? '<select class="ceo-pais-select" onchange="setCEOCountry(this.value)">' + opts.map(([v, l]) => '<option value="' + v + '"' + (ceoViewCountry === v ? ' selected' : '') + '>' + l + '</option>').join('') + '</select>' : '';
+  return '<div class="ceo-header"><div class="ceo-header-title">' + titulo + '</div><div class="ceo-header-right">' + pais + ceoFreshHTML() + '<button class="ceo-refresh-btn" onclick="refreshCEO(this)" aria-label="Actualizar">↻</button></div></div>';
+}
+// Mini-gráfico de tendencia (línea) — solo la FORMA, sin números.
+function buildSparkline(values) {
+  const vals = (values || []).filter(v => typeof v === 'number' && isFinite(v));
+  if (vals.length < 2) return '';
+  const W = 200, H = 32, P = 3;
+  const min = Math.min(...vals, 0), max = Math.max(...vals, 0), rng = (max - min) || 1;
+  const pts = vals.map((v, i) => { const x = P + i * ((W - 2 * P) / (vals.length - 1)); const y = H - P - ((v - min) / rng) * (H - 2 * P); return x.toFixed(0) + ',' + y.toFixed(0); }).join(' ');
+  const col = vals[vals.length - 1] >= 0 ? '#00C98D' : '#FF5C5C';
+  return '<svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" style="width:100%;height:32px;display:block"><polyline points="' + pts + '" fill="none" stroke="' + col + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+}
+// Acordeón genérico (header + detalle oculto, mismo patrón que toggleFinGroup).
+function toggleCeoAcc(btn) {
+  const d = btn.nextElementSibling; if (!d) return;
+  const open = d.style.display === 'none';
+  d.style.display = open ? 'block' : 'none';
+  const a = btn.querySelector('.fin-arrow'); if (a) a.textContent = open ? '▴' : '▾';
+}
+
 function buildFinanceChart(ingByMonth, gasByMonth, year, activeMonth) {
   const months = Array.from({length:12}, (_, i) => year + '-' + String(i+1).padStart(2,'0'));
   const ingVals = months.map(m => ingByMonth[m] || 0);
@@ -5521,7 +5632,7 @@ async function renderCEOFinanzas() {
   content.innerHTML = '<div style="text-align:center;padding:40px 0"><div class="spinner" style="margin:0 auto"></div></div>';
   try {
     const fcf = getCEOFinanceFilter();
-    const { start, end } = getCEOPeriodRange();
+    const { start, end, label: periodLabelF } = getCEOPeriodRange();
     const now = new Date();
     const yearStart = now.getFullYear() + '-01-01';
     const yearEnd   = now.getFullYear() + '-12-31';
@@ -5534,6 +5645,7 @@ async function renderCEOFinanzas() {
       callNotionAll('databases/d1e15376e83a408a8a52f47da33c249a/query', { filter: mkFilter(yearStart, yearEnd, fcf) }),
       callNotionAll('databases/1e20cdabad5d41528d070ed2f6e9dad3/query', { filter: mkFilter(yearStart, yearEnd, fcf) })
     ]);
+    _ceoDataTime = Date.now();
 
     const cur = ceoFinCurrency;                       // 'uyu' | 'usd'
     const monedaTag = cur === 'uyu' ? '🇺🇾 UY$' : '🇺🇸 USD';
@@ -5557,50 +5669,61 @@ async function renderCEOFinanzas() {
     const gasGroups = groupBy(gasData.results, 'gasto', r => r.properties?.['Categoría']?.select?.name);
     const ingGroups = groupBy(ingData.results, 'ingreso', r => r.properties?.['Tipo']?.select?.name);
 
+    const itemHTML = (r, kind, color) => {
+      const p = r.properties || {};
+      let titulo, sub;
+      if (kind === 'gasto') {
+        titulo = p['Concepto']?.title?.[0]?.plain_text || '(sin concepto)';
+        const prov = p['Tienda / Proveedor']?.rich_text?.[0]?.plain_text || '';
+        const fp = p['Forma de pago']?.select?.name || '';
+        const svc = (p['Servicio']?.relation || []).length ? '🔗 servicio' : '';
+        sub = [fechaCorta(p['Fecha']?.date?.start), prov, fp, svc].filter(Boolean).join(' · ');
+      } else {
+        titulo = p['Servicio']?.title?.[0]?.plain_text || p['Cliente']?.rich_text?.[0]?.plain_text || '(cobro)';
+        const cli = p['Cliente']?.rich_text?.[0]?.plain_text || '';
+        const svc = (p['Servicio vinculado']?.relation || []).length ? '🔗 servicio' : '';
+        sub = [fechaCorta(p['Fecha']?.date?.start), cli, svc].filter(Boolean).join(' · ');
+      }
+      return '<div class="fin-detail-row"><div class="fin-detail-main"><div class="fin-detail-title">' + esc(titulo) + '</div>' + (sub ? '<div class="fin-detail-sub">' + esc(sub) + '</div>' : '') + '</div><div class="fin-detail-amt" style="color:' + color + '">' + fmt(amt(r, kind)) + '</div></div>';
+    };
     const renderGroups = (groups, kind, color, emptyMsg) => {
-      const entries = Object.entries(groups).sort((a,b)=>b[1].total-a[1].total);
+      const entries = Object.entries(groups).sort((a, b) => b[1].total - a[1].total);
       if (!entries.length) return '<div class="coord-empty" style="padding:12px 16px;font-size:13px">' + emptyMsg + '</div>';
       return entries.map(([k, g]) => {
-        const items = g.items.sort((a,b)=> (b.properties?.['Fecha']?.date?.start||'').localeCompare(a.properties?.['Fecha']?.date?.start||'')).map(r => {
-          const p = r.properties || {};
-          let titulo, sub;
-          if (kind === 'gasto') {
-            titulo = p['Concepto']?.title?.[0]?.plain_text || '(sin concepto)';
-            const prov = p['Tienda / Proveedor']?.rich_text?.[0]?.plain_text || '';
-            const fp = p['Forma de pago']?.select?.name || '';
-            const svc = (p['Servicio']?.relation||[]).length ? '🔗 servicio' : '';
-            sub = [fechaCorta(p['Fecha']?.date?.start), prov, fp, svc].filter(Boolean).join(' · ');
-          } else {
-            titulo = p['Servicio']?.title?.[0]?.plain_text || p['Cliente']?.rich_text?.[0]?.plain_text || '(cobro)';
-            const cli = p['Cliente']?.rich_text?.[0]?.plain_text || '';
-            const svc = (p['Servicio vinculado']?.relation||[]).length ? '🔗 servicio' : '';
-            sub = [fechaCorta(p['Fecha']?.date?.start), cli, svc].filter(Boolean).join(' · ');
-          }
-          return '<div class="fin-detail-row"><div class="fin-detail-main"><div class="fin-detail-title">' + esc(titulo) + '</div>' + (sub ? '<div class="fin-detail-sub">' + esc(sub) + '</div>' : '') + '</div><div class="fin-detail-amt" style="color:' + color + '">' + fmt(amt(r, kind)) + '</div></div>';
-        }).join('');
-        return '<div class="fin-group"><button class="fin-group-head" type="button" onclick="toggleFinGroup(this)"><span class="finance-row-label">' + k + ' <span style="color:var(--text3);font-weight:400">(' + g.items.length + ')</span></span><span class="fin-group-right"><span class="finance-row-value" style="color:' + color + '">' + fmt(g.total) + '</span><span class="fin-arrow">▾</span></span></button><div class="fin-group-detail" style="display:none">' + items + '</div></div>';
+        const ordered = g.items.slice().sort((a, b) => (b.properties?.['Fecha']?.date?.start || '').localeCompare(a.properties?.['Fecha']?.date?.start || ''));
+        const first = ordered.slice(0, 8).map(r => itemHTML(r, kind, color)).join('');
+        const rest = ordered.slice(8);
+        const restHTML = rest.length ? '<button class="ver-mas" type="button" onclick="toggleCeoAcc(this)">+ ' + rest.length + ' movimientos más ▾</button><div style="display:none">' + rest.map(r => itemHTML(r, kind, color)).join('') + '</div>' : '';
+        return '<div class="fin-group"><button class="fin-group-head" type="button" onclick="toggleFinGroup(this)"><span class="finance-row-label">' + esc(k) + ' <span style="color:var(--text3);font-weight:400">(' + g.items.length + ')</span></span><span class="fin-group-right"><span class="finance-row-value" style="color:' + color + '">' + fmt(g.total) + '</span><span class="fin-arrow">▾</span></span></button><div class="fin-group-detail" style="display:none">' + first + restHTML + '</div></div>';
       }).join('');
     };
 
+    const monedaLabel = cur === 'uyu' ? 'UY$' : 'USD';
+    const saldoCol = balance >= 0 ? 'var(--green)' : 'var(--red)';
     content.innerHTML =
-      '<div style="padding:12px 14px 4px;display:flex;gap:8px;align-items:center">' +
-        '<button class="ceo-nuevo-gasto-btn" onclick="openNuevoGastoSheet({ defaultClase: \'🔁 Indirecto\' })">+ ' + t('ceo.gasto.add') + '</button>' +
+      ceoHeaderHTML('Finanzas') +
+      '<div style="display:flex;gap:6px;padding:8px 14px 4px">' +
+        '<button class="ceo-country-tab ' + (cur === 'uyu' ? 'active' : '') + '" onclick="setCEOFinCurrency(\'uyu\')">🇺🇾 UY$</button>' +
+        '<button class="ceo-country-tab ' + (cur === 'usd' ? 'active' : '') + '" onclick="setCEOFinCurrency(\'usd\')">🇺🇸 USD</button>' +
       '</div>' +
-      '<div style="display:flex;gap:6px;padding:0 14px 6px">' +
-        '<button class="ceo-country-tab ' + (cur==='uyu'?'active':'') + '" onclick="setCEOFinCurrency(\'uyu\')">🇺🇾 UY$</button>' +
-        '<button class="ceo-country-tab ' + (cur==='usd'?'active':'') + '" onclick="setCEOFinCurrency(\'usd\')">🇺🇸 USD</button>' +
-      '</div>' +
-      '<div style="padding:0 14px 4px">' + buildFinanceChart(ingByMonth, gasByMonth, now.getFullYear(), start.substring(0,7)) + '</div>' +
       renderCEOPeriodSelector() +
-      '<div class="finance-summary">' +
-        '<div class="finance-card"><div class="finance-card-label">' + t('ceo.fin.ingresos') + '</div><div class="finance-card-value ingreso">' + fmt(ingresos) + '</div></div>' +
-        '<div class="finance-card"><div class="finance-card-label">' + t('ceo.fin.gastos') + '</div><div class="finance-card-value gasto">' + fmt(gastos) + '</div></div>' +
-        '<div class="finance-card"><div class="finance-card-label">' + t('ceo.fin.balance') + '</div><div class="finance-card-value balance ' + (balance>=0?'pos':'neg') + '">' + (balance<0?'-':'') + fmt(balance) + '</div></div>' +
-      '</div>' +
-      '<div class="ceo-section-title">' + t('ceo.fin.ingresos.tipo') + '</div>' +
-      renderGroups(ingGroups, 'ingreso', 'var(--green)', t('ceo.fin.empty.ingresos')) +
-      '<div class="ceo-section-title">' + t('ceo.fin.gastos.categ') + '</div>' +
-      renderGroups(gasGroups, 'gasto', 'var(--red)', t('ceo.fin.empty.gastos'));
+      '<div class="acct">' +
+        '<div class="estado-cuenta">' +
+          '<div class="ec-title">ESTADO DE CUENTA · ' + monedaLabel + ' · ' + periodLabelF + '</div>' +
+          '<div class="ec-row"><span>Entradas</span><span style="color:var(--green)">+ ' + fmt(ingresos) + '</span></div>' +
+          '<div class="ec-row"><span>Salidas</span><span style="color:var(--red)">− ' + fmt(gastos) + '</span></div>' +
+          '<div class="ec-sep"></div>' +
+          '<div class="ec-saldo"><span>SALDO</span><span style="color:' + saldoCol + '">' + (balance < 0 ? '−' : '') + fmt(balance) + ' ' + (balance >= 0 ? '🟢' : '🔴') + '</span></div>' +
+          '<div class="ec-counts">' + (ingData.results || []).length + ' cobros · ' + (gasData.results || []).length + ' gastos</div>' +
+        '</div>' +
+        '<button class="ceo-acc-head" onclick="toggleCeoAcc(this)"><span>📊 Ingresos vs Gastos ' + now.getFullYear() + '</span><span class="fin-arrow">▾</span></button>' +
+        '<div class="ceo-acc-body" style="display:none;padding:4px 14px">' + buildFinanceChart(ingByMonth, gasByMonth, now.getFullYear(), start.substring(0, 7)) + '</div>' +
+        '<div class="ec-section-total"><span>GASTOS POR RUBRO</span><span style="color:var(--red)">− ' + fmt(gastos) + '</span></div>' +
+        renderGroups(gasGroups, 'gasto', 'var(--red)', t('ceo.fin.empty.gastos')) +
+        '<div class="ec-section-total"><span>INGRESOS POR TIPO</span><span style="color:var(--green)">+ ' + fmt(ingresos) + '</span></div>' +
+        renderGroups(ingGroups, 'ingreso', 'var(--green)', t('ceo.fin.empty.ingresos')) +
+        '<div style="padding:14px"><button class="ceo-nuevo-gasto-btn" style="width:100%" onclick="openNuevoGastoSheet({ defaultClase: \'🔁 Indirecto\' })">+ ' + t('ceo.gasto.add') + '</button></div>' +
+      '</div>';
   } catch (e) {
     content.innerHTML = '<div class="coord-empty">' + t('ceo.error.finanzas') + '<br><small>' + e.message + '</small></div>';
   }
