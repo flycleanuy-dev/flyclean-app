@@ -787,6 +787,23 @@ body::before {
   .finance-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 16px; border-bottom: 1px solid var(--border); }
   .finance-row-label { font-size: 13px; color: var(--text2); }
   .finance-row-value { font-size: 13px; font-weight: 600; }
+  /* Selector de período del CEO (Métricas + Finanzas) */
+  .period-selector { padding: 10px 14px 4px; }
+  .period-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 6px; }
+  .period-chip { padding: 5px 12px; border-radius: 16px; border: 1px solid var(--border2); font-size: 12px; font-weight: 600; cursor: pointer; color: var(--text3); background: var(--bg); font-family: 'Exo 2', sans-serif; }
+  .period-chip.active { background: var(--green); color: #04130d; border-color: var(--green); }
+  .period-range { display: flex; gap: 8px; align-items: center; justify-content: center; padding: 4px 0; }
+  /* Cards desplegables de Finanzas (categoría/tipo → detalle de cada movimiento) */
+  .fin-group { border-bottom: 1px solid var(--border); }
+  .fin-group-head { width: 100%; display: flex; justify-content: space-between; align-items: center; padding: 11px 16px; background: none; border: none; cursor: pointer; font-family: 'Exo 2', sans-serif; text-align: left; }
+  .fin-group-right { display: flex; align-items: center; gap: 8px; }
+  .fin-arrow { font-size: 10px; color: var(--text3); }
+  .fin-group-detail { background: var(--bg); }
+  .fin-detail-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; padding: 8px 16px 8px 24px; border-top: 1px dotted var(--border); }
+  .fin-detail-main { min-width: 0; }
+  .fin-detail-title { font-size: 12.5px; color: var(--text); font-weight: 600; }
+  .fin-detail-sub { font-size: 11px; color: var(--text3); margin-top: 1px; }
+  .fin-detail-amt { font-size: 12.5px; font-weight: 700; white-space: nowrap; }
   .equipo-card { display: flex; align-items: center; gap: 14px; padding: 14px 16px; border-bottom: 1px solid var(--border); }
   .equipo-emoji { font-size: 28px; }
   .equipo-name { font-size: 14px; font-weight: 600; }
@@ -2518,7 +2535,7 @@ let selectedCountry = 'Uruguay';
 let currentUser = null;
 let activeCEOTab = 'metricas';
 let ceoViewCountry = 'all';
-let ceoMonthOffset = 0;
+let ceoPeriod = { mode: 'mes', off: 0, from: '', to: '' }; // selector de período del CEO (Métricas + Finanzas)
 let ceoFinCurrency = 'uyu'; // moneda activa en el tab Finanzas del CEO: 'uyu' | 'usd'
 let _ceoServiciosCache = []; // servicios del CEO (para generar PDF por id)
 let currentService = null;
@@ -2865,6 +2882,21 @@ async function callNotion(endpoint, method = 'GET', body = null) {
   });
   if (!response.ok) throw new Error('API error ' + response.status);
   return response.json();
+}
+
+// Igual que callNotion pero PAGINA (sigue next_cursor) y junta todos los resultados.
+// Necesario para sumar año/rango con >100 filas (Gastos/Ingresos). No usar en Servicios
+// (multi-data-source: la paginación del fallback de búsqueda no aplica).
+async function callNotionAll(endpoint, body = {}) {
+  let all = [], cursor = null, guard = 0;
+  do {
+    const b = Object.assign({}, body, { page_size: 100 }, cursor ? { start_cursor: cursor } : {});
+    const data = await callNotion(endpoint, 'POST', b);
+    all = all.concat(data.results || []);
+    cursor = data.has_more ? data.next_cursor : null;
+    guard++;
+  } while (cursor && guard < 40);
+  return { results: all };
 }
 
 async function getMyServices(userId) {
@@ -5230,25 +5262,21 @@ async function renderCEOMetricas() {
     const cf  = getCEOFilter();
     const fcf = getCEOFinanceFilter();
     const now = new Date();
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
-    const monthEnd   = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
-    const yearStart  = now.getFullYear() + '-01-01';
-    const yearEnd    = now.getFullYear() + '-12-31';
-    const dateLocale = currentLang === 'pt-BR' ? 'pt-BR' : 'es-UY';
-    const monthName  = now.toLocaleDateString(dateLocale, { month: 'long', year: 'numeric' });
-
-    const ingFilter     = { and: [ ...(fcf ? [fcf] : []), { property: 'Fecha', date: { on_or_after: monthStart } }, { property: 'Fecha', date: { on_or_before: monthEnd } } ] };
-    const gasFilter     = { and: [ ...(fcf ? [fcf] : []), { property: 'Fecha', date: { on_or_after: monthStart } }, { property: 'Fecha', date: { on_or_before: monthEnd } } ] };
-    const ingYearFilter = { and: [ ...(fcf ? [fcf] : []), { property: 'Fecha', date: { on_or_after: yearStart  } }, { property: 'Fecha', date: { on_or_before: yearEnd   } } ] };
+    const { start, end, label: periodLabel } = getCEOPeriodRange();
+    const yearStart = now.getFullYear() + '-01-01';
+    const yearEnd   = now.getFullYear() + '-12-31';
+    const dFilter = (s, e) => ({ and: [ ...(fcf ? [fcf] : []), { property: 'Fecha', date: { on_or_after: s } }, { property: 'Fecha', date: { on_or_before: e } } ] });
     const svcCompFilter = { and: [ ...(cf ? [cf] : []), { property: 'Estado', select: { equals: '✅ Completado' } } ] };
     const svcActivoFilter = { and: [ ...(cf ? [cf] : []), { or: [ { property: 'Estado', select: { equals: '✈️ En curso' } }, { property: 'Estado', select: { equals: '🔄 Asignado' } } ] } ] };
     const propFilter    = { and: [ ...(cf ? [cf] : []), { property: 'Estado pipeline', select: { does_not_equal: '❌ Rechazada' } }, { property: 'Estado pipeline', select: { does_not_equal: '😶 Sin respuesta' } } ] };
     const contactFilter = cf ? { and: [cf, { property: 'Estado', select: { equals: '✅ Cliente activo' } }] } : { property: 'Estado', select: { equals: '✅ Cliente activo' } };
 
-    const [ingData, gasData, ingYearData, svcCompData, svcActivoData, propData, contactData] = await Promise.all([
-      callNotion('databases/d1e15376e83a408a8a52f47da33c249a/query', 'POST', { filter: ingFilter }),
-      callNotion('databases/1e20cdabad5d41528d070ed2f6e9dad3/query', 'POST', { filter: gasFilter }),
-      callNotion('databases/d1e15376e83a408a8a52f47da33c249a/query', 'POST', { filter: ingYearFilter }),
+    // Gastos/Ingresos PAGINADOS (año/rango pueden tener >100 filas). Servicios/props/contactos: 1 página (pocos).
+    const [ingData, gasData, ingYearData, gasYearData, svcCompData, svcActivoData, propData, contactData] = await Promise.all([
+      callNotionAll('databases/d1e15376e83a408a8a52f47da33c249a/query', { filter: dFilter(start, end) }),
+      callNotionAll('databases/1e20cdabad5d41528d070ed2f6e9dad3/query', { filter: dFilter(start, end) }),
+      callNotionAll('databases/d1e15376e83a408a8a52f47da33c249a/query', { filter: dFilter(yearStart, yearEnd) }),
+      callNotionAll('databases/1e20cdabad5d41528d070ed2f6e9dad3/query', { filter: dFilter(yearStart, yearEnd) }),
       callNotion('databases/ccaf276c-7f6a-460c-aeb3-d2800deab2e5/query', 'POST', { filter: svcCompFilter }),
       callNotion('databases/ccaf276c-7f6a-460c-aeb3-d2800deab2e5/query', 'POST', { filter: svcActivoFilter }),
       callNotion('databases/2c0a4257-f429-4941-b994-dfebc1098633/query', 'POST', { filter: propFilter }),
@@ -5261,17 +5289,33 @@ async function renderCEOMetricas() {
       const notionVal = COUNTRY_NOTION_MAP[ceoViewCountry];
       return results.filter(s => s.properties?.['País']?.select?.name === notionVal);
     };
-    let svcComp   = applyCountryFilter(svcCompData.results || []).filter(s => { const f = s.properties?.['Fecha programada']?.date?.start || ''; return f >= monthStart && f <= monthEnd; });
-    let svcActivo = applyCountryFilter(svcActivoData.results || []);
+    const svcComp   = applyCountryFilter(svcCompData.results || []).filter(s => { const f = s.properties?.['Fecha programada']?.date?.start || ''; return f >= start && f <= end; });
+    const svcActivo = applyCountryFilter(svcActivoData.results || []);
 
     const ingSplit     = sumByMoneda(ingData.results,     'ingreso');
     const gasSplit     = sumByMoneda(gasData.results,     'gasto');
     const ingAnioSplit = sumByMoneda(ingYearData.results, 'ingreso');
+    const gasAnioSplit = sumByMoneda(gasYearData.results, 'gasto');
     const balSplit     = { uyu: ingSplit.uyu - gasSplit.uyu, usd: ingSplit.usd - gasSplit.usd };
     const svcCount     = svcComp.length;
     const svcActivos   = svcActivo.length;
     const propCount    = (propData.results    || []).length;
     const clientCount  = (contactData.results || []).length;
+
+    // Margen / rentabilidad (aprox): convierte todo a USD con el TC del registro (fallback 40) — única forma de un % unificado.
+    const TC_FB = 40;
+    const toUSD = (props, kind) => { const { esUY, monto } = montoOf(props, kind); if (!esUY) return monto; const tc = props?.[kind === 'gasto' ? 'TC usado' : 'TC aplicado']?.number || TC_FB; return tc ? monto / tc : 0; };
+    const ingUSD = (ingData.results || []).reduce((s, r) => s + toUSD(r.properties || {}, 'ingreso'), 0);
+    const gasUSD = (gasData.results || []).reduce((s, r) => s + toUSD(r.properties || {}, 'gasto'), 0);
+    const margen = ingUSD > 0 ? Math.round((ingUSD - gasUSD) / ingUSD * 100) : null;
+
+    // Ticket promedio (por moneda) = ingresos del período / servicios completados.
+    const ticketSplit = svcCount ? { uyu: ingSplit.uyu / svcCount, usd: ingSplit.usd / svcCount } : null;
+
+    // Desglose por tipo de servicio (servicios completados del período).
+    const tipoCount = {};
+    svcComp.forEach(s => { const tp = s.properties?.['Tipo de servicio']?.select?.name || 'Otros'; tipoCount[tp] = (tipoCount[tp] || 0) + 1; });
+
     // Render de un valor monetario en dos líneas separadas (UY$ y USD). Omite la línea en 0.
     const fmtSplitLines = (split, opts = {}) => {
       const rows = [];
@@ -5291,22 +5335,26 @@ async function renderCEOMetricas() {
     if (isUruguayCEO) {
       const opts = [['all','🌎 Global'],['Uruguay','🇺🇾 Uruguay'],['Brasil','🇧🇷 Brasil'],['Panamá','🇵🇦 Panamá'],['Guatemala','🇬🇹 Guatemala'],['México','🇲🇽 México']];
       subTabsHTML = '<div style="display:flex;gap:6px;padding:12px 16px 0;flex-wrap:wrap">' +
-        opts.map(([val, label]) => '<button class="ceo-country-tab ' + (ceoViewCountry === val ? 'active' : '') + '" onclick="setCEOCountry(\'' + val + '\')">' + label + '</button>').join('') +
+        opts.map(([val, lbl]) => '<button class="ceo-country-tab ' + (ceoViewCountry === val ? 'active' : '') + '" onclick="setCEOCountry(\'' + val + '\')">' + lbl + '</button>').join('') +
         '</div>';
     }
 
     const countryLabel = ceoViewCountry === 'all' ? t('ceo.country.all') : ceoViewCountry;
+    const tipoHTML = Object.entries(tipoCount).sort((a,b)=>b[1]-a[1]).map(([k,v]) => '<div class="finance-row"><span class="finance-row-label">' + k + '</span><span class="finance-row-value">' + v + '</span></div>').join('') || '<div class="metric-sub" style="padding:4px 0">— sin servicios completados —</div>';
 
-    content.innerHTML = subTabsHTML +
+    content.innerHTML = subTabsHTML + renderCEOPeriodSelector() +
       '<div class="metric-grid">' +
-        '<div class="metric-card"><div class="metric-icon">💰</div><div class="metric-label">' + t('ceo.metric.ingresos') + '</div><div class="metric-value">' + fmtSplitLines(ingSplit) + '</div><div class="metric-sub">' + monthName + '</div></div>' +
-        '<div class="metric-card"><div class="metric-icon">💸</div><div class="metric-label">' + t('ceo.metric.gastos') + '</div><div class="metric-value">' + fmtSplitLines(gasSplit, {color:'var(--red)'}) + '</div><div class="metric-sub">' + monthName + '</div></div>' +
-        '<div class="metric-card" style="grid-column:1/-1"><div class="metric-icon">⚖️</div><div class="metric-label">' + t('ceo.metric.balance') + '</div><div class="metric-value">' + fmtSplitLines(balSplit, {balance:true}) + '</div><div class="metric-sub">' + t('ceo.metric.balance.sub') + ' · ' + countryLabel + '</div></div>' +
-        '<div class="metric-card"><div class="metric-icon">✅</div><div class="metric-label">' + t('ceo.metric.svcs.completados') + '</div><div class="metric-value">' + svcCount + '</div><div class="metric-sub">' + t('ceo.metric.svcs.completados.sub') + '</div></div>' +
+        '<div class="metric-card"><div class="metric-icon">💰</div><div class="metric-label">' + t('ceo.metric.ingresos') + '</div><div class="metric-value">' + fmtSplitLines(ingSplit) + '</div><div class="metric-sub">' + periodLabel + '</div></div>' +
+        '<div class="metric-card"><div class="metric-icon">💸</div><div class="metric-label">' + t('ceo.metric.gastos') + '</div><div class="metric-value">' + fmtSplitLines(gasSplit, {color:'var(--red)'}) + '</div><div class="metric-sub">' + periodLabel + '</div></div>' +
+        '<div class="metric-card" style="grid-column:1/-1"><div class="metric-icon">⚖️</div><div class="metric-label">' + t('ceo.metric.balance') + '</div><div class="metric-value">' + fmtSplitLines(balSplit, {balance:true}) + '</div><div class="metric-sub">' + periodLabel + ' · ' + countryLabel + '</div></div>' +
+        '<div class="metric-card"><div class="metric-icon">🎫</div><div class="metric-label">Ticket promedio</div><div class="metric-value">' + (ticketSplit ? fmtSplitLines(ticketSplit) : '<div style="font-size:18px;font-weight:800;color:var(--text3)">—</div>') + '</div><div class="metric-sub">por servicio completado</div></div>' +
+        '<div class="metric-card"><div class="metric-icon">📊</div><div class="metric-label">Margen</div><div class="metric-value"><div style="font-size:22px;font-weight:800;color:' + (margen==null?'var(--text3)':(margen>=0?'var(--green)':'var(--red)')) + '">' + (margen==null?'—':(margen+'%')) + '</div></div><div class="metric-sub">rentabilidad aprox. (USD)</div></div>' +
+        '<div class="metric-card"><div class="metric-icon">✅</div><div class="metric-label">' + t('ceo.metric.svcs.completados') + '</div><div class="metric-value">' + svcCount + '</div><div class="metric-sub">' + periodLabel + '</div></div>' +
         '<div class="metric-card"><div class="metric-icon">✈️</div><div class="metric-label">' + t('ceo.metric.svcs.activos') + '</div><div class="metric-value">' + svcActivos + '</div><div class="metric-sub">' + t('ceo.metric.svcs.activos.sub') + '</div></div>' +
         '<div class="metric-card"><div class="metric-icon">💼</div><div class="metric-label">' + t('ceo.metric.props') + '</div><div class="metric-value">' + propCount + '</div><div class="metric-sub">' + t('ceo.metric.props.sub') + '</div></div>' +
         '<div class="metric-card"><div class="metric-icon">👥</div><div class="metric-label">' + t('ceo.metric.clientes') + '</div><div class="metric-value">' + clientCount + '</div><div class="metric-sub">' + t('ceo.metric.clientes.sub') + '</div></div>' +
-        '<div class="metric-card" style="grid-column:1/-1;border-color:var(--green-mid)"><div class="metric-icon">📈</div><div class="metric-label">' + t('ceo.metric.year.label') + ' ' + now.getFullYear() + '</div><div class="metric-value">' + fmtSplitLines(ingAnioSplit, {color:'var(--green)'}) + '</div><div class="metric-sub">' + t('ceo.metric.year.sub.prefix') + now.toLocaleDateString(dateLocale,{month:'long'}) + ' · ' + countryLabel + '</div></div>' +
+        '<div class="metric-card" style="grid-column:1/-1;border-color:var(--green-mid)"><div class="metric-icon">📈</div><div class="metric-label">Año ' + now.getFullYear() + '</div><div class="metric-value"><div class="metric-sub" style="margin-bottom:2px">Ingresos</div>' + fmtSplitLines(ingAnioSplit, {color:'var(--green)'}) + '<div class="metric-sub" style="margin:8px 0 2px">Gastos</div>' + fmtSplitLines(gasAnioSplit, {color:'var(--red)'}) + '</div><div class="metric-sub">acumulado · ' + countryLabel + '</div></div>' +
+        '<div class="metric-card" style="grid-column:1/-1"><div class="metric-icon">🧰</div><div class="metric-label">Servicios por tipo</div><div style="margin-top:6px">' + tipoHTML + '</div><div class="metric-sub" style="margin-top:6px">' + periodLabel + '</div></div>' +
       '</div>';
   } catch (e) {
     content.innerHTML = '<div class="coord-empty">' + t('ceo.error.metricas') + '<br><small>' + e.message + '</small></div>';
@@ -5360,16 +5408,53 @@ async function renderCEOServicios() {
   }
 }
 
-function getCEOMonthRange() {
+// Rango de fechas según el selector de período del CEO (mes / semana / año / rango / todo).
+function getCEOPeriodRange() {
   const now = new Date();
-  const base = new Date(now.getFullYear(), now.getMonth() + ceoMonthOffset, 1);
-  const dateLocale = currentLang === 'pt-BR' ? 'pt-BR' : 'es-UY';
-  return {
-    start: base.toISOString().split('T')[0],
-    end: new Date(base.getFullYear(), base.getMonth() + 1, 0).toISOString().split('T')[0],
-    label: base.toLocaleDateString(dateLocale, { month: 'long', year: 'numeric' })
-  };
+  const loc = currentLang === 'pt-BR' ? 'pt-BR' : 'es-UY';
+  const iso = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  const p = ceoPeriod;
+  if (p.mode === 'semana') {
+    const b = new Date(now); b.setHours(0, 0, 0, 0); b.setDate(b.getDate() + p.off * 7);
+    const dow = (b.getDay() + 6) % 7; // lunes = 0
+    const mon = new Date(b); mon.setDate(b.getDate() - dow);
+    const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
+    return { start: iso(mon), end: iso(sun), label: mon.toLocaleDateString(loc, { day: '2-digit', month: 'short' }) + ' – ' + sun.toLocaleDateString(loc, { day: '2-digit', month: 'short' }) };
+  }
+  if (p.mode === 'anio') {
+    const y = now.getFullYear() + p.off;
+    return { start: y + '-01-01', end: y + '-12-31', label: 'Año ' + y };
+  }
+  if (p.mode === 'rango') {
+    return { start: p.from || '2000-01-01', end: p.to || '2999-12-31', label: (p.from || '…') + ' → ' + (p.to || '…') };
+  }
+  if (p.mode === 'todo') {
+    return { start: '2000-01-01', end: '2999-12-31', label: 'Todo el historial' };
+  }
+  const base = new Date(now.getFullYear(), now.getMonth() + p.off, 1);
+  return { start: iso(base), end: iso(new Date(base.getFullYear(), base.getMonth() + 1, 0)), label: base.toLocaleDateString(loc, { month: 'long', year: 'numeric' }) };
 }
+
+// Selector de período reutilizado por Métricas y Finanzas (estado compartido `ceoPeriod`).
+function renderCEOPeriodSelector() {
+  const p = ceoPeriod;
+  const { label } = getCEOPeriodRange();
+  const modes = [['mes', 'Mes'], ['semana', 'Semana'], ['anio', 'Año'], ['rango', 'Rango'], ['todo', 'Todo']];
+  const chips = modes.map(([m, lbl]) => '<button class="period-chip ' + (p.mode === m ? 'active' : '') + '" onclick="setCEOPeriodMode(\'' + m + '\')">' + lbl + '</button>').join('');
+  let nav;
+  if (p.mode === 'rango') {
+    nav = '<div class="period-range"><input type="date" class="coord-filter-date-input" value="' + (p.from || '') + '" onchange="setCEORange(this.value, ceoPeriod.to)"/><span style="color:var(--text3);font-size:12px">→</span><input type="date" class="coord-filter-date-input" value="' + (p.to || '') + '" onchange="setCEORange(ceoPeriod.from, this.value)"/></div>';
+  } else if (p.mode === 'todo') {
+    nav = '<div class="finance-month-nav" style="justify-content:center"><div class="finance-month-label">' + label + '</div></div>';
+  } else {
+    nav = '<div class="finance-month-nav"><button class="month-nav-btn" onclick="shiftCEOPeriod(-1)">‹</button><div class="finance-month-label">' + label + '</div><button class="month-nav-btn" onclick="shiftCEOPeriod(1)">›</button></div>';
+  }
+  return '<div class="period-selector"><div class="period-chips">' + chips + '</div>' + nav + '</div>';
+}
+function setCEOPeriodMode(m) { ceoPeriod.mode = m; if (m !== 'rango' && m !== 'todo') ceoPeriod.off = 0; rerenderCEOActive(); }
+function shiftCEOPeriod(d) { ceoPeriod.off += d; rerenderCEOActive(); }
+function setCEORange(from, to) { ceoPeriod.from = from || ''; ceoPeriod.to = to || ''; rerenderCEOActive(); }
+function rerenderCEOActive() { if (activeCEOTab === 'finanzas') renderCEOFinanzas(); else renderCEOMetricas(); }
 
 function buildFinanceChart(ingByMonth, gasByMonth, year, activeMonth) {
   const months = Array.from({length:12}, (_, i) => year + '-' + String(i+1).padStart(2,'0'));
@@ -5427,37 +5512,66 @@ async function renderCEOFinanzas() {
   content.innerHTML = '<div style="text-align:center;padding:40px 0"><div class="spinner" style="margin:0 auto"></div></div>';
   try {
     const fcf = getCEOFinanceFilter();
-    const { start, end, label } = getCEOMonthRange();
+    const { start, end } = getCEOPeriodRange();
     const now = new Date();
     const yearStart = now.getFullYear() + '-01-01';
     const yearEnd   = now.getFullYear() + '-12-31';
     const mkFilter  = (s, e, extra) => ({ and: [ ...(extra ? [extra] : []), { property: 'Fecha', date: { on_or_after: s } }, { property: 'Fecha', date: { on_or_before: e } } ] });
 
+    // PAGINADO (año/rango pueden tener >100 filas → si no, los totales quedan cortos).
     const [ingData, gasData, ingYear, gasYear] = await Promise.all([
-      callNotion('databases/d1e15376e83a408a8a52f47da33c249a/query', 'POST', { filter: mkFilter(start, end, fcf) }),
-      callNotion('databases/1e20cdabad5d41528d070ed2f6e9dad3/query', 'POST', { filter: mkFilter(start, end, fcf) }),
-      callNotion('databases/d1e15376e83a408a8a52f47da33c249a/query', 'POST', { filter: mkFilter(yearStart, yearEnd, fcf) }),
-      callNotion('databases/1e20cdabad5d41528d070ed2f6e9dad3/query', 'POST', { filter: mkFilter(yearStart, yearEnd, fcf) })
+      callNotionAll('databases/d1e15376e83a408a8a52f47da33c249a/query', { filter: mkFilter(start, end, fcf) }),
+      callNotionAll('databases/1e20cdabad5d41528d070ed2f6e9dad3/query', { filter: mkFilter(start, end, fcf) }),
+      callNotionAll('databases/d1e15376e83a408a8a52f47da33c249a/query', { filter: mkFilter(yearStart, yearEnd, fcf) }),
+      callNotionAll('databases/1e20cdabad5d41528d070ed2f6e9dad3/query', { filter: mkFilter(yearStart, yearEnd, fcf) })
     ]);
 
     const cur = ceoFinCurrency;                       // 'uyu' | 'usd'
     const monedaTag = cur === 'uyu' ? '🇺🇾 UY$' : '🇺🇸 USD';
     // Devuelve el monto del registro SOLO si su moneda coincide con la seleccionada (si no, 0).
     const amt = (r, kind) => { const { esUY, monto } = montoOf(r.properties || {}, kind); return ((cur === 'uyu') === esUY) ? monto : 0; };
+    const fmt = n => fmtMoneda(n, monedaTag);
+    const fechaCorta = (iso) => { if (!iso) return ''; const pp = iso.slice(0,10).split('-'); return pp[2] + '/' + pp[1]; };
 
-    // Group annual data by month for chart (moneda seleccionada)
+    // Chart anual (siempre el año, moneda seleccionada)
     const ingByMonth = {}, gasByMonth = {};
     (ingYear.results || []).forEach(r => { const m = (r.properties?.['Fecha']?.date?.start || '').substring(0,7); if (m) ingByMonth[m] = (ingByMonth[m]||0) + amt(r,'ingreso'); });
     (gasYear.results || []).forEach(r => { const m = (r.properties?.['Fecha']?.date?.start || '').substring(0,7); if (m) gasByMonth[m] = (gasByMonth[m]||0) + amt(r,'gasto'); });
 
-    // Monthly totals (moneda seleccionada)
+    // Totales del período (moneda seleccionada)
     const ingresos = (ingData.results||[]).reduce((s,r) => s + amt(r,'ingreso'), 0);
     const gastos   = (gasData.results||[]).reduce((s,r) => s + amt(r,'gasto'), 0);
     const balance  = ingresos - gastos;
-    const fmt = n => fmtMoneda(n, monedaTag);
-    const gasByCateg = {}, ingByTipo = {};
-    (gasData.results||[]).forEach(r => { const k = r.properties?.['Categoría']?.select?.name||'Otros'; gasByCateg[k]=(gasByCateg[k]||0)+amt(r,'gasto'); });
-    (ingData.results||[]).forEach(r => { const k = r.properties?.['Tipo']?.select?.name||'Otros'; ingByTipo[k]=(ingByTipo[k]||0)+amt(r,'ingreso'); });
+
+    // Agrupar CON items para cards desplegables (solo registros en la moneda activa).
+    const groupBy = (results, kind, keyFn) => { const g = {}; (results||[]).forEach(r => { const a = amt(r, kind); if (!a) return; const k = keyFn(r) || 'Otros'; (g[k] = g[k] || { total: 0, items: [] }); g[k].total += a; g[k].items.push(r); }); return g; };
+    const gasGroups = groupBy(gasData.results, 'gasto', r => r.properties?.['Categoría']?.select?.name);
+    const ingGroups = groupBy(ingData.results, 'ingreso', r => r.properties?.['Tipo']?.select?.name);
+
+    const renderGroups = (groups, kind, color, emptyMsg) => {
+      const entries = Object.entries(groups).sort((a,b)=>b[1].total-a[1].total);
+      if (!entries.length) return '<div class="coord-empty" style="padding:12px 16px;font-size:13px">' + emptyMsg + '</div>';
+      return entries.map(([k, g]) => {
+        const items = g.items.sort((a,b)=> (b.properties?.['Fecha']?.date?.start||'').localeCompare(a.properties?.['Fecha']?.date?.start||'')).map(r => {
+          const p = r.properties || {};
+          let titulo, sub;
+          if (kind === 'gasto') {
+            titulo = p['Concepto']?.title?.[0]?.plain_text || '(sin concepto)';
+            const prov = p['Tienda / Proveedor']?.rich_text?.[0]?.plain_text || '';
+            const fp = p['Forma de pago']?.select?.name || '';
+            const svc = (p['Servicio']?.relation||[]).length ? '🔗 servicio' : '';
+            sub = [fechaCorta(p['Fecha']?.date?.start), prov, fp, svc].filter(Boolean).join(' · ');
+          } else {
+            titulo = p['Servicio']?.title?.[0]?.plain_text || p['Cliente']?.rich_text?.[0]?.plain_text || '(cobro)';
+            const cli = p['Cliente']?.rich_text?.[0]?.plain_text || '';
+            const svc = (p['Servicio vinculado']?.relation||[]).length ? '🔗 servicio' : '';
+            sub = [fechaCorta(p['Fecha']?.date?.start), cli, svc].filter(Boolean).join(' · ');
+          }
+          return '<div class="fin-detail-row"><div class="fin-detail-main"><div class="fin-detail-title">' + esc(titulo) + '</div>' + (sub ? '<div class="fin-detail-sub">' + esc(sub) + '</div>' : '') + '</div><div class="fin-detail-amt" style="color:' + color + '">' + fmt(amt(r, kind)) + '</div></div>';
+        }).join('');
+        return '<div class="fin-group"><button class="fin-group-head" type="button" onclick="toggleFinGroup(this)"><span class="finance-row-label">' + k + ' <span style="color:var(--text3);font-weight:400">(' + g.items.length + ')</span></span><span class="fin-group-right"><span class="finance-row-value" style="color:' + color + '">' + fmt(g.total) + '</span><span class="fin-arrow">▾</span></span></button><div class="fin-group-detail" style="display:none">' + items + '</div></div>';
+      }).join('');
+    };
 
     content.innerHTML =
       '<div style="padding:12px 14px 4px;display:flex;gap:8px;align-items:center">' +
@@ -5468,29 +5582,38 @@ async function renderCEOFinanzas() {
         '<button class="ceo-country-tab ' + (cur==='usd'?'active':'') + '" onclick="setCEOFinCurrency(\'usd\')">🇺🇸 USD</button>' +
       '</div>' +
       '<div style="padding:0 14px 4px">' + buildFinanceChart(ingByMonth, gasByMonth, now.getFullYear(), start.substring(0,7)) + '</div>' +
-      '<div class="finance-month-nav"><button class="month-nav-btn" onclick="changeCEOMonth(-1)">‹</button><div class="finance-month-label">' + label + '</div><button class="month-nav-btn" onclick="changeCEOMonth(1)">›</button></div>' +
+      renderCEOPeriodSelector() +
       '<div class="finance-summary">' +
         '<div class="finance-card"><div class="finance-card-label">' + t('ceo.fin.ingresos') + '</div><div class="finance-card-value ingreso">' + fmt(ingresos) + '</div></div>' +
         '<div class="finance-card"><div class="finance-card-label">' + t('ceo.fin.gastos') + '</div><div class="finance-card-value gasto">' + fmt(gastos) + '</div></div>' +
         '<div class="finance-card"><div class="finance-card-label">' + t('ceo.fin.balance') + '</div><div class="finance-card-value balance ' + (balance>=0?'pos':'neg') + '">' + (balance<0?'-':'') + fmt(balance) + '</div></div>' +
       '</div>' +
       '<div class="ceo-section-title">' + t('ceo.fin.ingresos.tipo') + '</div>' +
-      (Object.entries(ingByTipo).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]).map(([k,v])=>'<div class="finance-row"><span class="finance-row-label">'+k+'</span><span class="finance-row-value" style="color:var(--green)">'+fmt(v)+'</span></div>').join('') || '<div class="coord-empty" style="padding:12px 16px;font-size:13px">' + t('ceo.fin.empty.ingresos') + '</div>') +
+      renderGroups(ingGroups, 'ingreso', 'var(--green)', t('ceo.fin.empty.ingresos')) +
       '<div class="ceo-section-title">' + t('ceo.fin.gastos.categ') + '</div>' +
-      (Object.entries(gasByCateg).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]).map(([k,v])=>'<div class="finance-row"><span class="finance-row-label">'+k+'</span><span class="finance-row-value" style="color:var(--red)">'+fmt(v)+'</span></div>').join('') || '<div class="coord-empty" style="padding:12px 16px;font-size:13px">' + t('ceo.fin.empty.gastos') + '</div>');
+      renderGroups(gasGroups, 'gasto', 'var(--red)', t('ceo.fin.empty.gastos'));
   } catch (e) {
     content.innerHTML = '<div class="coord-empty">' + t('ceo.error.finanzas') + '<br><small>' + e.message + '</small></div>';
   }
 }
 
 async function changeCEOMonth(delta) {
-  ceoMonthOffset += delta;
-  await renderCEOFinanzas();
+  shiftCEOPeriod(delta);
 }
 
 async function setCEOFinCurrency(cur) {
   ceoFinCurrency = cur;
   await renderCEOFinanzas();
+}
+
+// Despliega/oculta el detalle de una categoría/tipo en Finanzas (cards desplegables).
+function toggleFinGroup(btn) {
+  const d = btn.nextElementSibling;
+  if (!d) return;
+  const open = d.style.display === 'none';
+  d.style.display = open ? 'block' : 'none';
+  const ar = btn.querySelector('.fin-arrow');
+  if (ar) ar.textContent = open ? '▴' : '▾';
 }
 
 let _ceoEquipoCache = null;

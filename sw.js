@@ -1,3 +1,4 @@
+// v19: CEO filtros de período (mes/semana/año/rango/todo) + KPIs nuevos + paginación + gastos desplegables.
 // v18: PDF cliente+tipo descriptivo; guardia anti-tap al scrollear; fija balanceo lateral.
 // v17: paso 'Observación al cliente' (+ monto en prueba/relevam) antes de generar el PDF.
 // v16: PDF sin emojis raros + sin nota del operario; fotos en desplegable (lazy via proxy).
@@ -16,7 +17,7 @@
 // deploy live. Cache de Notion no necesita bump (solo cambió HTML).
 // v5: cambiar estrategia de Notion API de stale-while-revalidate a NETWORK-FIRST con timeout.
 
-const CACHE = 'flyclean-v18';
+const CACHE = 'flyclean-v19';
 const SHELL = [
   '/',
   '/index.html',
