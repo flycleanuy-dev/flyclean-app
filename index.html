@@ -5285,12 +5285,15 @@ async function renderCEOMetricas() {
 
     // Servicios: apply client-side country filter (search API fallback ignores server filter)
     const applyCountryFilter = (results) => {
-      if (!cf) return results;
+      if (!cf || ceoViewCountry === 'all') return results;
       const notionVal = COUNTRY_NOTION_MAP[ceoViewCountry];
       return results.filter(s => s.properties?.['País']?.select?.name === notionVal);
     };
-    const svcComp   = applyCountryFilter(svcCompData.results || []).filter(s => { const f = s.properties?.['Fecha programada']?.date?.start || ''; return f >= start && f <= end; });
-    const svcActivo = applyCountryFilter(svcActivoData.results || []);
+    // El fallback de búsqueda de Servicios ignora el filtro del server → filtramos por Estado en el cliente.
+    const estadoDe = s => (s.properties?.['Estado']?.select?.name) || '';
+    const enPeriodo = s => { const f = s.properties?.['Fecha programada']?.date?.start || ''; return f ? (f >= start && f <= end) : (ceoPeriod.mode === 'todo'); };
+    const svcComp   = applyCountryFilter(svcCompData.results || []).filter(s => estadoDe(s).includes('Completado') && enPeriodo(s));
+    const svcActivo = applyCountryFilter(svcActivoData.results || []).filter(s => estadoDe(s).includes('En curso') || estadoDe(s).includes('Asignado'));
 
     const ingSplit     = sumByMoneda(ingData.results,     'ingreso');
     const gasSplit     = sumByMoneda(gasData.results,     'gasto');
@@ -5344,9 +5347,9 @@ async function renderCEOMetricas() {
 
     content.innerHTML = subTabsHTML + renderCEOPeriodSelector() +
       '<div class="metric-grid">' +
-        '<div class="metric-card"><div class="metric-icon">💰</div><div class="metric-label">' + t('ceo.metric.ingresos') + '</div><div class="metric-value">' + fmtSplitLines(ingSplit) + '</div><div class="metric-sub">' + periodLabel + '</div></div>' +
-        '<div class="metric-card"><div class="metric-icon">💸</div><div class="metric-label">' + t('ceo.metric.gastos') + '</div><div class="metric-value">' + fmtSplitLines(gasSplit, {color:'var(--red)'}) + '</div><div class="metric-sub">' + periodLabel + '</div></div>' +
-        '<div class="metric-card" style="grid-column:1/-1"><div class="metric-icon">⚖️</div><div class="metric-label">' + t('ceo.metric.balance') + '</div><div class="metric-value">' + fmtSplitLines(balSplit, {balance:true}) + '</div><div class="metric-sub">' + periodLabel + ' · ' + countryLabel + '</div></div>' +
+        '<div class="metric-card"><div class="metric-icon">💰</div><div class="metric-label">Ingresos</div><div class="metric-value">' + fmtSplitLines(ingSplit) + '</div><div class="metric-sub">' + periodLabel + '</div></div>' +
+        '<div class="metric-card"><div class="metric-icon">💸</div><div class="metric-label">Gastos</div><div class="metric-value">' + fmtSplitLines(gasSplit, {color:'var(--red)'}) + '</div><div class="metric-sub">' + periodLabel + '</div></div>' +
+        '<div class="metric-card" style="grid-column:1/-1"><div class="metric-icon">⚖️</div><div class="metric-label">Balance</div><div class="metric-value">' + fmtSplitLines(balSplit, {balance:true}) + '</div><div class="metric-sub">' + periodLabel + ' · ' + countryLabel + '</div></div>' +
         '<div class="metric-card"><div class="metric-icon">🎫</div><div class="metric-label">Ticket promedio</div><div class="metric-value">' + (ticketSplit ? fmtSplitLines(ticketSplit) : '<div style="font-size:18px;font-weight:800;color:var(--text3)">—</div>') + '</div><div class="metric-sub">por servicio completado</div></div>' +
         '<div class="metric-card"><div class="metric-icon">📊</div><div class="metric-label">Margen</div><div class="metric-value"><div style="font-size:22px;font-weight:800;color:' + (margen==null?'var(--text3)':(margen>=0?'var(--green)':'var(--red)')) + '">' + (margen==null?'—':(margen+'%')) + '</div></div><div class="metric-sub">rentabilidad aprox. (USD)</div></div>' +
         '<div class="metric-card"><div class="metric-icon">✅</div><div class="metric-label">' + t('ceo.metric.svcs.completados') + '</div><div class="metric-value">' + svcCount + '</div><div class="metric-sub">' + periodLabel + '</div></div>' +
