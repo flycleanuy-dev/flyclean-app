@@ -5270,13 +5270,22 @@ async function renderCEOMetricas() {
     const contactFilter = cf ? { and: [cf, { property: 'Estado', select: { equals: '✅ Cliente activo' } }] } : { property: 'Estado', select: { equals: '✅ Cliente activo' } };
 
     // Gastos/Ingresos PAGINADOS (año/rango pueden tener >100 filas). Servicios/props/contactos: 1 página (pocos).
-    // Servicios SIN filtro (el multi-data-source ignora/rompe el filtro del server) → se filtra en el cliente.
-    const [ingData, gasData, ingYearData, gasYearData, svcAllData, propData, contactData] = await Promise.all([
+    // 1ª tanda: finanzas paginadas.
+    const [ingData, gasData, ingYearData, gasYearData] = await Promise.all([
       callNotionAll('databases/d1e15376e83a408a8a52f47da33c249a/query', { filter: dFilter(start, end) }),
       callNotionAll('databases/1e20cdabad5d41528d070ed2f6e9dad3/query', { filter: dFilter(start, end) }),
       callNotionAll('databases/d1e15376e83a408a8a52f47da33c249a/query', { filter: dFilter(yearStart, yearEnd) }),
-      callNotionAll('databases/1e20cdabad5d41528d070ed2f6e9dad3/query', { filter: dFilter(yearStart, yearEnd) }),
-      callNotion('databases/ccaf276c-7f6a-460c-aeb3-d2800deab2e5/query', 'POST', { page_size: 100 }),
+      callNotionAll('databases/1e20cdabad5d41528d070ed2f6e9dad3/query', { filter: dFilter(yearStart, yearEnd) })
+    ]);
+    // 2ª tanda (menos ráfaga → evita el rate-limit de Notion). Servicios va SIN filtro (el
+    // multi-data-source ignora/rompe el filtro del server) y a veces vuelve vacío bajo carga → reintento.
+    const svcQuery = async () => {
+      let r = await callNotion('databases/ccaf276c-7f6a-460c-aeb3-d2800deab2e5/query', 'POST', { page_size: 100 });
+      if (!(r.results || []).length) { await new Promise(x => setTimeout(x, 500)); r = await callNotion('databases/ccaf276c-7f6a-460c-aeb3-d2800deab2e5/query', 'POST', { page_size: 100 }); }
+      return r;
+    };
+    const [svcAllData, propData, contactData] = await Promise.all([
+      svcQuery(),
       callNotion('databases/2c0a4257-f429-4941-b994-dfebc1098633/query', 'POST', { filter: propFilter }),
       callNotion('databases/250115612de74e0582366549bbe5e389/query', 'POST', { filter: contactFilter })
     ]);
