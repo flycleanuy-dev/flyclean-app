@@ -1,3 +1,4 @@
+// v20: fix clave de cache del SW (no truncar) → totales año/rango correctos; conteo servicios robusto.
 // v19: CEO filtros de período (mes/semana/año/rango/todo) + KPIs nuevos + paginación + gastos desplegables.
 // v18: PDF cliente+tipo descriptivo; guardia anti-tap al scrollear; fija balanceo lateral.
 // v17: paso 'Observación al cliente' (+ monto en prueba/relevam) antes de generar el PDF.
@@ -17,7 +18,7 @@
 // deploy live. Cache de Notion no necesita bump (solo cambió HTML).
 // v5: cambiar estrategia de Notion API de stale-while-revalidate a NETWORK-FIRST con timeout.
 
-const CACHE = 'flyclean-v19';
+const CACHE = 'flyclean-v20';
 const SHELL = [
   '/',
   '/index.html',
@@ -71,7 +72,9 @@ async function handleNotionApi(event) {
   const cacheable = isCacheableNotionRead(event.request, bodyText);
   if (!cacheable) return fetch(event.request);
 
-  const cacheKey = new Request(event.request.url + '#' + btoa(unescape(encodeURIComponent(bodyText))).slice(0, 64), { method: 'GET' });
+  // Clave por CUERPO COMPLETO (antes truncaba a 64 chars → chocaban páginas/consultas con el
+  // mismo prefijo: el start_cursor y los filtros de fecha quedaban fuera de la clave → totales cortados).
+  const cacheKey = new Request(event.request.url + '#' + btoa(unescape(encodeURIComponent(bodyText))), { method: 'GET' });
   const cache = await caches.open(NOTION_CACHE);
 
   // Race: red con timeout vs. cache si la red tarda mucho.
