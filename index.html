@@ -560,7 +560,7 @@ body::before {
   .kb-col-head { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; gap: 6px; padding: 10px 4px 8px; background: var(--card); border-bottom: 1px solid var(--border); font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 8px; }
   .kb-col-head .kb-count { color: var(--text3); font-weight: 600; font-size: 12px; }
   .kb-col-empty { padding: 24px 8px; text-align: center; color: var(--text3); font-size: 13px; }
-  .kb-card { margin-bottom: 8px; position: relative; }
+  .kb-card { margin-bottom: 8px; position: relative; transition: transform 0.15s ease, box-shadow 0.15s ease; }
   .kb-card .coord-service-card { margin-bottom: 0; }
   /* Tarea 3 — arrastre long-press de cards entre columnas */
   .kb-card.dragging { opacity: 0.4; touch-action: none; } /* iOS: agarrada no compite con el scroll nativo */
@@ -6436,14 +6436,39 @@ function renderCoordKanban() {
           `<button class="kb-move-btn" title="Mover a otro estado" onclick="event.stopPropagation(); openMoverEstado('${esc(s.id)}')">↔</button>` +
           coordServiceCard(s) +
         `</div>`).join('')
-      : `<div class="kb-col-empty">—</div>`;
+      : `<div class="kb-col-empty">Sin servicios</div>`;
     return `<div class="kb-col" data-estado="${esc(c.estado)}">
       <div class="kb-col-head">${esc(c.estado)} <span class="kb-count">(${list.length})</span></div>
       ${cardsHTML}
     </div>`;
   }).join('');
 
+  // Preservar el scroll al re-pintar: tras mover una card (drop o "Mover a") el board se
+  // reconstruye con innerHTML → el scroll horizontal del tablero y el vertical de cada
+  // columna se resetean. Capturamos ANTES y restauramos DESPUÉS por data-estado.
+  const prevBoard = content.querySelector('.kb-board');
+  let prevScrollLeft = 0;
+  const prevColScroll = {};
+  if (prevBoard) {
+    prevScrollLeft = prevBoard.scrollLeft;
+    prevBoard.querySelectorAll('.kb-col').forEach(col => {
+      const est = col.getAttribute('data-estado');
+      if (est != null) prevColScroll[est] = col.scrollTop;
+    });
+  }
+
   content.innerHTML = `<div class="kb-board">${cols}</div>`;
+
+  if (prevBoard) {
+    const newBoard = content.querySelector('.kb-board');
+    if (newBoard) {
+      newBoard.scrollLeft = prevScrollLeft;
+      newBoard.querySelectorAll('.kb-col').forEach(col => {
+        const est = col.getAttribute('data-estado');
+        if (est != null && prevColScroll[est] != null) col.scrollTop = prevColScroll[est];
+      });
+    }
+  }
 }
 
 // Núcleo del cambio de estado (lo reusa la Tarea 3 de arrastre). Optimista: actualiza
