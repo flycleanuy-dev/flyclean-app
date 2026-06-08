@@ -931,6 +931,67 @@ body::before {
   .country-card-name { font-size: 17px; font-weight: 700; color: var(--text); }
   .country-card-sub { font-size: 12px; color: var(--text3); margin-top: 2px; }
   .country-card-arrow { font-size: 18px; color: var(--text3); }
+
+  /* ════════════════════════════════════════════════════════════════════
+     VERSIÓN ESCRITORIO (responsive ≥900px) — sobreescribe el mobile-first.
+     TODO va dentro de este único @media; el mobile NO se toca.
+     ════════════════════════════════════════════════════════════════════ */
+  @media (min-width: 900px) {
+
+    /* ── Shell / ancho ── */
+    body { max-width: 1400px; }
+
+    /* ── Coordinador: cabecera y tabs con más aire, sin scroll ── */
+    .coord-header { padding: 18px 28px 14px; }
+    .coord-tab-bar, .ceo-tab-bar { overflow-x: visible; }
+    .coord-toolbar { padding: 14px 24px 8px; }
+    .week-strip { overflow-x: visible; }
+
+    /* Toggle Lista/Tablero/Calendario: no necesita ancho completo */
+    .coord-view-toggle { max-width: 520px; padding: 12px 24px 6px; }
+
+    /* ── Kanban: 5 columnas lado a lado, sin scroll incómodo ── */
+    .kb-board { overflow-x: visible; padding: 16px 24px 32px; }
+    .kb-col { flex: 1 1 0; width: auto; max-width: none; min-width: 200px; }
+
+    /* ── Calendario: amplio, celdas altas y cómodas, a todo el ancho ── */
+    .cal-grid { gap: 5px; padding: 0 24px; }
+    .cal-weekday { font-size: 12px; padding: 8px 0; }
+    .cal-cell { min-height: 116px; padding: 6px; gap: 3px; border-radius: 9px; }
+    .cal-daynum { font-size: 13px; padding: 3px 2px; }
+    .cal-event { font-size: 11px; line-height: 1.35; padding: 3px 6px; border-radius: 6px; }
+    .cal-more { font-size: 11px; padding: 2px 6px; }
+
+    /* ── Lista: capada a columna cómoda centrada (no ancho completo, feo) ── */
+    .coord-content .day-group { max-width: 860px; margin-left: auto; margin-right: auto; }
+
+    /* ── CEO / Finanzas: aprovechan el ancho ── */
+    .metric-grid { grid-template-columns: repeat(4, 1fr); padding: 16px 24px 0; }
+    .ceo-content { padding-left: 8px; padding-right: 8px; }
+    .ceo-header { padding: 16px 24px 10px; }
+    .finanzas { padding-left: 8px; padding-right: 8px; }
+
+    /* ── Sheets / modales como diálogos centrados (en mobile son bottom-sheets) ── */
+    .edit-overlay { align-items: center; }
+    .edit-sheet { max-width: 560px; border-radius: 16px; max-height: 88vh; margin: 0 auto; }
+    .edit-sheet-handle { display: none; }
+
+    /* ── Operario / login: no se estiran feo a 1400px ── */
+    .services-list, .services-header { max-width: 760px; margin-left: auto; margin-right: auto; }
+
+    /* ── Pulido "más lindo": hover en cards (no existe en mobile) ── */
+    .coord-service-card, .kb-card, .service-card, .cal-event { transition: border-color 0.15s, box-shadow 0.15s; }
+    .coord-service-card:hover,
+    .kb-card:hover,
+    .service-card:hover,
+    .cal-event:hover { border-color: var(--green); box-shadow: 0 2px 10px rgba(0,0,0,0.06); cursor: pointer; }
+
+    /* Botones / tabs cómodos al puntero */
+    .coord-tab, .ceo-tab, .coord-view-toggle button,
+    .coord-tool-btn, .coord-sort-select { cursor: pointer; }
+    .coord-tab:hover, .ceo-tab:hover { color: var(--text2); }
+    .coord-view-toggle button:hover { border-color: var(--green); }
+  }
 </style>
 </head>
 <body>
