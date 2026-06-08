@@ -858,6 +858,16 @@ body::before {
   .svc-qv-row { display: flex; justify-content: space-between; gap: 12px; padding: 9px 16px; font-size: 13px; border-bottom: 1px solid var(--border); }
   .svc-qv-k { color: var(--text3); }
   .svc-qv-v { font-weight: 700; text-align: right; }
+  .rep-intro { font-size: 12.5px; color: var(--text3); margin-bottom: 12px; }
+  .rep-btn { width: 100%; display: flex; align-items: center; gap: 12px; text-align: left; background: var(--card, #fff); border: 1px solid var(--border); border-radius: 12px; padding: 14px; margin-bottom: 10px; cursor: pointer; font-family: 'Exo 2', sans-serif; }
+  .rep-ic { font-size: 24px; flex-shrink: 0; }
+  .rep-tx { display: flex; flex-direction: column; }
+  .rep-t { font-size: 14px; font-weight: 800; color: var(--text); }
+  .rep-s { font-size: 11.5px; color: var(--text3); margin-top: 2px; }
+  .rep-back { background: none; border: none; color: var(--green); font-family: 'Exo 2', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; padding: 0; }
+  .rep-svc { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 10px; background: var(--card, #fff); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; margin-bottom: 8px; cursor: pointer; font-family: 'Exo 2', sans-serif; }
+  .rep-svc-n { font-size: 13px; font-weight: 700; color: var(--text); text-align: left; }
+  .rep-svc-f { font-size: 12px; color: var(--text3); white-space: nowrap; }
   .equipo-card { display: flex; align-items: center; gap: 14px; padding: 14px 16px; border-bottom: 1px solid var(--border); }
   .equipo-emoji { font-size: 28px; }
   .equipo-name { font-size: 14px; font-weight: 600; }
@@ -1277,6 +1287,7 @@ body::before {
     <div class="ceo-tab active" id="ftab-resumen" onclick="setFinanzasTab('resumen')">📊 Resumen</div>
     <div class="ceo-tab" id="ftab-gastos" data-i18n="finanzas.tab.gastos" onclick="setFinanzasTab('gastos')">💸 Gastos</div>
     <div class="ceo-tab" id="ftab-ingresos" data-i18n="finanzas.tab.ingresos" onclick="setFinanzasTab('ingresos')">💵 Ingresos</div>
+    <div class="ceo-tab" id="ftab-reportes" onclick="setFinanzasTab('reportes')">📊 Reportes</div>
   </div>
   <div class="ceo-content" id="finanzas-content">
     <div style="text-align:center;padding:40px 0"><div class="spinner" style="margin:0 auto"></div></div>
@@ -3351,7 +3362,7 @@ async function fetchIngresosForMonth() {
 function setFinanzasTab(tab) {
   activeFinanzasTab = tab;
   markUserActive();
-  ['resumen', 'gastos', 'ingresos'].forEach(t => {
+  ['resumen', 'gastos', 'ingresos', 'reportes'].forEach(t => {
     const el = document.getElementById('ftab-' + t);
     if (el) el.classList.toggle('active', t === tab);
   });
@@ -3365,7 +3376,8 @@ function setFinanzasTab(tab) {
     _ceoRerender = renderCEOFinanzas;
     renderCEOFinanzas();
   } else if (tab === 'gastos') renderGastosList();
-  else renderIngresosList();
+  else if (tab === 'ingresos') renderIngresosList();
+  else renderReportes();
 }
 
 async function renderGastosList() {
@@ -3514,19 +3526,116 @@ function renderIngresosListInner() {
   content.innerHTML = filtersHTML + (cards || empty) + cargarMas;
 }
 
-function renderReportesShell() {
+function renderReportes() {
   const content = document.getElementById('finanzas-content');
-  content.innerHTML = `
-    <div style="padding:20px">
-      <div class="hint hint-blue" style="margin-bottom:16px">${t('finanzas.reportes.intro')}</div>
-      <div class="reportes-grid">
-        <button class="reporte-btn" disabled>📄 ${t('finanzas.reportes.semanal')}</button>
-        <button class="reporte-btn" disabled>📅 ${t('finanzas.reportes.mensual')}</button>
-        <button class="reporte-btn" disabled>📊 ${t('finanzas.reportes.servicio')}</button>
-      </div>
-      <div style="font-size:11px;color:var(--text3);margin-top:12px;text-align:center">${t('finanzas.reportes.disabled')}</div>
-    </div>
-  `;
+  content.innerHTML =
+    '<div style="padding:14px 16px">' +
+      '<div class="rep-intro">Generá un PDF con un toque — se descarga directo. (Datos de Uruguay.)</div>' +
+      '<button class="rep-btn" onclick="generateFinanceReportPDF(\'semana\', this)"><span class="rep-ic">📄</span><span class="rep-tx"><span class="rep-t">Reporte semanal</span><span class="rep-s">Entradas, salidas y saldo de los últimos 7 días</span></span></button>' +
+      '<button class="rep-btn" onclick="generateFinanceReportPDF(\'mes\', this)"><span class="rep-ic">📅</span><span class="rep-tx"><span class="rep-t">Reporte mensual</span><span class="rep-s">Estado de cuenta del mes en curso</span></span></button>' +
+      '<button class="rep-btn" onclick="openServicePickerForReport()"><span class="rep-ic">📊</span><span class="rep-tx"><span class="rep-t">Reporte por servicio</span><span class="rep-s">Elegí un servicio completado y bajá su PDF</span></span></button>' +
+    '</div>';
+}
+
+// Reporte financiero (estado de cuenta del período) en PDF con jsPDF. Uruguay, UY$/USD separados.
+async function generateFinanceReportPDF(tipo, btn) {
+  const orig = btn ? btn.style.opacity : null;
+  if (btn) { btn.style.opacity = '0.55'; btn.disabled = true; }
+  try {
+    const JS = await ensureJsPDF();
+    if (!JS) { alert(t('pdf.notloaded')); return; }
+    const now = new Date();
+    const iso = (d) => d.toISOString().slice(0, 10);
+    const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+    let start, end, periodoLabel;
+    if (tipo === 'semana') {
+      const d0 = new Date(now); d0.setDate(d0.getDate() - 6);
+      start = iso(d0); end = iso(now); periodoLabel = 'Semana ' + start + ' a ' + end;
+    } else {
+      start = iso(new Date(now.getFullYear(), now.getMonth(), 1));
+      end = iso(new Date(now.getFullYear(), now.getMonth() + 1, 0));
+      periodoLabel = MESES[now.getMonth()] + ' ' + now.getFullYear();
+    }
+    const paisF = { or: [{ property: 'País', select: { equals: '🇺🇾 UY' } }, { property: 'País', select: { is_empty: true } }] };
+    const mkF = () => ({ and: [paisF, { property: 'Fecha', date: { on_or_after: start } }, { property: 'Fecha', date: { on_or_before: end } }] });
+    const [gas, ing] = await Promise.all([
+      callNotionAll('databases/1e20cdabad5d41528d070ed2f6e9dad3/query', { filter: mkF() }),
+      callNotionAll('databases/d1e15376e83a408a8a52f47da33c249a/query', { filter: mkF() }),
+    ]);
+    const ingS = sumByMoneda(ing.results, 'ingreso'), gasS = sumByMoneda(gas.results, 'gasto');
+    const sal = { uyu: ingS.uyu - gasS.uyu, usd: ingS.usd - gasS.usd };
+    const groupBy = (results, kind, prop, def) => { const o = {}; (results || []).forEach(r => { const c = (r.properties?.[prop]?.select?.name) || def; const { esUY, monto } = montoOf(r.properties || {}, kind); o[c] = o[c] || { uyu: 0, usd: 0 }; if (esUY) o[c].uyu += monto; else o[c].usd += monto; }); return o; };
+    const gasCat = groupBy(gas.results, 'gasto', 'Categoría', 'Otros');
+    const ingTipo = groupBy(ing.results, 'ingreso', 'Tipo', 'Otro');
+    const clean = (s) => String(s || '').replace(/[\p{Extended_Pictographic}\u{1F1E6}-\u{1F1FF}️‍]/gu, '').replace(/\s+/g, ' ').trim();
+    const fM = (n, esUY) => (esUY ? 'UY$ ' : 'USD ') + Math.abs(n).toLocaleString(esUY ? 'es-UY' : 'en-US', { maximumFractionDigits: esUY ? 0 : 2 });
+    const splitStr = (s, sign) => { const p = []; if (s.uyu) p.push((sign || '') + fM(s.uyu, true)); if (s.usd) p.push((sign || '') + fM(s.usd, false)); return p.join('   ') || (sign || '') + fM(0, true); };
+
+    const doc = new JS({ unit: 'mm', format: 'a4' });
+    const PW = 210, M = 14, BOT = 285; let y = 0;
+    const newPageIf = (need) => { if (y + need > BOT) { doc.addPage(); y = 18; } };
+    doc.setFillColor(0, 201, 141); doc.rect(0, 0, PW, 38, 'F');
+    doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold');
+    doc.setFontSize(26); doc.text('FlyClean', M, 18);
+    doc.setFontSize(14); doc.text('Reporte financiero', M, 28);
+    doc.setFontSize(9); doc.setFont('helvetica', 'normal');
+    doc.text(periodoLabel, PW - M, 14, { align: 'right' });
+    doc.text('Uruguay', PW - M, 19, { align: 'right' });
+    y = 48;
+    const section = (title) => { newPageIf(12); doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(0, 165, 120); doc.text(title.toUpperCase(), M, y); doc.setDrawColor(179, 237, 217); doc.setLineWidth(0.3); doc.line(M, y + 1.5, PW - M, y + 1.5); y += 7; };
+    const row = (label, value, opts = {}) => { if (value == null || value === '') return; newPageIf(8); doc.setFont('helvetica', 'normal'); doc.setFontSize(opts.big ? 12 : 10.5); const c = opts.color || [70, 107, 94]; doc.setTextColor(c[0], c[1], c[2]); doc.text(String(label), M, y); doc.setFont('helvetica', 'bold'); if (!opts.color) doc.setTextColor(20, 31, 25); doc.text(String(value), PW - M, y, { align: 'right' }); y += opts.big ? 8.5 : 6; doc.setDrawColor(232, 240, 236); doc.setLineWidth(0.2); doc.line(M, y - 2, PW - M, y - 2); };
+
+    section('Estado de cuenta · ' + periodoLabel);
+    row('Entradas', splitStr(ingS, '+'), { color: [0, 150, 100] });
+    row('Salidas', splitStr(gasS, '-'), { color: [200, 60, 60] });
+    row('SALDO', splitStr(sal), { big: true, color: (sal.uyu >= 0 && sal.usd >= 0) ? [0, 150, 100] : [200, 60, 60] });
+    row('Movimientos', (ing.results || []).length + ' cobros  ·  ' + (gas.results || []).length + ' gastos');
+
+    section('Gastos por rubro');
+    const gc = Object.entries(gasCat).sort((a, b) => (b[1].uyu + b[1].usd) - (a[1].uyu + a[1].usd));
+    if (!gc.length) row('—', 'Sin gastos en el período'); else gc.forEach(([k, v]) => row(clean(k), splitStr(v)));
+
+    section('Ingresos por tipo');
+    const it = Object.entries(ingTipo).sort((a, b) => (b[1].uyu + b[1].usd) - (a[1].uyu + a[1].usd));
+    if (!it.length) row('—', 'Sin ingresos en el período'); else it.forEach(([k, v]) => row(clean(k), splitStr(v)));
+
+    newPageIf(16); y += 6;
+    doc.setDrawColor(179, 237, 217); doc.line(M, y, PW - M, y); y += 6;
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(140, 150, 146);
+    doc.text('FlyClean · Generado el ' + now.toLocaleDateString('es-UY') + ' · UY$ y USD por separado (no se mezclan).', M, y);
+
+    doc.save('FlyClean_Reporte_' + tipo + '_' + end + '.pdf');
+  } catch (e) {
+    alert('No se pudo generar el reporte: ' + (e?.message || e));
+  } finally {
+    if (btn) { btn.style.opacity = orig || '1'; btn.disabled = false; }
+  }
+}
+
+// Picker de servicio completado → genera su PDF de devolución (reusa openReportStep).
+async function openServicePickerForReport() {
+  const content = document.getElementById('finanzas-content');
+  content.innerHTML = '<div style="text-align:center;padding:40px 0"><div class="spinner" style="margin:0 auto"></div></div>';
+  let res = null;
+  for (let i = 0; i < 6 && !res; i++) {
+    try { const d = await callNotion('databases/ccaf276c-7f6a-460c-aeb3-d2800deab2e5/query', 'POST', { page_size: 100 }); res = d.results || []; }
+    catch (e) { await new Promise(r => setTimeout(r, 1100)); }
+  }
+  if (activeFinanzasTab !== 'reportes') return;
+  if (!res) { content.innerHTML = '<div class="coord-empty" style="padding:20px">No se pudieron cargar los servicios. Reintentá.</div>'; return; }
+  const comp = res.filter(s => ((s.properties?.['Estado']?.select?.name) || '').includes('Completado'))
+    .sort((a, b) => ((b.properties?.['Fecha programada']?.date?.start) || '').localeCompare((a.properties?.['Fecha programada']?.date?.start) || ''));
+  window._repServicios = comp;
+  const cards = comp.map((s, i) => {
+    const nom = s.properties?.['Nombre del servicio']?.title?.[0]?.plain_text || '(servicio)';
+    const f = (s.properties?.['Fecha programada']?.date?.start || '').slice(0, 10);
+    return '<button class="rep-svc" onclick="pickServiceReport(' + i + ')"><span class="rep-svc-n">' + esc(nom) + '</span><span class="rep-svc-f">' + (f || '') + ' ›</span></button>';
+  }).join('') || '<div class="coord-empty">No hay servicios completados.</div>';
+  content.innerHTML = '<div style="padding:12px 16px"><button class="rep-back" onclick="setFinanzasTab(\'reportes\')">‹ Volver</button><div class="rep-intro" style="margin:10px 0 8px">Elegí un servicio para bajar su PDF de devolución:</div>' + cards + '</div>';
+}
+function pickServiceReport(i) {
+  const svc = (window._repServicios || [])[i];
+  if (svc) openReportStep(svc);
 }
 
 // Override de cargarMasCoord para finanzas

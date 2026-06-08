@@ -1,3 +1,4 @@
+// v29: Reportes financieros (Milestone 5) — PDF semanal/mensual (estado de cuenta) + por servicio. Tab Reportes de vuelta.
 // v28: quick-wins UX — 📍 lugar en card operario, 🔗 ver servicio (quick-view) en finanzas, miniatura recibo via /api/img.
 // v27: tab Gastos paginado (no se corta en 100) + limpieza de código muerto (buildReport*, html2pdf 885KB).
 // v26: filtro Uruguay incluye registros sin País (ingresos cargados sin el campo) → saldo correcto.
@@ -26,7 +27,7 @@
 // deploy live. Cache de Notion no necesita bump (solo cambió HTML).
 // v5: cambiar estrategia de Notion API de stale-while-revalidate a NETWORK-FIRST con timeout.
 
-const CACHE = 'flyclean-v28';
+const CACHE = 'flyclean-v29';
 const SHELL = [
   '/',
   '/index.html',
