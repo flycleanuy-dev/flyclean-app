@@ -551,6 +551,17 @@ body::before {
   .coord-service-meta { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
   .coord-tag { font-size: 11px; color: var(--text3); background: var(--bg); padding: 2px 7px; border-radius: 5px; }
   .coord-ops { font-size: 11px; color: var(--text2); margin-top: 6px; }
+  /* Tablero (Kanban) de servicios — Tarea 1 (vista base, sin arrastre) */
+  .coord-view-toggle { display: flex; gap: 6px; padding: 8px 16px 4px; background: var(--bg); }
+  .coord-view-toggle button { flex: 1; padding: 7px 10px; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text2); font-size: 12px; font-weight: 600; cursor: pointer; font-family: 'Exo 2', sans-serif; transition: all 0.15s; }
+  .coord-view-toggle button.active { background: var(--green-dark); border-color: var(--green); color: var(--green); }
+  .kb-board { display: flex; gap: 12px; overflow-x: auto; overflow-y: hidden; scroll-snap-type: x proximity; -webkit-overflow-scrolling: touch; padding: 12px 16px 24px; }
+  .kb-col { width: 84vw; max-width: 320px; flex-shrink: 0; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0 10px 10px; scroll-snap-align: start; }
+  .kb-col-head { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; gap: 6px; padding: 10px 4px 8px; background: var(--card); border-bottom: 1px solid var(--border); font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 8px; }
+  .kb-col-head .kb-count { color: var(--text3); font-weight: 600; font-size: 12px; }
+  .kb-col-empty { padding: 24px 8px; text-align: center; color: var(--text3); font-size: 13px; }
+  .kb-card { margin-bottom: 8px; }
+  .kb-card .coord-service-card { margin-bottom: 0; }
   .contact-search-wrap { padding: 10px 16px 0; }
   .contact-search { width: 100%; padding: 10px 14px; background: var(--card); border: 1px solid var(--border2); border-radius: var(--radius-sm); color: var(--text); font-size: 14px; font-family: 'Exo 2', sans-serif; outline: none; }
   .contact-search:focus { border-color: var(--green); }
@@ -1080,6 +1091,7 @@ body::before {
     </div>
     <div class="coord-filters-panel" id="coord-filters-panel" style="display:none"></div>
   </div>
+  <div id="coord-view-toggle" class="coord-view-toggle" style="display:none"></div>
   <div class="month-nav" id="coord-month-nav">
     <button class="month-nav-btn" onclick="changeCoordMonth(-1)">‹</button>
     <div class="month-nav-label" id="coord-month-label"></div>
@@ -4457,6 +4469,9 @@ function setCoordTab(tab) {
   if (strip) strip.style.display = 'none';
   const monthNav = document.getElementById('coord-month-nav');
   if (monthNav) monthNav.classList.toggle('visible', tab === 'servicios' || tab === 'relevamientos' || tab === 'pruebas');
+  // El toggle Lista/Tablero solo aplica a Servicios. Lo ocultamos por default; renderCoordServicios lo re-muestra.
+  const viewToggle = document.getElementById('coord-view-toggle');
+  if (viewToggle) viewToggle.style.display = tab === 'servicios' ? 'flex' : 'none';
 
   if (tab === 'servicios') renderCoordServicios();
   else if (tab === 'pruebas') renderCoordPruebas();
@@ -6025,6 +6040,8 @@ let coordFilters = {
 };
 let _coordFiltersPanelOpen = false;
 let _coordSearchTimer = null;
+// Vista de la pestaña Servicios del coord: 'list' (cronológica) o 'board' (Kanban por estado).
+let _coordView = localStorage.getItem('fc_coord_view') || 'list';
 
 function getActiveFilterCount() {
   let n = 0;
@@ -6180,7 +6197,9 @@ function renderCoordFiltersPanel() {
 }
 
 function rerenderActiveCoordTab() {
-  if (activeCoordTab === 'servicios' || activeCoordTab === 'relevamientos') {
+  if (activeCoordTab === 'servicios') {
+    renderCoordServiciosView(); // respeta el toggle Lista/Tablero
+  } else if (activeCoordTab === 'relevamientos') {
     renderCoordList();
   } else if (activeCoordTab === 'propuestas') {
     renderCoordPropuestasList();
@@ -6339,6 +6358,67 @@ function cargarMasCoord() {
   if (activeCoordTab === 'propuestas') renderCoordPropuestasList(true);
   else if (activeCoordTab === 'contactos') renderContactList(_coordAllContacts, true);
   else renderCoordList(true);
+}
+
+// Toggle Lista / Tablero (solo pestaña Servicios). Persiste la elección y re-renderiza.
+function setCoordView(v) {
+  _coordView = v;
+  localStorage.setItem('fc_coord_view', v);
+  markUserActive();
+  renderCoordServiciosView();
+}
+
+// Render del control segmentado + del cuerpo (lista o tablero) según _coordView.
+// Solo se usa desde la pestaña Servicios; Pruebas y Relevamientos siguen usando renderCoordList directo.
+function renderCoordServiciosView() {
+  const toggle = document.getElementById('coord-view-toggle');
+  if (toggle) {
+    toggle.style.display = 'flex';
+    toggle.innerHTML =
+      `<button class="${_coordView === 'list' ? 'active' : ''}" onclick="setCoordView('list')">📋 Lista</button>` +
+      `<button class="${_coordView === 'board' ? 'active' : ''}" onclick="setCoordView('board')">▣ Tablero</button>`;
+  }
+  if (_coordView === 'board') renderCoordKanban();
+  else renderCoordList();
+}
+
+// Tablero (Kanban) base — Tarea 1: 5 columnas por estado, scroll horizontal, SIN arrastre.
+// El cambio de estado (drag / "Mover a") es de otra tarea.
+function renderCoordKanban() {
+  const content = document.getElementById('coord-content');
+  if (!content) return;
+  const items = applyCoordFilters(_coordAllServices, { isProps: false });
+
+  // 5 columnas en orden fijo. El "núcleo" se matchea con includes() para tolerar
+  // variaciones de emoji en el nombre del estado guardado en Notion.
+  const columns = [
+    { estado: '📋 Pendiente',  core: 'Pendiente'  },
+    { estado: '🔄 Asignado',   core: 'Asignado'   },
+    { estado: '✈️ En curso',   core: 'curso'      },
+    { estado: '✅ Completado', core: 'Completado' },
+    { estado: '❌ Cancelado',  core: 'Cancelado'  },
+  ];
+  const buckets = columns.map(() => []);
+
+  items.forEach(it => {
+    const estado = it.properties?.['Estado']?.select?.name || '';
+    let idx = columns.findIndex(c => estado.includes(c.core));
+    if (idx === -1) idx = 0; // sin estado / desconocido → Pendiente
+    buckets[idx].push(it);
+  });
+
+  const cols = columns.map((c, i) => {
+    const list = buckets[i];
+    const cardsHTML = list.length
+      ? list.map(s => `<div class="kb-card" data-id="${esc(s.id)}" data-estado="${esc(c.estado)}">${coordServiceCard(s)}</div>`).join('')
+      : `<div class="kb-col-empty">—</div>`;
+    return `<div class="kb-col" data-estado="${esc(c.estado)}">
+      <div class="kb-col-head">${esc(c.estado)} <span class="kb-count">(${list.length})</span></div>
+      ${cardsHTML}
+    </div>`;
+  }).join('');
+
+  content.innerHTML = `<div class="kb-board">${cols}</div>`;
 }
 
 function renderCoordList(keepLimit) {
@@ -7364,7 +7444,9 @@ async function renderCoordServicios() {
     });
     if (!selectedCoordDay) selectedCoordDay = 'all';
     renderWeekStrip(_coordAllServices);
-    renderCoordList();
+    // El toggle Lista/Tablero solo se ve en Servicios. renderCoordServiciosView decide qué pintar.
+    document.getElementById('coord-view-toggle').style.display = 'flex';
+    renderCoordServiciosView();
     if (_coordFiltersPanelOpen) renderCoordFiltersPanel();
   } catch (e) {
     if (activeCoordTab !== myTab) return;
@@ -7376,6 +7458,7 @@ async function renderCoordPruebas() {
   const content = document.getElementById('coord-content');
   content.innerHTML = '<div style="text-align:center;padding:40px 0"><div class="spinner" style="margin:0 auto"></div></div>';
   document.getElementById('coord-week-strip').style.display = 'flex';
+  document.getElementById('coord-view-toggle').style.display = 'none'; // toggle Lista/Tablero solo en Servicios
   const myTab = 'pruebas';
   try {
     const items = await fetchCoordItemsForMonth();
@@ -7398,6 +7481,7 @@ async function renderCoordRelevamientos() {
   const content = document.getElementById('coord-content');
   content.innerHTML = '<div style="text-align:center;padding:40px 0"><div class="spinner" style="margin:0 auto"></div></div>';
   document.getElementById('coord-week-strip').style.display = 'flex';
+  document.getElementById('coord-view-toggle').style.display = 'none'; // toggle Lista/Tablero solo en Servicios
   const myTab = 'relevamientos';
   try {
     const items = await fetchCoordItemsForMonth();
