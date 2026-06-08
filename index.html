@@ -849,6 +849,15 @@ body::before {
   .ec-section-total { display: flex; justify-content: space-between; align-items: center; padding: 16px 16px 8px; font-size: 11px; font-weight: 800; color: var(--text3); letter-spacing: 0.5px; text-transform: uppercase; }
   .ec-section-total span:last-child { font-size: 13px; }
   .ver-mas { width: 100%; text-align: center; background: none; border: none; border-top: 1px dotted var(--border); color: var(--text3); font-family: 'Exo 2', sans-serif; font-size: 12px; font-weight: 600; padding: 8px; cursor: pointer; }
+  .fin-svc-link { background: none; border: none; color: var(--green); font-family: 'Exo 2', sans-serif; font-size: 11px; font-weight: 700; padding: 0; cursor: pointer; text-decoration: underline; }
+  .svc-qv-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 4000; align-items: center; justify-content: center; padding: 20px; }
+  .svc-qv-overlay.active { display: flex; }
+  .svc-qv-card { background: var(--card, #fff); border-radius: 14px; width: 100%; max-width: 340px; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.3); }
+  .svc-qv-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 14px 16px; font-size: 15px; font-weight: 800; border-bottom: 1px solid var(--border); }
+  .svc-qv-x { background: none; border: none; font-size: 18px; cursor: pointer; color: var(--text3); }
+  .svc-qv-row { display: flex; justify-content: space-between; gap: 12px; padding: 9px 16px; font-size: 13px; border-bottom: 1px solid var(--border); }
+  .svc-qv-k { color: var(--text3); }
+  .svc-qv-v { font-weight: 700; text-align: right; }
   .equipo-card { display: flex; align-items: center; gap: 14px; padding: 14px 16px; border-bottom: 1px solid var(--border); }
   .equipo-emoji { font-size: 28px; }
   .equipo-name { font-size: 14px; font-weight: 600; }
@@ -3628,7 +3637,8 @@ function renderReciboThumb(url) {
   if (isPdf) {
     return `<div class="gasto-recibo-pdf-thumb" title="PDF" onclick="event.stopPropagation();window.open('${safeUrl}','_blank')">📄</div>`;
   }
-  return `<img src="${safeUrl}" loading="lazy" class="gasto-recibo-thumb" onclick="event.stopPropagation();window.open('${safeUrl}','_blank')"/>`;
+  // src por el proxy same-origin /api/img (el <img> directo al CDN falla → miniatura rota).
+  return `<img src="/api/img?u=${encodeURIComponent(url)}" loading="lazy" class="gasto-recibo-thumb" onclick="event.stopPropagation();window.open('${safeUrl}','_blank')"/>`;
 }
 
 // Sube una foto del recibo a R2. Retorna { publicUrl }.
@@ -4450,6 +4460,7 @@ function renderServices(services) {
     const dateLocale = currentLang === 'pt-BR' ? 'pt-BR' : 'es-UY';
     const fechaFmt = fecha ? new Date(fecha + 'T00:00:00').toLocaleDateString(dateLocale, { day: 'numeric', month: 'short' }) : '';
     const horaFmt = (horaInicio && horaInicio.includes('T')) ? new Date(horaInicio).toTimeString().slice(0, 5) : '';
+    const lugar = props['Lugar']?.rich_text?.[0]?.plain_text || '';
 
     return `
       <div class="service-card ${estado.includes('Pendiente') ? '' : ''}" onclick="openService(${i})" data-idx="${i}">
@@ -4457,6 +4468,7 @@ function renderServices(services) {
         <div class="service-nombre">${isPrueba ? `<span class="service-prueba-badge">${t('prueba.badge')}</span>` : ''}${nombre}</div>
         <div class="service-meta">
           ${fechaFmt ? `<span class="service-tag">📅 ${fechaFmt}${horaFmt ? ' · ' + horaFmt : ''}</span>` : ''}
+          ${lugar ? `<span class="service-tag">📍 ${esc(lugar)}</span>` : ''}
           ${tipo ? `<span class="service-tag">${tipo}</span>` : ''}
           ${pais ? `<span class="service-tag">${pais}</span>` : ''}
         </div>
@@ -5640,6 +5652,32 @@ function buildFinanceChart(ingByMonth, gasByMonth, year, activeMonth) {
   return s;
 }
 
+// Quick-view del servicio vinculado a un gasto/ingreso (desde el estado de cuenta).
+async function openServicioQuickView(id) {
+  let ov = document.getElementById('svc-qv-overlay');
+  if (!ov) {
+    ov = document.createElement('div');
+    ov.id = 'svc-qv-overlay';
+    ov.className = 'svc-qv-overlay';
+    ov.addEventListener('click', (e) => { if (e.target === ov) ov.classList.remove('active'); });
+    document.body.appendChild(ov);
+  }
+  const close = '<button class="svc-qv-x" onclick="document.getElementById(\'svc-qv-overlay\').classList.remove(\'active\')">✕</button>';
+  ov.innerHTML = '<div class="svc-qv-card"><div style="text-align:center;padding:34px"><div class="spinner" style="margin:0 auto"></div></div></div>';
+  ov.classList.add('active');
+  try {
+    const data = await callNotion('pages/' + id, 'GET');
+    const p = data.properties || {};
+    const g = (k) => (p[k]?.title?.[0]?.plain_text) || (p[k]?.rich_text?.[0]?.plain_text) || (p[k]?.select?.name) || (p[k]?.date?.start) || '';
+    const nombre = g('Nombre del servicio') || '(servicio)';
+    const rows = [['Estado', g('Estado')], ['Tipo', g('Tipo de servicio')], ['Fecha', (g('Fecha programada') || '').slice(0, 10)], ['Lugar', g('Lugar')], ['Operario', g('Operario App')]].filter(x => x[1]);
+    ov.innerHTML = '<div class="svc-qv-card"><div class="svc-qv-head"><span>' + esc(nombre) + '</span>' + close + '</div>' +
+      (rows.map(x => '<div class="svc-qv-row"><span class="svc-qv-k">' + x[0] + '</span><span class="svc-qv-v">' + esc(x[1]) + '</span></div>').join('') || '<div class="svc-qv-row">— sin datos —</div>') + '</div>';
+  } catch (e) {
+    ov.innerHTML = '<div class="svc-qv-card"><div class="svc-qv-head"><span>Servicio</span>' + close + '</div><div class="svc-qv-row" style="color:var(--text3)">No se pudo cargar el servicio.</div></div>';
+  }
+}
+
 async function renderCEOFinanzas() {
   const content = document.getElementById(_ceoContentId);
   content.innerHTML = '<div style="text-align:center;padding:40px 0"><div class="spinner" style="margin:0 auto"></div></div>';
@@ -5684,20 +5722,23 @@ async function renderCEOFinanzas() {
 
     const itemHTML = (r, kind, color) => {
       const p = r.properties || {};
-      let titulo, sub;
+      let titulo, subParts, svcId;
       if (kind === 'gasto') {
         titulo = p['Concepto']?.title?.[0]?.plain_text || '(sin concepto)';
         const prov = p['Tienda / Proveedor']?.rich_text?.[0]?.plain_text || '';
         const fp = p['Forma de pago']?.select?.name || '';
-        const svc = (p['Servicio']?.relation || []).length ? '🔗 servicio' : '';
-        sub = [fechaCorta(p['Fecha']?.date?.start), prov, fp, svc].filter(Boolean).join(' · ');
+        svcId = p['Servicio']?.relation?.[0]?.id || '';
+        subParts = [fechaCorta(p['Fecha']?.date?.start), prov, fp];
       } else {
         titulo = p['Servicio']?.title?.[0]?.plain_text || p['Cliente']?.rich_text?.[0]?.plain_text || '(cobro)';
         const cli = p['Cliente']?.rich_text?.[0]?.plain_text || '';
-        const svc = (p['Servicio vinculado']?.relation || []).length ? '🔗 servicio' : '';
-        sub = [fechaCorta(p['Fecha']?.date?.start), cli, svc].filter(Boolean).join(' · ');
+        svcId = p['Servicio vinculado']?.relation?.[0]?.id || '';
+        subParts = [fechaCorta(p['Fecha']?.date?.start), cli];
       }
-      return '<div class="fin-detail-row"><div class="fin-detail-main"><div class="fin-detail-title">' + esc(titulo) + '</div>' + (sub ? '<div class="fin-detail-sub">' + esc(sub) + '</div>' : '') + '</div><div class="fin-detail-amt" style="color:' + color + '">' + fmt(amt(r, kind)) + '</div></div>';
+      const sub = subParts.filter(Boolean).join(' · ');
+      const svcBtn = svcId ? '<button class="fin-svc-link" onclick="event.stopPropagation();openServicioQuickView(\'' + esc(svcId) + '\')">🔗 ver servicio</button>' : '';
+      const subHTML = (sub || svcBtn) ? '<div class="fin-detail-sub">' + esc(sub) + (svcBtn ? (sub ? ' · ' : '') + svcBtn : '') + '</div>' : '';
+      return '<div class="fin-detail-row"><div class="fin-detail-main"><div class="fin-detail-title">' + esc(titulo) + '</div>' + subHTML + '</div><div class="fin-detail-amt" style="color:' + color + '">' + fmt(amt(r, kind)) + '</div></div>';
     };
     const renderGroups = (groups, kind, color, emptyMsg) => {
       const entries = Object.entries(groups).sort((a, b) => b[1].total - a[1].total);
