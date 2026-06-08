@@ -6145,7 +6145,7 @@ let coordFilters = {
 };
 let _coordFiltersPanelOpen = false;
 let _coordSearchTimer = null;
-// Vista de la pestaña Servicios del coord: 'list' (cronológica) o 'board' (Kanban por estado).
+// Vista de la pestaña Inicio del coord: 'list' (cronológica) o 'board' (Kanban por estado).
 let _coordView = localStorage.getItem('fc_coord_view') || 'list';
 
 function getActiveFilterCount() {
@@ -6468,7 +6468,7 @@ function cargarMasCoord() {
   else renderCoordList(true);
 }
 
-// Toggle Lista / Tablero (solo pestaña Servicios). Persiste la elección y re-renderiza.
+// Toggle Lista / Tablero (solo pestaña Inicio). Persiste la elección y re-renderiza.
 function setCoordView(v) {
   _coordView = v;
   localStorage.setItem('fc_coord_view', v);
@@ -6477,7 +6477,7 @@ function setCoordView(v) {
 }
 
 // Render del control segmentado + del cuerpo (lista o tablero) según _coordView.
-// Solo se usa desde la pestaña Servicios; Pruebas y Relevamientos siguen usando renderCoordList directo.
+// Solo se usa desde la pestaña Inicio; Pruebas y Relevamientos siguen usando renderCoordList directo.
 function renderCoordServiciosView() {
   const toggle = document.getElementById('coord-view-toggle');
   if (toggle) {
@@ -7989,7 +7989,7 @@ async function renderCoordPruebas() {
   const content = document.getElementById('coord-content');
   content.innerHTML = '<div style="text-align:center;padding:40px 0"><div class="spinner" style="margin:0 auto"></div></div>';
   document.getElementById('coord-week-strip').style.display = 'flex';
-  document.getElementById('coord-view-toggle').style.display = 'none'; // toggle Lista/Tablero solo en Servicios
+  document.getElementById('coord-view-toggle').style.display = 'none'; // toggle Lista/Tablero solo en Inicio
   const myTab = 'pruebas';
   try {
     const items = await fetchCoordItemsForMonth();
@@ -8012,7 +8012,7 @@ async function renderCoordRelevamientos() {
   const content = document.getElementById('coord-content');
   content.innerHTML = '<div style="text-align:center;padding:40px 0"><div class="spinner" style="margin:0 auto"></div></div>';
   document.getElementById('coord-week-strip').style.display = 'flex';
-  document.getElementById('coord-view-toggle').style.display = 'none'; // toggle Lista/Tablero solo en Servicios
+  document.getElementById('coord-view-toggle').style.display = 'none'; // toggle Lista/Tablero solo en Inicio
   const myTab = 'relevamientos';
   try {
     const items = await fetchCoordItemsForMonth();
