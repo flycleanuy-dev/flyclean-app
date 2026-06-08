@@ -1398,7 +1398,21 @@ function checkApkOutdated() {
   return compareVersions(apkVer, MIN_APK_VERSION_REQUIRED) < 0;
 }
 
-const DB_ID = 'ccaf276c-7f6a-460c-aeb3-d2800deab2e5';
+// ── Bases de Notion — ÚNICO lugar para cambiar al clonar a otro workspace/país. ──
+const NOTION_DBS = {
+  servicios:  'ccaf276c-7f6a-460c-aeb3-d2800deab2e5',
+  gastos:     '1e20cdab-ad5d-4152-8d07-0ed2f6e9dad3',
+  ingresos:   'd1e15376-e83a-408a-8a52-f47da33c249a',
+  propuestas: '2c0a4257-f429-4941-b994-dfebc1098633',
+  contactos:  '250115612de74e0582366549bbe5e389',
+  activos:    'e75449eeb78143f1b74006a4796c1f95',
+  equipo:     'cfff6e26dbc84eedb7eabcb6c51db1eb',
+  regTiempo:  '57bc613af5d04908a9f2342cf6a1a5a7',
+};
+const DB_ID = NOTION_DBS.servicios;
+const PROPUESTAS_DB_ID = NOTION_DBS.propuestas;
+const CONTACTOS_DB_ID = NOTION_DBS.contactos;
+const EQUIPO_DB_ID = NOTION_DBS.equipo;
 const USERS = [
   { id: 'diego-laxalt',      name: 'Diego Laxalt',       role: '🎯 Dirección',   emoji: '👨‍✈️', pin: '1234', notionId: '69fce11a-3828-4780-ba22-af79a887b9e3', country: 'Uruguay' },
   { id: 'federico-maciel',   name: 'Federico Maciel',    role: '🔧 Coordinador', emoji: '👷',  pin: '5678', notionId: null, country: 'Uruguay' },
@@ -3321,8 +3335,8 @@ async function loadFinanzas() {
 }
 
 let activeFinanzasTab = 'gastos';
-const GASTOS_DB_ID = '1e20cdab-ad5d-4152-8d07-0ed2f6e9dad3';
-const INGRESOS_DB_ID = 'd1e15376-e83a-408a-8a52-f47da33c249a';
+const GASTOS_DB_ID = NOTION_DBS.gastos;
+const INGRESOS_DB_ID = NOTION_DBS.ingresos;
 let _finanzasVisibleLimit = COORD_PAGE_SIZE;
 let _gastosCache = null;
 let _ingresosCache = null;
@@ -3559,8 +3573,8 @@ async function generateFinanceReportPDF(tipo, btn) {
     const paisF = { or: [{ property: 'País', select: { equals: '🇺🇾 UY' } }, { property: 'País', select: { is_empty: true } }] };
     const mkF = () => ({ and: [paisF, { property: 'Fecha', date: { on_or_after: start } }, { property: 'Fecha', date: { on_or_before: end } }] });
     const [gas, ing] = await Promise.all([
-      callNotionAll('databases/1e20cdabad5d41528d070ed2f6e9dad3/query', { filter: mkF() }),
-      callNotionAll('databases/d1e15376e83a408a8a52f47da33c249a/query', { filter: mkF() }),
+      callNotionAll(`databases/${GASTOS_DB_ID}/query`, { filter: mkF() }),
+      callNotionAll(`databases/${INGRESOS_DB_ID}/query`, { filter: mkF() }),
     ]);
     const ingS = sumByMoneda(ing.results, 'ingreso'), gasS = sumByMoneda(gas.results, 'gasto');
     const sal = { uyu: ingS.uyu - gasS.uyu, usd: ingS.usd - gasS.usd };
@@ -3623,7 +3637,7 @@ async function openServicePickerForReport() {
   let comp = [];
   for (let i = 0; i < 8 && !comp.length; i++) {
     let res = null;
-    try { const d = await callNotion('databases/ccaf276c-7f6a-460c-aeb3-d2800deab2e5/query', 'POST', { page_size: 100 }); res = d.results || []; }
+    try { const d = await callNotion(`databases/${DB_ID}/query`, 'POST', { page_size: 100 }); res = d.results || []; }
     catch (e) { res = null; }
     if (res && res.length) comp = res.filter(s => ((s.properties?.['Estado']?.select?.name) || '').includes('Completado'));
     if (!comp.length) await new Promise(r => setTimeout(r, 1100));
@@ -5471,19 +5485,19 @@ async function renderCEOMetricas() {
     // Servicios (multi-data-source → fallback de búsqueda, frágil bajo carga concurrente): se trae
     // SOLO, aparte y UNA vez por sesión (se cachea; no cambia por período) + reintento si vuelve vacío.
     if (!_ceoServiciosAll || !_ceoServiciosAll.length) {
-      let r = await callNotion('databases/ccaf276c-7f6a-460c-aeb3-d2800deab2e5/query', 'POST', { page_size: 100 });
-      if (!(r.results || []).length) { await new Promise(x => setTimeout(x, 600)); r = await callNotion('databases/ccaf276c-7f6a-460c-aeb3-d2800deab2e5/query', 'POST', { page_size: 100 }); }
+      let r = await callNotion(`databases/${DB_ID}/query`, 'POST', { page_size: 100 });
+      if (!(r.results || []).length) { await new Promise(x => setTimeout(x, 600)); r = await callNotion(`databases/${DB_ID}/query`, 'POST', { page_size: 100 }); }
       _ceoServiciosAll = r.results || [];
     }
     const svcAllData = { results: _ceoServiciosAll };
     // Finanzas paginadas + propuestas + contactos en paralelo.
     const [ingData, gasData, ingYearData, gasYearData, propData, contactData] = await Promise.all([
-      callNotionAll('databases/d1e15376e83a408a8a52f47da33c249a/query', { filter: dFilter(start, end) }),
-      callNotionAll('databases/1e20cdabad5d41528d070ed2f6e9dad3/query', { filter: dFilter(start, end) }),
-      callNotionAll('databases/d1e15376e83a408a8a52f47da33c249a/query', { filter: dFilter(yearStart, yearEnd) }),
-      callNotionAll('databases/1e20cdabad5d41528d070ed2f6e9dad3/query', { filter: dFilter(yearStart, yearEnd) }),
-      callNotion('databases/2c0a4257-f429-4941-b994-dfebc1098633/query', 'POST', { filter: propFilter }),
-      callNotion('databases/250115612de74e0582366549bbe5e389/query', 'POST', { filter: contactFilter })
+      callNotionAll(`databases/${INGRESOS_DB_ID}/query`, { filter: dFilter(start, end) }),
+      callNotionAll(`databases/${GASTOS_DB_ID}/query`, { filter: dFilter(start, end) }),
+      callNotionAll(`databases/${INGRESOS_DB_ID}/query`, { filter: dFilter(yearStart, yearEnd) }),
+      callNotionAll(`databases/${GASTOS_DB_ID}/query`, { filter: dFilter(yearStart, yearEnd) }),
+      callNotion(`databases/${PROPUESTAS_DB_ID}/query`, 'POST', { filter: propFilter }),
+      callNotion(`databases/${CONTACTOS_DB_ID}/query`, 'POST', { filter: contactFilter })
     ]);
 
     // Servicios: apply client-side country filter (search API fallback ignores server filter)
@@ -5601,7 +5615,7 @@ async function renderCEOServicios() {
     const now = new Date();
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
     const dateFilter = { property: 'Fecha programada', date: { on_or_after: monthStart } };
-    const data = await callNotion('databases/ccaf276c-7f6a-460c-aeb3-d2800deab2e5/query', 'POST', {
+    const data = await callNotion(`databases/${DB_ID}/query`, 'POST', {
       filter: cf ? { and: [cf, dateFilter] } : dateFilter,
       sorts: [{ property: 'Fecha programada', direction: 'descending' }]
     });
@@ -5818,10 +5832,10 @@ async function renderCEOFinanzas() {
 
     // PAGINADO (año/rango pueden tener >100 filas → si no, los totales quedan cortos).
     const [ingData, gasData, ingYear, gasYear] = await Promise.all([
-      callNotionAll('databases/d1e15376e83a408a8a52f47da33c249a/query', { filter: mkFilter(start, end, fcf) }),
-      callNotionAll('databases/1e20cdabad5d41528d070ed2f6e9dad3/query', { filter: mkFilter(start, end, fcf) }),
-      callNotionAll('databases/d1e15376e83a408a8a52f47da33c249a/query', { filter: mkFilter(yearStart, yearEnd, fcf) }),
-      callNotionAll('databases/1e20cdabad5d41528d070ed2f6e9dad3/query', { filter: mkFilter(yearStart, yearEnd, fcf) })
+      callNotionAll(`databases/${INGRESOS_DB_ID}/query`, { filter: mkFilter(start, end, fcf) }),
+      callNotionAll(`databases/${GASTOS_DB_ID}/query`, { filter: mkFilter(start, end, fcf) }),
+      callNotionAll(`databases/${INGRESOS_DB_ID}/query`, { filter: mkFilter(yearStart, yearEnd, fcf) }),
+      callNotionAll(`databases/${GASTOS_DB_ID}/query`, { filter: mkFilter(yearStart, yearEnd, fcf) })
     ]);
     _ceoDataTime = Date.now();
 
@@ -5937,7 +5951,7 @@ async function renderCEOEquipo() {
   const roleEmoji = { '🎯 Dirección': '🎯', '💼 Comercial': '💼', '✈️ Operario': '👨‍✈️', '📊 Administración': '📊', '🔧 Técnico': '🔧' };
   try {
     if (!_ceoEquipoCache) {
-      const data = await callNotion('databases/cfff6e26dbc84eedb7eabcb6c51db1eb/query', 'POST', { page_size: 100 });
+      const data = await callNotion(`databases/${EQUIPO_DB_ID}/query`, 'POST', { page_size: 100 });
       _ceoEquipoCache = data.results || [];
     }
     let members = _ceoEquipoCache.filter(m => (m.properties?.['Estado']?.select?.name || '✅ Activo') !== '❌ Inactivo');
@@ -6470,7 +6484,7 @@ function coordServiceCard(s) {
 async function fetchOperarioOptions() {
   if (_operarioOptions !== null) return _operarioOptions;
   try {
-    const data = await callNotion('databases/ccaf276c-7f6a-460c-aeb3-d2800deab2e5', 'GET');
+    const data = await callNotion(`databases/${DB_ID}`, 'GET');
     _operarioOptions = (data.properties?.['Operario App']?.select?.options || []).map(o => o.name);
   } catch (e) {
     _operarioOptions = USERS.map(u => u.name);
@@ -6660,8 +6674,8 @@ function closeCreateJornadaSheet() { document.getElementById('jornada-overlay').
 // La DB intermedia 'Registro de Uso de Equipo' (RUE) vincula Activos ↔ Servicios.
 // Cada page en RUE = 1 asignación de equipo a un servicio.
 
-const ACTIVOS_DB_ID = 'e75449eeb78143f1b74006a4796c1f95';
-const RUE_DB_ID = '57bc613af5d04908a9f2342cf6a1a5a7';
+const ACTIVOS_DB_ID = NOTION_DBS.activos;
+const RUE_DB_ID = NOTION_DBS.regTiempo;
 
 let _activosCache = null; // { items, byPais: Map<pais, items[]> }
 let _equiposDelServicio = []; // [{ rueId, activoId, activoName, activoTipo, activoSerie }]
@@ -7048,7 +7062,7 @@ async function fetchReportImg(cdnUrl) {
         cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
         const small = cv.toDataURL('image/jpeg', 0.82);
         if (small && small.length > 2000) return { url: small, dims: { w: cv.width, h: cv.height } };
-      } catch (_) {}
+      } catch (e) { console.warn('[reporte] no se pudo procesar la imagen:', e); }
     }
     return { url: origUrl, dims: { w: img.naturalWidth, h: img.naturalHeight } };
   } catch (_) { return null; }
@@ -7075,7 +7089,7 @@ async function openReportStep(svc) {
         const prop = await callNotion('pages/' + propId, 'GET');
         const imp = prop?.properties?.['Importe estimado']?.number;
         if (imp != null && reportStepState) reportStepState.monto = imp;
-      } catch (_) {}
+      } catch (e) { console.warn('[reporte] no se pudo traer el Importe estimado de la propuesta:', e); }
     }
     if (reportStepState) { reportStepState.loadingMonto = false; renderReportStep(); }
   }
@@ -7178,7 +7192,7 @@ async function generateReportPDF(svc, extra = {}) {
         const cp = c?.properties || {};
         // El título del contacto está en la property tipo "title" (en Notion es "Nombre / Empresa", no "Nombre").
         for (const k in cp) { const tt = cp[k]?.title; if (Array.isArray(tt) && tt.length) { clienteName = tt.map(x => x.plain_text).join('') || '—'; break; } }
-      } catch (_) {}
+      } catch (e) { console.warn('[reporte] no se pudo traer el nombre del cliente:', e); }
     }
 
     const fotosA = (isRelev ? fileUrls('📸 Fotos relevamiento') : fileUrls('📸 Fotos pre-servicio')).slice(0, 3);
@@ -7317,7 +7331,7 @@ async function fetchCoordItemsForMonth() {
       )
     ]
   };
-  const data = await callNotion('databases/ccaf276c-7f6a-460c-aeb3-d2800deab2e5/query', 'POST', {
+  const data = await callNotion(`databases/${DB_ID}/query`, 'POST', {
     filter,
     sorts: [{ property: 'Fecha programada', direction: 'ascending' }]
   });
@@ -7737,7 +7751,7 @@ async function savePropEdit() {
       if (propEditState.fechaEnvio) props['Fecha de envío'] = { date: { start: propEditState.fechaEnvio } };
       if (propEditState.ultimaInt) props['Última interacción'] = { date: { start: propEditState.ultimaInt } };
       if (propEditState.obs) props['Observaciones'] = { rich_text: [{ text: { content: propEditState.obs } }] };
-      await callNotion('pages', 'POST', { parent: { database_id: '2c0a4257-f429-4941-b994-dfebc1098633' }, properties: props });
+      await callNotion('pages', 'POST', { parent: { database_id: PROPUESTAS_DB_ID }, properties: props });
     } else {
       const props = {};
       if (propEditState.estado) props['Estado pipeline'] = { select: { name: propEditState.estado } };
@@ -7770,7 +7784,7 @@ async function renderCoordContactos() {
     const cf = getCountryFilter();
     const queryBody = { sorts: [{ property: 'Nombre / Empresa', direction: 'ascending' }] };
     if (cf) queryBody.filter = cf;
-    const data = await callNotion('databases/250115612de74e0582366549bbe5e389/query', 'POST', queryBody);
+    const data = await callNotion(`databases/${CONTACTOS_DB_ID}/query`, 'POST', queryBody);
     if (activeCoordTab !== myTab) return;
     _coordAllContacts = data.results || [];
     renderContactList(_coordAllContacts);
@@ -7976,7 +7990,7 @@ async function saveContactEdit() {
         alert(t('sheet.contact.error.nombre')); return;
       }
       props['Nombre / Empresa'] = { title: [{ text: { content: s.nombre.trim() } }] };
-      await callNotion('pages', 'POST', { parent: { database_id: '250115612de74e0582366549bbe5e389' }, properties: props });
+      await callNotion('pages', 'POST', { parent: { database_id: CONTACTOS_DB_ID }, properties: props });
     } else {
       await updateServiceProps(editingContact.id, props);
     }
@@ -8020,10 +8034,10 @@ async function loadContactHistory(contactId) {
 
   try {
     const [propRes, relevRes, svcRes, ingRes] = await Promise.all([
-      callNotion('databases/2c0a4257-f429-4941-b994-dfebc1098633/query', 'POST', { filter: propFilter }).catch(() => ({ results: [] })),
-      callNotion('databases/ccaf276c-7f6a-460c-aeb3-d2800deab2e5/query', 'POST', { filter: svcRelevFilter }).catch(() => ({ results: [] })),
-      callNotion('databases/ccaf276c-7f6a-460c-aeb3-d2800deab2e5/query', 'POST', { filter: svcCompletoFilter }).catch(() => ({ results: [] })),
-      callNotion('databases/d1e15376-e83a-408a-8a52-f47da33c249a/query', 'POST', { filter: ingresoFilter }).catch(() => ({ results: [] }))
+      callNotion(`databases/${PROPUESTAS_DB_ID}/query`, 'POST', { filter: propFilter }).catch(() => ({ results: [] })),
+      callNotion(`databases/${DB_ID}/query`, 'POST', { filter: svcRelevFilter }).catch(() => ({ results: [] })),
+      callNotion(`databases/${DB_ID}/query`, 'POST', { filter: svcCompletoFilter }).catch(() => ({ results: [] })),
+      callNotion(`databases/${INGRESOS_DB_ID}/query`, 'POST', { filter: ingresoFilter }).catch(() => ({ results: [] }))
     ]);
 
     // El proxy hace search fallback para Servicios (multi-source) que ignora el filter
@@ -8168,7 +8182,7 @@ async function renderCoordPropuestas() {
       { property: 'Estado pipeline', select: { does_not_equal: '😶 Sin respuesta' } }
     ];
     if (cf) andConditions.push(cf);
-    const data = await callNotion('databases/2c0a4257-f429-4941-b994-dfebc1098633/query', 'POST', {
+    const data = await callNotion(`databases/${PROPUESTAS_DB_ID}/query`, 'POST', {
       filter: { and: andConditions },
       sorts: [{ property: 'Última interacción', direction: 'descending' }]
     });
@@ -8313,7 +8327,7 @@ async function loadAlerts(role, bannerId) {
       ...(actFilter ? [actFilter] : []),
       { property: 'Próximo mantenimiento', date: { on_or_before: warnDate } }
     ]};
-    const actData = await callNotion('databases/e75449eeb78143f1b74006a4796c1f95/query', 'POST', {
+    const actData = await callNotion(`databases/${ACTIVOS_DB_ID}/query`, 'POST', {
       filter: pastDueFilter
     });
     (actData.results || []).forEach(r => {
@@ -8343,7 +8357,7 @@ async function loadAlerts(role, bannerId) {
           { property: 'Estado', select: { equals: '🔄 Asignado' } }
         ]}
       ]};
-      const svcData = await callNotion('databases/ccaf276c-7f6a-460c-aeb3-d2800deab2e5/query', 'POST', { filter: sinOpFilter });
+      const svcData = await callNotion(`databases/${DB_ID}/query`, 'POST', { filter: sinOpFilter });
       let sinOp = svcData.results || [];
       if (cf) {
         const notionVal = COUNTRY_NOTION_MAP[isCoord ? selectedCountry : ceoViewCountry === 'all' ? null : ceoViewCountry];
@@ -8363,7 +8377,7 @@ async function loadAlerts(role, bannerId) {
         ...(cf ? [cf] : []),
         { or: ESPERANDO.map(s => ({ property: 'Estado pipeline', select: { equals: s } })) }
       ]};
-      const propData = await callNotion('databases/2c0a4257-f429-4941-b994-dfebc1098633/query', 'POST', { filter: propFilter });
+      const propData = await callNotion(`databases/${PROPUESTAS_DB_ID}/query`, 'POST', { filter: propFilter });
       const vencidas = (propData.results || []).filter(r => {
         const dias = r.properties?.['Días sin respuesta']?.formula?.number;
         return dias != null && dias >= 15;
