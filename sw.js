@@ -28,12 +28,13 @@
 // Sin este bump los clientes con la PWA instalada seguirían viendo el index.html
 // viejo desde caché y el bug del modal de gasto se mantendría visible aun con el
 // deploy live. Cache de Notion no necesita bump (solo cambió HTML).
+// v36: PINs validados en el SERVIDOR (api/verify-pin) — ya NO viven en el código del cliente (auditoría #2).
 // v35: IDs de Notion centralizados en NOTION_DBS (clonar = editar 1 bloque) + logs en catches de fetch del reporte.
 // v34: FIX clave de cache del SW (usaba fragmento '#' que el navegador descarta → las consultas se pisaban con SWR). Ahora ?k= en el query. NOTION_CACHE v3.
 // v33: VELOCIDAD — SW vuelve a stale-while-revalidate (cache al instante + revalida en bg); proxy con timeout+reintento+429; operario auto-reintenta.
 // v5: cambiar estrategia de Notion API de stale-while-revalidate a NETWORK-FIRST con timeout.
 
-const CACHE = 'flyclean-v35';
+const CACHE = 'flyclean-v36';
 const SHELL = [
   '/',
   '/index.html',
