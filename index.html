@@ -565,6 +565,23 @@ body::before {
   /* Tarea 3 — arrastre long-press de cards entre columnas */
   .kb-card.dragging { opacity: 0.4; touch-action: none; } /* iOS: agarrada no compite con el scroll nativo */
   .kb-col.drop-target { border-color: var(--green); box-shadow: 0 0 0 2px var(--green) inset; }
+  /* ── Vista Calendario (3a vista del toggle) — grilla mensual estilo Notion ── */
+  .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
+  .cal-head { padding: 8px 8px 0; }
+  .cal-body { padding: 3px 8px 24px; }
+  .cal-weekday { text-align: center; font-size: 10px; font-weight: 700; color: var(--text3); text-transform: uppercase; padding: 4px 0; letter-spacing: 0.3px; }
+  .cal-cell { min-height: 64px; background: var(--card); border: 1px solid var(--border); border-radius: 7px; padding: 3px; overflow: hidden; display: flex; flex-direction: column; gap: 2px; }
+  .cal-cell.empty { background: transparent; border-color: transparent; }
+  .cal-cell.today { border-color: var(--green); box-shadow: 0 0 0 1px var(--green) inset; }
+  .cal-daynum { font-size: 11px; font-weight: 700; color: var(--text2); line-height: 1; padding: 2px 1px; }
+  .cal-cell.today .cal-daynum { color: var(--green); }
+  .cal-event { display: block; width: 100%; text-align: left; border: none; border-radius: 5px; padding: 2px 4px; font-size: 9.5px; line-height: 1.25; font-weight: 600; font-family: 'Exo 2', sans-serif; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cal-event .cal-event-time { font-weight: 700; opacity: 0.85; }
+  .cal-event.estado-pendiente { background: rgba(85,85,85,0.18); color: var(--text2); }
+  .cal-event.estado-asignado { background: var(--blue-dark); color: var(--blue); }
+  .cal-event.estado-en-curso { background: var(--purple-dark); color: var(--purple); }
+  .cal-event.estado-completado { background: var(--green-dark); color: var(--green); }
+  .cal-more { font-size: 9px; font-weight: 600; color: var(--text3); padding: 1px 4px; }
   .kb-ghost { position: fixed; z-index: 9999; pointer-events: none; opacity: 0.95; transform: scale(1.03); box-shadow: 0 10px 28px rgba(0,0,0,0.45); border-radius: var(--radius-sm); will-change: left, top; }
   .kb-ghost .kb-move-btn { display: none; }
   /* Botón "Mover" discreto en la esquina de la card del tablero (Tarea 2) */
@@ -6392,10 +6409,86 @@ function renderCoordServiciosView() {
     toggle.style.display = 'flex';
     toggle.innerHTML =
       `<button class="${_coordView === 'list' ? 'active' : ''}" onclick="setCoordView('list')">📋 Lista</button>` +
-      `<button class="${_coordView === 'board' ? 'active' : ''}" onclick="setCoordView('board')">▣ Tablero</button>`;
+      `<button class="${_coordView === 'board' ? 'active' : ''}" onclick="setCoordView('board')">▣ Tablero</button>` +
+      `<button class="${_coordView === 'calendar' ? 'active' : ''}" onclick="setCoordView('calendar')">📅 Calendario</button>`;
   }
+  // El week-strip duplica info del calendario → lo ocultamos en esa vista; lo restauramos en list/board.
+  const strip = document.getElementById('coord-week-strip');
+  if (strip) strip.style.display = _coordView === 'calendar' ? 'none' : 'flex';
   if (_coordView === 'board') renderCoordKanban();
+  else if (_coordView === 'calendar') renderCoordCalendar();
   else renderCoordList();
+}
+
+// Vista Calendario — grilla mensual de 7 columnas (estilo Notion básico). Usa el mes activo
+// (coordMonthOffset, vía getCoordMonthRange), respeta los filtros del coord y linkea cada
+// evento a openEditSheet. Pinta en #coord-content (scroll vertical natural del contenedor).
+function renderCoordCalendar() {
+  const content = document.getElementById('coord-content');
+  if (!content) return;
+  const { base } = getCoordMonthRange();
+  const y = base.getFullYear();
+  const m = base.getMonth();
+
+  // Filtramos con los mismos filtros que list/board y agrupamos por Fecha programada.
+  const items = applyCoordFilters(_coordAllServices, { isProps: false });
+  const byDay = {};
+  items.forEach(s => {
+    const f = s.properties?.['Fecha programada']?.date?.start;
+    if (!f) return;
+    (byDay[f] = byDay[f] || []).push(s);
+  });
+  // Orden dentro de cada día por hora programada (sin hora va al final).
+  const horaOf = s => {
+    const h = s.properties?.['Hora Inicio']?.date?.start;
+    return h ? new Date(h).toTimeString().slice(0, 5) : '';
+  };
+  // Orden por hora ascendente; los sin hora ('') van al final (sentinel '99:99' solo para ordenar).
+  const sortKey = s => horaOf(s) || '99:99';
+  Object.values(byDay).forEach(arr => arr.sort((a, b) => sortKey(a).localeCompare(sortKey(b))));
+
+  const dayNames = currentLang === 'pt-BR'
+    ? ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
+    : ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+
+  const firstWeekday = new Date(y, m, 1).getDay(); // 0=Dom
+  const daysInMonth = new Date(y, m + 1, 0).getDate();
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const todayISO = today.toISOString().split('T')[0];
+
+  const pad = n => String(n).padStart(2, '0');
+
+  const headHTML = dayNames.map(d => `<div class="cal-weekday">${d}</div>`).join('');
+
+  let cellsHTML = '';
+  // Celdas vacías para alinear el día 1 con su columna de semana.
+  for (let i = 0; i < firstWeekday; i++) cellsHTML += `<div class="cal-cell empty"></div>`;
+
+  for (let day = 1; day <= daysInMonth; day++) {
+    const iso = `${y}-${pad(m + 1)}-${pad(day)}`;
+    const isToday = iso === todayISO;
+    const evts = byDay[iso] || [];
+    const MAX = 3;
+    const shown = evts.slice(0, MAX);
+    const more = evts.length - shown.length;
+
+    const eventsHTML = shown.map(s => {
+      const estado = s.properties?.['Estado']?.select?.name || '';
+      const cls = getEstadoClass(estado);
+      const nombre = s.properties?.['Nombre del servicio']?.title?.[0]?.plain_text || '(sin nombre)';
+      const hora = horaOf(s);
+      const horaTxt = hora ? `<span class="cal-event-time">${hora}</span> ` : '';
+      return `<button type="button" class="cal-event ${cls}" onclick="openEditSheet('${esc(s.id)}')">${horaTxt}${esc(nombre)}</button>`;
+    }).join('');
+    const moreHTML = more > 0 ? `<div class="cal-more">+${more} más</div>` : '';
+
+    cellsHTML += `<div class="cal-cell${isToday ? ' today' : ''}">
+      <div class="cal-daynum">${day}</div>
+      ${eventsHTML}${moreHTML}
+    </div>`;
+  }
+
+  content.innerHTML = `<div class="cal-grid cal-head">${headHTML}</div><div class="cal-grid cal-body">${cellsHTML}</div>`;
 }
 
 // Estados del Kanban en orden fijo (con emoji, como se guardan en Notion). Única fuente
