@@ -1,3 +1,4 @@
+// v32: el picker reintenta hasta traer servicios COMPLETADOS (el search-fallback a veces devuelve sin Estado).
 // v31: el picker 'reporte por servicio' reintenta cuando la DB Servicios devuelve vacío (search-fallback bajo carga).
 // v30: fix signo del SALDO negativo en el PDF financiero (mostraba el valor absoluto).
 // v29: Reportes financieros (Milestone 5) — PDF semanal/mensual (estado de cuenta) + por servicio. Tab Reportes de vuelta.
@@ -29,7 +30,7 @@
 // deploy live. Cache de Notion no necesita bump (solo cambió HTML).
 // v5: cambiar estrategia de Notion API de stale-while-revalidate a NETWORK-FIRST con timeout.
 
-const CACHE = 'flyclean-v31';
+const CACHE = 'flyclean-v32';
 const SHELL = [
   '/',
   '/index.html',
