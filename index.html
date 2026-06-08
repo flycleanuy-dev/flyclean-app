@@ -128,6 +128,8 @@ body::before {
   .login-legal a { color: var(--text3); text-decoration: none; margin: 0 6px; }
   .login-legal a:hover { color: var(--green); }
   .login-version { text-align: center; margin-top: 6px; font-size: 10px; color: var(--text3); opacity: 0.5; letter-spacing: 0.5px; font-family: ui-monospace, 'SF Mono', Menlo, monospace; }
+  /* Cartelito de versión discreto, visible en TODAS las pantallas (esquina inferior izquierda). */
+  .app-version-badge { position: fixed; bottom: 4px; left: 6px; z-index: 5; font-size: 9px; color: var(--text3); opacity: 0.4; letter-spacing: 0.3px; font-family: ui-monospace, 'SF Mono', Menlo, monospace; pointer-events: none; }
   .login-version.outdated { color: #ff6b6b; opacity: 1; font-weight: 600; }
   .gps-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 10000; padding: 16px; backdrop-filter: blur(4px); }
   .gps-modal { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px 20px; max-width: 360px; width: 100%; text-align: center; }
@@ -892,6 +894,7 @@ body::before {
 <body>
 
 <div class="saving-bar" id="savingBar">✓ Guardado en Notion</div>
+<div class="app-version-badge" id="app-version-badge"></div>
 
 <!-- LOADING -->
 <div class="screen active" id="screen-loading">
@@ -1369,7 +1372,7 @@ body::before {
 // Versionado web/APK. Cuando cambie funcionalidad significativa de la web,
 // bump APP_VERSION. Cuando algo requiera versión mínima de APK, bump MIN_APK_VERSION_REQUIRED.
 // La app instalada (TWA) compara su versión nativa contra MIN_APK_VERSION_REQUIRED.
-const APP_VERSION = '1.0.0';
+const APP_VERSION = '1.1.0';
 const MIN_APK_VERSION_REQUIRED = '1.0.0';
 
 // Helper semver simple para comparar "x.y.z" (devuelve <0, 0, >0).
@@ -8475,6 +8478,9 @@ async function saveNewPin() {
 // INIT
 // ─────────────────────────────────────────────
 function renderVersionLabel() {
+  // Cartelito de versión visible en todas las pantallas.
+  const badge = document.getElementById('app-version-badge');
+  if (badge) badge.textContent = 'v' + APP_VERSION;
   const el = document.getElementById('login-version');
   if (!el) return;
   const apkVer = getApkInstalledVersion();

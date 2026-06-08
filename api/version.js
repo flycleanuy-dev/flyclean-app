@@ -4,7 +4,7 @@
 //   - cuál es la versión mínima de APK que el servidor requiere
 // Si el APK detecta que su versión nativa < minApkRequired, muestra "Actualizá la app".
 
-const APP_VERSION = '1.0.0';
+const APP_VERSION = '1.1.0';
 const MIN_APK_VERSION_REQUIRED = '1.0.0';
 
 export default function handler(req, res) {
