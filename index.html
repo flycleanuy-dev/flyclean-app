@@ -9,7 +9,7 @@
 <meta name="theme-color" content="#ffffff"/>
 <link rel="manifest" href="/manifest.json"/>
 <link rel="apple-touch-icon" href="/icon-192.png"/>
-<!-- html2pdf se aloja en /vendor y se carga on-demand (ensureHtml2pdf) solo al generar un PDF -->
+<!-- jsPDF se aloja en /vendor/jspdf.umd.min.js y se carga on-demand (ensureJsPDF) al generar un PDF -->
 <title>FlyClean</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Exo+2:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap');
@@ -1606,7 +1606,7 @@ const TRANSLATIONS = {
     'finanzas.tab.gastos': '💸 Gastos',
     'finanzas.tab.ingresos': '💵 Ingresos',
     'finanzas.tab.reportes': '📊 Reportes',
-    'finanzas.gastos.empty': '💸 Tab Gastos — pronto vas a poder cargar gastos con foto del recibo (Claude AI extrae los datos).',
+    'finanzas.gastos.empty': '💸 Cargá un gasto con la foto del recibo — la IA (Claude) extrae los datos automáticamente.',
     'finanzas.ingresos.empty': '💵 Tab Ingresos — lista de cobros del mes (pronto).',
     'finanzas.reportes.empty': '📊 Tab Reportes — generador de reportes PDF semanal/mensual (pronto).',
     'finanzas.gastos.total': '💸 Total gastos:',
@@ -2101,7 +2101,7 @@ const TRANSLATIONS = {
     'finanzas.tab.gastos': '💸 Despesas',
     'finanzas.tab.ingresos': '💵 Receitas',
     'finanzas.tab.reportes': '📊 Relatórios',
-    'finanzas.gastos.empty': '💸 Tab Despesas — em breve poderá registrar despesas com foto do recibo (Claude AI extrai os dados).',
+    'finanzas.gastos.empty': '💸 Registre uma despesa com a foto do recibo — a IA (Claude) extrai os dados automaticamente.',
     'finanzas.ingresos.empty': '💵 Tab Receitas — lista de cobranças do mês (em breve).',
     'finanzas.reportes.empty': '📊 Tab Relatórios — gerador de relatórios PDF semanal/mensal (em breve).',
     'finanzas.gastos.total': '💸 Total despesas:',
@@ -3325,16 +3325,15 @@ function currentYearMonth() {
 async function fetchGastosForMonth() {
   // Trae los gastos del mes actual. Para v1 sin filtro server-side de mes
   // (Notion devuelve max 100 sin paginar) — toda la lista del último mes.
-  const data = await callNotion(`databases/${GASTOS_DB_ID}/query`, 'POST', {
-    page_size: 100,
+  // Pagina TODO (antes se cortaba en 100 → faltaban gastos cuando hay >100).
+  const data = await callNotionAll(`databases/${GASTOS_DB_ID}/query`, {
     sorts: [{ property: 'Fecha', direction: 'descending' }]
   });
   return data.results || [];
 }
 
 async function fetchIngresosForMonth() {
-  const data = await callNotion(`databases/${INGRESOS_DB_ID}/query`, 'POST', {
-    page_size: 100,
+  const data = await callNotionAll(`databases/${INGRESOS_DB_ID}/query`, {
     sorts: [{ property: 'Fecha', direction: 'descending' }]
   });
   return data.results || [];
@@ -7132,398 +7131,6 @@ async function generateReportPDF(svc, extra = {}) {
 function generateReportPDFFromCEO(id) {
   const svc = (_ceoServiciosCache || []).find(s => s.id === id);
   if (svc) openReportStep(svc);
-}
-
-function buildReportServicio(svc) {
-  const props = svc.properties || {};
-  const fileUrls = (filesArr) => (filesArr || []).map(f => f.external?.url || f.file?.url).filter(Boolean);
-  const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-
-  const nombre = props['Nombre del servicio']?.title?.[0]?.plain_text || t('common.sinnombre');
-  const tipoServicio = props['Tipo de servicio']?.select?.name || props['Tipo de servicio']?.multi_select?.[0]?.name || '—';
-  const m2 = props['m² aproximados']?.number ?? props['m²']?.number ?? null;
-  const pais = props['País']?.select?.name || '—';
-  const fechaProg = props['Fecha programada']?.date?.start || '';
-  const estado = props['Estado']?.select?.name || '—';
-  const operario = props['Operario App']?.select?.name || (props['Operario(s)']?.people || []).map(p => p.name).join(', ') || '—';
-  const resultado = props['Resultado']?.select?.name || props['Resultado']?.rich_text?.[0]?.plain_text || '';
-
-  // Cliente: primer nombre de la relación Contactos (si existe)
-  let clienteName = '—';
-  const contactsRel = props['Contactos']?.relation || props['Contacto']?.relation || [];
-  if (contactsRel.length > 0) {
-    const cached = (typeof _coordAllContacts !== 'undefined' && Array.isArray(_coordAllContacts)) ? _coordAllContacts : [];
-    const found = cached.find(c => c.id === contactsRel[0].id);
-    if (found) {
-      clienteName = found.properties?.['Nombre']?.title?.[0]?.plain_text || found.properties?.['Name']?.title?.[0]?.plain_text || '—';
-    }
-  }
-
-  // Tiempos (best-effort: muchas posibles props)
-  const horaInicio = props['Hora de inicio']?.date?.start || props['Hora inicio']?.date?.start || '';
-  const horaFin = props['Hora de fin']?.date?.start || props['Hora fin']?.date?.start || '';
-  let duracionStr = '—';
-  if (horaInicio && horaFin) {
-    try {
-      const dms = new Date(horaFin) - new Date(horaInicio);
-      if (!isNaN(dms) && dms > 0) {
-        const totalMin = Math.round(dms / 60000);
-        const h = Math.floor(totalMin / 60);
-        const m = totalMin % 60;
-        duracionStr = (h ? h + 'h ' : '') + m + 'min';
-      }
-    } catch (_) {}
-  }
-
-  const fotosAntes = fileUrls(props['📸 Fotos pre-servicio']?.files);
-  const fotosDespues = fileUrls(props['📸 Fotos post-servicio']?.files);
-  const notas = props['Notas post-servicio']?.rich_text?.[0]?.plain_text || props['Notas']?.rich_text?.[0]?.plain_text || '';
-
-  const dateLocale = currentLang === 'pt-BR' ? 'pt-BR' : 'es-UY';
-  const fmtDate = (iso) => {
-    if (!iso) return '—';
-    try {
-      const d = new Date(iso.length === 10 ? iso + 'T00:00:00' : iso);
-      return d.toLocaleDateString(dateLocale, { day: '2-digit', month: '2-digit', year: 'numeric' });
-    } catch (_) { return iso; }
-  };
-  const fmtTime = (iso) => {
-    if (!iso) return '—';
-    try { return new Date(iso).toLocaleTimeString(dateLocale, { hour: '2-digit', minute: '2-digit' }); } catch (_) { return iso; }
-  };
-  const hoyFmt = new Date().toLocaleDateString(dateLocale, { day: '2-digit', month: '2-digit', year: 'numeric' });
-
-  const renderGallery = (urls) => {
-    if (!urls.length) return `<div style="font-size:11px;color:#8aada3;text-align:center;padding:16px 0;">—</div>`;
-    return urls.map(u => `<img src="${esc(u)}" style="width:100%;height:auto;display:block;border-radius:6px;margin-bottom:6px;object-fit:cover;max-height:90mm;" crossorigin="anonymous"/>`).join('');
-  };
-
-  const footerStr = t('pdf.footer').replace('{fecha}', hoyFmt);
-
-  return `
-  <div style="font-family:'Exo 2',sans-serif;color:#0d1f19;background:#fff;width:210mm;min-height:297mm;padding:0;margin:0;">
-    <style>
-      .pdf-h1 { font-size:24px;font-weight:700;color:#fff;margin:0;letter-spacing:-0.5px; }
-      .pdf-h2 { font-size:13px;font-weight:700;color:#00C98D;text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid #b3edd9;padding-bottom:4px;margin:18px 0 10px 0; }
-      .pdf-row { display:flex;justify-content:space-between;padding:4px 0;font-size:12px;border-bottom:1px dotted #ddeae4; }
-      .pdf-row span:first-child { color:#456b5e;font-weight:500; }
-      .pdf-row span:last-child { color:#0d1f19;font-weight:600;text-align:right; }
-      .pdf-col { width:48%;vertical-align:top; }
-      .pdf-col-title { font-size:11px;font-weight:700;color:#fff;background:#0d1f19;padding:4px 8px;text-align:center;letter-spacing:1px;margin-bottom:8px;border-radius:4px; }
-      .pdf-notas { font-size:12px;line-height:1.5;color:#0d1f19;background:#f4f8f6;padding:12px;border-radius:8px;border:1px solid #ddeae4;white-space:pre-wrap; }
-      .pdf-footer { font-size:10px;color:#8aada3;text-align:center;border-top:1px solid #ddeae4;padding-top:10px;margin-top:24px; }
-    </style>
-
-    <!-- Header (verde) -->
-    <div style="background:#00C98D;color:#fff;padding:18mm 14mm;height:60mm;display:flex;flex-direction:column;justify-content:space-between;">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
-        <div style="font-size:28px;font-weight:700;letter-spacing:-1px;">FlyClean</div>
-        <div style="font-size:11px;text-align:right;opacity:0.95;">
-          <div style="opacity:0.85;">${esc(t('pdf.field.fecha'))}</div>
-          <div style="font-weight:600;">${esc(hoyFmt)}</div>
-        </div>
-      </div>
-      <div class="pdf-h1">${esc(t('pdf.title.servicio'))}</div>
-    </div>
-
-    <div style="padding:8mm 14mm 14mm 14mm;">
-      <!-- Datos generales -->
-      <div class="pdf-h2">${esc(t('pdf.section.datos'))}</div>
-      <div class="pdf-row"><span>${esc(t('pdf.field.cliente'))}</span><span>${esc(clienteName)}</span></div>
-      <div class="pdf-row"><span>${esc(t('pdf.field.servicio'))}</span><span>${esc(nombre)}</span></div>
-      <div class="pdf-row"><span>${esc(t('pdf.field.tipo'))}</span><span>${esc(tipoServicio)}</span></div>
-      <div class="pdf-row"><span>${esc(t('pdf.field.m2'))}</span><span>${m2 != null ? esc(m2) + ' m²' : '—'}</span></div>
-      <div class="pdf-row"><span>${esc(t('pdf.field.pais'))}</span><span>${esc(pais)}</span></div>
-      <div class="pdf-row"><span>${esc(t('pdf.field.fecha'))}</span><span>${esc(fmtDate(fechaProg))}</span></div>
-      <div class="pdf-row"><span>${esc(t('pdf.field.operario'))}</span><span>${esc(operario)}</span></div>
-
-      <!-- Tiempos -->
-      <div class="pdf-h2">${esc(t('pdf.section.tiempos'))}</div>
-      <div class="pdf-row"><span>${esc(t('pdf.field.inicio'))}</span><span>${esc(fmtTime(horaInicio))}</span></div>
-      <div class="pdf-row"><span>${esc(t('pdf.field.fin'))}</span><span>${esc(fmtTime(horaFin))}</span></div>
-      <div class="pdf-row"><span>${esc(t('pdf.field.duracion'))}</span><span>${esc(duracionStr)}</span></div>
-
-      <!-- Resultado -->
-      <div class="pdf-h2">${esc(t('pdf.section.resultado'))}</div>
-      <div class="pdf-row"><span>${esc(t('pdf.field.estado'))}</span><span>${esc(estado)}</span></div>
-      ${resultado ? `<div class="pdf-row"><span>${esc(t('pdf.field.resultado'))}</span><span>${esc(resultado)}</span></div>` : ''}
-
-      <!-- Galería antes/después -->
-      <div class="pdf-h2">${esc(t('pdf.section.fotos.antes'))} / ${esc(t('pdf.section.fotos.despues'))}</div>
-      <table style="width:100%;border-collapse:separate;border-spacing:8px 0;margin-top:4px;"><tr>
-        <td class="pdf-col">
-          <div class="pdf-col-title">${esc(t('pdf.section.fotos.antes'))}</div>
-          ${renderGallery(fotosAntes)}
-        </td>
-        <td class="pdf-col">
-          <div class="pdf-col-title">${esc(t('pdf.section.fotos.despues'))}</div>
-          ${renderGallery(fotosDespues)}
-        </td>
-      </tr></table>
-
-      <!-- Notas -->
-      ${notas ? `<div class="pdf-h2">${esc(t('pdf.section.notas'))}</div><div class="pdf-notas">${esc(notas)}</div>` : ''}
-
-      <!-- Footer -->
-      <div class="pdf-footer">${esc(footerStr)}</div>
-    </div>
-  </div>
-  `;
-}
-
-function buildReportRelevamiento(svc) {
-  const props = svc.properties || {};
-  const fileUrls = (filesArr) => (filesArr || []).map(f => f.external?.url || f.file?.url).filter(Boolean);
-  const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-
-  const m2 = props['m² aproximados']?.number ?? props['m²']?.number ?? null;
-  const fechaProg = props['Fecha programada']?.date?.start || '';
-  const operario = props['Operario App']?.select?.name || (props['Operario(s)']?.people || []).map(p => p.name).join(', ') || '—';
-  const altura = props['Altura / Pisos']?.number;
-
-  // Cliente: primer nombre de la relación Contactos (si existe)
-  let clienteName = '—';
-  const contactsRel = props['Contactos']?.relation || props['Contacto']?.relation || [];
-  if (contactsRel.length > 0) {
-    const cached = (typeof _coordAllContacts !== 'undefined' && Array.isArray(_coordAllContacts)) ? _coordAllContacts : [];
-    const found = cached.find(c => c.id === contactsRel[0].id);
-    if (found) {
-      clienteName = found.properties?.['Nombre']?.title?.[0]?.plain_text || found.properties?.['Name']?.title?.[0]?.plain_text || '—';
-    }
-  }
-
-  const dificultades = (props['Dificultad de acceso']?.multi_select || []).map(o => o.name).filter(Boolean);
-  const sugeridos = (props['Servicio sugerido']?.multi_select || []).map(o => o.name).filter(Boolean);
-  const fotos = fileUrls(props['📸 Fotos relevamiento']?.files);
-  const notasComercial = props['Notas pre-servicio']?.rich_text?.[0]?.plain_text || '';
-
-  const dateLocale = currentLang === 'pt-BR' ? 'pt-BR' : 'es-UY';
-  const fmtDate = (iso) => {
-    if (!iso) return '—';
-    try {
-      const d = new Date(iso.length === 10 ? iso + 'T00:00:00' : iso);
-      return d.toLocaleDateString(dateLocale, { day: '2-digit', month: '2-digit', year: 'numeric' });
-    } catch (_) { return iso; }
-  };
-  const hoyFmt = new Date().toLocaleDateString(dateLocale, { day: '2-digit', month: '2-digit', year: 'numeric' });
-
-  const renderGalleryGrid = (urls) => {
-    if (!urls.length) return `<div style="font-size:11px;color:#8aada3;text-align:center;padding:16px 0;">—</div>`;
-    const cells = urls.map(u => `<td style="width:50%;padding:4px;vertical-align:top;"><img src="${esc(u)}" style="width:100%;height:auto;display:block;border-radius:6px;object-fit:cover;max-height:80mm;" crossorigin="anonymous"/></td>`);
-    const rows = [];
-    for (let i = 0; i < cells.length; i += 2) {
-      rows.push(`<tr>${cells[i] || '<td></td>'}${cells[i + 1] || '<td></td>'}</tr>`);
-    }
-    return `<table style="width:100%;border-collapse:separate;border-spacing:0;margin-top:4px;">${rows.join('')}</table>`;
-  };
-
-  const renderCheckList = (items) => {
-    if (!items.length) return `<div style="font-size:11px;color:#8aada3;padding:6px 0;">—</div>`;
-    return `<ul style="list-style:none;padding:0;margin:6px 0 0 0;">${items.map(it => `<li style="font-size:12px;color:#0d1f19;padding:4px 0;"><span style="color:#00C98D;font-weight:700;margin-right:8px;">✓</span>${esc(it)}</li>`).join('')}</ul>`;
-  };
-
-  const renderPills = (items) => {
-    if (!items.length) return `<div style="font-size:11px;color:#8aada3;padding:6px 0;">—</div>`;
-    return `<div style="margin-top:6px;">${items.map(it => `<span style="display:inline-block;background:#e6faf2;color:#0d6b4f;border:1px solid #b3edd9;border-radius:999px;padding:4px 12px;font-size:11px;font-weight:600;margin:0 6px 6px 0;">${esc(it)}</span>`).join('')}</div>`;
-  };
-
-  const footerStr = t('pdf.footer').replace('{fecha}', hoyFmt);
-
-  return `
-  <div style="font-family:'Exo 2',sans-serif;color:#0d1f19;background:#fff;width:210mm;min-height:297mm;padding:0;margin:0;">
-    <style>
-      .pdf-h1 { font-size:24px;font-weight:700;color:#fff;margin:0;letter-spacing:-0.5px; }
-      .pdf-h2 { font-size:13px;font-weight:700;color:#00C98D;text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid #b3edd9;padding-bottom:4px;margin:18px 0 10px 0; }
-      .pdf-row { display:flex;justify-content:space-between;padding:4px 0;font-size:12px;border-bottom:1px dotted #ddeae4; }
-      .pdf-row span:first-child { color:#456b5e;font-weight:500; }
-      .pdf-row span:last-child { color:#0d1f19;font-weight:600;text-align:right; }
-      .pdf-notas-warn { font-size:12px;line-height:1.5;color:#0d1f19;background:#fff8e6;padding:12px;border-radius:8px;border:1px solid #b45309;white-space:pre-wrap; }
-      .pdf-notas-warn-title { font-size:13px;font-weight:700;color:#b45309;text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid #fde68a;padding-bottom:4px;margin:18px 0 10px 0; }
-      .pdf-footer { font-size:10px;color:#8aada3;text-align:center;border-top:1px solid #ddeae4;padding-top:10px;margin-top:24px; }
-    </style>
-
-    <!-- Header (verde) -->
-    <div style="background:#00C98D;color:#fff;padding:18mm 14mm;height:60mm;display:flex;flex-direction:column;justify-content:space-between;">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
-        <div style="font-size:28px;font-weight:700;letter-spacing:-1px;">FlyClean</div>
-        <div style="font-size:11px;text-align:right;opacity:0.95;">
-          <div style="opacity:0.85;">${esc(t('pdf.field.fecha'))}</div>
-          <div style="font-weight:600;">${esc(hoyFmt)}</div>
-        </div>
-      </div>
-      <div class="pdf-h1">${esc(t('pdf.title.relevamiento'))}</div>
-    </div>
-
-    <div style="padding:8mm 14mm 14mm 14mm;">
-      <!-- Datos del lugar -->
-      <div class="pdf-h2">${esc(t('pdf.relev.section.lugar'))}</div>
-      <div class="pdf-row"><span>${esc(t('pdf.field.cliente'))}</span><span>${esc(clienteName)}</span></div>
-      <div class="pdf-row"><span>${esc(t('pdf.field.fecha'))}</span><span>${esc(fmtDate(fechaProg))}</span></div>
-      <div class="pdf-row"><span>${esc(t('pdf.field.operario'))}</span><span>${esc(operario)}</span></div>
-      <div class="pdf-row"><span>${esc(t('pdf.field.m2'))}</span><span>${m2 != null ? esc(m2) + ' m²' : '—'}</span></div>
-      <div class="pdf-row"><span>${esc(t('pdf.relev.field.altura'))}</span><span>${altura != null ? esc(altura) : '—'}</span></div>
-
-      <!-- Dificultades de acceso -->
-      <div class="pdf-h2">${esc(t('pdf.relev.section.dificultades'))}</div>
-      ${renderCheckList(dificultades)}
-
-      <!-- Servicio sugerido -->
-      <div class="pdf-h2">${esc(t('pdf.relev.section.sugerido'))}</div>
-      ${renderPills(sugeridos)}
-
-      <!-- Fotos del relevamiento -->
-      <div class="pdf-h2">${esc(t('pdf.relev.section.fotos'))}</div>
-      ${renderGalleryGrid(fotos)}
-
-      <!-- Notas para el comercial (destacado) -->
-      ${notasComercial ? `<div class="pdf-notas-warn-title">${esc(t('pdf.relev.section.notas'))}</div><div class="pdf-notas-warn">${esc(notasComercial)}</div>` : ''}
-
-      <!-- Footer -->
-      <div class="pdf-footer">${esc(footerStr)}</div>
-    </div>
-  </div>
-  `;
-}
-
-function buildReportJornada(svc) {
-  const props = svc.properties || {};
-  const fileUrls = (filesArr) => (filesArr || []).map(f => f.external?.url || f.file?.url).filter(Boolean);
-  const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-
-  const fechaProg = props['Fecha programada']?.date?.start || '';
-  const operario = props['Operario App']?.select?.name || (props['Operario(s)']?.people || []).map(p => p.name).join(', ') || '—';
-  const jornadaN = props['Jornada N°']?.number;
-  const avance = props['% de avance']?.number;
-
-  // Cliente: primer nombre de la relación Contactos (si existe)
-  let clienteName = '—';
-  const contactsRel = props['Contactos']?.relation || props['Contacto']?.relation || [];
-  if (contactsRel.length > 0) {
-    const cached = (typeof _coordAllContacts !== 'undefined' && Array.isArray(_coordAllContacts)) ? _coordAllContacts : [];
-    const found = cached.find(c => c.id === contactsRel[0].id);
-    if (found) {
-      clienteName = found.properties?.['Nombre']?.title?.[0]?.plain_text || found.properties?.['Name']?.title?.[0]?.plain_text || '—';
-    }
-  }
-
-  // Orden madre: nombre del servicio padre (lookup en _coordAllServices)
-  let ordenMadreName = '—';
-  const ordenMadreRel = props['Orden madre']?.relation || [];
-  if (ordenMadreRel.length > 0) {
-    const cachedSvcs = (typeof _coordAllServices !== 'undefined' && Array.isArray(_coordAllServices)) ? _coordAllServices : [];
-    const foundSvc = cachedSvcs.find(s => s.id === ordenMadreRel[0].id);
-    if (foundSvc) {
-      ordenMadreName = foundSvc.properties?.['Nombre del servicio']?.title?.[0]?.plain_text || '—';
-    }
-  }
-
-  // Tiempos
-  const horaInicio = props['Hora de inicio']?.date?.start || props['Hora inicio']?.date?.start || '';
-  const horaFin = props['Hora de fin']?.date?.start || props['Hora fin']?.date?.start || '';
-  let duracionStr = '—';
-  if (horaInicio && horaFin) {
-    try {
-      const dms = new Date(horaFin) - new Date(horaInicio);
-      if (!isNaN(dms) && dms > 0) {
-        const totalMin = Math.round(dms / 60000);
-        const h = Math.floor(totalMin / 60);
-        const m = totalMin % 60;
-        duracionStr = (h ? h + 'h ' : '') + m + 'min';
-      }
-    } catch (_) {}
-  }
-
-  const fotosAntes = fileUrls(props['📸 Fotos pre-servicio']?.files);
-  const fotosDespues = fileUrls(props['📸 Fotos post-servicio']?.files);
-  const notas = props['Notas post-servicio']?.rich_text?.[0]?.plain_text || props['Notas']?.rich_text?.[0]?.plain_text || '';
-
-  const dateLocale = currentLang === 'pt-BR' ? 'pt-BR' : 'es-UY';
-  const fmtDate = (iso) => {
-    if (!iso) return '—';
-    try {
-      const d = new Date(iso.length === 10 ? iso + 'T00:00:00' : iso);
-      return d.toLocaleDateString(dateLocale, { day: '2-digit', month: '2-digit', year: 'numeric' });
-    } catch (_) { return iso; }
-  };
-  const fmtTime = (iso) => {
-    if (!iso) return '—';
-    try { return new Date(iso).toLocaleTimeString(dateLocale, { hour: '2-digit', minute: '2-digit' }); } catch (_) { return iso; }
-  };
-  const hoyFmt = new Date().toLocaleDateString(dateLocale, { day: '2-digit', month: '2-digit', year: 'numeric' });
-
-  const renderGallery = (urls) => {
-    if (!urls.length) return `<div style="font-size:11px;color:#8aada3;text-align:center;padding:16px 0;">—</div>`;
-    return urls.map(u => `<img src="${esc(u)}" style="width:100%;height:auto;display:block;border-radius:6px;margin-bottom:6px;object-fit:cover;max-height:90mm;" crossorigin="anonymous"/>`).join('');
-  };
-
-  const footerStr = t('pdf.footer').replace('{fecha}', hoyFmt);
-
-  return `
-  <div style="font-family:'Exo 2',sans-serif;color:#0d1f19;background:#fff;width:210mm;min-height:297mm;padding:0;margin:0;">
-    <style>
-      .pdf-h1 { font-size:24px;font-weight:700;color:#fff;margin:0;letter-spacing:-0.5px; }
-      .pdf-h2 { font-size:13px;font-weight:700;color:#00C98D;text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid #b3edd9;padding-bottom:4px;margin:18px 0 10px 0; }
-      .pdf-row { display:flex;justify-content:space-between;padding:4px 0;font-size:12px;border-bottom:1px dotted #ddeae4; }
-      .pdf-row span:first-child { color:#456b5e;font-weight:500; }
-      .pdf-row span:last-child { color:#0d1f19;font-weight:600;text-align:right; }
-      .pdf-col { width:48%;vertical-align:top; }
-      .pdf-col-title { font-size:11px;font-weight:700;color:#fff;background:#0d1f19;padding:4px 8px;text-align:center;letter-spacing:1px;margin-bottom:8px;border-radius:4px; }
-      .pdf-notas { font-size:12px;line-height:1.5;color:#0d1f19;background:#f4f8f6;padding:12px;border-radius:8px;border:1px solid #ddeae4;white-space:pre-wrap; }
-      .pdf-footer { font-size:10px;color:#8aada3;text-align:center;border-top:1px solid #ddeae4;padding-top:10px;margin-top:24px; }
-    </style>
-
-    <!-- Header (verde) -->
-    <div style="background:#00C98D;color:#fff;padding:18mm 14mm;height:60mm;display:flex;flex-direction:column;justify-content:space-between;">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
-        <div style="font-size:28px;font-weight:700;letter-spacing:-1px;">FlyClean</div>
-        <div style="font-size:11px;text-align:right;opacity:0.95;">
-          <div style="opacity:0.85;">${esc(t('pdf.field.fecha'))}</div>
-          <div style="font-weight:600;">${esc(hoyFmt)}</div>
-        </div>
-      </div>
-      <div class="pdf-h1">${esc(t('pdf.title.jornada'))}</div>
-    </div>
-
-    <div style="padding:8mm 14mm 14mm 14mm;">
-      <!-- Datos generales -->
-      <div class="pdf-h2">${esc(t('pdf.section.datos'))}</div>
-      <div class="pdf-row"><span>${esc(t('pdf.field.cliente'))}</span><span>${esc(clienteName)}</span></div>
-      <div class="pdf-row"><span>${esc(t('pdf.field.fecha'))}</span><span>${esc(fmtDate(fechaProg))}</span></div>
-      <div class="pdf-row"><span>${esc(t('pdf.field.operario'))}</span><span>${esc(operario)}</span></div>
-      <div class="pdf-row"><span>${esc(t('pdf.jornada.field.jornadan'))}</span><span>${jornadaN != null ? esc(jornadaN) : '—'}</span></div>
-      <div class="pdf-row"><span>${esc(t('pdf.jornada.field.avance'))}</span><span>${avance != null ? esc(avance) + '%' : '—'}</span></div>
-
-      <!-- Servicio asociado -->
-      <div class="pdf-h2">${esc(t('pdf.jornada.section.orden'))}</div>
-      <div class="pdf-row"><span>${esc(t('pdf.field.servicio'))}</span><span>${esc(ordenMadreName)}</span></div>
-
-      <!-- Tiempos -->
-      <div class="pdf-h2">${esc(t('pdf.section.tiempos'))}</div>
-      <div class="pdf-row"><span>${esc(t('pdf.field.inicio'))}</span><span>${esc(fmtTime(horaInicio))}</span></div>
-      <div class="pdf-row"><span>${esc(t('pdf.field.fin'))}</span><span>${esc(fmtTime(horaFin))}</span></div>
-      <div class="pdf-row"><span>${esc(t('pdf.field.duracion'))}</span><span>${esc(duracionStr)}</span></div>
-
-      <!-- Galería antes/después -->
-      <div class="pdf-h2">${esc(t('pdf.section.fotos.antes'))} / ${esc(t('pdf.section.fotos.despues'))}</div>
-      <table style="width:100%;border-collapse:separate;border-spacing:8px 0;margin-top:4px;"><tr>
-        <td class="pdf-col">
-          <div class="pdf-col-title">${esc(t('pdf.section.fotos.antes'))}</div>
-          ${renderGallery(fotosAntes)}
-        </td>
-        <td class="pdf-col">
-          <div class="pdf-col-title">${esc(t('pdf.section.fotos.despues'))}</div>
-          ${renderGallery(fotosDespues)}
-        </td>
-      </tr></table>
-
-      <!-- Notas -->
-      ${notas ? `<div class="pdf-h2">${esc(t('pdf.section.notas'))}</div><div class="pdf-notas">${esc(notas)}</div>` : ''}
-
-      <!-- Footer -->
-      <div class="pdf-footer">${esc(footerStr)}</div>
-    </div>
-  </div>
-  `;
 }
 
 async function fetchCoordItemsForMonth() {
