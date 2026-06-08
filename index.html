@@ -217,6 +217,14 @@ body::before {
     padding: 2px 7px; border-radius: 999px;
     vertical-align: middle; margin-right: 6px;
   }
+  /* Chip de tipo de registro — solo se muestra en la tab 🏠 Inicio (centro de mando),
+     donde conviven servicios + jornadas + pruebas + relevamientos en una misma lista. */
+  .coord-tipo-chip {
+    display: inline-block; font-size: 11px; font-weight: 600;
+    background: var(--card); border: 1px solid var(--border); color: var(--text2);
+    padding: 1px 7px; border-radius: 999px;
+    vertical-align: middle; margin-right: 6px; white-space: nowrap;
+  }
   .finanzas-filters { display: flex; gap: 8px; padding: 12px 16px 4px; flex-wrap: wrap; }
   .finanzas-filter-select { flex: 1; min-width: 140px; padding: 8px 10px; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); font-family: 'Exo 2', sans-serif; font-size: 12px; cursor: pointer; }
   .finanzas-summary { padding: 8px 16px 12px; font-size: 13px; color: var(--text2); border-bottom: 1px solid var(--border); margin-bottom: 4px; }
@@ -1162,7 +1170,8 @@ body::before {
     </div>
   </div>
   <div class="coord-tab-bar">
-    <div class="coord-tab active" id="ctab-servicios" data-i18n="coord.tab.servicios" onclick="setCoordTab('servicios')">📋 Servicios</div>
+    <div class="coord-tab active" id="ctab-inicio" data-i18n="coord.tab.inicio" onclick="setCoordTab('inicio')">🏠 Inicio</div>
+    <div class="coord-tab" id="ctab-servicios" data-i18n="coord.tab.servicios" onclick="setCoordTab('servicios')">📋 Servicios</div>
     <div class="coord-tab" id="ctab-pruebas" data-i18n="coord.tab.pruebas" onclick="setCoordTab('pruebas')">🧪 Pruebas</div>
     <div class="coord-tab" id="ctab-relevamientos" data-i18n="coord.tab.relevamientos" onclick="setCoordTab('relevamientos')">🔍 Relevamientos</div>
     <div class="coord-tab" id="ctab-propuestas" data-i18n="coord.tab.propuestas" onclick="setCoordTab('propuestas')">💼 Propuestas</div>
@@ -1700,6 +1709,7 @@ const TRANSLATIONS = {
     'done.stat.checklists': 'Checklists',
     'coord.brand.coord': 'Coordinador',
     'coord.brand.direccion': 'Dirección',
+    'coord.tab.inicio': '🏠 Inicio',
     'coord.tab.servicios': '📋 Servicios',
     'coord.tab.propuestas': '💼 Propuestas',
     'coord.tab.contactos': '👥 Contactos',
@@ -2195,6 +2205,7 @@ const TRANSLATIONS = {
     'done.stat.checklists': 'Checklists',
     'coord.brand.coord': 'Coordenador',
     'coord.brand.direccion': 'Direção',
+    'coord.tab.inicio': '🏠 Início',
     'coord.tab.servicios': '📋 Serviços',
     'coord.tab.propuestas': '💼 Propostas',
     'coord.tab.contactos': '👥 Contatos',
@@ -2616,7 +2627,8 @@ function rerenderActiveContent() {
       renderStepNav();
       renderStep();
     } else if (id === 'screen-coordinator' && currentUser) {
-      if (activeCoordTab === 'servicios') renderCoordServicios();
+      if (activeCoordTab === 'inicio') renderCoordInicio();
+      else if (activeCoordTab === 'servicios') renderCoordServicios();
       else if (activeCoordTab === 'pruebas') renderCoordPruebas();
       else if (activeCoordTab === 'relevamientos') renderCoordRelevamientos();
       else if (activeCoordTab === 'propuestas' && typeof renderCoordPropuestas === 'function') renderCoordPropuestas();
@@ -2735,7 +2747,7 @@ let currentStep = 0;
 let serviceState = {};
 let activeTab = 'ordenes';
 let _allServices = [];
-let activeCoordTab = 'servicios';
+let activeCoordTab = 'inicio';
 let selectedCoordDay = null;
 let coordMonthOffset = 0;
 // Paginación lazy del coord: solo se renderizan los primeros N items + botón "Cargar más".
@@ -4542,7 +4554,7 @@ function setTab(tab) {
 function setCoordTab(tab) {
   activeCoordTab = tab;
   markUserActive();
-  ['servicios', 'pruebas', 'relevamientos', 'propuestas', 'contactos', 'comunicaciones'].forEach(t => {
+  ['inicio', 'servicios', 'pruebas', 'relevamientos', 'propuestas', 'contactos', 'comunicaciones'].forEach(t => {
     const el = document.getElementById('ctab-' + t);
     if (el) el.classList.toggle('active', t === tab);
   });
@@ -4560,12 +4572,13 @@ function setCoordTab(tab) {
   const strip = document.getElementById('coord-week-strip');
   if (strip) strip.style.display = 'none';
   const monthNav = document.getElementById('coord-month-nav');
-  if (monthNav) monthNav.classList.toggle('visible', tab === 'servicios' || tab === 'relevamientos' || tab === 'pruebas');
-  // El toggle Lista/Tablero solo aplica a Servicios. Lo ocultamos por default; renderCoordServicios lo re-muestra.
+  if (monthNav) monthNav.classList.toggle('visible', tab === 'inicio' || tab === 'servicios' || tab === 'relevamientos' || tab === 'pruebas');
+  // El toggle Lista/Tablero solo aplica a Inicio (centro de mando). Lo ocultamos por default; renderCoordInicio lo re-muestra.
   const viewToggle = document.getElementById('coord-view-toggle');
-  if (viewToggle) viewToggle.style.display = tab === 'servicios' ? 'flex' : 'none';
+  if (viewToggle) viewToggle.style.display = tab === 'inicio' ? 'flex' : 'none';
 
-  if (tab === 'servicios') renderCoordServicios();
+  if (tab === 'inicio') renderCoordInicio();
+  else if (tab === 'servicios') renderCoordServicios();
   else if (tab === 'pruebas') renderCoordPruebas();
   else if (tab === 'relevamientos') renderCoordRelevamientos();
   else if (tab === 'propuestas') renderCoordPropuestas();
@@ -4591,7 +4604,7 @@ function logout() {
   currentService = null;
   currentStep = 0;
   activeTab = 'ordenes';
-  activeCoordTab = 'servicios';
+  activeCoordTab = 'inicio';
   _coordVisibleLimit = COORD_PAGE_SIZE;
   pinAttempts = 0;
   // M10 — Limpiar interval de processQueue. Se vuelve a crear al próximo login
@@ -6132,7 +6145,7 @@ let coordFilters = {
 };
 let _coordFiltersPanelOpen = false;
 let _coordSearchTimer = null;
-// Vista de la pestaña Servicios del coord: 'list' (cronológica) o 'board' (Kanban por estado).
+// Vista de la pestaña Inicio del coord: 'list' (cronológica) o 'board' (Kanban por estado).
 let _coordView = localStorage.getItem('fc_coord_view') || 'list';
 
 function getActiveFilterCount() {
@@ -6157,7 +6170,7 @@ function refreshCoordFilterBadge() {
 }
 
 function isCoordToolbarVisible(tab) {
-  return tab === 'servicios' || tab === 'relevamientos' || tab === 'propuestas' || tab === 'pruebas';
+  return tab === 'inicio' || tab === 'servicios' || tab === 'relevamientos' || tab === 'propuestas' || tab === 'pruebas';
 }
 
 function showCoordToolbar(tab) {
@@ -6289,9 +6302,9 @@ function renderCoordFiltersPanel() {
 }
 
 function rerenderActiveCoordTab() {
-  if (activeCoordTab === 'servicios') {
-    renderCoordServiciosView(); // respeta el toggle Lista/Tablero
-  } else if (activeCoordTab === 'relevamientos') {
+  if (activeCoordTab === 'inicio') {
+    renderCoordServiciosView(); // respeta el toggle Lista/Tablero/Calendario
+  } else if (activeCoordTab === 'servicios' || activeCoordTab === 'relevamientos' || activeCoordTab === 'pruebas') {
     renderCoordList();
   } else if (activeCoordTab === 'propuestas') {
     renderCoordPropuestasList();
@@ -6360,13 +6373,9 @@ async function loadCoordinator() {
   if (ceoBtnEl) ceoBtnEl.style.display = currentUser.role.includes('Dirección') ? 'block' : 'none';
   _operarioOptions = null;
   loadAlerts(currentUser.role, 'alerts-banner-coord');
-  activeCoordTab = 'servicios';
-  ['servicios', 'propuestas', 'contactos', 'comunicaciones'].forEach(t => {
-    const el = document.getElementById('ctab-' + t);
-    if (el) el.classList.toggle('active', t === 'servicios');
-  });
-  showCoordToolbar('servicios');
-  await renderCoordServicios();
+  // Arrancamos en 🏠 Inicio (centro de mando, tab default). setCoordTab deja todo
+  // consistente: tab activo, toolbar, month-nav, view-toggle visible y el render.
+  setCoordTab('inicio');
 }
 
 function getCoordMonthRange() {
@@ -6421,14 +6430,19 @@ function renderWeekStrip(services) {
 function changeCoordMonth(delta) {
   coordMonthOffset += delta;
   selectedCoordDay = 'all';
-  renderCoordServicios();
+  // El month-nav se ve en Inicio + Servicios + Pruebas + Relevamientos. Re-fetch del nuevo mes
+  // según la tab activa (cada una aplica su propio filtro de tipo; Inicio no filtra).
+  if (activeCoordTab === 'pruebas') renderCoordPruebas();
+  else if (activeCoordTab === 'relevamientos') renderCoordRelevamientos();
+  else if (activeCoordTab === 'servicios') renderCoordServicios();
+  else renderCoordInicio();
 }
 
 function setCoordDay(day) {
   selectedCoordDay = day;
   renderWeekStrip(_coordAllServices);
-  // En Servicios respetamos el toggle Lista/Tablero; el resto de tabs usa la lista cronológica.
-  if (activeCoordTab === 'servicios') renderCoordServiciosView();
+  // En Inicio respetamos el toggle Lista/Tablero/Calendario; el resto de tabs usa la lista cronológica.
+  if (activeCoordTab === 'inicio') renderCoordServiciosView();
   else renderCoordList();
 }
 
@@ -6454,7 +6468,7 @@ function cargarMasCoord() {
   else renderCoordList(true);
 }
 
-// Toggle Lista / Tablero (solo pestaña Servicios). Persiste la elección y re-renderiza.
+// Toggle Lista / Tablero (solo pestaña Inicio). Persiste la elección y re-renderiza.
 function setCoordView(v) {
   _coordView = v;
   localStorage.setItem('fc_coord_view', v);
@@ -6463,7 +6477,7 @@ function setCoordView(v) {
 }
 
 // Render del control segmentado + del cuerpo (lista o tablero) según _coordView.
-// Solo se usa desde la pestaña Servicios; Pruebas y Relevamientos siguen usando renderCoordList directo.
+// Solo se usa desde la pestaña Inicio; Pruebas y Relevamientos siguen usando renderCoordList directo.
 function renderCoordServiciosView() {
   const toggle = document.getElementById('coord-view-toggle');
   if (toggle) {
@@ -7031,12 +7045,22 @@ function coordServiceCard(s) {
   const tipoReg = props['Tipo de registro']?.select?.name || '';
   const esJornada = jornadaN != null || tipoReg.includes('Jornada');
   const esPrueba = tipoReg.includes('Prueba');
+  const esRelev = tipoReg.includes('Relevamiento');
+  // Chip de tipo: SOLO en 🏠 Inicio, donde conviven los 4 tipos en una misma lista.
+  // En las otras tabs todas las cards son del mismo tipo → el chip sería ruido.
+  // Para Prueba NO agregamos chip: ya lleva su badge rosa PRUEBA (evita doble distintivo).
+  let tipoChip = '';
+  if (activeCoordTab === 'inicio' && !esPrueba) {
+    if (esRelev) tipoChip = '<span class="coord-tipo-chip">🔍 Relevamiento</span>';
+    else if (esJornada) tipoChip = '<span class="coord-tipo-chip">🗓️ Jornada</span>';
+    else tipoChip = '<span class="coord-tipo-chip">🏢 Servicio</span>';
+  }
   const horaInicio = props['Hora Inicio']?.date?.start || '';
   const horaFmt = (horaInicio && horaInicio.includes('T')) ? new Date(horaInicio).toTimeString().slice(0, 5) : '';
   const lugar = props['Lugar']?.rich_text?.[0]?.plain_text || '';
   const estadoClass = estado.includes('Completado') ? 'estado-completado' : estado.includes('En curso') ? 'estado-en-curso' : estado.includes('Asignado') ? 'estado-asignado' : 'estado-pendiente';
   return `<div class="coord-service-card" style="cursor:pointer" onclick="openEditSheet('${esc(s.id)}')">
-    <div class="coord-service-name">${esPrueba ? `<span class="service-prueba-badge">${t('prueba.badge')}</span>` : ''}${nombreHTML}${esJornada && jornadaN != null ? ` <span style="color:var(--purple);font-size:12px">J${jornadaN}</span>` : ''}</div>
+    <div class="coord-service-name">${tipoChip}${esPrueba ? `<span class="service-prueba-badge">${t('prueba.badge')}</span>` : ''}${nombreHTML}${esJornada && jornadaN != null ? ` <span style="color:var(--purple);font-size:12px">J${jornadaN}</span>` : ''}</div>
     <div class="coord-service-meta"><span class="service-estado ${estadoClass}">${esc(estado)}</span>${horaFmt ? `<span class="coord-tag">🕐 ${esc(horaFmt)}</span>` : ''}${tipo ? `<span class="coord-tag">${esc(tipo)}</span>` : ''}</div>
     ${lugar ? `<div class="coord-ops" style="color:var(--text3)">📍 ${esc(lugar)}</div>` : ''}
     <div class="coord-ops">👤 ${ops}</div>
@@ -7908,10 +7932,38 @@ async function fetchCoordItemsForMonth() {
   return items;
 }
 
+// 🏠 Inicio — centro de mando. Muestra TODO junto (servicios + jornadas + pruebas +
+// relevamientos) en las 3 vistas (Lista / Tablero / Calendario), SIN filtrar por
+// Tipo de registro. La única diferencia con renderCoordServicios es justamente eso:
+// acá _coordAllServices queda con todos los items del mes. El chip de tipo en la card
+// (coordServiceCard) solo aparece en esta tab para distinguirlos.
+async function renderCoordInicio() {
+  const content = document.getElementById('coord-content');
+  content.innerHTML = '<div style="text-align:center;padding:40px 0"><div class="spinner" style="margin:0 auto"></div></div>';
+  document.getElementById('coord-week-strip').style.display = 'flex';
+  // Guard de race condition: si el usuario cambia de tab mientras este fetch está en vuelo,
+  // cuando termine NO sobrescribir el content del tab nuevo.
+  const myTab = 'inicio';
+  try {
+    const items = await fetchCoordItemsForMonth();
+    if (activeCoordTab !== myTab) return; // tab cambió → abortar
+    _coordAllServices = items; // SIN filtro de tipo → todos (servicios + jornadas + pruebas + relevamientos)
+    if (!selectedCoordDay) selectedCoordDay = 'all';
+    renderWeekStrip(_coordAllServices);
+    // El toggle Lista/Tablero/Calendario solo se ve en Inicio. renderCoordServiciosView lo muestra (display:flex) y decide qué pintar.
+    renderCoordServiciosView();
+    if (_coordFiltersPanelOpen) renderCoordFiltersPanel();
+  } catch (e) {
+    if (activeCoordTab !== myTab) return;
+    content.innerHTML = `<div class="coord-empty">${t('coord.error.load')}<br><small>${e.message}</small></div>`;
+  }
+}
+
 async function renderCoordServicios() {
   const content = document.getElementById('coord-content');
   content.innerHTML = '<div style="text-align:center;padding:40px 0"><div class="spinner" style="margin:0 auto"></div></div>';
   document.getElementById('coord-week-strip').style.display = 'flex';
+  document.getElementById('coord-view-toggle').style.display = 'none'; // toggle Lista/Tablero solo en Inicio
   // Guard de race condition: si el usuario cambia de tab mientras este fetch está en vuelo,
   // cuando termine NO sobrescribir el content del tab nuevo.
   const myTab = 'servicios';
@@ -7924,8 +7976,8 @@ async function renderCoordServicios() {
     });
     if (!selectedCoordDay) selectedCoordDay = 'all';
     renderWeekStrip(_coordAllServices);
-    // El toggle Lista/Tablero solo se ve en Servicios. renderCoordServiciosView lo muestra (display:flex) y decide qué pintar.
-    renderCoordServiciosView();
+    // Servicios = lista cronológica simple (sin toggle de vistas; eso vive en Inicio).
+    renderCoordList();
     if (_coordFiltersPanelOpen) renderCoordFiltersPanel();
   } catch (e) {
     if (activeCoordTab !== myTab) return;
@@ -7937,7 +7989,7 @@ async function renderCoordPruebas() {
   const content = document.getElementById('coord-content');
   content.innerHTML = '<div style="text-align:center;padding:40px 0"><div class="spinner" style="margin:0 auto"></div></div>';
   document.getElementById('coord-week-strip').style.display = 'flex';
-  document.getElementById('coord-view-toggle').style.display = 'none'; // toggle Lista/Tablero solo en Servicios
+  document.getElementById('coord-view-toggle').style.display = 'none'; // toggle Lista/Tablero solo en Inicio
   const myTab = 'pruebas';
   try {
     const items = await fetchCoordItemsForMonth();
@@ -7960,7 +8012,7 @@ async function renderCoordRelevamientos() {
   const content = document.getElementById('coord-content');
   content.innerHTML = '<div style="text-align:center;padding:40px 0"><div class="spinner" style="margin:0 auto"></div></div>';
   document.getElementById('coord-week-strip').style.display = 'flex';
-  document.getElementById('coord-view-toggle').style.display = 'none'; // toggle Lista/Tablero solo en Servicios
+  document.getElementById('coord-view-toggle').style.display = 'none'; // toggle Lista/Tablero solo en Inicio
   const myTab = 'relevamientos';
   try {
     const items = await fetchCoordItemsForMonth();
