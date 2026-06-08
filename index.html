@@ -3569,7 +3569,8 @@ async function generateFinanceReportPDF(tipo, btn) {
     const ingTipo = groupBy(ing.results, 'ingreso', 'Tipo', 'Otro');
     const clean = (s) => String(s || '').replace(/[\p{Extended_Pictographic}\u{1F1E6}-\u{1F1FF}️‍]/gu, '').replace(/\s+/g, ' ').trim();
     const fM = (n, esUY) => (esUY ? 'UY$ ' : 'USD ') + Math.abs(n).toLocaleString(esUY ? 'es-UY' : 'en-US', { maximumFractionDigits: esUY ? 0 : 2 });
-    const splitStr = (s, sign) => { const p = []; if (s.uyu) p.push((sign || '') + fM(s.uyu, true)); if (s.usd) p.push((sign || '') + fM(s.usd, false)); return p.join('   ') || (sign || '') + fM(0, true); };
+    const sg = (n) => n < 0 ? '-' : '';
+    const splitStr = (s, sign) => { const p = []; if (s.uyu) p.push((sign != null ? sign : sg(s.uyu)) + fM(s.uyu, true)); if (s.usd) p.push((sign != null ? sign : sg(s.usd)) + fM(s.usd, false)); return p.join('   ') || (sign != null ? sign : '') + fM(0, true); };
 
     const doc = new JS({ unit: 'mm', format: 'a4' });
     const PW = 210, M = 14, BOT = 285; let y = 0;
@@ -3589,7 +3590,8 @@ async function generateFinanceReportPDF(tipo, btn) {
     row('Entradas', splitStr(ingS, '+'), { color: [0, 150, 100] });
     row('Salidas', splitStr(gasS, '-'), { color: [200, 60, 60] });
     row('SALDO', splitStr(sal), { big: true, color: (sal.uyu >= 0 && sal.usd >= 0) ? [0, 150, 100] : [200, 60, 60] });
-    row('Movimientos', (ing.results || []).length + ' cobros  ·  ' + (gas.results || []).length + ' gastos');
+    const nC = (ing.results || []).length, nG = (gas.results || []).length;
+    row('Movimientos', nC + (nC === 1 ? ' cobro' : ' cobros') + '  ·  ' + nG + (nG === 1 ? ' gasto' : ' gastos'));
 
     section('Gastos por rubro');
     const gc = Object.entries(gasCat).sort((a, b) => (b[1].uyu + b[1].usd) - (a[1].uyu + a[1].usd));
