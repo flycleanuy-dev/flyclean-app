@@ -4492,20 +4492,32 @@ async function loadServices() {
   document.getElementById('services-list').innerHTML = '<div style="text-align:center;padding:40px 0"><div class="spinner" style="margin:0 auto"></div></div>';
   document.getElementById('error-banner').classList.remove('visible');
 
-  try {
-    const services = await getMyServices(currentUser.id);
-    renderServices(services);
-  } catch (err) {
-    document.getElementById('error-banner').classList.add('visible');
-    document.getElementById('services-sub').textContent = t('services.sub.error');
-    document.getElementById('services-list').innerHTML = `
-      <div class="empty-state">
-        <div class="empty-icon">⚠️</div>
-        <div class="empty-title">${t('services.connect.title')}</div>
-        <div class="empty-text">${t('services.connect.text')}</div>
-        <button class="refresh-btn" onclick="loadServices()">${t('services.retry')}</button>
-      </div>`;
+  // Auto-reintento: Notion suele estar lento (no caído). Reintentamos 1 vez en silencio antes de
+  // mostrar el error, así se va el "primero nada → error → datos".
+  let services = null;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      services = await getMyServices(currentUser.id);
+      break;
+    } catch (err) {
+      if (attempt === 0) {
+        document.getElementById('services-sub').textContent = t('services.sub.loading2');
+        await new Promise(r => setTimeout(r, 1200));
+        continue;
+      }
+      document.getElementById('error-banner').classList.add('visible');
+      document.getElementById('services-sub').textContent = t('services.sub.error');
+      document.getElementById('services-list').innerHTML = `
+        <div class="empty-state">
+          <div class="empty-icon">⚠️</div>
+          <div class="empty-title">${t('services.connect.title')}</div>
+          <div class="empty-text">${t('services.connect.text')}</div>
+          <button class="refresh-btn" onclick="loadServices()">${t('services.retry')}</button>
+        </div>`;
+      return;
+    }
   }
+  if (services !== null) renderServices(services);
 }
 
 function getEstadoClass(estado) {

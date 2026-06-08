@@ -7,6 +7,40 @@ const ALLOWED_ENDPOINTS = [
 ];
 const ALLOWED_METHODS = ['GET', 'POST', 'PATCH'];
 
+// Margen amplio para que los reintentos no choquen con el límite de duración de la función.
+export const config = { maxDuration: 30 };
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// fetch a Notion con timeout (AbortController) + reintento ante 429 (rate-limit), 5xx o error de red.
+// La API de Notion se rate-limitea / se cuelga bajo carga (sobre todo la search API que usa el
+// fallback de la DB Servicios), y sin esto el proxy devolvía vacío/error → el usuario veía
+// "no se conecta con Notion" y la app quedaba lenta/colgada.
+async function notionFetch(url, options, { retries = 1, timeoutMs = 9000 } = {}) {
+  let lastErr;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const resp = await fetch(url, { ...options, signal: controller.signal });
+      clearTimeout(timer);
+      // 429 → respetar Retry-After; 5xx → backoff corto. Reintentar mientras queden intentos.
+      if (attempt < retries && (resp.status === 429 || (resp.status >= 500 && resp.status < 600))) {
+        const ra = parseFloat(resp.headers.get('retry-after'));
+        await sleep(resp.status === 429 && ra ? Math.min(ra, 5) * 1000 : 500 * (attempt + 1));
+        continue;
+      }
+      return resp;
+    } catch (e) {
+      clearTimeout(timer);
+      lastErr = e;
+      if (attempt < retries) { await sleep(500 * (attempt + 1)); continue; }
+      throw e;
+    }
+  }
+  throw lastErr || new Error('notion fetch failed');
+}
+
 export default async function handler(req, res) {
   const origin = req.headers.origin || '';
   const allowedOrigins = [
@@ -54,7 +88,7 @@ export default async function handler(req, res) {
   };
 
   try {
-    const response = await fetch(`https://api.notion.com/v1/${endpointNorm}`, {
+    const response = await notionFetch(`https://api.notion.com/v1/${endpointNorm}`, {
       method: httpMethod,
       headers: notionHeaders,
       body: body ? JSON.stringify(body) : undefined,
@@ -69,31 +103,40 @@ export default async function handler(req, res) {
     if (isQuery && data.code === 'validation_error' &&
         data.additional_data?.error_type === 'multiple_data_sources_for_database') {
       const dbId = endpointNorm.split('/')[1];
+      // La search API bajo carga a veces devuelve [] (sin error) → reintentar la búsqueda
+      // completa hasta traer resultados (la DB Servicios siempre tiene datos). Esto mata el
+      // "la lista de servicios aparece vacía / con error y recién al recargar aparece".
       let allResults = [];
-      let cursor = null;
-      do {
-        const searchBody = { filter: { property: 'object', value: 'page' }, page_size: 100 };
-        if (cursor) searchBody.start_cursor = cursor;
-        const sr = await fetch('https://api.notion.com/v1/search', {
-          method: 'POST',
-          headers: notionHeaders,
-          body: JSON.stringify(searchBody),
-        });
-        const sd = await sr.json();
-        const filtered = (sd.results || []).filter(r => r.parent?.database_id === dbId);
-        allResults = allResults.concat(filtered);
-        cursor = sd.has_more ? sd.next_cursor : null;
-      } while (cursor && allResults.length < 2000);
+      let truncated = false;
+      for (let fb = 0; fb < 3; fb++) {
+        allResults = [];
+        let cursor = null;
+        do {
+          const searchBody = { filter: { property: 'object', value: 'page' }, page_size: 100 };
+          if (cursor) searchBody.start_cursor = cursor;
+          const sr = await notionFetch('https://api.notion.com/v1/search', {
+            method: 'POST',
+            headers: notionHeaders,
+            body: JSON.stringify(searchBody),
+          });
+          const sd = await sr.json();
+          const filtered = (sd.results || []).filter(r => r.parent?.database_id === dbId);
+          allResults = allResults.concat(filtered);
+          cursor = sd.has_more ? sd.next_cursor : null;
+        } while (cursor && allResults.length < 2000);
+        truncated = cursor !== null;
+        if (allResults.length) break;            // ok → salir
+        if (fb < 2) await sleep(500 * (fb + 1)); // vacío (rate-limit) → reintentar
+      }
       // Si quedó cursor pendiente al alcanzar el cap (allResults.length === 2000),
       // devolvemos has_more=true para que el cliente sepa que la lista está truncada.
-      // Hoy el coord muestra 50-150 items/mes, así que 2000 da buffer cómodo.
-      const truncated = cursor !== null;
       if (truncated) console.warn('[notion-proxy] fallback search reached 2000 cap for db', dbId);
       return res.status(200).json({ object: 'list', results: allResults, has_more: truncated });
     }
 
     return res.status(response.status).json(data);
   } catch (err) {
-    return res.status(500).json({ error: 'Internal error' });
+    const timedOut = err?.name === 'AbortError';
+    return res.status(502).json({ error: timedOut ? 'Notion no respondió a tiempo' : 'Internal error' });
   }
 }
