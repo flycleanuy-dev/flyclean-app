@@ -28,9 +28,10 @@
 // Sin este bump los clientes con la PWA instalada seguirían viendo el index.html
 // viejo desde caché y el bug del modal de gasto se mantendría visible aun con el
 // deploy live. Cache de Notion no necesita bump (solo cambió HTML).
+// v33: VELOCIDAD — SW vuelve a stale-while-revalidate (cache al instante + revalida en bg); proxy con timeout+reintento+429; operario auto-reintenta.
 // v5: cambiar estrategia de Notion API de stale-while-revalidate a NETWORK-FIRST con timeout.
 
-const CACHE = 'flyclean-v32';
+const CACHE = 'flyclean-v33';
 const SHELL = [
   '/',
   '/index.html',
@@ -43,7 +44,9 @@ const SHELL = [
   '/vendor/jspdf.umd.min.js'
 ];
 const NOTION_CACHE = 'flyclean-notion-cache-v2';
-const NETWORK_TIMEOUT_MS = 5000;
+// Solo aplica en cache-MISS (primera carga de una consulta): cuánto espera la red antes del
+// mensaje offline. Con cache, la respuesta es INSTANTÁNEA (stale-while-revalidate) y esto no cuenta.
+const NETWORK_TIMEOUT_MS = 12000;
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));
@@ -73,11 +76,15 @@ function isCacheableNotionRead(request, bodyText) {
   } catch (_) { return false; }
 }
 
-// Estrategia network-first con timeout + fallback a cache:
-// 1. Intenta red con timeout 5s.
-// 2. Si la red devuelve OK → usa esa respuesta + actualiza cache.
-// 3. Si la red falla o timeout → devuelve cache si existe.
-// 4. Si no hay cache → 503 con mensaje offline.
+// Estrategia STALE-WHILE-REVALIDATE para las lecturas de Notion:
+// 1. Si hay copia en cache → la devuelve AL INSTANTE (cero espera) y revalida en segundo plano
+//    (actualiza el cache para la próxima vez). Esto mata el "esperar 5s mirando la pantalla en
+//    blanco y después el error" cuando Notion está lento.
+// 2. Si NO hay cache (primera vez de esa consulta) → espera la red (timeout 12s) y recién ahí,
+//    si falla, el mensaje offline.
+// Los writes (pages/PATCH) y /api/upload-url, /api/img NUNCA pasan por acá (network-only).
+// Nota: tras un write, la próxima lectura puede venir del cache viejo por un instante; la
+// revalidación en background lo corrige enseguida y la app ya usa estado local optimista.
 async function handleNotionApi(event) {
   let bodyText = '';
   try { bodyText = await event.request.clone().text(); } catch (_) {}
@@ -88,27 +95,30 @@ async function handleNotionApi(event) {
   // mismo prefijo: el start_cursor y los filtros de fecha quedaban fuera de la clave → totales cortados).
   const cacheKey = new Request(event.request.url + '#' + btoa(unescape(encodeURIComponent(bodyText))), { method: 'GET' });
   const cache = await caches.open(NOTION_CACHE);
+  const cached = await cache.match(cacheKey);
 
-  // Race: red con timeout vs. cache si la red tarda mucho.
-  const networkPromise = fetch(event.request).then(res => {
-    if (res && res.ok) {
-      cache.put(cacheKey, res.clone()).catch(() => {});
-    }
+  // Revalidación: trae fresco y actualiza el cache. Se usa en background (cache hit) o se espera (miss).
+  const revalidate = fetch(event.request).then(res => {
+    if (res && res.ok) cache.put(cacheKey, res.clone()).catch(() => {});
     return res;
   });
+
+  // Cache HIT → respuesta instantánea + revalida en background sin bloquear.
+  if (cached) {
+    event.waitUntil(revalidate.catch(() => {}));
+    return cached;
+  }
+
+  // Cache MISS → esperar la red (con timeout) y recién ahí el fallback offline.
   const timeoutPromise = new Promise((_, reject) =>
     setTimeout(() => reject(new Error('network timeout')), NETWORK_TIMEOUT_MS)
   );
-
   try {
-    const res = await Promise.race([networkPromise, timeoutPromise]);
+    const res = await Promise.race([revalidate, timeoutPromise]);
     if (res) return res;
   } catch (e) {
-    // network failed or timeout → fall through to cache
+    // la red falló/timeout y no hay copia en cache → offline
   }
-
-  const cached = await cache.match(cacheKey);
-  if (cached) return cached;
 
   return new Response(JSON.stringify({ error: 'offline', message: 'No hay conexión y no hay copia cacheada de esta consulta.' }), {
     status: 503,
