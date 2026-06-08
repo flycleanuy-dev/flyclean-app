@@ -1072,8 +1072,8 @@ body::before {
       <input type="search" id="coord-search" class="coord-search-input" placeholder="🔎 Buscar..." oninput="onCoordSearchInput(this.value)" autocomplete="off"/>
       <button class="coord-tool-btn" id="coord-filter-btn" onclick="toggleCoordFiltersPanel()" title="Filtros"><span id="coord-filter-icon">⚙︎</span><span id="coord-filter-count" class="coord-filter-count" style="display:none"></span></button>
       <select id="coord-sort" class="coord-sort-select" onchange="setCoordSort(this.value)" title="Orden">
-        <option value="date-asc">📅 Próximos primero</option>
-        <option value="date-desc">📅 Últimos primero</option>
+        <option value="date-desc">📅 Próximos primero</option>
+        <option value="date-asc">📆 Pasados primero</option>
         <option value="alpha-asc">🔤 A → Z</option>
         <option value="alpha-desc">🔤 Z → A</option>
       </select>
@@ -4456,7 +4456,7 @@ function setCoordTab(tab) {
   const strip = document.getElementById('coord-week-strip');
   if (strip) strip.style.display = 'none';
   const monthNav = document.getElementById('coord-month-nav');
-  if (monthNav) monthNav.classList.toggle('visible', tab === 'servicios' || tab === 'relevamientos');
+  if (monthNav) monthNav.classList.toggle('visible', tab === 'servicios' || tab === 'relevamientos' || tab === 'pruebas');
 
   if (tab === 'servicios') renderCoordServicios();
   else if (tab === 'pruebas') renderCoordPruebas();
@@ -6021,7 +6021,7 @@ let coordFilters = {
   operario: [],       // multi-select de operarios; vacío = todos
   dateFrom: '',       // YYYY-MM-DD
   dateTo: '',         // YYYY-MM-DD
-  sort: 'date-asc'
+  sort: 'date-desc'   // por defecto: próximos arriba → hoy → pasados → sin fecha al final
 };
 let _coordFiltersPanelOpen = false;
 let _coordSearchTimer = null;
@@ -6048,7 +6048,7 @@ function refreshCoordFilterBadge() {
 }
 
 function isCoordToolbarVisible(tab) {
-  return tab === 'servicios' || tab === 'relevamientos' || tab === 'propuestas';
+  return tab === 'servicios' || tab === 'relevamientos' || tab === 'propuestas' || tab === 'pruebas';
 }
 
 function showCoordToolbar(tab) {
