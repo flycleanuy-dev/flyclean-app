@@ -563,7 +563,7 @@ body::before {
   .kb-card { margin-bottom: 8px; position: relative; }
   .kb-card .coord-service-card { margin-bottom: 0; }
   /* Tarea 3 — arrastre long-press de cards entre columnas */
-  .kb-card.dragging { opacity: 0.4; }
+  .kb-card.dragging { opacity: 0.4; touch-action: none; } /* iOS: agarrada no compite con el scroll nativo */
   .kb-col.drop-target { border-color: var(--green); box-shadow: 0 0 0 2px var(--green) inset; }
   .kb-ghost { position: fixed; z-index: 9999; pointer-events: none; opacity: 0.95; transform: scale(1.03); box-shadow: 0 10px 28px rgba(0,0,0,0.45); border-radius: var(--radius-sm); will-change: left, top; }
   .kb-ghost .kb-move-btn { display: none; }
@@ -6696,6 +6696,10 @@ function kbOnPointerUp() {
   // re-render de cambiarEstadoServicio pinte sobre un DOM ya limpio.
   kbCleanupDrag();
   if (!grabbed) return; // fue un tap (o scroll abortado): dejamos pasar el onclick normal
+  // Hubo grab: el navegador disparará un click sintético sobre la card (incluso si se
+  // soltó en el mismo lugar, sin mover >10px → la guarda global _gMoved no se activa).
+  // Lo suprimimos acá, robustamente, para que soltar la card NO abra el edit sheet.
+  kbSuppressNextClick();
   const destino = kbResolveDrop(dropTarget, estadoActual);
   if (destino) cambiarEstadoServicio(id, destino);
 }
@@ -6703,6 +6707,15 @@ function kbOnPointerUp() {
 function kbOnPointerCancel() {
   // Abortar limpio (igual que soltar fuera): no se cambia estado.
   kbCleanupDrag();
+}
+
+// Suprime el click sintético que el navegador dispara después de un pointerup tras un grab,
+// para que soltar una card (aunque sea en el mismo lugar) NO abra el edit sheet.
+function kbSuppressNextClick() {
+  function eat(ev) { ev.stopPropagation(); ev.preventDefault(); cleanup(); }
+  function cleanup() { window.removeEventListener('click', eat, true); clearTimeout(tid); }
+  const tid = setTimeout(cleanup, 500); // red de seguridad por si no llega ningún click
+  window.addEventListener('click', eat, true);
 }
 
 // Un único pointerdown delegado en document (capture) filtrado a .kb-board, porque
