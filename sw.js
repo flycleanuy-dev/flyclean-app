@@ -1,3 +1,4 @@
+// v27: tab Gastos paginado (no se corta en 100) + limpieza de código muerto (buildReport*, html2pdf 885KB).
 // v26: filtro Uruguay incluye registros sin País (ingresos cargados sin el campo) → saldo correcto.
 // v25: usuario Finanzas (Administración) ahora ve el 'Estado de cuenta' del rediseño (scope Uruguay).
 // v24: rediseño CEO 'Cuenta del negocio' — balance héroe, estado de cuenta, refrescar, salud, margen real.
@@ -24,7 +25,7 @@
 // deploy live. Cache de Notion no necesita bump (solo cambió HTML).
 // v5: cambiar estrategia de Notion API de stale-while-revalidate a NETWORK-FIRST con timeout.
 
-const CACHE = 'flyclean-v26';
+const CACHE = 'flyclean-v27';
 const SHELL = [
   '/',
   '/index.html',
