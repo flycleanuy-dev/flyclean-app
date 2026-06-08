@@ -3618,13 +3618,16 @@ async function generateFinanceReportPDF(tipo, btn) {
 async function openServicePickerForReport() {
   const content = document.getElementById('finanzas-content');
   content.innerHTML = '<div style="text-align:center;padding:40px 0"><div class="spinner" style="margin:0 auto"></div></div>';
+  // La DB Servicios (multi-data-source) bajo carga devuelve [] por el search-fallback (no error)
+  // → reintentar también cuando viene vacío, no solo cuando tira error.
   let res = null;
-  for (let i = 0; i < 6 && !res; i++) {
+  for (let i = 0; i < 8 && (!res || !res.length); i++) {
     try { const d = await callNotion('databases/ccaf276c-7f6a-460c-aeb3-d2800deab2e5/query', 'POST', { page_size: 100 }); res = d.results || []; }
-    catch (e) { await new Promise(r => setTimeout(r, 1100)); }
+    catch (e) { res = null; }
+    if (!res || !res.length) await new Promise(r => setTimeout(r, 1100));
   }
   if (activeFinanzasTab !== 'reportes') return;
-  if (!res) { content.innerHTML = '<div class="coord-empty" style="padding:20px">No se pudieron cargar los servicios. Reintentá.</div>'; return; }
+  if (!res || !res.length) { content.innerHTML = '<div style="padding:14px 16px"><button class="rep-back" onclick="setFinanzasTab(\'reportes\')">‹ Volver</button><div class="coord-empty" style="padding:20px">No se pudieron cargar los servicios ahora. Reintentá en un momento.</div></div>'; return; }
   const comp = res.filter(s => ((s.properties?.['Estado']?.select?.name) || '').includes('Completado'))
     .sort((a, b) => ((b.properties?.['Fecha programada']?.date?.start) || '').localeCompare((a.properties?.['Fecha programada']?.date?.start) || ''));
   window._repServicios = comp;
