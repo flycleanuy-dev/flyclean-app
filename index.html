@@ -551,6 +551,31 @@ body::before {
   .coord-service-meta { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
   .coord-tag { font-size: 11px; color: var(--text3); background: var(--bg); padding: 2px 7px; border-radius: 5px; }
   .coord-ops { font-size: 11px; color: var(--text2); margin-top: 6px; }
+  /* Tablero (Kanban) de servicios — Tarea 1 (vista base, sin arrastre) */
+  .coord-view-toggle { display: flex; gap: 6px; padding: 8px 16px 4px; background: var(--bg); }
+  .coord-view-toggle button { flex: 1; padding: 7px 10px; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text2); font-size: 12px; font-weight: 600; cursor: pointer; font-family: 'Exo 2', sans-serif; transition: all 0.15s; }
+  .coord-view-toggle button.active { background: var(--green-dark); border-color: var(--green); color: var(--green); }
+  .kb-board { display: flex; gap: 12px; overflow-x: auto; overflow-y: hidden; scroll-snap-type: x proximity; -webkit-overflow-scrolling: touch; padding: 12px 16px 24px; }
+  .kb-col { width: 84vw; max-width: 320px; flex-shrink: 0; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0 10px 10px; scroll-snap-align: start; }
+  .kb-col-head { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; gap: 6px; padding: 10px 4px 8px; background: var(--card); border-bottom: 1px solid var(--border); font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 8px; }
+  .kb-col-head .kb-count { color: var(--text3); font-weight: 600; font-size: 12px; }
+  .kb-col-empty { padding: 24px 8px; text-align: center; color: var(--text3); font-size: 13px; }
+  .kb-card { margin-bottom: 8px; position: relative; transition: transform 0.15s ease, box-shadow 0.15s ease; }
+  .kb-card .coord-service-card { margin-bottom: 0; }
+  /* Tarea 3 — arrastre long-press de cards entre columnas */
+  .kb-card.dragging { opacity: 0.4; touch-action: none; } /* iOS: agarrada no compite con el scroll nativo */
+  .kb-col.drop-target { border-color: var(--green); box-shadow: 0 0 0 2px var(--green) inset; }
+  .kb-ghost { position: fixed; z-index: 9999; pointer-events: none; opacity: 0.95; transform: scale(1.03); box-shadow: 0 10px 28px rgba(0,0,0,0.45); border-radius: var(--radius-sm); will-change: left, top; }
+  .kb-ghost .kb-move-btn { display: none; }
+  /* Botón "Mover" discreto en la esquina de la card del tablero (Tarea 2) */
+  .kb-move-btn { position: absolute; top: 6px; right: 6px; z-index: 3; width: 26px; height: 26px; padding: 0; border-radius: 7px; background: var(--bg); border: 1px solid var(--border2); color: var(--text2); font-size: 14px; line-height: 1; cursor: pointer; font-family: 'Exo 2', sans-serif; display: flex; align-items: center; justify-content: center; opacity: 0.75; }
+  .kb-move-btn:active { background: var(--green-dark); border-color: var(--green); color: var(--green); transform: scale(0.92); opacity: 1; }
+  /* Hoja "Mover a": lista de estados destino (overlay sibling del body) */
+  .mover-estado-btn { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 13px 14px; margin-bottom: 8px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--bg); color: var(--text); font-size: 14px; font-weight: 600; cursor: pointer; font-family: 'Exo 2', sans-serif; text-align: left; transition: all 0.15s; }
+  .mover-estado-btn:active { background: var(--green-dark); border-color: var(--green); transform: scale(0.99); }
+  .mover-estado-btn.current { background: var(--green-dark); border-color: var(--green); color: var(--green); cursor: default; opacity: 0.85; }
+  .mover-estado-btn:disabled { cursor: default; }
+  .mover-estado-check { color: var(--green); font-weight: 700; }
   .contact-search-wrap { padding: 10px 16px 0; }
   .contact-search { width: 100%; padding: 10px 14px; background: var(--card); border: 1px solid var(--border2); border-radius: var(--radius-sm); color: var(--text); font-size: 14px; font-family: 'Exo 2', sans-serif; outline: none; }
   .contact-search:focus { border-color: var(--green); }
@@ -1080,6 +1105,7 @@ body::before {
     </div>
     <div class="coord-filters-panel" id="coord-filters-panel" style="display:none"></div>
   </div>
+  <div id="coord-view-toggle" class="coord-view-toggle" style="display:none"></div>
   <div class="month-nav" id="coord-month-nav">
     <button class="month-nav-btn" onclick="changeCoordMonth(-1)">‹</button>
     <div class="month-nav-label" id="coord-month-label"></div>
@@ -4457,6 +4483,9 @@ function setCoordTab(tab) {
   if (strip) strip.style.display = 'none';
   const monthNav = document.getElementById('coord-month-nav');
   if (monthNav) monthNav.classList.toggle('visible', tab === 'servicios' || tab === 'relevamientos' || tab === 'pruebas');
+  // El toggle Lista/Tablero solo aplica a Servicios. Lo ocultamos por default; renderCoordServicios lo re-muestra.
+  const viewToggle = document.getElementById('coord-view-toggle');
+  if (viewToggle) viewToggle.style.display = tab === 'servicios' ? 'flex' : 'none';
 
   if (tab === 'servicios') renderCoordServicios();
   else if (tab === 'pruebas') renderCoordPruebas();
@@ -6025,6 +6054,8 @@ let coordFilters = {
 };
 let _coordFiltersPanelOpen = false;
 let _coordSearchTimer = null;
+// Vista de la pestaña Servicios del coord: 'list' (cronológica) o 'board' (Kanban por estado).
+let _coordView = localStorage.getItem('fc_coord_view') || 'list';
 
 function getActiveFilterCount() {
   let n = 0;
@@ -6180,7 +6211,9 @@ function renderCoordFiltersPanel() {
 }
 
 function rerenderActiveCoordTab() {
-  if (activeCoordTab === 'servicios' || activeCoordTab === 'relevamientos') {
+  if (activeCoordTab === 'servicios') {
+    renderCoordServiciosView(); // respeta el toggle Lista/Tablero
+  } else if (activeCoordTab === 'relevamientos') {
     renderCoordList();
   } else if (activeCoordTab === 'propuestas') {
     renderCoordPropuestasList();
@@ -6316,7 +6349,9 @@ function changeCoordMonth(delta) {
 function setCoordDay(day) {
   selectedCoordDay = day;
   renderWeekStrip(_coordAllServices);
-  renderCoordList();
+  // En Servicios respetamos el toggle Lista/Tablero; el resto de tabs usa la lista cronológica.
+  if (activeCoordTab === 'servicios') renderCoordServiciosView();
+  else renderCoordList();
 }
 
 function renderCargarMasButton(remaining) {
@@ -6340,6 +6375,377 @@ function cargarMasCoord() {
   else if (activeCoordTab === 'contactos') renderContactList(_coordAllContacts, true);
   else renderCoordList(true);
 }
+
+// Toggle Lista / Tablero (solo pestaña Servicios). Persiste la elección y re-renderiza.
+function setCoordView(v) {
+  _coordView = v;
+  localStorage.setItem('fc_coord_view', v);
+  markUserActive();
+  renderCoordServiciosView();
+}
+
+// Render del control segmentado + del cuerpo (lista o tablero) según _coordView.
+// Solo se usa desde la pestaña Servicios; Pruebas y Relevamientos siguen usando renderCoordList directo.
+function renderCoordServiciosView() {
+  const toggle = document.getElementById('coord-view-toggle');
+  if (toggle) {
+    toggle.style.display = 'flex';
+    toggle.innerHTML =
+      `<button class="${_coordView === 'list' ? 'active' : ''}" onclick="setCoordView('list')">📋 Lista</button>` +
+      `<button class="${_coordView === 'board' ? 'active' : ''}" onclick="setCoordView('board')">▣ Tablero</button>`;
+  }
+  if (_coordView === 'board') renderCoordKanban();
+  else renderCoordList();
+}
+
+// Estados del Kanban en orden fijo (con emoji, como se guardan en Notion). Única fuente
+// de verdad para las columnas del tablero + la hoja "Mover a". Cada uno trae el "núcleo"
+// para matchear con includes() y tolerar variaciones de emoji en el valor guardado.
+const KANBAN_ESTADOS = [
+  { estado: '📋 Pendiente',  core: 'Pendiente'  },
+  { estado: '🔄 Asignado',   core: 'Asignado'   },
+  { estado: '✈️ En curso',   core: 'curso'      },
+  { estado: '✅ Completado', core: 'Completado' },
+  { estado: '❌ Cancelado',  core: 'Cancelado'  },
+];
+
+// Tablero (Kanban) base — Tarea 1: 5 columnas por estado, scroll horizontal, SIN arrastre.
+// El cambio de estado se hace por toque con la hoja "Mover a" (Tarea 2).
+function renderCoordKanban() {
+  const content = document.getElementById('coord-content');
+  if (!content) return;
+  const items = applyCoordFilters(_coordAllServices, { isProps: false });
+
+  // 5 columnas en orden fijo (única fuente de verdad: KANBAN_ESTADOS). El "núcleo"
+  // se matchea con includes() para tolerar variaciones de emoji en el valor guardado.
+  const columns = KANBAN_ESTADOS;
+  const buckets = columns.map(() => []);
+
+  items.forEach(it => {
+    const estado = it.properties?.['Estado']?.select?.name || '';
+    let idx = columns.findIndex(c => estado.includes(c.core));
+    if (idx === -1) idx = 0; // sin estado / desconocido → Pendiente
+    buckets[idx].push(it);
+  });
+
+  const cols = columns.map((c, i) => {
+    const list = buckets[i];
+    const cardsHTML = list.length
+      ? list.map(s => `<div class="kb-card" data-id="${esc(s.id)}" data-estado="${esc(c.estado)}">` +
+          // Botón "Mover" discreto en la esquina; stopPropagation evita disparar openEditSheet de la card.
+          `<button class="kb-move-btn" title="Mover a otro estado" onclick="event.stopPropagation(); openMoverEstado('${esc(s.id)}')">↔</button>` +
+          coordServiceCard(s) +
+        `</div>`).join('')
+      : `<div class="kb-col-empty">Sin servicios</div>`;
+    return `<div class="kb-col" data-estado="${esc(c.estado)}">
+      <div class="kb-col-head">${esc(c.estado)} <span class="kb-count">(${list.length})</span></div>
+      ${cardsHTML}
+    </div>`;
+  }).join('');
+
+  // Preservar el scroll al re-pintar: tras mover una card (drop o "Mover a") el board se
+  // reconstruye con innerHTML → el scroll horizontal del tablero y el vertical de cada
+  // columna se resetean. Capturamos ANTES y restauramos DESPUÉS por data-estado.
+  const prevBoard = content.querySelector('.kb-board');
+  let prevScrollLeft = 0;
+  const prevColScroll = {};
+  if (prevBoard) {
+    prevScrollLeft = prevBoard.scrollLeft;
+    prevBoard.querySelectorAll('.kb-col').forEach(col => {
+      const est = col.getAttribute('data-estado');
+      if (est != null) prevColScroll[est] = col.scrollTop;
+    });
+  }
+
+  content.innerHTML = `<div class="kb-board">${cols}</div>`;
+
+  if (prevBoard) {
+    const newBoard = content.querySelector('.kb-board');
+    if (newBoard) {
+      newBoard.scrollLeft = prevScrollLeft;
+      newBoard.querySelectorAll('.kb-col').forEach(col => {
+        const est = col.getAttribute('data-estado');
+        if (est != null && prevColScroll[est] != null) col.scrollTop = prevColScroll[est];
+      });
+    }
+  }
+}
+
+// Núcleo del cambio de estado (lo reusa la Tarea 3 de arrastre). Optimista: actualiza
+// _coordAllServices + re-pinta el tablero al instante; persiste con cola offline.
+// Errores de red NO revierten (quedan encolados); un error "duro" sí revierte + avisa.
+async function cambiarEstadoServicio(id, nuevoEstado) {
+  const item = (_coordAllServices || []).find(s => s.id === id);
+  if (!item) return;
+  const estadoActual = item.properties?.['Estado']?.select?.name || '';
+  if (estadoActual === nuevoEstado) return; // sin cambios
+
+  // Update optimista
+  if (!item.properties) item.properties = {};
+  item.properties['Estado'] = { select: { name: nuevoEstado } };
+  renderCoordKanban(); // la card salta de columna y los contadores se recalculan solos
+  markUserActive();
+
+  try {
+    await queueableUpdateServiceProps(id, { 'Estado': { select: { name: nuevoEstado } } });
+  } catch (e) {
+    // Solo llega acá con error "duro" (no de red — esos los encola queueableUpdateServiceProps).
+    // Revertimos el optimista y avisamos.
+    if (estadoActual) item.properties['Estado'] = { select: { name: estadoActual } };
+    else delete item.properties['Estado'];
+    renderCoordKanban();
+    console.error('[kanban] no se pudo cambiar el estado:', e);
+    alert('No se pudo cambiar el estado. Probá de nuevo.');
+  }
+}
+
+// Hoja "Mover a": elige el estado destino del servicio. Overlay SIBLING del body
+// (regla del proyecto: los modales deben ser hijos directos de body para que
+// position:fixed funcione). Se crea on-demand.
+function ensureMoverEstadoOverlay() {
+  let ov = document.getElementById('mover-estado-overlay');
+  if (!ov) {
+    ov = document.createElement('div');
+    ov.id = 'mover-estado-overlay';
+    ov.className = 'edit-overlay';
+    ov.onclick = moverEstadoOverlayClick;
+    ov.innerHTML = `<div class="edit-sheet" id="mover-estado-sheet">
+      <button class="sheet-close-btn" type="button" aria-label="Cerrar" onclick="closeMoverEstado()">×</button>
+      <div class="edit-sheet-handle"></div>
+      <div class="edit-sheet-header">
+        <div class="edit-sheet-title">↔ Mover a</div>
+        <div class="edit-sheet-sub" id="mover-estado-sub"></div>
+      </div>
+      <div id="mover-estado-body" style="padding:16px 20px 8px"></div>
+    </div>`;
+    document.body.appendChild(ov);
+  }
+  return ov;
+}
+
+function openMoverEstado(id) {
+  const svc = (_coordAllServices || []).find(s => s.id === id);
+  if (!svc) return;
+  const ov = ensureMoverEstadoOverlay();
+  const nombre = svc.properties?.['Nombre del servicio']?.title?.[0]?.plain_text || '';
+  const actual = svc.properties?.['Estado']?.select?.name || '';
+  const sub = document.getElementById('mover-estado-sub');
+  if (sub) sub.textContent = nombre ? `${nombre} — elegí el nuevo estado` : 'Elegí el nuevo estado';
+  const body = document.getElementById('mover-estado-body');
+  if (body) {
+    body.innerHTML = KANBAN_ESTADOS.map(c => {
+      // Resaltamos (check + deshabilitado) el estado actual del servicio.
+      const esActual = actual.includes(c.core);
+      return `<button class="mover-estado-btn ${esActual ? 'current' : ''}" ${esActual ? 'disabled' : ''}` +
+        ` onclick="seleccionarMoverEstado('${esc(id)}','${esc(c.estado)}')">` +
+        `<span>${esc(c.estado)}</span>${esActual ? '<span class="mover-estado-check">✓</span>' : ''}</button>`;
+    }).join('');
+  }
+  ov.classList.add('open');
+  markUserActive();
+}
+
+function seleccionarMoverEstado(id, estado) {
+  closeMoverEstado();
+  cambiarEstadoServicio(id, estado);
+}
+
+function closeMoverEstado() {
+  const ov = document.getElementById('mover-estado-overlay');
+  if (ov) ov.classList.remove('open');
+}
+
+function moverEstadoOverlayClick(e) {
+  if (e.target.id === 'mover-estado-overlay') closeMoverEstado();
+}
+
+// ── Tarea 3 — Arrastre long-press de cards del Kanban entre columnas ───────────
+// Mecánica mobile: long-press (~250ms quieto) para "agarrar" la card; si el dedo se
+// mueve >10px ANTES del timer, es scroll de columnas (no se agarra). Tap sin agarrar
+// = se deja pasar el onclick normal (openEditSheet). Al soltar sobre otra columna →
+// se REUSA cambiarEstadoServicio(id, estadoDestino) (única lógica de escritura).
+// Listeners de move/up/cancel se enganchan en window SOLO durante el gesto y se
+// remueven SIEMPRE al terminar (sin listeners colgados). Un único pointerdown
+// delegado en document filtra por .kb-board (el board se re-renderiza con innerHTML).
+const KB_HOLD_MS = 250;     // long-press para agarrar
+const KB_MOVE_TOL = 10;     // px: deslizar más que esto antes del timer = scroll
+const KB_EDGE = 48;         // px: zona de auto-scroll cerca del borde del board
+const KB_EDGE_SPEED = 14;   // px por frame de auto-scroll
+
+let _kbDrag = null; // estado del gesto en curso (null si no hay)
+
+function kbCleanupDrag() {
+  if (!_kbDrag) return;
+  const d = _kbDrag;
+  if (d.holdTimer) clearTimeout(d.holdTimer);
+  if (d.rafId) cancelAnimationFrame(d.rafId);
+  if (d.ghost && d.ghost.parentNode) d.ghost.parentNode.removeChild(d.ghost);
+  if (d.card) d.card.classList.remove('dragging');
+  if (d.dropTarget) d.dropTarget.classList.remove('drop-target');
+  // Soltar pointer capture si lo tomamos
+  if (d.captureEl && d.pointerId != null) {
+    try { d.captureEl.releasePointerCapture(d.pointerId); } catch (_) {}
+  }
+  window.removeEventListener('pointermove', kbOnPointerMove, { passive: false });
+  window.removeEventListener('pointerup', kbOnPointerUp, true);
+  window.removeEventListener('pointercancel', kbOnPointerCancel, true);
+  _kbDrag = null;
+}
+
+// Crea el clon flotante que sigue al dedo.
+function kbMakeGhost(card, x, y) {
+  const rect = card.getBoundingClientRect();
+  const ghost = card.cloneNode(true);
+  ghost.classList.add('kb-ghost');
+  ghost.classList.remove('dragging');
+  ghost.style.width = rect.width + 'px';
+  ghost.style.left = rect.left + 'px';
+  ghost.style.top = rect.top + 'px';
+  // Offset del dedo dentro de la card, para que no "salte" al agarrar.
+  _kbDrag.offX = x - rect.left;
+  _kbDrag.offY = y - rect.top;
+  document.body.appendChild(ghost);
+  return ghost;
+}
+
+// Loop de auto-scroll horizontal mientras el dedo está cerca de un borde del board.
+function kbAutoScrollTick() {
+  const d = _kbDrag;
+  if (!d || !d.grabbed || !d.board) return;
+  const r = d.board.getBoundingClientRect();
+  let dx = 0;
+  if (d.lastX < r.left + KB_EDGE) dx = -KB_EDGE_SPEED;
+  else if (d.lastX > r.right - KB_EDGE) dx = KB_EDGE_SPEED;
+  if (dx !== 0) d.board.scrollLeft += dx;
+  d.rafId = requestAnimationFrame(kbAutoScrollTick);
+}
+
+function kbOnPointerDown(e) {
+  // Solo gesto primario táctil/mouse, no si ya hay uno en curso.
+  if (_kbDrag) return;
+  if (e.pointerType === 'mouse' && e.button !== 0) return;
+  const card = e.target.closest && e.target.closest('.kb-card');
+  if (!card) return;
+  const board = card.closest('.kb-board');
+  if (!board) return;
+  // No agarrar si el toque arranca sobre el botón "Mover" (tiene su propia acción).
+  if (e.target.closest('.kb-move-btn')) return;
+
+  _kbDrag = {
+    card, board,
+    id: card.getAttribute('data-id'),
+    estadoActual: card.getAttribute('data-estado') || '',
+    startX: e.clientX, startY: e.clientY,
+    lastX: e.clientX, lastY: e.clientY,
+    pointerId: e.pointerId,
+    captureEl: board,
+    grabbed: false, ghost: null, dropTarget: null,
+    offX: 0, offY: 0, holdTimer: null, rafId: null,
+  };
+
+  // Timer de long-press: si el dedo sigue quieto al dispararse → agarramos.
+  _kbDrag.holdTimer = setTimeout(() => {
+    const d = _kbDrag;
+    if (!d || d.grabbed) return;
+    d.grabbed = true;
+    d.holdTimer = null;
+    if (navigator.vibrate) { try { navigator.vibrate(15); } catch (_) {} }
+    d.card.classList.add('dragging');
+    d.ghost = kbMakeGhost(d.card, d.lastX, d.lastY);
+    // Capturamos el pointer para seguir recibiendo move/up aunque salga del board.
+    try { d.captureEl.setPointerCapture(d.pointerId); } catch (_) {}
+    // Arrancamos el loop de auto-scroll (no scrollea hasta estar cerca de un borde).
+    d.rafId = requestAnimationFrame(kbAutoScrollTick);
+  }, KB_HOLD_MS);
+
+  // move debe ser {passive:false} para poder preventDefault una vez agarrado.
+  window.addEventListener('pointermove', kbOnPointerMove, { passive: false });
+  window.addEventListener('pointerup', kbOnPointerUp, true);
+  window.addEventListener('pointercancel', kbOnPointerCancel, true);
+}
+
+function kbOnPointerMove(e) {
+  const d = _kbDrag;
+  if (!d) return;
+  d.lastX = e.clientX;
+  d.lastY = e.clientY;
+
+  if (!d.grabbed) {
+    // Antes de agarrar: si se desliza más que la tolerancia, es scroll → cancelamos
+    // el timer y abandonamos el gesto (dejamos que el board scrollee normal).
+    if (Math.abs(e.clientX - d.startX) > KB_MOVE_TOL || Math.abs(e.clientY - d.startY) > KB_MOVE_TOL) {
+      kbCleanupDrag();
+    }
+    return;
+  }
+
+  // Agarrado: evitamos que el board scrollee con el dedo y movemos el ghost.
+  e.preventDefault();
+  if (d.ghost) {
+    d.ghost.style.left = (e.clientX - d.offX) + 'px';
+    d.ghost.style.top = (e.clientY - d.offY) + 'px';
+  }
+  // Detectar columna bajo el dedo (el ghost tiene pointer-events:none, no estorba).
+  const col = document.elementFromPoint(e.clientX, e.clientY);
+  const targetCol = col && col.closest ? col.closest('.kb-col') : null;
+  if (targetCol !== d.dropTarget) {
+    if (d.dropTarget) d.dropTarget.classList.remove('drop-target');
+    d.dropTarget = targetCol || null;
+    // Resaltar solo si es una columna distinta a la del estado actual.
+    if (d.dropTarget && (d.dropTarget.getAttribute('data-estado') || '') !== d.estadoActual) {
+      d.dropTarget.classList.add('drop-target');
+    } else if (d.dropTarget) {
+      // Misma columna: no resaltar como destino válido.
+      d.dropTarget.classList.remove('drop-target');
+    }
+  }
+}
+
+// Resuelve el drop: devuelve el estado destino válido o null. Extraído para poder
+// testearlo sin un gesto real (recibe la columna destino y el estado actual).
+function kbResolveDrop(targetCol, estadoActual) {
+  if (!targetCol) return null;
+  const destino = targetCol.getAttribute ? (targetCol.getAttribute('data-estado') || '') : '';
+  if (!destino || destino === estadoActual) return null;
+  return destino;
+}
+
+function kbOnPointerUp() {
+  const d = _kbDrag;
+  if (!d) return;
+  const grabbed = d.grabbed;
+  const id = d.id;
+  const estadoActual = d.estadoActual;
+  const dropTarget = d.dropTarget;
+  // Limpiamos PRIMERO (saca ghost / dragging / drop-target / listeners) para que el
+  // re-render de cambiarEstadoServicio pinte sobre un DOM ya limpio.
+  kbCleanupDrag();
+  if (!grabbed) return; // fue un tap (o scroll abortado): dejamos pasar el onclick normal
+  // Hubo grab: el navegador disparará un click sintético sobre la card (incluso si se
+  // soltó en el mismo lugar, sin mover >10px → la guarda global _gMoved no se activa).
+  // Lo suprimimos acá, robustamente, para que soltar la card NO abra el edit sheet.
+  kbSuppressNextClick();
+  const destino = kbResolveDrop(dropTarget, estadoActual);
+  if (destino) cambiarEstadoServicio(id, destino);
+}
+
+function kbOnPointerCancel() {
+  // Abortar limpio (igual que soltar fuera): no se cambia estado.
+  kbCleanupDrag();
+}
+
+// Suprime el click sintético que el navegador dispara después de un pointerup tras un grab,
+// para que soltar una card (aunque sea en el mismo lugar) NO abra el edit sheet.
+function kbSuppressNextClick() {
+  function eat(ev) { ev.stopPropagation(); ev.preventDefault(); cleanup(); }
+  function cleanup() { window.removeEventListener('click', eat, true); clearTimeout(tid); }
+  const tid = setTimeout(cleanup, 500); // red de seguridad por si no llega ningún click
+  window.addEventListener('click', eat, true);
+}
+
+// Un único pointerdown delegado en document (capture) filtrado a .kb-board, porque
+// el board se re-renderiza con innerHTML y los listeners por-card se perderían.
+document.addEventListener('pointerdown', kbOnPointerDown, true);
 
 function renderCoordList(keepLimit) {
   if (!keepLimit) _coordVisibleLimit = COORD_PAGE_SIZE;
@@ -7364,7 +7770,8 @@ async function renderCoordServicios() {
     });
     if (!selectedCoordDay) selectedCoordDay = 'all';
     renderWeekStrip(_coordAllServices);
-    renderCoordList();
+    // El toggle Lista/Tablero solo se ve en Servicios. renderCoordServiciosView lo muestra (display:flex) y decide qué pintar.
+    renderCoordServiciosView();
     if (_coordFiltersPanelOpen) renderCoordFiltersPanel();
   } catch (e) {
     if (activeCoordTab !== myTab) return;
@@ -7376,6 +7783,7 @@ async function renderCoordPruebas() {
   const content = document.getElementById('coord-content');
   content.innerHTML = '<div style="text-align:center;padding:40px 0"><div class="spinner" style="margin:0 auto"></div></div>';
   document.getElementById('coord-week-strip').style.display = 'flex';
+  document.getElementById('coord-view-toggle').style.display = 'none'; // toggle Lista/Tablero solo en Servicios
   const myTab = 'pruebas';
   try {
     const items = await fetchCoordItemsForMonth();
@@ -7398,6 +7806,7 @@ async function renderCoordRelevamientos() {
   const content = document.getElementById('coord-content');
   content.innerHTML = '<div style="text-align:center;padding:40px 0"><div class="spinner" style="margin:0 auto"></div></div>';
   document.getElementById('coord-week-strip').style.display = 'flex';
+  document.getElementById('coord-view-toggle').style.display = 'none'; // toggle Lista/Tablero solo en Servicios
   const myTab = 'relevamientos';
   try {
     const items = await fetchCoordItemsForMonth();
