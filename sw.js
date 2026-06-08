@@ -28,10 +28,11 @@
 // Sin este bump los clientes con la PWA instalada seguirían viendo el index.html
 // viejo desde caché y el bug del modal de gasto se mantendría visible aun con el
 // deploy live. Cache de Notion no necesita bump (solo cambió HTML).
+// v34: FIX clave de cache del SW (usaba fragmento '#' que el navegador descarta → las consultas se pisaban con SWR). Ahora ?k= en el query. NOTION_CACHE v3.
 // v33: VELOCIDAD — SW vuelve a stale-while-revalidate (cache al instante + revalida en bg); proxy con timeout+reintento+429; operario auto-reintenta.
 // v5: cambiar estrategia de Notion API de stale-while-revalidate a NETWORK-FIRST con timeout.
 
-const CACHE = 'flyclean-v33';
+const CACHE = 'flyclean-v34';
 const SHELL = [
   '/',
   '/index.html',
@@ -43,7 +44,7 @@ const SHELL = [
   '/splash.png',
   '/vendor/jspdf.umd.min.js'
 ];
-const NOTION_CACHE = 'flyclean-notion-cache-v2';
+const NOTION_CACHE = 'flyclean-notion-cache-v3';
 // Solo aplica en cache-MISS (primera carga de una consulta): cuánto espera la red antes del
 // mensaje offline. Con cache, la respuesta es INSTANTÁNEA (stale-while-revalidate) y esto no cuenta.
 const NETWORK_TIMEOUT_MS = 12000;
@@ -91,9 +92,11 @@ async function handleNotionApi(event) {
   const cacheable = isCacheableNotionRead(event.request, bodyText);
   if (!cacheable) return fetch(event.request);
 
-  // Clave por CUERPO COMPLETO (antes truncaba a 64 chars → chocaban páginas/consultas con el
-  // mismo prefijo: el start_cursor y los filtros de fecha quedaban fuera de la clave → totales cortados).
-  const cacheKey = new Request(event.request.url + '#' + btoa(unescape(encodeURIComponent(bodyText))), { method: 'GET' });
+  // Clave por CUERPO COMPLETO en el QUERY STRING (?k=...), NO en un fragmento (#...): el navegador
+  // descarta el fragmento de los Request, así que con '#' TODAS las consultas compartían la misma
+  // clave y se pisaban (ej. gastos devolvía el cache de ingresos). Con network-first no se notaba
+  // (casi no usaba cache); con stale-while-revalidate sí. El query string sí se respeta en el match.
+  const cacheKey = new Request(event.request.url + '?k=' + encodeURIComponent(btoa(unescape(encodeURIComponent(bodyText)))), { method: 'GET' });
   const cache = await caches.open(NOTION_CACHE);
   const cached = await cache.match(cacheKey);
 
