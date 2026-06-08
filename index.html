@@ -562,6 +562,11 @@ body::before {
   .kb-col-empty { padding: 24px 8px; text-align: center; color: var(--text3); font-size: 13px; }
   .kb-card { margin-bottom: 8px; position: relative; }
   .kb-card .coord-service-card { margin-bottom: 0; }
+  /* Tarea 3 — arrastre long-press de cards entre columnas */
+  .kb-card.dragging { opacity: 0.4; }
+  .kb-col.drop-target { border-color: var(--green); box-shadow: 0 0 0 2px var(--green) inset; }
+  .kb-ghost { position: fixed; z-index: 9999; pointer-events: none; opacity: 0.95; transform: scale(1.03); box-shadow: 0 10px 28px rgba(0,0,0,0.45); border-radius: var(--radius-sm); will-change: left, top; }
+  .kb-ghost .kb-move-btn { display: none; }
   /* Botón "Mover" discreto en la esquina de la card del tablero (Tarea 2) */
   .kb-move-btn { position: absolute; top: 6px; right: 6px; z-index: 3; width: 26px; height: 26px; padding: 0; border-radius: 7px; background: var(--bg); border: 1px solid var(--border2); color: var(--text2); font-size: 14px; line-height: 1; cursor: pointer; font-family: 'Exo 2', sans-serif; display: flex; align-items: center; justify-content: center; opacity: 0.75; }
   .kb-move-btn:active { background: var(--green-dark); border-color: var(--green); color: var(--green); transform: scale(0.92); opacity: 1; }
@@ -6528,6 +6533,181 @@ function closeMoverEstado() {
 function moverEstadoOverlayClick(e) {
   if (e.target.id === 'mover-estado-overlay') closeMoverEstado();
 }
+
+// ── Tarea 3 — Arrastre long-press de cards del Kanban entre columnas ───────────
+// Mecánica mobile: long-press (~250ms quieto) para "agarrar" la card; si el dedo se
+// mueve >10px ANTES del timer, es scroll de columnas (no se agarra). Tap sin agarrar
+// = se deja pasar el onclick normal (openEditSheet). Al soltar sobre otra columna →
+// se REUSA cambiarEstadoServicio(id, estadoDestino) (única lógica de escritura).
+// Listeners de move/up/cancel se enganchan en window SOLO durante el gesto y se
+// remueven SIEMPRE al terminar (sin listeners colgados). Un único pointerdown
+// delegado en document filtra por .kb-board (el board se re-renderiza con innerHTML).
+const KB_HOLD_MS = 250;     // long-press para agarrar
+const KB_MOVE_TOL = 10;     // px: deslizar más que esto antes del timer = scroll
+const KB_EDGE = 48;         // px: zona de auto-scroll cerca del borde del board
+const KB_EDGE_SPEED = 14;   // px por frame de auto-scroll
+
+let _kbDrag = null; // estado del gesto en curso (null si no hay)
+
+function kbCleanupDrag() {
+  if (!_kbDrag) return;
+  const d = _kbDrag;
+  if (d.holdTimer) clearTimeout(d.holdTimer);
+  if (d.rafId) cancelAnimationFrame(d.rafId);
+  if (d.ghost && d.ghost.parentNode) d.ghost.parentNode.removeChild(d.ghost);
+  if (d.card) d.card.classList.remove('dragging');
+  if (d.dropTarget) d.dropTarget.classList.remove('drop-target');
+  // Soltar pointer capture si lo tomamos
+  if (d.captureEl && d.pointerId != null) {
+    try { d.captureEl.releasePointerCapture(d.pointerId); } catch (_) {}
+  }
+  window.removeEventListener('pointermove', kbOnPointerMove, { passive: false });
+  window.removeEventListener('pointerup', kbOnPointerUp, true);
+  window.removeEventListener('pointercancel', kbOnPointerCancel, true);
+  _kbDrag = null;
+}
+
+// Crea el clon flotante que sigue al dedo.
+function kbMakeGhost(card, x, y) {
+  const rect = card.getBoundingClientRect();
+  const ghost = card.cloneNode(true);
+  ghost.classList.add('kb-ghost');
+  ghost.classList.remove('dragging');
+  ghost.style.width = rect.width + 'px';
+  ghost.style.left = rect.left + 'px';
+  ghost.style.top = rect.top + 'px';
+  // Offset del dedo dentro de la card, para que no "salte" al agarrar.
+  _kbDrag.offX = x - rect.left;
+  _kbDrag.offY = y - rect.top;
+  document.body.appendChild(ghost);
+  return ghost;
+}
+
+// Loop de auto-scroll horizontal mientras el dedo está cerca de un borde del board.
+function kbAutoScrollTick() {
+  const d = _kbDrag;
+  if (!d || !d.grabbed || !d.board) return;
+  const r = d.board.getBoundingClientRect();
+  let dx = 0;
+  if (d.lastX < r.left + KB_EDGE) dx = -KB_EDGE_SPEED;
+  else if (d.lastX > r.right - KB_EDGE) dx = KB_EDGE_SPEED;
+  if (dx !== 0) d.board.scrollLeft += dx;
+  d.rafId = requestAnimationFrame(kbAutoScrollTick);
+}
+
+function kbOnPointerDown(e) {
+  // Solo gesto primario táctil/mouse, no si ya hay uno en curso.
+  if (_kbDrag) return;
+  if (e.pointerType === 'mouse' && e.button !== 0) return;
+  const card = e.target.closest && e.target.closest('.kb-card');
+  if (!card) return;
+  const board = card.closest('.kb-board');
+  if (!board) return;
+  // No agarrar si el toque arranca sobre el botón "Mover" (tiene su propia acción).
+  if (e.target.closest('.kb-move-btn')) return;
+
+  _kbDrag = {
+    card, board,
+    id: card.getAttribute('data-id'),
+    estadoActual: card.getAttribute('data-estado') || '',
+    startX: e.clientX, startY: e.clientY,
+    lastX: e.clientX, lastY: e.clientY,
+    pointerId: e.pointerId,
+    captureEl: board,
+    grabbed: false, ghost: null, dropTarget: null,
+    offX: 0, offY: 0, holdTimer: null, rafId: null,
+  };
+
+  // Timer de long-press: si el dedo sigue quieto al dispararse → agarramos.
+  _kbDrag.holdTimer = setTimeout(() => {
+    const d = _kbDrag;
+    if (!d || d.grabbed) return;
+    d.grabbed = true;
+    d.holdTimer = null;
+    if (navigator.vibrate) { try { navigator.vibrate(15); } catch (_) {} }
+    d.card.classList.add('dragging');
+    d.ghost = kbMakeGhost(d.card, d.lastX, d.lastY);
+    // Capturamos el pointer para seguir recibiendo move/up aunque salga del board.
+    try { d.captureEl.setPointerCapture(d.pointerId); } catch (_) {}
+    // Arrancamos el loop de auto-scroll (no scrollea hasta estar cerca de un borde).
+    d.rafId = requestAnimationFrame(kbAutoScrollTick);
+  }, KB_HOLD_MS);
+
+  // move debe ser {passive:false} para poder preventDefault una vez agarrado.
+  window.addEventListener('pointermove', kbOnPointerMove, { passive: false });
+  window.addEventListener('pointerup', kbOnPointerUp, true);
+  window.addEventListener('pointercancel', kbOnPointerCancel, true);
+}
+
+function kbOnPointerMove(e) {
+  const d = _kbDrag;
+  if (!d) return;
+  d.lastX = e.clientX;
+  d.lastY = e.clientY;
+
+  if (!d.grabbed) {
+    // Antes de agarrar: si se desliza más que la tolerancia, es scroll → cancelamos
+    // el timer y abandonamos el gesto (dejamos que el board scrollee normal).
+    if (Math.abs(e.clientX - d.startX) > KB_MOVE_TOL || Math.abs(e.clientY - d.startY) > KB_MOVE_TOL) {
+      kbCleanupDrag();
+    }
+    return;
+  }
+
+  // Agarrado: evitamos que el board scrollee con el dedo y movemos el ghost.
+  e.preventDefault();
+  if (d.ghost) {
+    d.ghost.style.left = (e.clientX - d.offX) + 'px';
+    d.ghost.style.top = (e.clientY - d.offY) + 'px';
+  }
+  // Detectar columna bajo el dedo (el ghost tiene pointer-events:none, no estorba).
+  const col = document.elementFromPoint(e.clientX, e.clientY);
+  const targetCol = col && col.closest ? col.closest('.kb-col') : null;
+  if (targetCol !== d.dropTarget) {
+    if (d.dropTarget) d.dropTarget.classList.remove('drop-target');
+    d.dropTarget = targetCol || null;
+    // Resaltar solo si es una columna distinta a la del estado actual.
+    if (d.dropTarget && (d.dropTarget.getAttribute('data-estado') || '') !== d.estadoActual) {
+      d.dropTarget.classList.add('drop-target');
+    } else if (d.dropTarget) {
+      // Misma columna: no resaltar como destino válido.
+      d.dropTarget.classList.remove('drop-target');
+    }
+  }
+}
+
+// Resuelve el drop: devuelve el estado destino válido o null. Extraído para poder
+// testearlo sin un gesto real (recibe la columna destino y el estado actual).
+function kbResolveDrop(targetCol, estadoActual) {
+  if (!targetCol) return null;
+  const destino = targetCol.getAttribute ? (targetCol.getAttribute('data-estado') || '') : '';
+  if (!destino || destino === estadoActual) return null;
+  return destino;
+}
+
+function kbOnPointerUp() {
+  const d = _kbDrag;
+  if (!d) return;
+  const grabbed = d.grabbed;
+  const id = d.id;
+  const estadoActual = d.estadoActual;
+  const dropTarget = d.dropTarget;
+  // Limpiamos PRIMERO (saca ghost / dragging / drop-target / listeners) para que el
+  // re-render de cambiarEstadoServicio pinte sobre un DOM ya limpio.
+  kbCleanupDrag();
+  if (!grabbed) return; // fue un tap (o scroll abortado): dejamos pasar el onclick normal
+  const destino = kbResolveDrop(dropTarget, estadoActual);
+  if (destino) cambiarEstadoServicio(id, destino);
+}
+
+function kbOnPointerCancel() {
+  // Abortar limpio (igual que soltar fuera): no se cambia estado.
+  kbCleanupDrag();
+}
+
+// Un único pointerdown delegado en document (capture) filtrado a .kb-board, porque
+// el board se re-renderiza con innerHTML y los listeners por-card se perderían.
+document.addEventListener('pointerdown', kbOnPointerDown, true);
 
 function renderCoordList(keepLimit) {
   if (!keepLimit) _coordVisibleLimit = COORD_PAGE_SIZE;
