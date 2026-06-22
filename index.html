@@ -822,6 +822,15 @@ body::before {
   .metric-value { font-size: 24px; font-weight: 800; color: var(--text); line-height: 1; }
   .metric-sub { font-size: 11px; color: var(--text3); margin-top: 4px; }
   .metric-icon { font-size: 20px; margin-bottom: 6px; }
+  /* Resumen mensual del coordinador (KPIs + comparación mes vs mes) */
+  .metric-value.small { font-size: 18px; }
+  .kpi-delta { display: inline-block; font-size: 11px; font-weight: 700; margin-top: 6px; }
+  .kpi-delta.up { color: var(--green); }
+  .kpi-delta.down { color: var(--red); }
+  .kpi-delta.flat { color: var(--text3); }
+  .metric-extra { font-size: 11px; color: var(--text2); margin-top: 6px; line-height: 1.5; }
+  .metric-extra b { color: var(--text); font-weight: 700; }
+  .metric-note { font-size: 10px; color: var(--text3); margin-top: 4px; font-style: italic; }
   .ceo-section-title { font-size: 11px; font-weight: 700; color: var(--text3); letter-spacing: 0.5px; text-transform: uppercase; padding: 16px 16px 8px; }
   .ceo-service-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 14px; margin: 0 16px 8px; }
   .ceo-service-name { font-size: 14px; font-weight: 600; margin-bottom: 6px; }
@@ -1171,6 +1180,7 @@ body::before {
   </div>
   <div class="coord-tab-bar">
     <div class="coord-tab active" id="ctab-inicio" data-i18n="coord.tab.inicio" onclick="setCoordTab('inicio')">🏠 Inicio</div>
+    <div class="coord-tab" id="ctab-resumen" data-i18n="coord.tab.resumen" onclick="setCoordTab('resumen')">📊 Resumen</div>
     <div class="coord-tab" id="ctab-servicios" data-i18n="coord.tab.servicios" onclick="setCoordTab('servicios')">📋 Servicios</div>
     <div class="coord-tab" id="ctab-pruebas" data-i18n="coord.tab.pruebas" onclick="setCoordTab('pruebas')">🧪 Pruebas</div>
     <div class="coord-tab" id="ctab-relevamientos" data-i18n="coord.tab.relevamientos" onclick="setCoordTab('relevamientos')">🔍 Relevamientos</div>
@@ -1710,6 +1720,28 @@ const TRANSLATIONS = {
     'coord.brand.coord': 'Coordinador',
     'coord.brand.direccion': 'Dirección',
     'coord.tab.inicio': '🏠 Inicio',
+    'coord.tab.resumen': '📊 Resumen',
+    'coord.resumen.diastrab': 'Días trabajados',
+    'coord.resumen.diastrab.sub': 'fechas con servicios',
+    'coord.resumen.clientes': 'Clientes',
+    'coord.resumen.clientes.sub': 'distintos en el mes',
+    'coord.resumen.facturado': 'Facturado',
+    'coord.resumen.facturado.sub': 'cobros del mes',
+    'coord.resumen.presupuestos': 'Presupuestos enviados',
+    'coord.resumen.presupuestos.sub': 'por fecha de envío',
+    'coord.resumen.recibidas': 'Propuestas recibidas',
+    'coord.resumen.recibidas.sub': 'creadas en el mes',
+    'coord.resumen.aceptadas': 'Aceptadas / enviadas',
+    'coord.resumen.aceptadas.sub': 'de las enviadas del mes',
+    'coord.resumen.pendientes': 'Pendientes',
+    'coord.resumen.pendientes.sub': 'enviada / negociando (hoy)',
+    'coord.resumen.ticket': 'Ticket promedio',
+    'coord.resumen.ticket.sub': 'por servicio completado',
+    'coord.resumen.jornada': 'Jornada promedio',
+    'coord.resumen.jornada.sub': 'facturado / nº jornadas',
+    'coord.resumen.novinc': 'estimado · faltan vínculos',
+    'coord.resumen.vsmesant': 'vs mes anterior',
+    'coord.resumen.empty': 'Sin datos para este mes.',
     'coord.tab.servicios': '📋 Servicios',
     'coord.tab.propuestas': '💼 Propuestas',
     'coord.tab.contactos': '👥 Contactos',
@@ -2206,6 +2238,28 @@ const TRANSLATIONS = {
     'coord.brand.coord': 'Coordenador',
     'coord.brand.direccion': 'Direção',
     'coord.tab.inicio': '🏠 Início',
+    'coord.tab.resumen': '📊 Resumo',
+    'coord.resumen.diastrab': 'Dias trabalhados',
+    'coord.resumen.diastrab.sub': 'datas com serviços',
+    'coord.resumen.clientes': 'Clientes',
+    'coord.resumen.clientes.sub': 'distintos no mês',
+    'coord.resumen.facturado': 'Faturado',
+    'coord.resumen.facturado.sub': 'recebimentos do mês',
+    'coord.resumen.presupuestos': 'Orçamentos enviados',
+    'coord.resumen.presupuestos.sub': 'por data de envio',
+    'coord.resumen.recibidas': 'Propostas recebidas',
+    'coord.resumen.recibidas.sub': 'criadas no mês',
+    'coord.resumen.aceptadas': 'Aceitas / enviadas',
+    'coord.resumen.aceptadas.sub': 'das enviadas no mês',
+    'coord.resumen.pendientes': 'Pendentes',
+    'coord.resumen.pendientes.sub': 'enviada / negociando (hoje)',
+    'coord.resumen.ticket': 'Ticket médio',
+    'coord.resumen.ticket.sub': 'por serviço concluído',
+    'coord.resumen.jornada': 'Jornada média',
+    'coord.resumen.jornada.sub': 'faturado / nº jornadas',
+    'coord.resumen.novinc': 'estimado · faltam vínculos',
+    'coord.resumen.vsmesant': 'vs mês anterior',
+    'coord.resumen.empty': 'Sem dados para este mês.',
     'coord.tab.servicios': '📋 Serviços',
     'coord.tab.propuestas': '💼 Propostas',
     'coord.tab.contactos': '👥 Contatos',
@@ -4554,7 +4608,7 @@ function setTab(tab) {
 function setCoordTab(tab) {
   activeCoordTab = tab;
   markUserActive();
-  ['inicio', 'servicios', 'pruebas', 'relevamientos', 'propuestas', 'contactos', 'comunicaciones'].forEach(t => {
+  ['inicio', 'resumen', 'servicios', 'pruebas', 'relevamientos', 'propuestas', 'contactos', 'comunicaciones'].forEach(t => {
     const el = document.getElementById('ctab-' + t);
     if (el) el.classList.toggle('active', t === tab);
   });
@@ -4572,12 +4626,13 @@ function setCoordTab(tab) {
   const strip = document.getElementById('coord-week-strip');
   if (strip) strip.style.display = 'none';
   const monthNav = document.getElementById('coord-month-nav');
-  if (monthNav) monthNav.classList.toggle('visible', tab === 'inicio' || tab === 'servicios' || tab === 'relevamientos' || tab === 'pruebas');
+  if (monthNav) monthNav.classList.toggle('visible', tab === 'inicio' || tab === 'resumen' || tab === 'servicios' || tab === 'relevamientos' || tab === 'pruebas');
   // El toggle Lista/Tablero solo aplica a Inicio (centro de mando). Lo ocultamos por default; renderCoordInicio lo re-muestra.
   const viewToggle = document.getElementById('coord-view-toggle');
   if (viewToggle) viewToggle.style.display = tab === 'inicio' ? 'flex' : 'none';
 
   if (tab === 'inicio') renderCoordInicio();
+  else if (tab === 'resumen') renderCoordResumen();
   else if (tab === 'servicios') renderCoordServicios();
   else if (tab === 'pruebas') renderCoordPruebas();
   else if (tab === 'relevamientos') renderCoordRelevamientos();
@@ -6432,7 +6487,8 @@ function changeCoordMonth(delta) {
   selectedCoordDay = 'all';
   // El month-nav se ve en Inicio + Servicios + Pruebas + Relevamientos. Re-fetch del nuevo mes
   // según la tab activa (cada una aplica su propio filtro de tipo; Inicio no filtra).
-  if (activeCoordTab === 'pruebas') renderCoordPruebas();
+  if (activeCoordTab === 'resumen') renderCoordResumen();
+  else if (activeCoordTab === 'pruebas') renderCoordPruebas();
   else if (activeCoordTab === 'relevamientos') renderCoordRelevamientos();
   else if (activeCoordTab === 'servicios') renderCoordServicios();
   else renderCoordInicio();
@@ -7900,6 +7956,233 @@ async function generateReportPDF(svc, extra = {}) {
 function generateReportPDFFromCEO(id) {
   const svc = (_ceoServiciosCache || []).find(s => s.id === id);
   if (svc) openReportStep(svc);
+}
+
+// ─────────────────────────────────────────────
+// 📊 RESUMEN — dashboard mensual del coordinador (SOLO LECTURA).
+// KPIs del mes + comparación vs el mes anterior. No escribe nada en Notion.
+// Navega meses con el month-nav (coordMonthOffset, vía getCoordMonthRange()).
+// ─────────────────────────────────────────────
+
+// Rango {start,end} del mes ANTERIOR al que muestra el month-nav, SIN mutar coordMonthOffset.
+function getCoordPrevMonthRange() {
+  const { base } = getCoordMonthRange();
+  const prev = new Date(base.getFullYear(), base.getMonth() - 1, 1);
+  const start = prev.toISOString().split('T')[0];
+  const end = new Date(prev.getFullYear(), prev.getMonth() + 1, 0).toISOString().split('T')[0];
+  return { start, end, base: prev };
+}
+
+// Filtro de país para Servicios/Propuestas (DB con label COUNTRY_NOTION_MAP: '🇺🇾 Uruguay').
+// Devuelve null si el coordinador es global (Dirección / CEO Uruguay).
+function coordResumenServicePaisFilter() {
+  return getCountryFilter(); // { property:'País', select:{ equals:'🇺🇾 Uruguay' } } | null
+}
+
+// Trae todas las propuestas del workspace una sola vez (DB chica) y filtra cliente-side.
+// Se hace en cliente porque algunos filtros (created_time + estado + país con search-fallback)
+// son frágiles server-side; preferimos una sola query paginada y cortar acá.
+async function fetchAllPropuestas() {
+  const data = await callNotionAll(`databases/${PROPUESTAS_DB_ID}/query`, {});
+  return data.results || [];
+}
+
+async function renderCoordResumen() {
+  const content = document.getElementById('coord-content');
+  if (!content) return;
+  content.innerHTML = '<div style="text-align:center;padding:40px 0"><div class="spinner" style="margin:0 auto"></div></div>';
+  // El month-nav muestra el mes activo. El label normalmente lo setea renderWeekStrip,
+  // pero acá el week-strip está oculto → lo seteamos a mano.
+  const cur = getCoordMonthRange();
+  const labelEl = document.getElementById('coord-month-label');
+  if (labelEl) labelEl.textContent = cur.label;
+  const myTab = 'resumen';
+
+  try {
+    const prev = getCoordPrevMonthRange();
+    const svcCF = coordResumenServicePaisFilter();
+    const svcCountryNotion = svcCF ? COUNTRY_NOTION_MAP[selectedCountry] : null;
+
+    // Filtro Servicios por mes (Fecha programada) + país server-side (best-effort).
+    const svcMonthFilter = (s, e) => ({ and: [
+      ...(svcCF ? [svcCF] : []),
+      { property: 'Fecha programada', date: { on_or_after: s } },
+      { property: 'Fecha programada', date: { on_or_before: e } }
+    ]});
+    // Filtro Ingresos por mes (Fecha). NOTA: los ingresos NO se filtran por país server-side;
+    // la DB Ingresos usa labels de país distintos (COUNTRY_FINANCE_MAP: '🇺🇾 UY', no '🇺🇾 Uruguay')
+    // y muchos cobros UY se cargan sin País → el filtrado país se hace cliente-side abajo (tolerante a vacío).
+    const ingMonthFilter = (s, e) => ({ and: [
+      { property: 'Fecha', date: { on_or_after: s } },
+      { property: 'Fecha', date: { on_or_before: e } }
+    ]});
+
+    const [svcCurRaw, svcPrevRaw, ingCurRaw, ingPrevRaw, allProps] = await Promise.all([
+      callNotion(`databases/${DB_ID}/query`, 'POST', { filter: svcMonthFilter(cur.start, cur.end) }),
+      callNotion(`databases/${DB_ID}/query`, 'POST', { filter: svcMonthFilter(prev.start, prev.end) }),
+      callNotionAll(`databases/${INGRESOS_DB_ID}/query`, { filter: ingMonthFilter(cur.start, cur.end) }),
+      callNotionAll(`databases/${INGRESOS_DB_ID}/query`, { filter: ingMonthFilter(prev.start, prev.end) }),
+      fetchAllPropuestas()
+    ]);
+    if (activeCoordTab !== myTab) return; // tab cambió mientras se cargaba → abortar
+
+    // ── Servicios: re-filtrar país cliente-side (el search-fallback ignora el filtro server). ──
+    const inPais = s => !svcCountryNotion || (s.properties?.['País']?.select?.name === svcCountryNotion);
+    const svcCur = (svcCurRaw.results || []).filter(inPais);
+    const svcPrev = (svcPrevRaw.results || []).filter(inPais);
+
+    // Helpers de lectura de servicios.
+    const estadoDe = s => s.properties?.['Estado']?.select?.name || '';
+    const tipoRegDe = s => s.properties?.['Tipo de registro']?.select?.name || '';
+    const fechaDe = s => s.properties?.['Fecha programada']?.date?.start || '';
+    const esOrdenOJornada = s => { const tr = tipoRegDe(s); return !tr.includes('Prueba') && !tr.includes('Relevamiento'); };
+    const esJornada = s => tipoRegDe(s).includes('Jornada') || (s.properties?.['Jornada N°']?.number != null);
+
+    // 1) Días trabajados: fechas distintas entre Orden/Jornada, Estado ≠ Cancelado.
+    const diasSet = (arr) => {
+      const set = new Set();
+      arr.filter(s => esOrdenOJornada(s) && !estadoDe(s).includes('Cancelado')).forEach(s => { const f = fechaDe(s); if (f) set.add(f); });
+      return set.size;
+    };
+    const diasCur = diasSet(svcCur), diasPrev = diasSet(svcPrev);
+
+    // 2) Clientes distintos: ids de Contacto (relation) en los servicios del mes (todos los tipos).
+    const clientesSet = (arr) => {
+      const set = new Set();
+      arr.forEach(s => (s.properties?.['Contacto']?.relation || []).forEach(r => { if (r.id) set.add(r.id); }));
+      return set.size;
+    };
+    const cliCur = clientesSet(svcCur), cliPrev = clientesSet(svcPrev);
+
+    // 3) Facturado (Ingresos del mes) — país cliente-side, tolerante a vacío (estilo finanzas UY).
+    const finVal = svcCF ? COUNTRY_FINANCE_MAP[selectedCountry] : null;
+    const ingInPais = r => {
+      if (!finVal) return true;
+      const p = r.properties?.['País']?.select?.name || '';
+      return p === finVal || p === ''; // incluye los cargados sin País (todo es del país del coord)
+    };
+    const ingCur = (ingCurRaw.results || []).filter(ingInPais);
+    const ingPrev = (ingPrevRaw.results || []).filter(ingInPais);
+    const factCur = sumByMoneda(ingCur, 'ingreso');   // { uyu, usd }
+    const factPrev = sumByMoneda(ingPrev, 'ingreso');
+
+    // ── Propuestas (cliente-side desde allProps). ──
+    const propPaisOk = p => !svcCountryNotion || (p.properties?.['País']?.select?.name === svcCountryNotion);
+    const propsScoped = allProps.filter(propPaisOk);
+    const inMonth = (val, s, e) => !!val && val.slice(0, 10) >= s && val.slice(0, 10) <= e;
+    const fEnvio = p => p.properties?.['Fecha de envío']?.date?.start || '';
+    const fCreado = p => p.created_time || p.properties?.['Fecha de creación']?.created_time || '';
+    const estadoPipe = p => p.properties?.['Estado pipeline']?.select?.name || '';
+
+    // 4) Presupuestos enviados (Fecha de envío en el mes).
+    const enviadasCur = propsScoped.filter(p => inMonth(fEnvio(p), cur.start, cur.end));
+    const enviadasPrevN = propsScoped.filter(p => inMonth(fEnvio(p), prev.start, prev.end)).length;
+    const enviadasCurN = enviadasCur.length;
+
+    // 5) Propuestas recibidas (created_time en el mes).
+    const recibidasCurN = propsScoped.filter(p => inMonth(fCreado(p), cur.start, cur.end)).length;
+    const recibidasPrevN = propsScoped.filter(p => inMonth(fCreado(p), prev.start, prev.end)).length;
+
+    // 6) Aceptadas / enviadas: de las enviadas del mes, cuántas están en estado Aceptada.
+    const aceptadasN = enviadasCur.filter(p => estadoPipe(p).includes('Aceptada')).length;
+    const tasaAceptPct = enviadasCurN ? Math.round(aceptadasN / enviadasCurN * 100) : null;
+
+    // 7) Pendientes (snapshot actual, no por mes): Enviada al cliente / Negociando.
+    const pendientesN = propsScoped.filter(p => { const e = estadoPipe(p); return e.includes('Enviada al cliente') || e.includes('Negociando'); }).length;
+
+    // 8/9) Ticket promedio + por tipo + jornada promedio (best-effort por vínculo Ingreso→Servicio).
+    const svcCompCur = svcCur.filter(s => estadoDe(s).includes('Completado'));
+    const svcCompN = svcCompCur.length;
+    const ticketGen = svcCompN ? { uyu: factCur.uyu / svcCompN, usd: factCur.usd / svcCompN } : null;
+
+    // Mapa serviceId → { tipo, esJornada } con los servicios del mes (todos).
+    const svcById = {};
+    svcCur.forEach(s => { svcById[s.id] = { tipo: s.properties?.['Tipo de servicio']?.select?.name || 'Otros', jornada: esJornada(s) }; });
+    const nJornadasCur = svcCur.filter(esJornada).length;
+    // Atribución de ingresos por vínculo.
+    let ingVinc = 0, ingTotalN = ingCur.length;
+    const factPorTipo = {};        // tipo → { uyu, usd }
+    const factJornada = { uyu: 0, usd: 0 };
+    ingCur.forEach(r => {
+      const rel = r.properties?.['Servicio vinculado']?.relation || [];
+      const svcId = rel[0]?.id;
+      const meta = svcId ? svcById[svcId] : null;
+      if (!meta) return; // sin vínculo o vínculo fuera del mes/país → no atribuible
+      ingVinc++;
+      const { esUY, monto } = montoOf(r.properties || {}, 'ingreso');
+      const bucket = (factPorTipo[meta.tipo] = factPorTipo[meta.tipo] || { uyu: 0, usd: 0 });
+      if (esUY) bucket.uyu += monto; else bucket.usd += monto;
+      if (meta.jornada) { if (esUY) factJornada.uyu += monto; else factJornada.usd += monto; }
+    });
+    const cobertura = ingTotalN ? (ingVinc / ingTotalN) : 0;
+    const mostrarPorTipo = cobertura >= 0.30 && Object.keys(factPorTipo).length > 0;
+    const jornadaProm = (nJornadasCur && mostrarPorTipo) ? { uyu: factJornada.uyu / nJornadasCur, usd: factJornada.usd / nJornadasCur } : null;
+
+    // ── Delta helper: ▲/▼ + diferencia absoluta. unit opcional ('UY$'/'USD' o número). ──
+    const deltaCount = (c, p) => {
+      const diff = c - p;
+      if (diff === 0) return '<div class="kpi-delta flat">＝ igual ' + t('coord.resumen.vsmesant') + '</div>';
+      const up = diff > 0;
+      return '<div class="kpi-delta ' + (up ? 'up' : 'down') + '">' + (up ? '▲' : '▼') + ' ' + (up ? '+' : '−') + Math.abs(diff) + ' ' + t('coord.resumen.vsmesant') + '</div>';
+    };
+    // Delta de facturado: compara por moneda; muestra la diferencia de la moneda predominante.
+    const deltaMoney = (curS, prevS) => {
+      const dU = curS.uyu - prevS.uyu, dD = curS.usd - prevS.usd;
+      const parts = [];
+      if (curS.uyu || prevS.uyu) { const up = dU >= 0; parts.push('<span class="kpi-delta ' + (up ? 'up' : 'down') + '">' + (up ? '▲ +' : '▼ −') + fmtMoneda(Math.abs(dU), '🇺🇾 UY$') + '</span>'); }
+      if (curS.usd || prevS.usd) { const up = dD >= 0; parts.push('<span class="kpi-delta ' + (up ? 'up' : 'down') + '">' + (up ? '▲ +' : '▼ −') + fmtMoneda(Math.abs(dD), '🇺🇸 USD') + '</span>'); }
+      if (!parts.length) return '';
+      return '<div style="margin-top:6px;line-height:1.6">' + parts.join('<br>') + '<div class="metric-note" style="font-style:normal">' + t('coord.resumen.vsmesant') + '</div></div>';
+    };
+
+    // ── Tarjeta facturado (split UY$/USD). ──
+    const facturadoHTML = '<div class="metric-value small">' + fmtTotalSplit(factCur) + '</div>';
+
+    // ── Ticket card: general + (opcional) por tipo. ──
+    let ticketExtra = '';
+    // Quita emojis del label de tipo (ej. '🪟 Vidrios' → 'Vidrios') para que se lea limpio.
+    const stripEmoji = s => String(s || '').replace(/[\p{Extended_Pictographic}\u{1F1E6}-\u{1F1FF}️‍]/gu, '').replace(/\s+/g, ' ').trim();
+    if (mostrarPorTipo) {
+      const rows = Object.entries(factPorTipo).map(([tp, sp]) => {
+        const cant = svcCompCur.filter(s => (s.properties?.['Tipo de servicio']?.select?.name || 'Otros') === tp).length;
+        const tk = cant ? { uyu: sp.uyu / cant, usd: sp.usd / cant } : sp;
+        return '<div><b>' + esc(stripEmoji(tp) || tp) + ':</b> ' + fmtTotalSplit(tk) + '</div>';
+      }).join('');
+      ticketExtra = '<div class="metric-extra">' + rows + '</div>';
+    } else if (ingTotalN) {
+      ticketExtra = '<div class="metric-note">' + t('coord.resumen.novinc') + '</div>';
+    }
+
+    // ── Render de la grilla. ──
+    const cards = [];
+    // 1 Días trabajados
+    cards.push('<div class="metric-card"><div class="metric-label">' + t('coord.resumen.diastrab') + '</div><div class="metric-value">' + diasCur + '</div><div class="metric-sub">' + t('coord.resumen.diastrab.sub') + '</div>' + deltaCount(diasCur, diasPrev) + '</div>');
+    // 2 Clientes
+    cards.push('<div class="metric-card"><div class="metric-label">' + t('coord.resumen.clientes') + '</div><div class="metric-value">' + cliCur + '</div><div class="metric-sub">' + t('coord.resumen.clientes.sub') + '</div>' + deltaCount(cliCur, cliPrev) + '</div>');
+    // 3 Facturado
+    cards.push('<div class="metric-card"><div class="metric-label">' + t('coord.resumen.facturado') + '</div>' + facturadoHTML + '<div class="metric-sub">' + t('coord.resumen.facturado.sub') + '</div>' + deltaMoney(factCur, factPrev) + '</div>');
+    // 4 Presupuestos enviados
+    cards.push('<div class="metric-card"><div class="metric-label">' + t('coord.resumen.presupuestos') + '</div><div class="metric-value">' + enviadasCurN + '</div><div class="metric-sub">' + t('coord.resumen.presupuestos.sub') + '</div>' + deltaCount(enviadasCurN, enviadasPrevN) + '</div>');
+    // 5 Propuestas recibidas
+    cards.push('<div class="metric-card"><div class="metric-label">' + t('coord.resumen.recibidas') + '</div><div class="metric-value">' + recibidasCurN + '</div><div class="metric-sub">' + t('coord.resumen.recibidas.sub') + '</div>' + deltaCount(recibidasCurN, recibidasPrevN) + '</div>');
+    // 6 Aceptadas / enviadas
+    const aceptVal = enviadasCurN ? (aceptadasN + '/' + enviadasCurN) : '—';
+    const aceptSub = (tasaAceptPct != null) ? (tasaAceptPct + '% ' + t('coord.resumen.aceptadas.sub')) : t('coord.resumen.aceptadas.sub');
+    cards.push('<div class="metric-card"><div class="metric-label">' + t('coord.resumen.aceptadas') + '</div><div class="metric-value">' + aceptVal + '</div><div class="metric-sub">' + aceptSub + '</div></div>');
+    // 7 Pendientes (snapshot)
+    cards.push('<div class="metric-card"><div class="metric-label">' + t('coord.resumen.pendientes') + '</div><div class="metric-value">' + pendientesN + '</div><div class="metric-sub">' + t('coord.resumen.pendientes.sub') + '</div></div>');
+    // 8 Ticket promedio
+    cards.push('<div class="metric-card"><div class="metric-label">' + t('coord.resumen.ticket') + '</div><div class="metric-value small">' + (ticketGen ? fmtTotalSplit(ticketGen) : '—') + '</div><div class="metric-sub">' + t('coord.resumen.ticket.sub') + '</div>' + ticketExtra + '</div>');
+    // 9 Jornada promedio
+    const jornadaVal = jornadaProm ? fmtTotalSplit(jornadaProm) : '—';
+    const jornadaNote = (!jornadaProm && nJornadasCur && !mostrarPorTipo) ? '<div class="metric-note">' + t('coord.resumen.novinc') + '</div>' : '';
+    cards.push('<div class="metric-card"><div class="metric-label">' + t('coord.resumen.jornada') + '</div><div class="metric-value small">' + jornadaVal + '</div><div class="metric-sub">' + t('coord.resumen.jornada.sub') + (nJornadasCur ? ' (' + nJornadasCur + ')' : '') + '</div>' + jornadaNote + '</div>');
+
+    content.innerHTML = '<div class="metric-grid">' + cards.join('') + '</div>';
+  } catch (e) {
+    if (activeCoordTab !== myTab) return;
+    content.innerHTML = `<div class="coord-empty">${t('coord.error.load')}<br><small>${esc(e.message)}</small></div>`;
+  }
 }
 
 async function fetchCoordItemsForMonth() {

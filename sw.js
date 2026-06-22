@@ -28,6 +28,7 @@
 // Sin este bump los clientes con la PWA instalada seguirían viendo el index.html
 // viejo desde caché y el bug del modal de gasto se mantendría visible aun con el
 // deploy live. Cache de Notion no necesita bump (solo cambió HTML).
+// v42: dashboard '📊 Resumen' mensual del coordinador (KPIs + comparación mes vs mes, solo lectura).
 // v41: pestaña Inicio del coordinador (centro de mando: servicios+pruebas+relevamientos en Lista/Tablero/Calendario).
 // v40: versión ESCRITORIO responsive (@media ≥900px) + vista Calendario del coordinador.
 // v39: TABLERO Kanban de Servicios del coordinador — toggle Lista/Tablero + arrastrar/Mover-a para cambiar estado.
@@ -39,7 +40,7 @@
 // v33: VELOCIDAD — SW vuelve a stale-while-revalidate (cache al instante + revalida en bg); proxy con timeout+reintento+429; operario auto-reintenta.
 // v5: cambiar estrategia de Notion API de stale-while-revalidate a NETWORK-FIRST con timeout.
 
-const CACHE = 'flyclean-v41';
+const CACHE = 'flyclean-v42';
 const SHELL = [
   '/',
   '/index.html',
