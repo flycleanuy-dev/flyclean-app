@@ -725,6 +725,29 @@ body::before {
   .nuevo-gasto-fab:active { transform: scale(0.95); }
   .op-gasto-btn { width: 100%; padding: 12px; background: transparent; border: 1px dashed var(--border2); border-radius: var(--radius-sm); color: var(--text2); font-family: 'Exo 2', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; margin-top: 14px; }
   .op-gasto-btn:active { background: var(--bg2); }
+  /* Solicitud de compras (pedidos de insumos) */
+  .pedido-prio-toggle { display: flex; gap: 8px; padding: 4px 16px; }
+  .pedido-prio-btn { flex: 1; padding: 11px 6px; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text2); font-family: 'Exo 2', sans-serif; font-size: 12px; font-weight: 600; cursor: pointer; }
+  .pedido-prio-btn.active { background: var(--green-dark); border-color: var(--green); color: var(--green); }
+  .pedido-mine-wrap { padding: 14px 16px 0; }
+  .pedido-mine-title { font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text3); font-weight: 700; margin-bottom: 8px; }
+  .pedido-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px 14px; margin: 0 16px 10px; }
+  .pedido-card-producto { font-size: 15px; font-weight: 700; color: var(--text); margin-bottom: 6px; }
+  .pedido-card-meta { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 4px; }
+  .pedido-card-detail { font-size: 12px; color: var(--text3); margin-top: 2px; }
+  .pedido-card-actions { display: flex; gap: 8px; margin-top: 10px; }
+  .pedido-btn-comprar { flex: 1; padding: 10px; background: var(--green-dark); border: 1px solid var(--green); border-radius: var(--radius-sm); color: var(--green); font-family: 'Exo 2', sans-serif; font-size: 12px; font-weight: 700; cursor: pointer; }
+  .pedido-btn-cancelar { flex: 1; padding: 10px; background: transparent; border: 1px solid var(--border2); border-radius: var(--radius-sm); color: var(--text3); font-family: 'Exo 2', sans-serif; font-size: 12px; font-weight: 600; cursor: pointer; }
+  .pedido-badge { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 5px; }
+  .pedido-badge.prio-urgente { background: rgba(229, 62, 62, 0.15); color: #fc8181; border: 1px solid rgba(229, 62, 62, 0.4); }
+  .pedido-badge.prio-normal { background: rgba(214, 158, 46, 0.15); color: #f6c453; border: 1px solid rgba(214, 158, 46, 0.4); }
+  .pedido-badge.prio-sugerente { background: rgba(56, 161, 105, 0.15); color: #68d391; border: 1px solid rgba(56, 161, 105, 0.4); }
+  .pedido-badge.estado-pendiente { background: var(--bg); color: var(--text2); border: 1px solid var(--border); }
+  .pedido-badge.estado-comprado { background: rgba(56, 161, 105, 0.15); color: #68d391; border: 1px solid rgba(56, 161, 105, 0.4); }
+  .pedido-badge.estado-cancelado { background: var(--bg); color: var(--text3); border: 1px solid var(--border); text-decoration: line-through; }
+  .pedido-tab-toggle { display: flex; gap: 6px; padding: 12px 16px 4px; }
+  .pedido-tab-toggle button { flex: 1; padding: 8px; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text2); font-family: 'Exo 2', sans-serif; font-size: 12px; font-weight: 600; cursor: pointer; }
+  .pedido-tab-toggle button.active { background: var(--green-dark); border-color: var(--green); color: var(--green); }
   .gasto-chip-coord { display: flex; align-items: center; gap: 10px; padding: 8px 10px; background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius-sm); margin-bottom: 6px; }
   .gasto-chip-coord-info { flex: 1; min-width: 0; }
   .gasto-chip-coord-name { font-size: 12px; font-weight: 600; color: var(--text); }
@@ -1141,6 +1164,7 @@ body::before {
       <div class="header-logo"><svg class="fly-mark" style="color:#00C98D"><use href="#fc-mark"/></svg>FlyClean</div>
     </div>
     <div style="display:flex;align-items:center;gap:8px">
+      <button onclick="openNuevoPedidoSheet()" title="Pedir insumo" style="background:none;border:1px solid var(--border2);border-radius:8px;color:var(--text3);font-size:11px;padding:5px 10px;cursor:pointer;font-family:'Exo 2',sans-serif">📦</button>
       <button onclick="openGastos()" title="Gastos" style="background:none;border:1px solid var(--border2);border-radius:8px;color:var(--text3);font-size:11px;padding:5px 10px;cursor:pointer;font-family:'Exo 2',sans-serif">💸</button>
       <button onclick="openPinChange()" style="background:none;border:1px solid var(--border2);border-radius:8px;color:var(--text3);font-size:11px;padding:5px 10px;cursor:pointer;font-family:'Exo 2',sans-serif">🔑 PIN</button>
       <div class="header-user" id="header-user-name" onclick="logout()">Salir ↩</div>
@@ -1173,6 +1197,7 @@ body::before {
     <div class="coord-logo" id="coord-logo-title"><svg class="fly-mark" style="color:#00C98D"><use href="#fc-mark"/></svg>FlyClean — Coordinador</div>
     <div style="display:flex;align-items:center;gap:8px">
       <button id="coord-ceo-btn" onclick="goToCEOFromCoord()" style="display:none;background:none;border:1px solid var(--border2);border-radius:8px;color:var(--text2);font-size:11px;font-weight:600;padding:5px 10px;cursor:pointer;font-family:'Exo 2',sans-serif">📊 CEO</button>
+      <button onclick="openNuevoPedidoSheet()" title="Pedir insumo" style="background:none;border:1px solid var(--border2);border-radius:8px;color:var(--text3);font-size:11px;padding:5px 10px;cursor:pointer;font-family:'Exo 2',sans-serif">📦</button>
       <button onclick="openGastos()" title="Gastos" style="background:none;border:1px solid var(--border2);border-radius:8px;color:var(--text3);font-size:11px;padding:5px 10px;cursor:pointer;font-family:'Exo 2',sans-serif">💸</button>
       <button onclick="openPinChange()" style="background:none;border:1px solid var(--border2);border-radius:8px;color:var(--text3);font-size:11px;padding:5px 10px;cursor:pointer;font-family:'Exo 2',sans-serif">🔑</button>
       <div class="coord-user" id="coord-user-name" onclick="logout()">Salir ↩</div>
@@ -1186,6 +1211,7 @@ body::before {
     <div class="coord-tab" id="ctab-relevamientos" data-i18n="coord.tab.relevamientos" onclick="setCoordTab('relevamientos')">🔍 Relevamientos</div>
     <div class="coord-tab" id="ctab-propuestas" data-i18n="coord.tab.propuestas" onclick="setCoordTab('propuestas')">💼 Propuestas</div>
     <div class="coord-tab" id="ctab-contactos" data-i18n="coord.tab.contactos" onclick="setCoordTab('contactos')">👥 Contactos</div>
+    <div class="coord-tab" id="ctab-pedidos" data-i18n="coord.tab.pedidos" onclick="setCoordTab('pedidos')">📦 Pedidos</div>
     <div class="coord-tab" id="ctab-comunicaciones" data-i18n="coord.tab.mensajes" onclick="setCoordTab('comunicaciones')">💬 Mensajes</div>
   </div>
   <div id="alerts-banner-coord"></div>
@@ -1354,6 +1380,15 @@ body::before {
       <div class="edit-sheet-sub" id="gasto-sheet-sub" data-i18n="sheet.gasto.sub">Sacá foto del recibo y la IA lo lee por vos.</div>
     </div>
     <div id="gasto-sheet-body" style="padding:0 0 24px"></div>
+  </div>
+</div>
+<!-- Modal: Solicitud de compras (pedir insumo) — sibling de body para
+     funcionar desde operario / coord sin importar la screen activa. -->
+<div class="edit-overlay" id="pedido-overlay" onclick="pedidoOverlayClick(event)">
+  <div class="edit-sheet" id="pedido-sheet">
+    <button class="sheet-close-btn" type="button" aria-label="Cerrar" onclick="closePedidoSheet()">×</button>
+    <div class="edit-sheet-handle"></div>
+    <div id="pedido-sheet-body" style="padding:0 0 24px"></div>
   </div>
 </div>
 <!-- Paso previo al PDF: observación al cliente (+ monto en pruebas/relevamientos).
@@ -1534,6 +1569,7 @@ const NOTION_DBS = {
   activos:    'e75449eeb78143f1b74006a4796c1f95',
   equipo:     'cfff6e26dbc84eedb7eabcb6c51db1eb',
   regTiempo:  '57bc613af5d04908a9f2342cf6a1a5a7',
+  solicitudes:'0f5cd38362ab430293a5dec7140ac18f',
 };
 const DB_ID = NOTION_DBS.servicios;
 const PROPUESTAS_DB_ID = NOTION_DBS.propuestas;
@@ -1745,7 +1781,32 @@ const TRANSLATIONS = {
     'coord.tab.servicios': '📋 Servicios',
     'coord.tab.propuestas': '💼 Propuestas',
     'coord.tab.contactos': '👥 Contactos',
+    'coord.tab.pedidos': '📦 Pedidos',
     'coord.tab.mensajes': '💬 Mensajes',
+    'pedido.title': '📦 Pedir insumo',
+    'pedido.sub': 'Pedí lo que necesitás. El coordinador lo compra.',
+    'pedido.field.producto': 'Producto',
+    'pedido.field.producto.ph': 'Ej. Cinta aisladora',
+    'pedido.field.prioridad': 'Prioridad',
+    'pedido.field.cantidad': 'Cantidad (opcional)',
+    'pedido.field.cantidad.ph': 'Ej. 2',
+    'pedido.field.nota': 'Nota (opcional)',
+    'pedido.field.nota.ph': 'Detalle, marca, dónde comprarlo…',
+    'pedido.send': '📦 Enviar pedido',
+    'pedido.saving': 'Enviando…',
+    'pedido.mine.title': 'Mis pedidos',
+    'pedido.mine.loading': 'Cargando tus pedidos…',
+    'pedido.mine.empty': 'Todavía no hiciste pedidos.',
+    'pedido.error.producto': 'Escribí qué producto necesitás.',
+    'pedido.error.save': 'Error al guardar:',
+    'pedido.bought.prefix': 'comprado ',
+    'pedido.btn.comprado': '✅ Marcar comprado',
+    'pedido.btn.cancelar': '❌ Cancelar',
+    'pedido.confirm.cancelar': '¿Cancelar este pedido?',
+    'pedido.coord.error': 'No se pudieron cargar los pedidos.',
+    'pedido.coord.empty': 'No hay pedidos.',
+    'pedido.coord.filter.pending': 'Pendientes',
+    'pedido.coord.filter.all': 'Todos',
     'coord.empty.day': 'Sin servicios para este día.',
     'coord.empty.month': 'Sin servicios este mes.',
     'coord.empty.day.relev': 'Sin relevamientos para este día.',
@@ -2263,7 +2324,32 @@ const TRANSLATIONS = {
     'coord.tab.servicios': '📋 Serviços',
     'coord.tab.propuestas': '💼 Propostas',
     'coord.tab.contactos': '👥 Contatos',
+    'coord.tab.pedidos': '📦 Pedidos',
     'coord.tab.mensajes': '💬 Mensagens',
+    'pedido.title': '📦 Pedir insumo',
+    'pedido.sub': 'Peça o que precisa. O coordenador compra.',
+    'pedido.field.producto': 'Produto',
+    'pedido.field.producto.ph': 'Ex. Fita isolante',
+    'pedido.field.prioridad': 'Prioridade',
+    'pedido.field.cantidad': 'Quantidade (opcional)',
+    'pedido.field.cantidad.ph': 'Ex. 2',
+    'pedido.field.nota': 'Nota (opcional)',
+    'pedido.field.nota.ph': 'Detalhe, marca, onde comprar…',
+    'pedido.send': '📦 Enviar pedido',
+    'pedido.saving': 'Enviando…',
+    'pedido.mine.title': 'Meus pedidos',
+    'pedido.mine.loading': 'Carregando seus pedidos…',
+    'pedido.mine.empty': 'Você ainda não fez pedidos.',
+    'pedido.error.producto': 'Escreva qual produto precisa.',
+    'pedido.error.save': 'Erro ao salvar:',
+    'pedido.bought.prefix': 'comprado ',
+    'pedido.btn.comprado': '✅ Marcar comprado',
+    'pedido.btn.cancelar': '❌ Cancelar',
+    'pedido.confirm.cancelar': 'Cancelar este pedido?',
+    'pedido.coord.error': 'Não foi possível carregar os pedidos.',
+    'pedido.coord.empty': 'Não há pedidos.',
+    'pedido.coord.filter.pending': 'Pendentes',
+    'pedido.coord.filter.all': 'Todos',
     'coord.empty.day': 'Sem serviços para este dia.',
     'coord.empty.month': 'Sem serviços este mês.',
     'coord.empty.day.relev': 'Sem levantamentos para este dia.',
@@ -3846,6 +3932,8 @@ function cargarMasFinanzas() {
 // Reusa constants definidas para fotos de servicios (~línea 2417).
 // Si en el futuro se refactoriza, mantener nombres canónicos.
 const GASTOS_DS_ID = '58fd9475-9baf-4d0e-9128-486185bf7ed8';
+const SOLICITUDES_DB_ID = NOTION_DBS.solicitudes;
+const SOLICITUDES_DS_ID = '0d49d612-1fea-40d7-8b94-d2b0dcae1b12';
 const GASTO_MONEDA_MAP = {
   'USD': '🇺🇸 USD',
   'UYU': '🇺🇾 UY$',
@@ -4576,6 +4664,328 @@ async function saveGasto() {
   }
 }
 
+// ─────────────────────────────────────────────
+// SOLICITUD DE COMPRAS (pedidos de insumos)
+// El operario (o coord) pide un insumo → se guarda en Notion.
+// El coordinador lo ve en la tab 📦 Pedidos y lo marca como comprado.
+// ─────────────────────────────────────────────
+let pedidoState = null;
+let _coordAllPedidos = [];
+let _coordPedidosFilter = 'pendientes'; // 'pendientes' | 'todos'
+
+const PEDIDO_PRIORIDADES = ['🔴 Urgente', '🟡 Normal', '🟢 Sugerente'];
+const PEDIDO_PAIS_MAP = {
+  'Uruguay': '🇺🇾 UY',
+  'Brasil': '🇧🇷 BR',
+  'Panamá': '🇵🇦 PA',
+  'Guatemala': '🇬🇹 GT',
+  'México': '🇲🇽 MX',
+};
+
+function pedidoPaisDelUser() {
+  return PEDIDO_PAIS_MAP[currentUser?.country] || '🇺🇾 UY';
+}
+
+function pedidoPrioClass(prio) {
+  if (!prio) return '';
+  if (prio.includes('Urgente')) return 'prio-urgente';
+  if (prio.includes('Sugerente')) return 'prio-sugerente';
+  return 'prio-normal';
+}
+
+function pedidoEstadoClass(estado) {
+  if (!estado) return 'estado-pendiente';
+  if (estado.includes('Comprado')) return 'estado-comprado';
+  if (estado.includes('Cancelado')) return 'estado-cancelado';
+  return 'estado-pendiente';
+}
+
+function pedidoFmtFecha(iso) {
+  if (!iso) return '';
+  try {
+    return new Date(iso + 'T00:00:00').toLocaleDateString(currentLang === 'pt-BR' ? 'pt-BR' : 'es', { day: 'numeric', month: 'short' });
+  } catch (_) { return iso; }
+}
+
+function openNuevoPedidoSheet() {
+  pedidoState = { producto: '', prioridad: '🟡 Normal', cantidad: '', nota: '', saving: false, mine: null, loadingMine: true };
+  document.getElementById('pedido-overlay').classList.add('open');
+  renderPedidoSheet();
+  loadMisPedidos();
+}
+
+function closePedidoSheet() {
+  document.getElementById('pedido-overlay').classList.remove('open');
+  pedidoState = null;
+}
+
+function pedidoOverlayClick(e) {
+  if (e.target.id === 'pedido-overlay') closePedidoSheet();
+}
+
+async function loadMisPedidos() {
+  try {
+    const data = await callNotion(`databases/${SOLICITUDES_DB_ID}/query`, 'POST', { page_size: 100 });
+    if (!pedidoState) return;
+    const mine = (data.results || []).filter(r =>
+      (r.properties?.['Solicitado por']?.rich_text?.[0]?.plain_text || '') === currentUser.name
+    );
+    // Más recientes primero por Fecha del pedido.
+    mine.sort((a, b) =>
+      (b.properties?.['Fecha del pedido']?.date?.start || '').localeCompare(a.properties?.['Fecha del pedido']?.date?.start || '')
+    );
+    pedidoState.mine = mine.slice(0, 5);
+    pedidoState.loadingMine = false;
+    renderPedidoSheet();
+  } catch (_) {
+    if (!pedidoState) return;
+    pedidoState.mine = [];
+    pedidoState.loadingMine = false;
+    renderPedidoSheet();
+  }
+}
+
+function renderPedidoSheet() {
+  if (!pedidoState) return;
+  const body = document.getElementById('pedido-sheet-body');
+  if (!body) return;
+  const f = pedidoState;
+
+  let mineHTML;
+  if (f.loadingMine) {
+    mineHTML = `<div class="equipos-empty">${t('pedido.mine.loading')}</div>`;
+  } else if (!f.mine || f.mine.length === 0) {
+    mineHTML = `<div class="pedido-card-detail" style="padding:0 16px">${t('pedido.mine.empty')}</div>`;
+  } else {
+    mineHTML = f.mine.map(p => {
+      const props = p.properties || {};
+      const prod = props['Producto']?.title?.[0]?.plain_text || '(sin nombre)';
+      const prio = props['Prioridad']?.select?.name || '';
+      const estado = props['Estado']?.select?.name || '';
+      const fecha = props['Fecha del pedido']?.date?.start || '';
+      return `<div class="pedido-card" style="margin:0 16px 8px">
+        <div class="pedido-card-producto" style="font-size:14px">${esc(prod)}</div>
+        <div class="pedido-card-meta">
+          ${prio ? `<span class="pedido-badge ${pedidoPrioClass(prio)}">${esc(prio)}</span>` : ''}
+          ${estado ? `<span class="pedido-badge ${pedidoEstadoClass(estado)}">${esc(estado)}</span>` : ''}
+          ${fecha ? `<span class="pedido-card-detail">🗓 ${esc(pedidoFmtFecha(fecha))}</span>` : ''}
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  body.innerHTML = `
+    <div class="edit-sheet-header">
+      <div class="edit-sheet-title">${t('pedido.title')}</div>
+      <div class="edit-sheet-sub">${t('pedido.sub')}</div>
+    </div>
+    <div class="gasto-form-row">
+      <label>${t('pedido.field.producto')}</label>
+      <input type="text" id="ped-producto" value="${esc(f.producto)}" oninput="pedidoState.producto=this.value" maxlength="120" placeholder="${t('pedido.field.producto.ph')}"/>
+    </div>
+    <div class="gasto-form-row">
+      <label>${t('pedido.field.prioridad')}</label>
+      <div class="pedido-prio-toggle">
+        ${PEDIDO_PRIORIDADES.map(p =>
+          `<button type="button" class="pedido-prio-btn ${f.prioridad===p?'active':''}" onclick="pedidoState.prioridad='${p}';renderPedidoSheet()">${esc(p)}</button>`
+        ).join('')}
+      </div>
+    </div>
+    <div class="gasto-form-row">
+      <label>${t('pedido.field.cantidad')}</label>
+      <input type="number" id="ped-cantidad" value="${esc(String(f.cantidad))}" step="1" min="0" oninput="pedidoState.cantidad=this.value" placeholder="${t('pedido.field.cantidad.ph')}"/>
+    </div>
+    <div class="gasto-form-row">
+      <label>${t('pedido.field.nota')}</label>
+      <textarea id="ped-nota" oninput="pedidoState.nota=this.value" maxlength="500" placeholder="${t('pedido.field.nota.ph')}">${esc(f.nota)}</textarea>
+    </div>
+    <div class="gasto-actions">
+      <button class="edit-save-btn" id="pedido-save-btn" onclick="savePedido()" ${f.saving?'disabled':''}>${f.saving ? t('pedido.saving') : t('pedido.send')}</button>
+    </div>
+    <div class="pedido-mine-wrap">
+      <div class="pedido-mine-title">${t('pedido.mine.title')}</div>
+      ${mineHTML}
+    </div>
+  `;
+}
+
+async function savePedido() {
+  if (!pedidoState || pedidoState.saving) return;
+  const f = pedidoState;
+  if (!f.producto.trim()) { alert(t('pedido.error.producto')); return; }
+
+  f.saving = true;
+  renderPedidoSheet();
+
+  const hoy = new Date().toISOString().slice(0, 10);
+  const cantNum = f.cantidad !== '' && f.cantidad != null ? Number(f.cantidad) : null;
+  const properties = {
+    'Producto': { title: [{ text: { content: f.producto.trim() } }] },
+    'Prioridad': { select: { name: f.prioridad } },
+    'Solicitado por': { rich_text: [{ text: { content: currentUser.name } }] },
+    'Fecha del pedido': { date: { start: hoy } },
+    'Estado': { select: { name: '🆕 Pendiente' } },
+    'País': { select: { name: pedidoPaisDelUser() } },
+  };
+  if (cantNum != null && !isNaN(cantNum)) properties['Cantidad'] = { number: cantNum };
+  if (f.nota.trim()) properties['Nota'] = { rich_text: [{ text: { content: f.nota.trim() } }] };
+
+  try {
+    await callNotion('pages', 'POST', {
+      parent: { type: 'data_source_id', data_source_id: SOLICITUDES_DS_ID },
+      properties,
+    });
+    f.saving = false;
+    // Limpiar el form y refrescar "Mis pedidos" sin cerrar (para ver el nuevo).
+    f.producto = '';
+    f.prioridad = '🟡 Normal';
+    f.cantidad = '';
+    f.nota = '';
+    f.loadingMine = true;
+    renderPedidoSheet();
+    showSaving();
+    loadMisPedidos();
+    // Si el coord tiene la tab Pedidos abierta, refrescar la lista.
+    if (activeCoordTab === 'pedidos' && typeof renderCoordPedidos === 'function') {
+      renderCoordPedidos();
+    }
+  } catch (e) {
+    f.saving = false;
+    renderPedidoSheet();
+    alert((t('pedido.error.save') || 'Error al guardar:') + ' ' + e.message);
+  }
+}
+
+// ── Coordinador: tab 📦 Pedidos ──────────────────
+async function renderCoordPedidos() {
+  const content = document.getElementById('coord-content');
+  if (!content) return;
+  content.innerHTML = '<div style="text-align:center;padding:40px 0"><div class="spinner" style="margin:0 auto"></div></div>';
+  const myTab = 'pedidos';
+  try {
+    const data = await callNotion(`databases/${SOLICITUDES_DB_ID}/query`, 'POST', { page_size: 100 });
+    if (activeCoordTab !== myTab) return;
+    let results = data.results || [];
+    // Filtrar por país del coord (los de Dirección/HQ ven todos).
+    const paisUser = pedidoPaisDelUser();
+    const isGlobal = currentUser?.role?.includes('Dirección') ||
+                     (currentUser?.role === '👔 CEO' && currentUser?.country === 'Uruguay');
+    if (!isGlobal) {
+      results = results.filter(r => (r.properties?.['País']?.select?.name || '') === paisUser);
+    }
+    _coordAllPedidos = results;
+    renderCoordPedidosList();
+  } catch (e) {
+    if (activeCoordTab !== myTab) return;
+    content.innerHTML = `<div class="coord-empty">${t('pedido.coord.error')}<br><small>${esc(e.message)}</small></div>`;
+  }
+}
+
+function setCoordPedidosFilter(val) {
+  _coordPedidosFilter = val;
+  renderCoordPedidosList();
+}
+
+function renderCoordPedidosList() {
+  const content = document.getElementById('coord-content');
+  if (!content) return;
+  const prioRank = { '🔴 Urgente': 0, '🟡 Normal': 1, '🟢 Sugerente': 2 };
+
+  let items = _coordAllPedidos.slice();
+  if (_coordPedidosFilter === 'pendientes') {
+    items = items.filter(p => (p.properties?.['Estado']?.select?.name || '').includes('Pendiente'));
+  }
+  // Orden: Urgente → Normal → Sugerente; dentro, Fecha del pedido desc.
+  items.sort((a, b) => {
+    const ra = prioRank[a.properties?.['Prioridad']?.select?.name] ?? 9;
+    const rb = prioRank[b.properties?.['Prioridad']?.select?.name] ?? 9;
+    if (ra !== rb) return ra - rb;
+    const fa = a.properties?.['Fecha del pedido']?.date?.start || '';
+    const fb = b.properties?.['Fecha del pedido']?.date?.start || '';
+    return fb.localeCompare(fa);
+  });
+
+  const toggle =
+    `<div class="pedido-tab-toggle">
+      <button class="${_coordPedidosFilter==='pendientes'?'active':''}" onclick="setCoordPedidosFilter('pendientes')">${t('pedido.coord.filter.pending')}</button>
+      <button class="${_coordPedidosFilter==='todos'?'active':''}" onclick="setCoordPedidosFilter('todos')">${t('pedido.coord.filter.all')}</button>
+    </div>`;
+
+  const cards = items.length
+    ? items.map(p => coordPedidoCard(p)).join('')
+    : `<div class="coord-empty" style="margin-top:0">${t('pedido.coord.empty')}</div>`;
+
+  content.innerHTML = toggle + '<div style="height:6px"></div>' + cards;
+}
+
+function coordPedidoCard(p) {
+  const props = p.properties || {};
+  const prod = props['Producto']?.title?.[0]?.plain_text || '(sin nombre)';
+  const prio = props['Prioridad']?.select?.name || '';
+  const estado = props['Estado']?.select?.name || '';
+  const cant = props['Cantidad']?.number;
+  const solicitante = props['Solicitado por']?.rich_text?.[0]?.plain_text || '';
+  const nota = props['Nota']?.rich_text?.[0]?.plain_text || '';
+  const fechaPedido = props['Fecha del pedido']?.date?.start || '';
+  const fechaCompra = props['Fecha de compra']?.date?.start || '';
+  const isPendiente = estado.includes('Pendiente');
+
+  return `<div class="pedido-card">
+    <div class="pedido-card-producto">${esc(prod)}${cant != null ? ` <span style="font-weight:600;color:var(--text3);font-size:13px">×${esc(String(cant))}</span>` : ''}</div>
+    <div class="pedido-card-meta">
+      ${prio ? `<span class="pedido-badge ${pedidoPrioClass(prio)}">${esc(prio)}</span>` : ''}
+      ${estado ? `<span class="pedido-badge ${pedidoEstadoClass(estado)}">${esc(estado)}</span>` : ''}
+    </div>
+    ${solicitante ? `<div class="pedido-card-detail">👤 ${esc(solicitante)}</div>` : ''}
+    ${fechaPedido ? `<div class="pedido-card-detail">🗓 ${esc(pedidoFmtFecha(fechaPedido))}</div>` : ''}
+    ${fechaCompra ? `<div class="pedido-card-detail">🛒 ${t('pedido.bought.prefix')}${esc(pedidoFmtFecha(fechaCompra))}</div>` : ''}
+    ${nota ? `<div class="pedido-card-detail">📝 ${esc(nota)}</div>` : ''}
+    ${isPendiente ? `<div class="pedido-card-actions">
+      <button class="pedido-btn-comprar" onclick="marcarPedidoComprado('${esc(p.id)}')">${t('pedido.btn.comprado')}</button>
+      <button class="pedido-btn-cancelar" onclick="cancelarPedido('${esc(p.id)}')">${t('pedido.btn.cancelar')}</button>
+    </div>` : ''}
+  </div>`;
+}
+
+async function marcarPedidoComprado(id) {
+  const hoy = new Date().toISOString().slice(0, 10);
+  // Update optimista en memoria.
+  const item = _coordAllPedidos.find(p => p.id === id);
+  if (item) {
+    item.properties['Estado'] = { select: { name: '🛒 Comprado' } };
+    item.properties['Fecha de compra'] = { date: { start: hoy } };
+    renderCoordPedidosList();
+  }
+  try {
+    await callNotion(`pages/${id}`, 'PATCH', { properties: {
+      'Estado': { select: { name: '🛒 Comprado' } },
+      'Fecha de compra': { date: { start: hoy } },
+    }});
+    showSaving();
+  } catch (e) {
+    alert((t('pedido.error.save') || 'Error al guardar:') + ' ' + e.message);
+    renderCoordPedidos();
+  }
+}
+
+async function cancelarPedido(id) {
+  if (!confirm(t('pedido.confirm.cancelar'))) return;
+  const item = _coordAllPedidos.find(p => p.id === id);
+  if (item) {
+    item.properties['Estado'] = { select: { name: '❌ Cancelado' } };
+    renderCoordPedidosList();
+  }
+  try {
+    await callNotion(`pages/${id}`, 'PATCH', { properties: {
+      'Estado': { select: { name: '❌ Cancelado' } },
+    }});
+    showSaving();
+  } catch (e) {
+    alert((t('pedido.error.save') || 'Error al guardar:') + ' ' + e.message);
+    renderCoordPedidos();
+  }
+}
+
 async function pinConfirm() {
   if (!(await verifyPin(pinUser.id, pinBuffer))) {
     pinAttempts++;
@@ -4608,7 +5018,7 @@ function setTab(tab) {
 function setCoordTab(tab) {
   activeCoordTab = tab;
   markUserActive();
-  ['inicio', 'resumen', 'servicios', 'pruebas', 'relevamientos', 'propuestas', 'contactos', 'comunicaciones'].forEach(t => {
+  ['inicio', 'resumen', 'servicios', 'pruebas', 'relevamientos', 'propuestas', 'contactos', 'pedidos', 'comunicaciones'].forEach(t => {
     const el = document.getElementById('ctab-' + t);
     if (el) el.classList.toggle('active', t === tab);
   });
@@ -4638,6 +5048,7 @@ function setCoordTab(tab) {
   else if (tab === 'relevamientos') renderCoordRelevamientos();
   else if (tab === 'propuestas') renderCoordPropuestas();
   else if (tab === 'contactos') renderCoordContactos();
+  else if (tab === 'pedidos') renderCoordPedidos();
   else renderComunicaciones();
 }
 
@@ -9177,7 +9588,7 @@ function renderAlertsBanner(containerId, alerts) {
       '</div>' +
       '<div class="alerts-list ' + (hasCritical ? 'critical' : '') + '" id="' + id + '" style="display:none">' +
         alerts.map(a =>
-          '<div class="alert-item"><div class="alert-icon">' + a.icon + '</div><div>' + a.message + '</div></div>'
+          '<div class="alert-item"' + (a.onclick ? ' style="cursor:pointer" onclick="' + a.onclick.replace(/"/g, '&quot;') + '"' : '') + '><div class="alert-icon">' + a.icon + '</div><div>' + a.message + (a.onclick ? ' <span style="opacity:0.6">›</span>' : '') + '</div></div>'
         ).join('') +
       '</div>' +
     '</div>';
@@ -9286,6 +9697,23 @@ async function loadAlerts(role, bannerId) {
       if (vencidas.length) {
         const max = Math.max(...vencidas.map(r => r.properties?.['Días sin respuesta']?.formula?.number || 0));
         alerts.push({ level: max >= 45 ? 'critical' : 'warn', icon: '📞', message: vencidas.length + ' propuesta' + (vencidas.length > 1 ? 's' : '') + ' para re-contactar (máx ' + max + ' días sin respuesta)' });
+      }
+    }
+
+    // Solicitud de compras: pedidos pendientes del país del coord (coord only)
+    if (isCoord) {
+      const pedData = await callNotion(`databases/${SOLICITUDES_DB_ID}/query`, 'POST', { page_size: 100 });
+      let pedidos = (pedData.results || []).filter(r => (r.properties?.['Estado']?.select?.name || '').includes('Pendiente'));
+      const isGlobal = currentUser?.role?.includes('Dirección');
+      if (!isGlobal) {
+        const paisUser = pedidoPaisDelUser();
+        pedidos = pedidos.filter(r => (r.properties?.['País']?.select?.name || '') === paisUser);
+      }
+      if (pedidos.length) {
+        const urgentes = pedidos.filter(r => (r.properties?.['Prioridad']?.select?.name || '').includes('Urgente')).length;
+        let msg = pedidos.length + ' pedido' + (pedidos.length > 1 ? 's' : '') + ' pendiente' + (pedidos.length > 1 ? 's' : '');
+        if (urgentes) msg += ' (' + urgentes + ' urgente' + (urgentes > 1 ? 's' : '') + ')';
+        alerts.push({ level: urgentes ? 'critical' : 'warn', icon: '📦', message: msg, onclick: "setCoordTab('pedidos')" });
       }
     }
   } catch (e) {
