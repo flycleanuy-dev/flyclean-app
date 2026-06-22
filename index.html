@@ -259,6 +259,7 @@ body::before {
   .cargar-mas-btn:hover, .cargar-mas-btn:active {
     border-color: var(--green); color: var(--green); background: rgba(0,201,141,0.06);
   }
+  .kb-mas-btn { margin-top: 6px; padding: 9px 12px; font-size: 12px; }
   .cancelar-inicio-banner button {
     background: transparent; border: 1px solid var(--text3); color: var(--text2);
     padding: 5px 10px; border-radius: 6px; font-size: 12px; font-weight: 600;
@@ -6946,6 +6947,7 @@ function setCoordView(v) {
 // Render del control segmentado + del cuerpo (lista o tablero) según _coordView.
 // Solo se usa desde la pestaña Inicio; Pruebas y Relevamientos siguen usando renderCoordList directo.
 function renderCoordServiciosView() {
+  _kbColLimits = {}; // reset del paginado por columna del tablero al cambiar vista/filtros/mes
   const toggle = document.getElementById('coord-view-toggle');
   if (toggle) {
     toggle.style.display = 'flex';
@@ -7046,6 +7048,13 @@ const KANBAN_ESTADOS = [
 
 // Tablero (Kanban) base — Tarea 1: 5 columnas por estado, scroll horizontal, SIN arrastre.
 // El cambio de estado se hace por toque con la hoja "Mover a" (Tarea 2).
+// Límite de tarjetas visibles por columna del tablero (paginado "Ver más", de a COORD_PAGE_SIZE).
+// Se resetea en renderCoordServiciosView (al cambiar vista/filtros/mes); verMasKanban lo sube.
+let _kbColLimits = {};
+function verMasKanban(core) {
+  _kbColLimits[core] = (_kbColLimits[core] || COORD_PAGE_SIZE) + COORD_PAGE_SIZE;
+  renderCoordKanban();
+}
 function renderCoordKanban() {
   const content = document.getElementById('coord-content');
   if (!content) return;
@@ -7065,12 +7074,17 @@ function renderCoordKanban() {
 
   const cols = columns.map((c, i) => {
     const list = buckets[i];
+    // Paginado por columna: mostramos hasta el límite (15 por defecto) + botón "Ver más".
+    const lim = _kbColLimits[c.core] || COORD_PAGE_SIZE;
+    const shown = list.slice(0, lim);
+    const remaining = list.length - shown.length;
     const cardsHTML = list.length
-      ? list.map(s => `<div class="kb-card" data-id="${esc(s.id)}" data-estado="${esc(c.estado)}">` +
+      ? shown.map(s => `<div class="kb-card" data-id="${esc(s.id)}" data-estado="${esc(c.estado)}">` +
           // Botón "Mover" discreto en la esquina; stopPropagation evita disparar openEditSheet de la card.
           `<button class="kb-move-btn" title="Mover a otro estado" onclick="event.stopPropagation(); openMoverEstado('${esc(s.id)}')">↔</button>` +
           coordServiceCard(s) +
         `</div>`).join('')
+        + (remaining > 0 ? `<button class="cargar-mas-btn kb-mas-btn" onclick="verMasKanban('${esc(c.core)}')">↓ Ver ${Math.min(COORD_PAGE_SIZE, remaining)} más · quedan ${remaining}</button>` : '')
       : `<div class="kb-col-empty">Sin servicios</div>`;
     return `<div class="kb-col" data-estado="${esc(c.estado)}">
       <div class="kb-col-head">${esc(c.estado)} <span class="kb-count">(${list.length})</span></div>
