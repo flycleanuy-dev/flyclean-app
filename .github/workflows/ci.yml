@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [ main ]
+  push:
+    branches: [ main ]
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install deps (reproducible)
+        run: npm ci
+
+      - name: Security audit (high+)
+        run: npm audit --audit-level=high
+
+      - name: Syntax check api/*.js
+        run: |
+          for f in $(find api -name '*.js'); do
+            echo "· $f"
+            node --check "$f"
+          done
+
+      - name: Syntax check index.html inline JS
+        run: npm run check

@@ -22,8 +22,10 @@ const diasOf = (p) => p?.['Días sin respuesta']?.formula?.number ?? null; // mi
 
 export default async function handler(req, res) {
   // Seguridad: Vercel Cron manda Authorization: Bearer $CRON_SECRET.
+  // Falla CERRADO: sin CRON_SECRET el endpoint NO corre (evita que quede público).
   const secret = process.env.CRON_SECRET;
-  if (secret && req.headers.authorization !== `Bearer ${secret}`) {
+  if (!secret) return res.status(500).json({ error: 'CRON_SECRET not configured' });
+  if (req.headers.authorization !== `Bearer ${secret}`) {
     return res.status(401).json({ error: 'unauthorized' });
   }
   // Modo simulación: ?dry=1 calcula y reporta SIN escribir en Notion ni mandar email.
