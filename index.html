@@ -2704,10 +2704,6 @@ function t(key) {
   return (TRANSLATIONS[currentLang] && TRANSLATIONS[currentLang][key]) || TRANSLATIONS['es'][key] || key;
 }
 
-function defaultLangForCountry(country) {
-  return country === 'Brasil' ? 'pt-BR' : 'es';
-}
-
 function initLang() {
   const savedCountry = localStorage.getItem('fc_country');
   if (savedCountry === 'Brasil') {
@@ -3605,18 +3601,6 @@ let _finanzasFilterCategoria = '';
 let _finanzasFilterClase = '';
 let _finanzasFilterTipo = '';
 
-// Helper: convierte yyyy-mm-dd a label "Mayo 2026" (mismo formato que las options en Notion)
-function notionMesLabel(yearMonth) {
-  const [y, m] = yearMonth.split('-').map(Number);
-  const meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-  return `${meses[m-1]} ${y}`;
-}
-
-function currentYearMonth() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
-}
-
 async function fetchGastosForMonth() {
   // Trae los gastos del mes actual. Para v1 sin filtro server-side de mes
   // (Notion devuelve max 100 sin paginar) — toda la lista del último mes.
@@ -3938,6 +3922,7 @@ const SOLICITUDES_DB_ID = NOTION_DBS.solicitudes;
 const SOLICITUDES_DS_ID = '0d49d612-1fea-40d7-8b94-d2b0dcae1b12';
 const DOCUMENTOS_DB_ID = NOTION_DBS.documentos;
 const DOCUMENTOS_DS_ID = '30ae5cdd-b259-4b3e-ac76-7cbb89354253';
+const SERVICIOS_DS_ID = '2fbc8a03-5c4f-445c-8516-71dd9b2eea78'; // data source de la DB Servicios (multi-data-source)
 const GASTO_MONEDA_MAP = {
   'USD': '🇺🇸 USD',
   'UYU': '🇺🇾 UY$',
@@ -6196,7 +6181,7 @@ async function renderCEOMetricas() {
         (aRevisar.length ? '<button class="ceo-acc-head warn" onclick="toggleCeoAcc(this)"><span>⚠️ A revisar (' + aRevisar.length + ')</span><span class="fin-arrow">▾</span></button><div class="ceo-acc-body" style="display:none">' + aRevisar.map(x => '<div class="fin-detail-row"><div class="fin-detail-main"><div class="fin-detail-title">• ' + esc(x) + '</div></div></div>').join('') + '<div class="kpi-sub" style="padding:8px 16px 4px">Completalos desde el proyecto FlyClean-Finanzas para KPIs exactos por período y por cliente.</div></div>' : '') +
       '</div>';
   } catch (e) {
-    content.innerHTML = '<div class="coord-empty">' + t('ceo.error.metricas') + '<br><small>' + e.message + '</small></div>';
+    content.innerHTML = '<div class="coord-empty">' + t('ceo.error.metricas') + '<br><small>' + esc(e.message) + '</small></div>';
   }
 }
 
@@ -6243,7 +6228,7 @@ async function renderCEOServicios() {
       </div>`;
     }).join('');
   } catch (e) {
-    content.innerHTML = `<div class="coord-empty">${t('ceo.error.servicios')}<br><small>${e.message}</small></div>`;
+    content.innerHTML = `<div class="coord-empty">${t('ceo.error.servicios')}<br><small>${esc(e.message)}</small></div>`;
   }
 }
 
@@ -6513,12 +6498,8 @@ async function renderCEOFinanzas() {
         '<div style="padding:14px"><button class="ceo-nuevo-gasto-btn" style="width:100%" onclick="openNuevoGastoSheet({ defaultClase: \'🔁 Indirecto\' })">+ ' + t('ceo.gasto.add') + '</button></div>' +
       '</div>';
   } catch (e) {
-    content.innerHTML = '<div class="coord-empty">' + t('ceo.error.finanzas') + '<br><small>' + e.message + '</small></div>';
+    content.innerHTML = '<div class="coord-empty">' + t('ceo.error.finanzas') + '<br><small>' + esc(e.message) + '</small></div>';
   }
-}
-
-async function changeCEOMonth(delta) {
-  shiftCEOPeriod(delta);
 }
 
 async function setCEOFinCurrency(cur) {
@@ -8004,7 +7985,7 @@ async function submitCreateJornada() {
 
     // La base Servicios usa data_source_id (multiple data sources)
     await callNotion('pages', 'POST', {
-      parent: { type: 'data_source_id', data_source_id: '2fbc8a03-5c4f-445c-8516-71dd9b2eea78' },
+      parent: { type: 'data_source_id', data_source_id: SERVICIOS_DS_ID },
       properties
     });
 
@@ -8666,7 +8647,7 @@ async function renderCoordInicio() {
     if (_coordFiltersPanelOpen) renderCoordFiltersPanel();
   } catch (e) {
     if (activeCoordTab !== myTab) return;
-    content.innerHTML = `<div class="coord-empty">${t('coord.error.load')}<br><small>${e.message}</small></div>`;
+    content.innerHTML = `<div class="coord-empty">${t('coord.error.load')}<br><small>${esc(e.message)}</small></div>`;
   }
 }
 
@@ -8692,7 +8673,7 @@ async function renderCoordServicios() {
     if (_coordFiltersPanelOpen) renderCoordFiltersPanel();
   } catch (e) {
     if (activeCoordTab !== myTab) return;
-    content.innerHTML = `<div class="coord-empty">${t('coord.error.load')}<br><small>${e.message}</small></div>`;
+    content.innerHTML = `<div class="coord-empty">${t('coord.error.load')}<br><small>${esc(e.message)}</small></div>`;
   }
 }
 
@@ -8715,7 +8696,7 @@ async function renderCoordPruebas() {
     if (_coordFiltersPanelOpen) renderCoordFiltersPanel();
   } catch (e) {
     if (activeCoordTab !== myTab) return;
-    content.innerHTML = `<div class="coord-empty">${t('coord.error.load')}<br><small>${e.message}</small></div>`;
+    content.innerHTML = `<div class="coord-empty">${t('coord.error.load')}<br><small>${esc(e.message)}</small></div>`;
   }
 }
 
@@ -8738,7 +8719,7 @@ async function renderCoordRelevamientos() {
     if (_coordFiltersPanelOpen) renderCoordFiltersPanel();
   } catch (e) {
     if (activeCoordTab !== myTab) return;
-    content.innerHTML = `<div class="coord-empty">${t('coord.error.load')}<br><small>${e.message}</small></div>`;
+    content.innerHTML = `<div class="coord-empty">${t('coord.error.load')}<br><small>${esc(e.message)}</small></div>`;
   }
 }
 
@@ -8908,7 +8889,7 @@ async function createServicioFromPropuesta(propPageId) {
     // (no database_id) en el parent al crear páginas. Si usás database_id, devuelve
     // validation_error y el proxy fallback dispara un search (incorrecto para creates).
     const created = await callNotion('pages', 'POST', {
-      parent: { type: 'data_source_id', data_source_id: '2fbc8a03-5c4f-445c-8516-71dd9b2eea78' },
+      parent: { type: 'data_source_id', data_source_id: SERVICIOS_DS_ID },
       properties
     });
 
@@ -8950,7 +8931,7 @@ async function createPruebaFromPropuesta(propPageId) {
     if (contactRel) properties['Contacto'] = { relation: [{ id: contactRel }] };
 
     const created = await callNotion('pages', 'POST', {
-      parent: { type: 'data_source_id', data_source_id: '2fbc8a03-5c4f-445c-8516-71dd9b2eea78' },
+      parent: { type: 'data_source_id', data_source_id: SERVICIOS_DS_ID },
       properties
     });
 
@@ -8991,7 +8972,7 @@ async function createRelevamientoFromPropuesta(propPageId) {
 
     // Multi-source DB → data_source_id obligatorio
     const created = await callNotion('pages', 'POST', {
-      parent: { type: 'data_source_id', data_source_id: '2fbc8a03-5c4f-445c-8516-71dd9b2eea78' },
+      parent: { type: 'data_source_id', data_source_id: SERVICIOS_DS_ID },
       properties
     });
 
@@ -9119,7 +9100,7 @@ async function renderCoordContactos() {
     renderContactList(_coordAllContacts);
   } catch (e) {
     if (activeCoordTab !== myTab) return;
-    content.innerHTML = `<div class="coord-empty">${t('coord.error.contactos')}<br><small>${e.message}</small></div>`;
+    content.innerHTML = `<div class="coord-empty">${t('coord.error.contactos')}<br><small>${esc(e.message)}</small></div>`;
   }
 }
 
@@ -9396,7 +9377,7 @@ async function loadContactHistory(contactId) {
     _contactHistoryCache[contactId] = items;
     renderContactHistory(items);
   } catch (e) {
-    container.innerHTML = `<div class="history-empty">${t('contact.history.error')} ${e.message}</div>`;
+    container.innerHTML = `<div class="history-empty">${t('contact.history.error')} ${esc(e.message)}</div>`;
   }
 }
 
@@ -9521,7 +9502,7 @@ async function renderCoordPropuestas() {
     if (_coordFiltersPanelOpen) renderCoordFiltersPanel();
   } catch (e) {
     if (activeCoordTab !== myTab) return;
-    content.innerHTML = `<div class="coord-empty">${t('coord.error.props')}<br><small>${e.message}</small></div>`;
+    content.innerHTML = `<div class="coord-empty">${t('coord.error.props')}<br><small>${esc(e.message)}</small></div>`;
   }
 }
 
