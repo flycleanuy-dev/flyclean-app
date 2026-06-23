@@ -1,9 +1,10 @@
 import { verifySession, tokenFromReq } from './_lib/session.js';
 
-// Auth del proxy (#1). MONITOR (false): valida el token y lo reporta en X-Auth, pero NO rechaza
-// (cero riesgo). ENFORCE (true): rechaza con 401 los pedidos sin token válido → cierra el agujero.
-// Se activa recién tras verificar que todos los clientes mandan un token válido.
-const ENFORCE_AUTH = false;
+// Auth del proxy (#1). MONITOR (false): valida el token y lo reporta en X-Auth, pero NO rechaza.
+// ENFORCE (true): rechaza con 401 los pedidos sin token válido → CIERRA el agujero.
+// Activado tras verificar el round-trip completo (login emite token, proxy valida x-auth:ok) y que
+// todos los usuarios están en PINs server-known → nadie queda trancado. Revertir = poner false.
+const ENFORCE_AUTH = true;
 
 const ALLOWED_ENDPOINTS = [
   /^databases\/[a-f0-9-]{32,36}\/query$/,
