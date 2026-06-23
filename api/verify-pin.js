@@ -3,6 +3,7 @@
 // (un JSON { "<id>": "<pin>", ... }). Devuelve { ok: true|false } — nunca el PIN.
 import crypto from 'node:crypto';
 import { signSession } from './_lib/session.js';
+import { getUserPinHash, verifyPinHash } from './_lib/pins.js';
 
 export const config = { maxDuration: 10 };
 
@@ -51,10 +52,17 @@ export default async function handler(req, res) {
     return res.status(429).json({ ok: false, error: 'demasiados intentos, esperá un momento' });
   }
 
-  let map = {};
-  try { map = JSON.parse(process.env.USER_PINS || '{}'); } catch (_) { map = {}; }
-  const expected = map[id];
-  const valid = typeof expected === 'string' && expected.length > 0 && safeEqual(pin, expected);
+  // PIN custom (cambiado por el usuario) vive hasheado en KV y tiene prioridad; si no, el default de USER_PINS.
+  let valid = false;
+  const customHash = await getUserPinHash(id);
+  if (customHash) {
+    valid = verifyPinHash(pin, customHash);
+  } else {
+    let map = {};
+    try { map = JSON.parse(process.env.USER_PINS || '{}'); } catch (_) { map = {}; }
+    const expected = map[id];
+    valid = typeof expected === 'string' && expected.length > 0 && safeEqual(pin, expected);
+  }
 
   if (!valid) {
     attempts.set(id, { count: (windowed ? prev.count : 0) + 1, ts: now });

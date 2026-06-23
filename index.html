@@ -1501,15 +1501,15 @@ body::before {
     <div class="pin-change-sub" id="pin-change-sub" data-i18n="pinchange.sub">Ingresá tu PIN actual y elegí uno nuevo de 4 dígitos.</div>
     <div class="pin-change-field">
       <div class="pin-change-label" data-i18n="pinchange.label.actual">PIN Actual</div>
-      <input class="pin-change-input" id="pin-current" type="password" inputmode="numeric" maxlength="4" placeholder="••••" oninput="this.value=this.value.replace(/\D/g,'').slice(0,4)"/>
+      <input class="pin-change-input" id="pin-current" type="password" inputmode="numeric" maxlength="6" placeholder="••••" oninput="this.value=this.value.replace(/\D/g,'').slice(0,6)"/>
     </div>
     <div class="pin-change-field">
       <div class="pin-change-label" data-i18n="pinchange.label.nuevo">PIN Nuevo</div>
-      <input class="pin-change-input" id="pin-new1" type="password" inputmode="numeric" maxlength="4" placeholder="••••" oninput="this.value=this.value.replace(/\D/g,'').slice(0,4)"/>
+      <input class="pin-change-input" id="pin-new1" type="password" inputmode="numeric" maxlength="6" placeholder="••••" oninput="this.value=this.value.replace(/\D/g,'').slice(0,6)"/>
     </div>
     <div class="pin-change-field">
       <div class="pin-change-label" data-i18n="pinchange.label.confirm">Confirmar PIN Nuevo</div>
-      <input class="pin-change-input" id="pin-new2" type="password" inputmode="numeric" maxlength="4" placeholder="••••" oninput="this.value=this.value.replace(/\D/g,'').slice(0,4)"/>
+      <input class="pin-change-input" id="pin-new2" type="password" inputmode="numeric" maxlength="6" placeholder="••••" oninput="this.value=this.value.replace(/\D/g,'').slice(0,6)"/>
     </div>
     <div class="pin-change-error" id="pin-change-error"></div>
     <button class="pin-change-btn" data-i18n="pinchange.btn.save" onclick="saveNewPin()">Guardar nuevo PIN</button>
@@ -1634,7 +1634,7 @@ const TRANSLATIONS = {
     'login.subtitle': 'Panel Operario',
     'login.who': '¿QUIÉN ERES?',
     'login.back': '‹ Cambiar región',
-    'pin.sub': 'Ingresá tu PIN de 4 dígitos',
+    'pin.sub': 'Ingresá tu PIN',
     'pin.error.wrong': 'PIN incorrecto. Intentá de nuevo.',
     'pin.error.wrong.attempt': 'PIN incorrecto · intento {n}',
     'gps.locating.title': 'Localizando…',
@@ -1642,13 +1642,14 @@ const TRANSLATIONS = {
     'pin.back.user': '← Cambiar usuario',
     'pin.back.region': '← Cambiar región',
     'pinchange.title': 'Cambiar PIN',
-    'pinchange.sub': 'Ingresá tu PIN actual y elegí uno nuevo de 4 dígitos.',
+    'pinchange.sub': 'Ingresá tu PIN actual y elegí uno nuevo (4 o 6 dígitos).',
     'pinchange.label.actual': 'PIN Actual',
     'pinchange.label.nuevo': 'PIN Nuevo',
     'pinchange.label.confirm': 'Confirmar PIN Nuevo',
     'pinchange.btn.save': 'Guardar nuevo PIN',
     'pinchange.error.current': 'El PIN actual es incorrecto.',
-    'pinchange.error.format': 'El nuevo PIN debe tener exactamente 4 dígitos.',
+    'pinchange.error.format': 'El PIN debe ser de 4 o 6 dígitos.',
+    'pinchange.error.conn': 'Error de conexión. Probá de nuevo.',
     'pinchange.error.match': 'Los PINs nuevos no coinciden.',
     'pinchange.error.same': 'El nuevo PIN debe ser diferente al actual.',
     'pinchange.success': '✅ PIN actualizado correctamente.',
@@ -2182,7 +2183,7 @@ const TRANSLATIONS = {
     'login.subtitle': 'Painel Operário',
     'login.who': 'QUEM É VOCÊ?',
     'login.back': '‹ Trocar região',
-    'pin.sub': 'Digite seu PIN de 4 dígitos',
+    'pin.sub': 'Digite seu PIN',
     'pin.error.wrong': 'PIN incorreto. Tente novamente.',
     'pin.error.wrong.attempt': 'PIN incorreto · tentativa {n}',
     'gps.locating.title': 'Localizando…',
@@ -2190,13 +2191,14 @@ const TRANSLATIONS = {
     'pin.back.user': '← Trocar usuário',
     'pin.back.region': '← Trocar região',
     'pinchange.title': 'Trocar PIN',
-    'pinchange.sub': 'Digite seu PIN atual e escolha um novo de 4 dígitos.',
+    'pinchange.sub': 'Digite seu PIN atual e escolha um novo (4 ou 6 dígitos).',
     'pinchange.label.actual': 'PIN Atual',
     'pinchange.label.nuevo': 'PIN Novo',
     'pinchange.label.confirm': 'Confirmar PIN Novo',
     'pinchange.btn.save': 'Salvar novo PIN',
     'pinchange.error.current': 'O PIN atual está incorreto.',
-    'pinchange.error.format': 'O novo PIN deve ter exatamente 4 dígitos.',
+    'pinchange.error.format': 'O PIN deve ser de 4 ou 6 dígitos.',
+    'pinchange.error.conn': 'Erro de conexão. Tente de novo.',
     'pinchange.error.match': 'Os novos PINs não conferem.',
     'pinchange.error.same': 'O novo PIN deve ser diferente do atual.',
     'pinchange.success': '✅ PIN atualizado com sucesso.',
@@ -3568,21 +3570,30 @@ function selectUser(userId) {
   showScreen('pin');
 }
 
+let _pinTimer = null;
 function pinPress(digit) {
-  if (pinBuffer.length >= 4) return;
+  if (pinBuffer.length >= 6) return;
   pinBuffer += digit;
   updatePinDots();
-  if (pinBuffer.length === 4) setTimeout(pinConfirm, 100);
+  if (_pinTimer) { clearTimeout(_pinTimer); _pinTimer = null; }
+  // Soporta PIN de 4 o 6 dígitos: a los 6 envía ya; a los 4 espera un toque por si el PIN sigue
+  // hasta 6 (si no llega otro dígito, auto-envía). El ✓ también envía (ver pinConfirm).
+  if (pinBuffer.length === 6) pinConfirm();
+  else if (pinBuffer.length === 4) _pinTimer = setTimeout(pinConfirm, 500);
 }
 
 function pinDelete() {
+  if (_pinTimer) { clearTimeout(_pinTimer); _pinTimer = null; }
   if (pinBuffer.length > 0) { pinBuffer = pinBuffer.slice(0, -1); updatePinDots(); }
 }
 
 function updatePinDots() {
-  for (let i = 0; i < 4; i++) {
-    document.getElementById('pd' + i).classList.toggle('filled', i < pinBuffer.length);
-  }
+  const c = document.getElementById('pin-dots');
+  if (!c) return;
+  const slots = Math.max(4, pinBuffer.length); // 4 a 6 puntos visibles según lo tipeado
+  let html = '';
+  for (let i = 0; i < slots; i++) html += '<div class="pin-dot' + (i < pinBuffer.length ? ' filled' : '') + '"></div>';
+  c.innerHTML = html;
 }
 
 // ─────────────────────────────────────────────
@@ -5001,6 +5012,8 @@ async function cancelarPedido(id) {
 }
 
 async function pinConfirm() {
+  if (_pinTimer) { clearTimeout(_pinTimer); _pinTimer = null; }
+  if (pinBuffer.length < 4) return; // necesita al menos 4 dígitos (soporta 4 o 6)
   if (!(await verifyPin(pinUser.id, pinBuffer))) {
     pinAttempts++;
     pinBuffer = '';
@@ -9800,9 +9813,12 @@ function renderComunicaciones() {
 // CAMBIO DE PIN
 // ─────────────────────────────────────────────
 function openPinChange() {
-  // Temporalmente deshabilitado: el cambio de PIN se está rehaciendo server-side (más seguro, con
-  // store privado). Vuelve cuando el store esté listo. Por ahora los PIN los gestiona el administrador.
-  alert('El cambio de PIN está deshabilitado por una mejora de seguridad en curso. Si necesitás cambiarlo, avisá al administrador.');
+  document.getElementById('pin-current').value = '';
+  document.getElementById('pin-new1').value = '';
+  document.getElementById('pin-new2').value = '';
+  document.getElementById('pin-change-error').textContent = '';
+  document.getElementById('pin-change-overlay').classList.add('open');
+  setTimeout(() => document.getElementById('pin-current').focus(), 100);
 }
 
 function closePinChange() {
@@ -9841,12 +9857,22 @@ async function saveNewPin() {
   const new1    = document.getElementById('pin-new1')?.value?.trim() || '';
   const new2    = document.getElementById('pin-new2')?.value?.trim() || '';
 
-  if (!(await verifyPin(currentUser.id, current))) { errEl.textContent = t('pinchange.error.current'); return; }
-  if (new1.length !== 4 || !/^\d{4}$/.test(new1)) { errEl.textContent = t('pinchange.error.format'); return; }
+  if (!/^(\d{4}|\d{6})$/.test(new1)) { errEl.textContent = t('pinchange.error.format'); return; }
   if (new1 !== new2) { errEl.textContent = t('pinchange.error.match'); return; }
   if (new1 === current) { errEl.textContent = t('pinchange.error.same'); return; }
 
-  localStorage.setItem('fc_pin_' + currentUser.id, new1);
+  // Cambio SEGURO server-side: exige la sesión (token) + el PIN actual. El nuevo se guarda hasheado en KV.
+  try {
+    const r = await fetch('/api/set-pin', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (localStorage.getItem('fc_token') || '') },
+      body: JSON.stringify({ currentPin: current, newPin: new1 }),
+    });
+    if (r.status === 401) { forceRelogin(); return; }
+    const j = await r.json().catch(() => ({}));
+    if (!j.ok) { errEl.textContent = j.error || t('pinchange.error.current'); return; }
+  } catch (e) { errEl.textContent = t('pinchange.error.conn') || 'Error de conexión'; return; }
+
   errEl.style.color = 'var(--green)';
   errEl.textContent = t('pinchange.success');
   setTimeout(closePinChange, 1200);
