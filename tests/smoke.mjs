@@ -30,22 +30,10 @@ async function test(name, fn) {
   catch (e) { console.error('  ✗', name, '—', e.message); fail++; }
 }
 
-// Reintenta una consulta a Notion (la base Servicios es frágil bajo carga; el proxy ya reintenta,
-// pero damos margen extra para que el test no sea flaky).
-async function notionQuery(id) {
-  let last;
-  for (let i = 0; i < 3; i++) {
-    const r = await fetch(BASE + '/api/notion', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ endpoint: `databases/${id}/query`, method: 'POST', body: { page_size: 1 } }),
-    });
-    last = r;
-    if (r.status === 200) { const j = await r.json(); if (Array.isArray(j.results)) return j; }
-    await new Promise(res => setTimeout(res, 800));
-  }
-  throw new Error('status ' + last.status);
-}
+// El proxy /api/notion ahora EXIGE token de sesión (auth #1). Sin token responde 401 (enforce).
+// Durante el despliegue puede estar en monitor (200). El smoke valida que el proxy esté VIVO y
+// responda correctamente en cualquiera de los dos modos (200 o 401), no 5xx ni error de red.
+// La salud del camino con datos (app→proxy→Notion) se verifica logueado, no en este smoke anónimo.
 
 console.log(`\nFlyClean — tests de humo contra ${BASE}\n`);
 
@@ -63,12 +51,15 @@ await test('GET /api/version devuelve { web }', async () => {
   assert.ok(j.web, 'falta el campo "web"');
 });
 
-for (const [name, id] of Object.entries(NOTION_DBS)) {
-  await test(`proxy /api/notion: base "${name}" devuelve datos`, async () => {
-    const j = await notionQuery(id);
-    assert.ok(Array.isArray(j.results), 'sin array results');
+await test('proxy /api/notion responde y exige auth (200 monitor / 401 enforce)', async () => {
+  const anyId = Object.values(NOTION_DBS)[0] || 'd1e15376e83a408a8a52f47da33c249a';
+  const r = await fetch(BASE + '/api/notion', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ endpoint: `databases/${anyId}/query`, method: 'POST', body: { page_size: 1 } }),
   });
-}
+  assert.ok(r.status === 200 || r.status === 401, 'el proxy respondió ' + r.status + ' (esperaba 200 o 401)');
+});
 
 console.log(`\n${pass} ok · ${fail} fallaron\n`);
 process.exit(fail ? 1 : 0);
