@@ -9693,25 +9693,26 @@ async function loadAlerts(role, bannerId) {
       }
     });
 
-    // Services without operator (coord + CEO only)
+    // Servicios pendientes por gestionar: en Pendiente/Asignado que les falta fecha U operario (coord + CEO).
+    // OJO: el proxy descarta el filtro server-side de la base Servicios (multi-data-source) → hay que
+    // re-filtrar SIEMPRE en el cliente (antes solo se filtraba por país → contaba TODOS los servicios).
     if (isCoord || isCEO) {
       const cf = isCoord ? getCountryFilter() : getCEOFilter();
-      const sinOpFilter = { and: [
-        ...(cf ? [cf] : []),
-        { property: 'Operario App', select: { is_empty: true } },
-        { or: [
-          { property: 'Estado', select: { equals: '📋 Pendiente' } },
-          { property: 'Estado', select: { equals: '🔄 Asignado' } }
-        ]}
-      ]};
-      const svcData = await callNotion(`databases/${DB_ID}/query`, 'POST', { filter: sinOpFilter });
-      let sinOp = svcData.results || [];
-      if (cf) {
-        const notionVal = COUNTRY_NOTION_MAP[isCoord ? selectedCountry : ceoViewCountry === 'all' ? null : ceoViewCountry];
-        if (notionVal) sinOp = sinOp.filter(s => s.properties?.['País']?.select?.name === notionVal);
-      }
-      if (sinOp.length) {
-        alerts.push({ level: 'warn', icon: '👤', message: sinOp.length + ' servicio' + (sinOp.length > 1 ? 's' : '') + ' sin operario asignado' });
+      const svcData = await callNotion(`databases/${DB_ID}/query`, 'POST',
+        { filter: { and: [ ...(cf ? [cf] : []), { property: 'Estado', select: { equals: '📋 Pendiente' } } ] } });
+      const notionVal = COUNTRY_NOTION_MAP[isCoord ? selectedCountry : ceoViewCountry === 'all' ? null : ceoViewCountry];
+      const EST_GESTION = ['📋 Pendiente', '🔄 Asignado'];
+      const pend = (svcData.results || []).filter(s => {
+        const est = s.properties?.['Estado']?.select?.name || '';
+        if (!EST_GESTION.includes(est)) return false;            // excluye completados/cancelados/plantillas
+        if (notionVal && s.properties?.['País']?.select?.name !== notionVal) return false;
+        const sinOp = !s.properties?.['Operario App']?.select?.name;
+        const sinFecha = !s.properties?.['Fecha programada']?.date?.start;
+        return sinOp || sinFecha;                                 // "por gestionar" = le falta algo
+      });
+      if (pend.length) {
+        alerts.push({ level: 'warn', icon: '📋',
+          message: pend.length + ' servicio' + (pend.length > 1 ? 's' : '') + ' pendiente' + (pend.length > 1 ? 's' : '') + ' por gestionar (falta fecha u operario)' });
       }
     }
 
