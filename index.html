@@ -1405,6 +1405,20 @@ body::before {
     <div id="report-step-body" style="padding:16px 20px 24px"></div>
   </div>
 </div>
+<!-- Consentimiento legal — se muestra una sola vez por dispositivo (sibling de body) -->
+<div id="consent-overlay" style="display:none;position:fixed;inset:0;z-index:3000;background:rgba(4,12,9,0.92);align-items:center;justify-content:center;padding:24px">
+  <div style="background:#0d1714;border:1px solid #1d2a25;border-radius:16px;max-width:380px;width:100%;padding:28px 24px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.5)">
+    <div style="font-size:34px;margin-bottom:8px">🪟</div>
+    <div data-i18n="consent.title" style="font-family:'Exo 2',sans-serif;font-weight:800;font-size:19px;color:#fff;margin-bottom:10px">Antes de empezar</div>
+    <div data-i18n="consent.body" style="font-size:14px;line-height:1.5;color:#9fb5ac;margin-bottom:18px">Para usar FlyClean necesitás aceptar nuestros Términos de Uso y la Política de Privacidad.</div>
+    <div style="font-size:13px;margin-bottom:20px">
+      <a href="/terms" target="_blank" data-i18n="consent.terms" style="color:#00C98D;text-decoration:underline">Términos de Uso</a>
+      <span style="color:#41524b"> · </span>
+      <a href="/privacy" target="_blank" data-i18n="consent.privacy" style="color:#00C98D;text-decoration:underline">Política de Privacidad</a>
+    </div>
+    <button onclick="acceptConsent()" data-i18n="consent.accept" style="width:100%;background:#00C98D;color:#062019;font-family:'Exo 2',sans-serif;font-weight:800;font-size:15px;border:none;border-radius:10px;padding:14px;cursor:pointer">Acepto y continuar</button>
+  </div>
+</div>
 <!-- Cámara: sólo imagen, fuerza el rear camera en móvil. -->
 <input type="file" accept="image/*" capture="environment" id="gasto-recibo-input-camera" style="display:none" onchange="onGastoReciboSelected(this)"/>
 <!-- Galería / archivos: imagen O PDF, sin capture (abre file picker / galería). -->
@@ -1612,6 +1626,11 @@ const COUNTRY_NOTION_MAP = {
 const TRANSLATIONS = {
   'es': {
     'country.tagline': 'Seleccioná tu región para continuar',
+    'consent.title': 'Antes de empezar',
+    'consent.body': 'Para usar FlyClean necesitás aceptar nuestros Términos de Uso y la Política de Privacidad.',
+    'consent.terms': 'Términos de Uso',
+    'consent.privacy': 'Política de Privacidad',
+    'consent.accept': 'Acepto y continuar',
     'login.subtitle': 'Panel Operario',
     'login.who': '¿QUIÉN ERES?',
     'login.back': '‹ Cambiar región',
@@ -2155,6 +2174,11 @@ const TRANSLATIONS = {
   },
   'pt-BR': {
     'country.tagline': 'Selecione sua região para continuar',
+    'consent.title': 'Antes de começar',
+    'consent.body': 'Para usar o FlyClean você precisa aceitar nossos Termos de Uso e a Política de Privacidade.',
+    'consent.terms': 'Termos de Uso',
+    'consent.privacy': 'Política de Privacidade',
+    'consent.accept': 'Aceito e continuar',
     'login.subtitle': 'Painel Operário',
     'login.who': 'QUEM É VOCÊ?',
     'login.back': '‹ Trocar região',
@@ -9846,10 +9870,24 @@ document.addEventListener('touchstart', e => { _gMoved = false; const tt = e.tou
 document.addEventListener('touchmove', e => { const tt = e.touches[0]; if (tt && (Math.abs(tt.clientX - _gx) > 10 || Math.abs(tt.clientY - _gy) > 10)) _gMoved = true; }, { passive: true, capture: true });
 document.addEventListener('click', e => { if (_gMoved) { e.stopPropagation(); e.preventDefault(); _gMoved = false; } }, { capture: true });
 
+// Consentimiento legal (una sola vez por dispositivo). Registra versión + timestamp
+// para que el consentimiento quede demostrable (LGPD/LFPDPPP).
+const CONSENT_VERSION = 'privacy-1.2+terms-1.1';
+function checkConsent() {
+  let ok = false;
+  try { const c = JSON.parse(localStorage.getItem('fc_consent') || 'null'); ok = !!(c && c.v === CONSENT_VERSION); } catch (_) {}
+  if (!ok) { const ov = document.getElementById('consent-overlay'); if (ov) ov.style.display = 'flex'; }
+}
+function acceptConsent() {
+  try { localStorage.setItem('fc_consent', JSON.stringify({ v: CONSENT_VERSION, at: new Date().toISOString() })); } catch (_) {}
+  const ov = document.getElementById('consent-overlay'); if (ov) ov.style.display = 'none';
+}
+
 async function init() {
   initLang();
   applyTranslations();
   renderVersionLabel();
+  checkConsent();
   // Si hay writes pendientes de una sesión anterior, mostrar badge y procesar.
   renderOfflineBadge();
   if (navigator.onLine) processQueue();
