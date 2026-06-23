@@ -3136,7 +3136,7 @@ async function uploadPhoto(file, fotoType) {
     // 1. Pedir URL presignada
     const resp = await fetch('/api/upload-url', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (localStorage.getItem('fc_token') || '') },
       body: JSON.stringify({
         serviceId: targetServiceId,
         fotoType,
@@ -3243,9 +3243,10 @@ function renderPhotoUploader(fotoType, minPhotos) {
 async function callNotion(endpoint, method = 'GET', body = null) {
   const response = await fetch('/api/notion', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (localStorage.getItem('fc_token') || '') },
     body: JSON.stringify({ endpoint, method, body })
   });
+  if (response.status === 401) { forceRelogin(); throw new Error('Sesión expirada'); }
   if (!response.ok) throw new Error('API error ' + response.status);
   return response.json();
 }
@@ -4052,7 +4053,7 @@ async function uploadReceiptPhoto(file, gastoId) {
   if (!RECIBO_ALLOWED_MIMES.includes(mime)) throw new Error(t('gasto.recibo.error.mime') || t('photo.error.mime') || 'Tipo no permitido');
   const resp = await fetch('/api/upload-url', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (localStorage.getItem('fc_token') || '') },
     body: JSON.stringify({ gastoId, fotoType: 'recibo', filename: file.name, contentType: mime }),
   });
   if (!resp.ok) {
@@ -5065,7 +5066,18 @@ function setCoordTab(tab) {
   else renderComunicaciones();
 }
 
+// Sesión inválida o expirada (el proxy respondió 401): limpiar token y volver al login.
+let _reloggingIn = false;
+function forceRelogin() {
+  try { localStorage.removeItem('fc_token'); } catch (_) {}
+  if (_reloggingIn) return;
+  _reloggingIn = true;
+  logout();
+  setTimeout(() => { _reloggingIn = false; }, 1500);
+}
+
 function logout() {
+  try { localStorage.removeItem('fc_token'); } catch (_) {}
   // M8 — Reset de variables globales en memoria para que el siguiente login
   // no vea data residual. localStorage de servicios (fc_service_*) se mantiene
   // porque pertenece al operario, no a la sesión.
@@ -9788,12 +9800,9 @@ function renderComunicaciones() {
 // CAMBIO DE PIN
 // ─────────────────────────────────────────────
 function openPinChange() {
-  document.getElementById('pin-current').value = '';
-  document.getElementById('pin-new1').value = '';
-  document.getElementById('pin-new2').value = '';
-  document.getElementById('pin-change-error').textContent = '';
-  document.getElementById('pin-change-overlay').classList.add('open');
-  setTimeout(() => document.getElementById('pin-current').focus(), 100);
+  // Temporalmente deshabilitado: el cambio de PIN se está rehaciendo server-side (más seguro, con
+  // store privado). Vuelve cuando el store esté listo. Por ahora los PIN los gestiona el administrador.
+  alert('El cambio de PIN está deshabilitado por una mejora de seguridad en curso. Si necesitás cambiarlo, avisá al administrador.');
 }
 
 function closePinChange() {
@@ -9808,15 +9817,19 @@ function pinChangeOverlayClick(e) {
 // si no, lo valida contra el servidor (/api/verify-pin) — los PINs base ya NO viven en el código
 // del cliente (auditoría #2).
 async function verifyPin(userId, pin) {
-  const override = localStorage.getItem('fc_pin_' + userId);
-  if (override != null) return pin === override;
+  // Auth #1/#3: SIEMPRE valida en el servidor. Se sacó el override de localStorage (era bypasseable
+  // por consola y no entregaba token). En PIN correcto, guarda el token de sesión que el proxy exige.
   try {
     const r = await fetch('/api/verify-pin', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id: userId, pin }),
     });
     const j = await r.json().catch(() => ({}));
-    return j && j.ok === true;
+    if (j && j.ok === true) {
+      if (j.token) { try { localStorage.setItem('fc_token', j.token); } catch (_) {} }
+      return true;
+    }
+    return false;
   } catch (e) { console.warn('[login] /api/verify-pin falló:', e); return false; }
 }
 

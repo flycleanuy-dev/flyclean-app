@@ -2,6 +2,7 @@
 // código del cliente. El front manda { id, pin } y acá se compara contra process.env.USER_PINS
 // (un JSON { "<id>": "<pin>", ... }). Devuelve { ok: true|false } — nunca el PIN.
 import crypto from 'node:crypto';
+import { signSession } from './_lib/session.js';
 
 export const config = { maxDuration: 10 };
 
@@ -61,5 +62,6 @@ export default async function handler(req, res) {
     return res.status(200).json({ ok: false });
   }
   attempts.delete(id);
-  return res.status(200).json({ ok: true });
+  // Token de sesión: el cliente lo manda en cada pedido al proxy (cierra el agujero #1).
+  return res.status(200).json({ ok: true, token: signSession({ id }) });
 }

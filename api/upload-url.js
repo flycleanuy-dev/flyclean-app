@@ -1,6 +1,11 @@
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import crypto from 'crypto';
+import { verifySession, tokenFromReq } from './_lib/session.js';
+
+// Auth de sesión (#1/#4). MONITOR (false): valida + reporta en X-Auth, no rechaza. ENFORCE (true):
+// rechaza con 401 las subidas sin token válido. Se activa junto con el del proxy.
+const ENFORCE_AUTH = false;
 
 const ALLOWED_ORIGINS = [
   'https://flyclean.app',
@@ -67,7 +72,7 @@ export default async function handler(req, res) {
 
   res.setHeader('Access-Control-Allow-Origin', corsOrigin);
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Upload-Token');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Upload-Token, Authorization');
   res.setHeader('Vary', 'Origin');
 
   if (req.method === 'OPTIONS') return res.status(200).end();
@@ -76,6 +81,11 @@ export default async function handler(req, res) {
   if (!isOriginAllowed(origin)) {
     return res.status(403).json({ error: 'Origin not allowed' });
   }
+
+  // Auth de sesión (#4): exige el token firmado de verify-pin. MONITOR reporta, ENFORCE rechaza.
+  const session = verifySession(tokenFromReq(req));
+  res.setHeader('X-Auth', session ? 'ok' : 'missing');
+  if (ENFORCE_AUTH && !session) return res.status(401).json({ error: 'auth required' });
 
   // Note: UPLOAD_SECRET in env is intentionally unused — origin check + tight
   // validation (MIME, size, key namespacing) is sufficient at current scale.
