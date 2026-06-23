@@ -1531,7 +1531,7 @@ body::before {
 // Versionado web/APK. Cuando cambie funcionalidad significativa de la web,
 // bump APP_VERSION. Cuando algo requiera versión mínima de APK, bump MIN_APK_VERSION_REQUIRED.
 // La app instalada (TWA) compara su versión nativa contra MIN_APK_VERSION_REQUIRED.
-const APP_VERSION = '1.1.0';
+const APP_VERSION = '1.2.0';
 const MIN_APK_VERSION_REQUIRED = '1.0.0';
 
 // Helper semver simple para comparar "x.y.z" (devuelve <0, 0, >0).
@@ -1571,6 +1571,7 @@ const NOTION_DBS = {
   equipo:     'cfff6e26dbc84eedb7eabcb6c51db1eb',
   regTiempo:  '57bc613af5d04908a9f2342cf6a1a5a7',
   solicitudes:'0f5cd38362ab430293a5dec7140ac18f',
+  documentos: 'f888bd9c89e0497a9d2c57594aacd663',
 };
 const DB_ID = NOTION_DBS.servicios;
 const PROPUESTAS_DB_ID = NOTION_DBS.propuestas;
@@ -3935,6 +3936,8 @@ function cargarMasFinanzas() {
 const GASTOS_DS_ID = '58fd9475-9baf-4d0e-9128-486185bf7ed8';
 const SOLICITUDES_DB_ID = NOTION_DBS.solicitudes;
 const SOLICITUDES_DS_ID = '0d49d612-1fea-40d7-8b94-d2b0dcae1b12';
+const DOCUMENTOS_DB_ID = NOTION_DBS.documentos;
+const DOCUMENTOS_DS_ID = '30ae5cdd-b259-4b3e-ac76-7cbb89354253';
 const GASTO_MONEDA_MAP = {
   'USD': '🇺🇸 USD',
   'UYU': '🇺🇾 UY$',
@@ -9632,20 +9635,8 @@ async function loadAlerts(role, bannerId) {
   const actCountryVal = financeCountryMap[userCountry];
   const actFilter = actCountryVal ? { property: 'País', select: { equals: actCountryVal } } : null;
 
-  // DGI certificate hardcoded alert (CEO Uruguay only)
-  if ((isCEO || role === '🎯 Dirección') && userCountry === 'Uruguay') {
-    const dgiExpiry = '2026-05-31';
-    const daysLeft = Math.round((new Date(dgiExpiry) - new Date()) / 86400000);
-    if (daysLeft <= 30) {
-      alerts.push({
-        level: daysLeft <= 0 ? 'critical' : 'warn',
-        icon: daysLeft <= 0 ? '🔴' : '⚠️',
-        message: daysLeft <= 0
-          ? 'Certificado DGI VENCIDO (vencía ' + dgiExpiry + ')'
-          : 'Certificado DGI vence en ' + daysLeft + ' días (' + dgiExpiry + ')'
-      });
-    }
-  }
+  // La alerta DGI hardcodeada se reemplazó por la query real a la base
+  // 📑 Documentos & Certificados (más abajo, dentro del try).
 
   try {
     // Equipment maintenance alerts (all roles)
@@ -9729,6 +9720,36 @@ async function loadAlerts(role, bannerId) {
         if (urgentes) msg += ' (' + urgentes + ' urgente' + (urgentes > 1 ? 's' : '') + ')';
         alerts.push({ level: urgentes ? 'critical' : 'warn', icon: '📦', message: msg, onclick: "setCoordTab('pedidos')" });
       }
+    }
+
+    // Documentos & Certificados por vencer (coord + CEO) — base 📑 Documentos & Certificados.
+    // Cada documento define su antelación en "Días de aviso" (ej. DGI 60, BPS 15). El histórico no avisa.
+    if (isCoord || isCEO) {
+      const docData = await callNotion(`databases/${DOCUMENTOS_DB_ID}/query`, 'POST', { page_size: 100 });
+      const isGlobalDoc = role === '🎯 Dirección';
+      const paisDoc = financeCountryMap[userCountry]; // '🇺🇾 UY' / '🇧🇷 BR' / '🇵🇦 PA'
+      (docData.results || []).forEach(r => {
+        const p = r.properties || {};
+        const estado = p['Estado']?.select?.name || '';
+        // Solo documentos activos: vigentes / por vencer / vencidos sin reemplazar. El histórico se ignora.
+        if (!(estado.includes('Vigente') || estado.includes('Por vencer') || estado.includes('Vencido'))) return;
+        if (!isGlobalDoc && paisDoc) {
+          const pais = p['País']?.select?.name || '';
+          if (pais && pais !== paisDoc) return;
+        }
+        const vence = p['Vence']?.date?.start || '';
+        if (!vence) return;
+        const aviso = p['Días de aviso']?.number;
+        const umbral = (aviso != null) ? aviso : 30;
+        const daysLeft = Math.round((new Date(vence) - new Date()) / 86400000);
+        if (daysLeft > umbral) return; // todavía dentro de su ventana sana
+        const nombre = p['Documento']?.title?.[0]?.plain_text || 'Documento';
+        if (daysLeft < 0) {
+          alerts.push({ level: 'critical', icon: '🔴', message: nombre + ' VENCIDO (venció ' + vence + ')' });
+        } else {
+          alerts.push({ level: daysLeft <= 7 ? 'critical' : 'warn', icon: '📑', message: nombre + ' vence en ' + daysLeft + ' día' + (daysLeft === 1 ? '' : 's') + ' (' + vence + ')' });
+        }
+      });
     }
   } catch (e) {
     // Fail silently — alerts are non-critical
