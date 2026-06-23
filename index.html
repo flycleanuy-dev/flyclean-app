@@ -231,6 +231,7 @@ body::before {
   .gasto-card { display: flex; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--border); align-items: center; }
   .gasto-card-main { flex: 1; min-width: 0; }
   .gasto-card-concepto { font-weight: 600; font-size: 14px; color: var(--text); margin-bottom: 4px; }
+  .kpi-excluido-tag { font-size: 10px; color: var(--text3); border: 1px solid var(--border); border-radius: 6px; padding: 1px 5px; white-space: nowrap; font-weight: 500; }
   .gasto-card-meta { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 4px; }
   .gasto-tag { display: inline-block; padding: 2px 8px; background: var(--bg2); border: 1px solid var(--border); border-radius: 999px; font-size: 10px; color: var(--text2); }
   .gasto-tag-clase { background: rgba(33, 150, 243, 0.1); border-color: rgba(33, 150, 243, 0.3); color: #2196F3; }
@@ -3729,7 +3730,7 @@ function renderGastosListInner() {
     const fotoUrl = fotoFiles[0]?.external?.url || fotoFiles[0]?.file?.url || '';
     return `<div class="gasto-card">
       <div class="gasto-card-main">
-        <div class="gasto-card-concepto">${esc(concepto)}</div>
+        <div class="gasto-card-concepto">${esc(concepto)}${props['Excluir de KPIs']?.checkbox ? ' <span class="kpi-excluido-tag">🔁 interno</span>' : ''}</div>
         <div class="gasto-card-meta">
           ${categoria ? `<span class="gasto-tag">${esc(categoria)}</span>` : ''}
           ${clase ? `<span class="gasto-tag gasto-tag-clase">${esc(clase)}</span>` : ''}
@@ -3800,7 +3801,7 @@ function renderIngresosListInner() {
     const facturado = props['Facturado']?.checkbox || false;
     return `<div class="gasto-card">
       <div class="gasto-card-main">
-        <div class="gasto-card-concepto">${esc(servicioTitle)}</div>
+        <div class="gasto-card-concepto">${esc(servicioTitle)}${props['Excluir de KPIs']?.checkbox ? ' <span class="kpi-excluido-tag">🔁 interno</span>' : ''}</div>
         <div class="gasto-card-meta">
           ${tipo ? `<span class="gasto-tag">${esc(tipo)}</span>` : ''}
           ${facturado ? `<span class="gasto-tag gasto-tag-svc">📄 Facturado</span>` : ''}
@@ -3859,7 +3860,7 @@ async function generateFinanceReportPDF(tipo, btn) {
     ]);
     const ingS = sumByMoneda(ing.results, 'ingreso'), gasS = sumByMoneda(gas.results, 'gasto');
     const sal = { uyu: ingS.uyu - gasS.uyu, usd: ingS.usd - gasS.usd };
-    const groupBy = (results, kind, prop, def) => { const o = {}; (results || []).forEach(r => { const c = (r.properties?.[prop]?.select?.name) || def; const { esUY, monto } = montoOf(r.properties || {}, kind); o[c] = o[c] || { uyu: 0, usd: 0 }; if (esUY) o[c].uyu += monto; else o[c].usd += monto; }); return o; };
+    const groupBy = (results, kind, prop, def) => { const o = {}; (results || []).filter(kpiIncluido).forEach(r => { const c = (r.properties?.[prop]?.select?.name) || def; const { esUY, monto } = montoOf(r.properties || {}, kind); o[c] = o[c] || { uyu: 0, usd: 0 }; if (esUY) o[c].uyu += monto; else o[c].usd += monto; }); return o; };
     const gasCat = groupBy(gas.results, 'gasto', 'Categoría', 'Otros');
     const ingTipo = groupBy(ing.results, 'ingreso', 'Tipo', 'Otro');
     const clean = (s) => String(s || '').replace(/[\p{Extended_Pictographic}\u{1F1E6}-\u{1F1FF}️‍]/gu, '').replace(/\s+/g, ' ').trim();
@@ -3998,6 +3999,9 @@ function montoOf(props, kind = 'gasto') {
   const monto = esUY ? (uyVal ?? usdVal ?? 0) : (usdVal ?? uyVal ?? 0);
   return { moneda, esUY, monto };
 }
+// Filas marcadas "Excluir de KPIs" (movimientos internos: cambios de moneda, depósitos propios,
+// préstamos entre empresas) NO suman en ningún KPI. Siguen visibles en las listas (badge "interno").
+function kpiIncluido(r) { return !(r?.properties?.['Excluir de KPIs']?.checkbox === true); }
 // Formatea un monto con su etiqueta de moneda. UY$ sin decimales, USD con hasta 2.
 function fmtMoneda(monto, moneda) {
   const esUY = moneda === '🇺🇾 UY$';
@@ -4007,7 +4011,7 @@ function fmtMoneda(monto, moneda) {
 // Suma montos separando por moneda. Devuelve { uyu, usd }. NUNCA mezcla pesos y dólares.
 function sumByMoneda(results, kind = 'gasto') {
   const tot = { uyu: 0, usd: 0 };
-  (results || []).forEach(r => { const { esUY, monto } = montoOf(r.properties || {}, kind); if (esUY) tot.uyu += monto; else tot.usd += monto; });
+  (results || []).filter(kpiIncluido).forEach(r => { const { esUY, monto } = montoOf(r.properties || {}, kind); if (esUY) tot.uyu += monto; else tot.usd += monto; });
   return tot;
 }
 // HTML de un total separado por moneda (dos importes). Omite la línea cuyo total es 0.
@@ -4278,7 +4282,7 @@ function renderGastoCard(g) {
   const fotoUrl = fotoFiles[0]?.external?.url || fotoFiles[0]?.file?.url || '';
   return `<div class="gasto-card">
     <div class="gasto-card-main">
-      <div class="gasto-card-concepto">${esc(concepto)}</div>
+      <div class="gasto-card-concepto">${esc(concepto)}${props['Excluir de KPIs']?.checkbox ? ' <span class="kpi-excluido-tag">🔁 interno</span>' : ''}</div>
       <div class="gasto-card-meta">
         ${categoria ? `<span class="gasto-tag">${esc(categoria)}</span>` : ''}
         ${clase ? `<span class="gasto-tag gasto-tag-clase">${esc(clase)}</span>` : ''}
@@ -6154,15 +6158,15 @@ async function renderCEOMetricas() {
     // Margen unificado aprox (secundario, rotulado): convierte a USD con el TC del registro (fallback 40).
     const TC_FB = 40;
     const toUSD = (props, kind) => { const { esUY, monto } = montoOf(props, kind); if (!esUY) return monto; const tc = props?.[kind === 'gasto' ? 'TC usado' : 'TC aplicado']?.number || TC_FB; return tc ? monto / tc : 0; };
-    const ingUSDc = (ingData.results || []).reduce((s, r) => s + toUSD(r.properties || {}, 'ingreso'), 0);
-    const gasUSDc = (gasData.results || []).reduce((s, r) => s + toUSD(r.properties || {}, 'gasto'), 0);
+    const ingUSDc = (ingData.results || []).filter(kpiIncluido).reduce((s, r) => s + toUSD(r.properties || {}, 'ingreso'), 0);
+    const gasUSDc = (gasData.results || []).filter(kpiIncluido).reduce((s, r) => s + toUSD(r.properties || {}, 'gasto'), 0);
     const margenUnif = ingUSDc > 0 ? Math.round((ingUSDc - gasUSDc) / ingUSDc * 100) : null;
 
     const ticketSplit = svcCount ? { uyu: ingSplit.uyu / svcCount, usd: ingSplit.usd / svcCount } : null;
 
     // Mensual del año (para sparkline + delta vs mes anterior).
     const ms = {};
-    const accM = (results, kind) => (results || []).forEach(r => { const m = (r.properties?.['Fecha']?.date?.start || '').slice(0, 7); if (!m) return; const { esUY, monto } = montoOf(r.properties || {}, kind); (ms[m] = ms[m] || { iu: 0, id: 0, gu: 0, gd: 0 }); if (kind === 'ingreso') { if (esUY) ms[m].iu += monto; else ms[m].id += monto; } else { if (esUY) ms[m].gu += monto; else ms[m].gd += monto; } });
+    const accM = (results, kind) => (results || []).filter(kpiIncluido).forEach(r => { const m = (r.properties?.['Fecha']?.date?.start || '').slice(0, 7); if (!m) return; const { esUY, monto } = montoOf(r.properties || {}, kind); (ms[m] = ms[m] || { iu: 0, id: 0, gu: 0, gd: 0 }); if (kind === 'ingreso') { if (esUY) ms[m].iu += monto; else ms[m].id += monto; } else { if (esUY) ms[m].gu += monto; else ms[m].gd += monto; } });
     accM(ingYearData.results, 'ingreso'); accM(gasYearData.results, 'gasto');
     const monthKeys = Object.keys(ms).sort();
     const balU = m => (ms[m] ? ms[m].iu - ms[m].gu : 0), balD = m => (ms[m] ? ms[m].id - ms[m].gd : 0);
@@ -6469,7 +6473,7 @@ async function renderCEOFinanzas() {
     const cur = ceoFinCurrency;                       // 'uyu' | 'usd'
     const monedaTag = cur === 'uyu' ? '🇺🇾 UY$' : '🇺🇸 USD';
     // Devuelve el monto del registro SOLO si su moneda coincide con la seleccionada (si no, 0).
-    const amt = (r, kind) => { const { esUY, monto } = montoOf(r.properties || {}, kind); return ((cur === 'uyu') === esUY) ? monto : 0; };
+    const amt = (r, kind) => { if (!kpiIncluido(r)) return 0; const { esUY, monto } = montoOf(r.properties || {}, kind); return ((cur === 'uyu') === esUY) ? monto : 0; };
     const fmt = n => fmtMoneda(n, monedaTag);
     const fechaCorta = (iso) => { if (!iso) return ''; const pp = iso.slice(0,10).split('-'); return pp[2] + '/' + pp[1]; };
 
@@ -8519,7 +8523,7 @@ async function renderCoordResumen() {
       const p = r.properties?.['País']?.select?.name || '';
       return p === finVal || p === ''; // incluye los cargados sin País (todo es del país del coord)
     };
-    const ingCur = (ingCurRaw.results || []).filter(ingInPais);
+    const ingCur = (ingCurRaw.results || []).filter(ingInPais).filter(kpiIncluido);
     const ingPrev = (ingPrevRaw.results || []).filter(ingInPais);
     const factCur = sumByMoneda(ingCur, 'ingreso');   // { uyu, usd }
     const factPrev = sumByMoneda(ingPrev, 'ingreso');
