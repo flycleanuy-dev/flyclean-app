@@ -1,8 +1,18 @@
 // Valida el PIN de un usuario del lado del SERVIDOR (auditoría #2): los PINs ya NO viven en el
 // código del cliente. El front manda { id, pin } y acá se compara contra process.env.USER_PINS
 // (un JSON { "<id>": "<pin>", ... }). Devuelve { ok: true|false } — nunca el PIN.
+import crypto from 'node:crypto';
 
 export const config = { maxDuration: 10 };
+
+// Comparación de tiempo constante: evita filtrar info por cuánto tarda el === (timing attack).
+function safeEqual(a, b) {
+  const ba = Buffer.from(String(a));
+  const bb = Buffer.from(String(b));
+  if (ba.length !== bb.length) { crypto.timingSafeEqual(ba, ba); return false; }
+  return crypto.timingSafeEqual(ba, bb);
+}
+const FAIL_DELAY_MS = 500; // demora en cada intento fallido → ralentiza el brute-force
 
 const ALLOWED_ORIGINS = [
   'https://flyclean.app',
@@ -43,10 +53,11 @@ export default async function handler(req, res) {
   let map = {};
   try { map = JSON.parse(process.env.USER_PINS || '{}'); } catch (_) { map = {}; }
   const expected = map[id];
-  const valid = typeof expected === 'string' && expected.length > 0 && pin === expected;
+  const valid = typeof expected === 'string' && expected.length > 0 && safeEqual(pin, expected);
 
   if (!valid) {
     attempts.set(id, { count: (windowed ? prev.count : 0) + 1, ts: now });
+    await new Promise(r => setTimeout(r, FAIL_DELAY_MS)); // solo en fallo: el login correcto no se demora
     return res.status(200).json({ ok: false });
   }
   attempts.delete(id);
