@@ -51,8 +51,10 @@ const empty = (msg) => `<div style="color:#6f8a80;font-size:13px;padding:6px 0">
 const BTN = `<div style="margin:18px 0 6px"><a href="${APP_URL}" style="display:inline-block;background:#00C98D;color:#062019;font-weight:800;text-decoration:none;padding:12px 26px;border-radius:8px;font-size:15px">Abrir FlyClean →</a></div>`;
 
 export default async function handler(req, res) {
+  // Falla CERRADO: sin CRON_SECRET el endpoint NO corre (evita exfiltrar el reporte vía ?to=).
   const secret = process.env.CRON_SECRET;
-  if (secret && req.headers.authorization !== `Bearer ${secret}`) return res.status(401).json({ error: 'unauthorized' });
+  if (!secret) return res.status(500).json({ error: 'CRON_SECRET not configured' });
+  if (req.headers.authorization !== `Bearer ${secret}`) return res.status(401).json({ error: 'unauthorized' });
   const tipo = (req.query?.tipo || '').toString() || (new Date().getUTCDay() === 1 ? 'lunes' : 'viernes');
   const toOverride = req.query?.to ? String(req.query.to) : null;
 

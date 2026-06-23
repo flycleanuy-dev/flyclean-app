@@ -11,7 +11,10 @@ export default async function handler(req, res) {
     return res.status(403).send('forbidden host');
   }
   try {
-    const r = await fetch(url.toString());
+    // redirect:'manual' → no seguir redirects (defensa SSRF: un 30x del upstream
+    // hacia un host interno NO se sigue). Solo servimos respuestas directas del CDN.
+    const r = await fetch(url.toString(), { redirect: 'manual' });
+    if (r.status >= 300 && r.status < 400) return res.status(502).send('upstream redirect blocked');
     if (!r.ok) return res.status(r.status).send('upstream ' + r.status);
     const ct = r.headers.get('content-type') || 'image/jpeg';
     const buf = Buffer.from(await r.arrayBuffer());
