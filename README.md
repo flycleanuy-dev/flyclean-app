@@ -88,10 +88,17 @@ Cuando cambia `index.html` o `sw.js`, **subí el número de versión del Service
 - **Brasil:** los documentos para clientes brasileños van en portugués.
 - Los IDs de las bases de Notion están centralizados (ver `NOTION_DBS` en `index.html`).
 
+## Documentación
+
+- [`docs/ARQUITECTURA.md`](./docs/ARQUITECTURA.md) — flujo de datos, endpoints serverless y quirks pinneados.
+- [`docs/NOTION.md`](./docs/NOTION.md) — bases, IDs, esquema de Servicios y mapa de relaciones.
+- [`docs/RUNBOOK.md`](./docs/RUNBOOK.md) — levantar local, variables de entorno, deploy, crons, versionado.
+
 ## Tests
 
 ```bash
-npm test     # tests de humo (Playwright, solo lectura — no tocan datos de Notion)
+npm test      # smoke (node fetch, solo lectura — no tocan datos de Notion)
+npm run check # valida la sintaxis del JS embebido en index.html
 ```
 
 ## Licencia
