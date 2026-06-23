@@ -103,6 +103,9 @@ export default async function handler(req, res) {
     if (isQuery && data.code === 'validation_error' &&
         data.additional_data?.error_type === 'multiple_data_sources_for_database') {
       const dbId = endpointNorm.split('/')[1];
+      // Comparar ids sin guiones (robustez; alinea con searchByParent de api/_lib/notion.js,
+      // que ya normalizaba — antes acá era === crudo y solo funcionaba por coincidencia).
+      const norm = (s) => (s || '').replace(/-/g, '');
       // La search API bajo carga a veces devuelve [] (sin error) → reintentar la búsqueda
       // completa hasta traer resultados (la DB Servicios siempre tiene datos). Esto mata el
       // "la lista de servicios aparece vacía / con error y recién al recargar aparece".
@@ -120,7 +123,7 @@ export default async function handler(req, res) {
             body: JSON.stringify(searchBody),
           });
           const sd = await sr.json();
-          const filtered = (sd.results || []).filter(r => r.parent?.database_id === dbId);
+          const filtered = (sd.results || []).filter(r => norm(r.parent?.database_id) === norm(dbId));
           allResults = allResults.concat(filtered);
           cursor = sd.has_more ? sd.next_cursor : null;
         } while (cursor && allResults.length < 2000);
