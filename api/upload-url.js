@@ -4,8 +4,9 @@ import crypto from 'crypto';
 import { verifySession, tokenFromReq } from './_lib/session.js';
 
 // Auth de sesión (#1/#4). MONITOR (false): valida + reporta en X-Auth, no rechaza. ENFORCE (true):
-// rechaza con 401 las subidas sin token válido. Se activa junto con el del proxy.
-const ENFORCE_AUTH = false;
+// rechaza con 401 las subidas sin token válido. Verificado: el endpoint acepta el token (200 +
+// presigned) y el cliente lo manda en las 2 subidas. Revertir = poner false.
+const ENFORCE_AUTH = true;
 
 const ALLOWED_ORIGINS = [
   'https://flyclean.app',
