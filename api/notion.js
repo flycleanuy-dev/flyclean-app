@@ -1,3 +1,10 @@
+import { verifySession, tokenFromReq } from './_lib/session.js';
+
+// Auth del proxy (#1). MONITOR (false): valida el token y lo reporta en X-Auth, pero NO rechaza
+// (cero riesgo). ENFORCE (true): rechaza con 401 los pedidos sin token válido → cierra el agujero.
+// Se activa recién tras verificar que todos los clientes mandan un token válido.
+const ENFORCE_AUTH = false;
+
 const ALLOWED_ENDPOINTS = [
   /^databases\/[a-f0-9-]{32,36}\/query$/,
   /^databases\/[a-f0-9-]{32,36}$/,
@@ -60,6 +67,11 @@ export default async function handler(req, res) {
 
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+
+  // Auth de sesión (#1): exige el token firmado que emite verify-pin. MONITOR reporta, ENFORCE rechaza.
+  const session = verifySession(tokenFromReq(req));
+  res.setHeader('X-Auth', session ? 'ok' : 'missing');
+  if (ENFORCE_AUTH && !session) return res.status(401).json({ error: 'auth required' });
 
   const token = process.env.NOTION_TOKEN;
   if (!token) return res.status(500).json({ error: 'NOTION_TOKEN not configured' });
