@@ -8666,8 +8666,11 @@ async function renderCoordResumen() {
 
     // ── Servicios: re-filtrar país cliente-side (el search-fallback ignora el filtro server). ──
     const inPais = s => !svcCountryNotion || (s.properties?.['País']?.select?.name === svcCountryNotion);
-    const svcCur = (svcCurRaw.results || []).filter(inPais);
-    const svcPrev = (svcPrevRaw.results || []).filter(inPais);
+    // El search-fallback de la DB Servicios IGNORA el filtro de fecha server-side → re-filtrar por mes
+    // en CLIENTE (si no, "Días trabajados" y "Clientes" mostraban TODO y no se movían al cambiar de mes).
+    const inRango = (s, st, en) => { const f = s.properties?.['Fecha programada']?.date?.start || ''; return !!f && f >= st && f <= en; };
+    const svcCur = (svcCurRaw.results || []).filter(inPais).filter(s => inRango(s, cur.start, cur.end));
+    const svcPrev = (svcPrevRaw.results || []).filter(inPais).filter(s => inRango(s, prev.start, prev.end));
 
     // Helpers de lectura de servicios.
     const estadoDe = s => s.properties?.['Estado']?.select?.name || '';

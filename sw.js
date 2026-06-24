@@ -28,6 +28,7 @@
 // Sin este bump los clientes con la PWA instalada seguirían viendo el index.html
 // viejo desde caché y el bug del modal de gasto se mantendría visible aun con el
 // deploy live. Cache de Notion no necesita bump (solo cambió HTML).
+// v57: fix resumen coordinador (Días trabajados/Clientes ahora respetan el mes — el filtro de fecha de Servicios se descartaba por multi-data-source, ahora se re-filtra en cliente). NOTION_CACHE v3→v4 para limpiar datos viejos (categorías recategorizadas: JP/Francarlos=Sueldos, PGZ=Vehículo).
 // v56: Por cobrar — excluye también los Relevamientos (no se cobran, igual que las Pruebas).
 // v55: Finanzas — cambios de moneda identificados (campo 'Tipo interno': 💱 Cambio a pesos/dólares, 🏦 Depósito propio, 🔁 Traspaso). Badge específico + sección 'Cambios de moneda' en el dashboard. No cuentan como gasto/ganancia.
 // v54: Por cobrar — excluye Pruebas (demos gratis); herramienta 'asociar cobro a servicio' (un toque, paso 2); tab read-only para el coordinador (paso 3).
@@ -49,7 +50,7 @@
 // v33: VELOCIDAD — SW vuelve a stale-while-revalidate (cache al instante + revalida en bg); proxy con timeout+reintento+429; operario auto-reintenta.
 // v5: cambiar estrategia de Notion API de stale-while-revalidate a NETWORK-FIRST con timeout.
 
-const CACHE = 'flyclean-v56';
+const CACHE = 'flyclean-v57';
 const SHELL = [
   '/',
   '/index.html',
@@ -61,7 +62,7 @@ const SHELL = [
   '/splash.png',
   '/vendor/jspdf.umd.min.js'
 ];
-const NOTION_CACHE = 'flyclean-notion-cache-v3';
+const NOTION_CACHE = 'flyclean-notion-cache-v4';
 // Solo aplica en cache-MISS (primera carga de una consulta): cuánto espera la red antes del
 // mensaje offline. Con cache, la respuesta es INSTANTÁNEA (stale-while-revalidate) y esto no cuenta.
 const NETWORK_TIMEOUT_MS = 12000;
