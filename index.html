@@ -3408,10 +3408,10 @@ async function removeQueueItem(id) {
       const tx = db.transaction(OFFLINE_STORE, 'readwrite');
       const store = tx.objectStore(OFFLINE_STORE);
       const req = store.delete(id);
-      req.onsuccess = () => { renderOfflineBadge(); resolve(); };
+      req.onsuccess = () => { renderOfflineBadge(); resolve(true); };
       req.onerror = () => reject(req.error);
     });
-  } catch (e) { /* swallow */ }
+  } catch (e) { console.warn('[offline] removeQueueItem falló', e); return false; }
 }
 
 async function updateQueueItem(id, patch) {
@@ -3423,13 +3423,15 @@ async function updateQueueItem(id, patch) {
       const getReq = store.get(id);
       getReq.onsuccess = () => {
         const cur = getReq.result;
-        if (!cur) return resolve();
+        if (!cur) return resolve(false);
         Object.assign(cur, patch);
-        store.put(cur).onsuccess = () => resolve();
+        const putReq = store.put(cur);
+        putReq.onsuccess = () => resolve(true);
+        putReq.onerror = () => { console.warn('[offline] updateQueueItem put falló', putReq.error); resolve(false); };
       };
       getReq.onerror = () => reject(getReq.error);
     });
-  } catch (e) { /* swallow */ }
+  } catch (e) { console.warn('[offline] updateQueueItem falló', e); return false; }
 }
 
 let _queueProcessing = false;
@@ -3439,18 +3441,23 @@ async function processQueue() {
   _queueProcessing = true;
   try {
     const items = await getQueueItems();
+    const ahora = Date.now();
     for (const item of items) {
+      // Idempotencia: saltar ítems "reclamados" hace < 90s (ej. otra pestaña los está sincronizando).
+      // Si quedaron colgados (>90s), se re-reclaman. El PATCH es idempotente igual, esto evita reprocesos.
+      if (item.processing && (ahora - item.processing) < 90000) continue;
+      await updateQueueItem(item.id, { processing: ahora });
       try {
         await callNotion(`pages/${item.pageId}`, 'PATCH', { properties: item.properties });
         await removeQueueItem(item.id);
       } catch (e) {
-        // Si falla, incrementar retries; si excede 10, descartar (fallo permanente probablemente).
+        // Si falla, liberar (processing:null) e incrementar retries; si excede 10, descartar.
         const newRetries = (item.retries || 0) + 1;
         if (newRetries > 10) {
           console.warn('[offline] queue item discarded after 10 retries', item);
           await removeQueueItem(item.id);
         } else {
-          await updateQueueItem(item.id, { retries: newRetries });
+          await updateQueueItem(item.id, { retries: newRetries, processing: null });
         }
         // Romper el loop — si una falla, probablemente todas fallarán (sin conexión).
         break;

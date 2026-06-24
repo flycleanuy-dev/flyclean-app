@@ -28,6 +28,7 @@
 // Sin este bump los clientes con la PWA instalada seguirían viendo el index.html
 // viejo desde caché y el bug del modal de gasto se mantendría visible aun con el
 // deploy live. Cache de Notion no necesita bump (solo cambió HTML).
+// v60: cola offline — guard 'processing' anti doble-sync entre pestañas + errores de IndexedDB ya no se tragan (console.warn). PATCH es idempotente; esto evita reprocesos.
 // v59: fix sistémico — coord Inicio/Servicios ahora respetan el mes (fetchCoordItemsForMonth re-filtra fecha en cliente; el proxy descarta el filtro server por multi-data-source). Helper filtrarServicios() central.
 // v58: seguridad — timing-safe PIN sin fuga de longitud (hash), sin fallback de clave de sesión, y /api/extract-receipt exige token de sesión (OCR no queda abierto).
 // v57: fix resumen coordinador (Días trabajados/Clientes ahora respetan el mes — el filtro de fecha de Servicios se descartaba por multi-data-source, ahora se re-filtra en cliente). NOTION_CACHE v3→v4 para limpiar datos viejos (categorías recategorizadas: JP/Francarlos=Sueldos, PGZ=Vehículo).
@@ -52,7 +53,7 @@
 // v33: VELOCIDAD — SW vuelve a stale-while-revalidate (cache al instante + revalida en bg); proxy con timeout+reintento+429; operario auto-reintenta.
 // v5: cambiar estrategia de Notion API de stale-while-revalidate a NETWORK-FIRST con timeout.
 
-const CACHE = 'flyclean-v59';
+const CACHE = 'flyclean-v60';
 const SHELL = [
   '/',
   '/index.html',
