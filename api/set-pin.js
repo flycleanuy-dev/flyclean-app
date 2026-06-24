@@ -15,9 +15,10 @@ const ALLOWED_ORIGINS = [
 const ALLOWED_ORIGIN_REGEX = /^https:\/\/flyclean-app-[a-z0-9]+-fly-clean-app-s-projects\.vercel\.app$/;
 function originAllowed(o) { return !!o && (ALLOWED_ORIGINS.includes(o) || ALLOWED_ORIGIN_REGEX.test(o)); }
 function safeEqual(a, b) {
-  const ba = Buffer.from(String(a)); const bb = Buffer.from(String(b));
-  if (ba.length !== bb.length) { crypto.timingSafeEqual(ba, ba); return false; }
-  return crypto.timingSafeEqual(ba, bb);
+  // Compara hash SHA-256 (largo fijo) → tiempo constante sin filtrar la longitud del PIN.
+  const ha = crypto.createHash('sha256').update(String(a)).digest();
+  const hb = crypto.createHash('sha256').update(String(b)).digest();
+  return crypto.timingSafeEqual(ha, hb);
 }
 
 export default async function handler(req, res) {

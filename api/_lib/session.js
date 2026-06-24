@@ -10,7 +10,9 @@ import crypto from 'node:crypto';
 const TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 días (largo → minimiza re-logins)
 
 function signingKey() {
-  const base = process.env.CRON_SECRET || process.env.NOTION_TOKEN || 'flyclean-dev-fallback';
+  // Sin fallback hardcodeado: si falta el secreto, fail-closed (verifySession captura → null; signSession lanza).
+  const base = process.env.CRON_SECRET || process.env.NOTION_TOKEN;
+  if (!base) throw new Error('Falta CRON_SECRET/NOTION_TOKEN para firmar la sesión');
   return crypto.createHmac('sha256', base).update('flyclean-session-v1').digest();
 }
 

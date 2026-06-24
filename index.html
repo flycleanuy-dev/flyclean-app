@@ -4099,9 +4099,10 @@ async function uploadReceiptPhoto(file, gastoId) {
 
 // Llama el endpoint OCR. Retorna el JSON estructurado.
 async function extractReceiptViaAI(imageUrl) {
+  const _tk = (() => { try { return localStorage.getItem('fc_token') || ''; } catch (_) { return ''; } })();
   const resp = await fetch('/api/extract-receipt', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...(_tk ? { 'Authorization': 'Bearer ' + _tk } : {}) },
     body: JSON.stringify({ imageUrl }),
   });
   if (!resp.ok) {
