@@ -4007,10 +4007,14 @@ function montoOf(props, kind = 'gasto') {
 // (cambios de moneda, depósitos propios) Y el financiamiento (préstamos de socios). El financiamiento
 // se muestra aparte en su propio bloque (deuda). Las filas siguen visibles en las listas (con badge).
 function esFinanciamiento(r) { return !!(r?.properties?.['Financiamiento']?.select?.name); }
-function kpiIncluido(r) { return !(r?.properties?.['Excluir de KPIs']?.checkbox === true || esFinanciamiento(r)); }
-// Badge para una card: financiamiento (préstamo) o interno (excluido). props = page.properties.
+// Tipo interno: cambio de moneda / depósito propio / traspaso → NO es gasto ni ingreso real.
+function tipoInterno(r) { return r?.properties?.['Tipo interno']?.select?.name || ''; }
+function kpiIncluido(r) { return !(r?.properties?.['Excluir de KPIs']?.checkbox === true || esFinanciamiento(r) || !!tipoInterno(r)); }
+// Badge para una card: financiamiento (préstamo) / tipo interno (💱 cambio, 🏦 depósito, 🔁 traspaso) / interno genérico.
 function kpiBadgeHTML(props) {
   if (props?.['Financiamiento']?.select?.name) return ' <span class="kpi-excluido-tag">🏦 préstamo</span>';
+  const ti = props?.['Tipo interno']?.select?.name;
+  if (ti) return ' <span class="kpi-excluido-tag">' + esc(ti) + '</span>';
   if (props?.['Excluir de KPIs']?.checkbox === true) return ' <span class="kpi-excluido-tag">🔁 interno</span>';
   return '';
 }
@@ -6516,6 +6520,24 @@ async function renderCEOFinanzas() {
     const finDevPer = (gasData.results||[]).reduce((s,r) => s + finAmt(r,'gasto'), 0);    // devuelto en el período
     const caja      = balance + finRecPer - finDevPer;                                    // flujo de caja del período
 
+    // CAMBIOS DE MONEDA + internos (Tipo interno): NO son gasto/ingreso → se listan aparte para que
+    // SIEMPRE se vean como lo que son (la misma plata cambiada de moneda), no como gasto/ganancia.
+    const internos = [];
+    (gasData.results || []).forEach(r => { if (tipoInterno(r)) internos.push({ r, kind: 'gasto' }); });
+    (ingData.results || []).forEach(r => { if (tipoInterno(r)) internos.push({ r, kind: 'ingreso' }); });
+    internos.sort((a, b) => (a.r.properties?.['Fecha']?.date?.start || '').localeCompare(b.r.properties?.['Fecha']?.date?.start || ''));
+    const internosHTML = internos.length ?
+      '<div class="estado-cuenta" style="margin-top:10px">' +
+        '<div class="ec-title">💱 CAMBIOS DE MONEDA E INTERNOS · ' + periodLabelF + '</div>' +
+        internos.map(({ r, kind }) => {
+          const ti = tipoInterno(r);
+          const m = montoOf(r.properties || {}, kind);
+          const fch = (r.properties?.['Fecha']?.date?.start || '').slice(0, 10);
+          return '<div class="ec-row"><span>' + esc(ti) + ' <span style="color:var(--text3);font-size:11px">' + fch + '</span></span><span style="white-space:nowrap">' + (kind === 'gasto' ? '−' : '+') + fmtMoneda(m.monto, m.esUY ? '🇺🇾 UY$' : '🇺🇸 USD') + '</span></div>';
+        }).join('') +
+        '<div class="ec-counts">No es gasto ni ganancia: es la misma plata cambiada de moneda (o movida entre cuentas propias).</div>' +
+      '</div>' : '';
+
     // Agrupar CON items para cards desplegables (solo registros en la moneda activa).
     const groupBy = (results, kind, keyFn) => { const g = {}; (results||[]).forEach(r => { const a = amt(r, kind); if (!a) return; const k = keyFn(r) || 'Otros'; (g[k] = g[k] || { total: 0, items: [] }); g[k].total += a; g[k].items.push(r); }); return g; };
     const gasGroups = groupBy(gasData.results, 'gasto', r => r.properties?.['Categoría']?.select?.name);
@@ -6586,6 +6608,7 @@ async function renderCEOFinanzas() {
           '<div class="ec-saldo"><span>💵 CAJA del período</span><span style="color:' + (caja >= 0 ? 'var(--green)' : 'var(--red)') + '">' + (caja < 0 ? '−' : '') + fmt(caja) + '</span></div>' +
           '<div class="ec-counts">operativo ' + (balance < 0 ? '−' : '+') + fmt(balance) + ' + financiamiento neto del período</div>' +
         '</div>' +
+        internosHTML +
         '<button class="ceo-acc-head" onclick="toggleCeoAcc(this)"><span>📊 Ingresos vs Gastos ' + now.getFullYear() + '</span><span class="fin-arrow">▾</span></button>' +
         '<div class="ceo-acc-body" style="display:none;padding:4px 14px">' + buildFinanceChart(ingByMonth, gasByMonth, now.getFullYear(), start.substring(0, 7)) + '</div>' +
         '<div class="ec-section-total"><span>GASTOS POR RUBRO</span><span style="color:var(--red)">− ' + fmt(gastos) + '</span></div>' +
