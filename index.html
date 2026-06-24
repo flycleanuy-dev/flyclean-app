@@ -1208,6 +1208,7 @@ body::before {
   <div class="coord-tab-bar">
     <div class="coord-tab active" id="ctab-inicio" data-i18n="coord.tab.inicio" onclick="setCoordTab('inicio')">🏠 Inicio</div>
     <div class="coord-tab" id="ctab-resumen" data-i18n="coord.tab.resumen" onclick="setCoordTab('resumen')">📊 Resumen</div>
+    <div class="coord-tab" id="ctab-porcobrar" onclick="setCoordTab('porcobrar')">💰 Por cobrar</div>
     <div class="coord-tab" id="ctab-servicios" data-i18n="coord.tab.servicios" onclick="setCoordTab('servicios')">📋 Servicios</div>
     <div class="coord-tab" id="ctab-pruebas" data-i18n="coord.tab.pruebas" onclick="setCoordTab('pruebas')">🧪 Pruebas</div>
     <div class="coord-tab" id="ctab-relevamientos" data-i18n="coord.tab.relevamientos" onclick="setCoordTab('relevamientos')">🔍 Relevamientos</div>
@@ -5060,7 +5061,7 @@ function setTab(tab) {
 function setCoordTab(tab) {
   activeCoordTab = tab;
   markUserActive();
-  ['inicio', 'resumen', 'servicios', 'pruebas', 'relevamientos', 'propuestas', 'contactos', 'pedidos', 'comunicaciones'].forEach(t => {
+  ['inicio', 'resumen', 'porcobrar', 'servicios', 'pruebas', 'relevamientos', 'propuestas', 'contactos', 'pedidos', 'comunicaciones'].forEach(t => {
     const el = document.getElementById('ctab-' + t);
     if (el) el.classList.toggle('active', t === tab);
   });
@@ -5085,6 +5086,7 @@ function setCoordTab(tab) {
 
   if (tab === 'inicio') renderCoordInicio();
   else if (tab === 'resumen') renderCoordResumen();
+  else if (tab === 'porcobrar') renderPorCobrar('coord-content', { readonly: true, headerless: true });
   else if (tab === 'servicios') renderCoordServicios();
   else if (tab === 'pruebas') renderCoordPruebas();
   else if (tab === 'relevamientos') renderCoordRelevamientos();
@@ -6600,7 +6602,10 @@ async function renderCEOFinanzas() {
 // Vista "Por cobrar" (solo lectura): por cada servicio Completado cruza el PRECIO (de la propuesta
 // vinculada, Importe estimado) con lo COBRADO (suma de los cobros vinculados) → saldo y % cobrado.
 // Cálculo en cliente (join servicios+propuestas+ingresos en memoria) → no toca el esquema de Servicios.
-async function renderPorCobrar(containerId) {
+var _porCobrarCtx = null;
+async function renderPorCobrar(containerId, opts = {}) {
+  const readonly = !!opts.readonly;        // coordinador = solo ve, no asocia
+  _porCobrarCtx = { containerId, opts };
   const content = document.getElementById(containerId);
   if (!content) return;
   content.innerHTML = '<div style="text-align:center;padding:40px 0"><div class="spinner" style="margin:0 auto"></div></div>';
@@ -6616,7 +6621,9 @@ async function renderPorCobrar(containerId) {
     const ingBy = {};
     (ing.results || []).forEach(i => { ingBy[norm(i.id)] = { usd: i.properties?.['Monto USD']?.number || 0, uy: i.properties?.['Monto UY$ cobrado']?.number || 0 }; });
 
-    const comp = (svc.results || []).filter(s => (s.properties?.['Estado']?.select?.name || '') === '✅ Completado');
+    // Solo servicios facturables: Completados que NO son Pruebas (las pruebas son demos gratis, no se cobran).
+    const comp = (svc.results || []).filter(s => (s.properties?.['Estado']?.select?.name || '') === '✅ Completado'
+      && (s.properties?.['Tipo de registro']?.select?.name || '') !== '🧪 Prueba');
     const rows = comp.map(s => {
       const p = s.properties || {};
       const nombre = p['Nombre del servicio']?.title?.[0]?.plain_text || '(servicio)';
@@ -6642,8 +6649,24 @@ async function renderPorCobrar(containerId) {
       '<div style="text-align:right;font-weight:700;white-space:nowrap;color:' + (r.saldo > 0 && r.precio ? 'var(--red)' : 'var(--green)') + '">' + (r.precio ? (r.saldo > 0 ? 'falta ' + fU(r.saldo) : '✅') : '—') + '</div></div>';
     const sec = (titulo, arr, sumar) => arr.length ? '<div class="ec-section-total"><span>' + titulo + ' (' + arr.length + ')</span><span style="color:var(--red)">' + (sumar ? fU(arr.reduce((s, r) => s + r.saldo, 0)) : '') + '</span></div>' + arr.slice().sort((a, b) => b.saldo - a.saldo).map(rowHTML).join('') : '';
 
+    // Herramienta de asociación (paso 2): cobros que NO están vinculados a ningún servicio (y no son
+    // financiamiento ni internos). Permite asociarlos con un toque → el precio/cobrado se vuelve real.
+    const sinAsociar = (ing.results || []).filter(i => !((i.properties?.['Servicio vinculado']?.relation || []).length) && !((i.properties?.['Servicio']?.relation || []).length) && !esFinanciamiento(i) && !(i.properties?.['Excluir de KPIs']?.checkbox === true));
+    const optsHTML = comp.slice().sort((a, b) => (a.properties?.['Nombre del servicio']?.title?.[0]?.plain_text || '').localeCompare(b.properties?.['Nombre del servicio']?.title?.[0]?.plain_text || '')).map(s => '<option value="' + s.id + '">' + esc(s.properties?.['Nombre del servicio']?.title?.[0]?.plain_text || '?') + '</option>').join('');
+    const ingCli = i => i.properties?.['Cliente']?.rich_text?.[0]?.plain_text || i.properties?.['Servicio']?.title?.[0]?.plain_text || '(cobro)';
+    const ingMonto = i => { const u = i.properties?.['Monto USD']?.number, y = i.properties?.['Monto UY$ cobrado']?.number; return u ? fU(u) : (y ? 'UY$ ' + y.toLocaleString('es-UY') : '—'); };
+    const asociarHTML = (!readonly && sinAsociar.length) ?
+      '<div class="ec-section-total"><span>🔗 COBROS SIN ASOCIAR (' + sinAsociar.length + ')</span><span style="color:var(--text3);font-size:11px">asociá a su servicio</span></div>' +
+      sinAsociar.slice().sort((a, b) => (a.properties?.['Fecha']?.date?.start || '').localeCompare(b.properties?.['Fecha']?.date?.start || '')).map(i =>
+        '<div class="ec-row" style="flex-direction:column;align-items:stretch;gap:6px;padding:8px 16px">' +
+          '<div style="display:flex;justify-content:space-between;gap:8px"><span style="font-weight:600">' + esc(ingCli(i)) + '</span><span style="font-weight:700;white-space:nowrap">' + ingMonto(i) + ' <span style="color:var(--text3);font-weight:400;font-size:11px">' + (i.properties?.['Fecha']?.date?.start || '').slice(0, 10) + '</span></span></div>' +
+          '<div style="display:flex;gap:6px"><select id="assoc-' + i.id + '" style="flex:1;min-width:0;padding:6px;border-radius:6px;background:var(--bg);color:var(--text);border:1px solid var(--border);font-size:12px;font-family:inherit"><option value="">— elegí servicio —</option>' + optsHTML + '</select>' +
+          '<button class="fin-svc-link" style="white-space:nowrap" onclick="asociarCobro(\'' + i.id + '\')">Asociar</button></div>' +
+        '</div>'
+      ).join('') : '';
+
     content.innerHTML =
-      ceoHeaderHTML('Por cobrar') +
+      (opts.headerless ? '' : ceoHeaderHTML('Por cobrar')) +
       '<div class="acct">' +
         '<div class="estado-cuenta">' +
           '<div class="ec-title">💰 TOTAL POR COBRAR · USD</div>' +
@@ -6654,10 +6677,27 @@ async function renderPorCobrar(containerId) {
         sec('🟡 PARCIAL', grupos.parcial, true) +
         (grupos.sinprecio.length ? '<div class="ec-section-total"><span>⚠️ FALTA VINCULAR PROPUESTA (' + grupos.sinprecio.length + ')</span><span style="color:var(--text3);font-size:11px">no sé su precio</span></div>' + grupos.sinprecio.slice().sort((a, b) => a.nombre.localeCompare(b.nombre)).map(rowHTML).join('') : '') +
         (grupos.cobrado.length ? '<button class="ceo-acc-head" onclick="toggleCeoAcc(this)"><span>✅ Cobrados (' + grupos.cobrado.length + ')</span><span class="fin-arrow">▾</span></button><div class="ceo-acc-body" style="display:none">' + grupos.cobrado.slice().sort((a, b) => b.precio - a.precio).map(rowHTML).join('') + '</div>' : '') +
+        asociarHTML +
         '<div style="padding:12px 14px;font-size:11px;color:var(--text3)">El precio sale de la propuesta vinculada y lo cobrado de los cobros vinculados al servicio. Si falta vincular, aparece arriba para completarlo.</div>' +
       '</div>';
   } catch (e) {
     content.innerHTML = '<div class="coord-empty">No se pudo cargar Por cobrar<br><small>' + esc(e.message) + '</small></div>';
+  }
+}
+
+// Asocia un cobro (ingreso) a un servicio: setea "Servicio vinculado" → el precio/cobrado se vuelve real.
+// Reversible (se puede desvincular). Re-renderiza la vista al terminar.
+async function asociarCobro(ingId) {
+  const sel = document.getElementById('assoc-' + ingId);
+  const svcId = sel && sel.value;
+  if (!svcId) { alert('Elegí un servicio primero.'); return; }
+  if (sel) sel.disabled = true;
+  try {
+    await callNotion('pages/' + ingId, 'PATCH', { properties: { 'Servicio vinculado': { relation: [{ id: svcId }] } } });
+    if (_porCobrarCtx) await renderPorCobrar(_porCobrarCtx.containerId, _porCobrarCtx.opts);
+  } catch (e) {
+    if (sel) sel.disabled = false;
+    alert('No se pudo asociar: ' + (e.message || e));
   }
 }
 
