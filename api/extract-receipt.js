@@ -11,6 +11,7 @@
 // - Errores genéricos al cliente (no exponer mensajes internos del SDK).
 
 import Anthropic from '@anthropic-ai/sdk';
+import { verifySession, tokenFromReq } from './_lib/session.js';
 
 const ALLOWED_ORIGINS = [
   'https://flyclean.app',
@@ -188,7 +189,7 @@ export default async function handler(req, res) {
   const origin = req.headers.origin || '';
   res.setHeader('Access-Control-Allow-Origin', isOriginAllowed(origin) ? origin : 'https://flyclean.app');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   res.setHeader('Vary', 'Origin');
 
   if (req.method === 'OPTIONS') return res.status(200).end();
@@ -196,6 +197,11 @@ export default async function handler(req, res) {
 
   if (!isOriginAllowed(origin)) {
     return res.status(403).json({ error: 'Origin not allowed' });
+  }
+
+  // Exige token de sesión (login con PIN) — el OCR gasta créditos Anthropic, no debe quedar abierto.
+  if (!verifySession(tokenFromReq(req))) {
+    return res.status(401).json({ error: 'Sesión requerida' });
   }
 
   const apiKey = process.env.ANTHROPIC_API_KEY;

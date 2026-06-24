@@ -7,12 +7,12 @@ import { getUserPinHash, verifyPinHash } from './_lib/pins.js';
 
 export const config = { maxDuration: 10 };
 
-// Comparación de tiempo constante: evita filtrar info por cuánto tarda el === (timing attack).
+// Comparación de tiempo constante SIN filtrar la longitud: se compara el hash SHA-256 (largo fijo 32B)
+// de ambos valores → mismo tiempo siempre, no se filtra ni el largo del PIN ni el resultado.
 function safeEqual(a, b) {
-  const ba = Buffer.from(String(a));
-  const bb = Buffer.from(String(b));
-  if (ba.length !== bb.length) { crypto.timingSafeEqual(ba, ba); return false; }
-  return crypto.timingSafeEqual(ba, bb);
+  const ha = crypto.createHash('sha256').update(String(a)).digest();
+  const hb = crypto.createHash('sha256').update(String(b)).digest();
+  return crypto.timingSafeEqual(ha, hb);
 }
 const FAIL_DELAY_MS = 500; // demora en cada intento fallido → ralentiza el brute-force
 
