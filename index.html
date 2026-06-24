@@ -2829,6 +2829,25 @@ function getCountryFilter() {
   return notionVal ? { property: 'País', select: { equals: notionVal } } : null;
 }
 
+// ⚠️ La DB Servicios es "multi-data-source": el proxy hace fallback a la API search y DESCARTA los
+// filtros server-side (País / Fecha programada / Estado). Por eso, CUALQUIER consulta a Servicios que
+// dependa de esos filtros DEBE re-filtrar en cliente con este helper (si no, llegan datos de más / de
+// otro mes / de otro estado, como pasó con la alerta y el resumen del coordinador).
+function filtrarServicios(items, { paisNotion = null, desde = null, hasta = null, incluirSinFecha = false, estados = null } = {}) {
+  return (items || []).filter(s => {
+    const p = s.properties || {};
+    if (paisNotion && (p['País']?.select?.name) !== paisNotion) return false;
+    if (estados && !estados.includes(p['Estado']?.select?.name || '')) return false;
+    if (desde || hasta) {
+      const f = p['Fecha programada']?.date?.start || '';
+      if (!f) return incluirSinFecha;
+      if (desde && f < desde) return false;
+      if (hasta && f > hasta) return false;
+    }
+    return true;
+  });
+}
+
 function getCEOFilter() {
   if (ceoViewCountry === 'all') return null;
   const notionVal = COUNTRY_NOTION_MAP[ceoViewCountry];
@@ -8847,14 +8866,10 @@ async function fetchCoordItemsForMonth() {
     filter,
     sorts: [{ property: 'Fecha programada', direction: 'ascending' }]
   });
-  let items = data.results || [];
-  // Filtrado cliente-side por país (el proxy hace search fallback que ignora server filter)
-  const cf2 = getCountryFilter();
-  if (cf2) {
-    const notionVal = COUNTRY_NOTION_MAP[selectedCountry];
-    items = items.filter(s => s.properties?.['País']?.select?.name === notionVal);
-  }
-  return items;
+  // El proxy descarta el filtro server-side (multi-data-source) → re-filtrar SIEMPRE en cliente:
+  // país + mes (incluyendo los servicios SIN fecha, que se muestran en todos los meses, igual que el filtro server).
+  const notionVal = getCountryFilter() ? COUNTRY_NOTION_MAP[selectedCountry] : null;
+  return filtrarServicios(data.results || [], { paisNotion: notionVal, desde: start, hasta: end, incluirSinFecha: true });
 }
 
 // 🏠 Inicio — centro de mando. Muestra TODO junto (servicios + jornadas + pruebas +
