@@ -3730,7 +3730,7 @@ function renderGastosListInner() {
     const fotoUrl = fotoFiles[0]?.external?.url || fotoFiles[0]?.file?.url || '';
     return `<div class="gasto-card">
       <div class="gasto-card-main">
-        <div class="gasto-card-concepto">${esc(concepto)}${props['Excluir de KPIs']?.checkbox ? ' <span class="kpi-excluido-tag">🔁 interno</span>' : ''}</div>
+        <div class="gasto-card-concepto">${esc(concepto)}${kpiBadgeHTML(props)}</div>
         <div class="gasto-card-meta">
           ${categoria ? `<span class="gasto-tag">${esc(categoria)}</span>` : ''}
           ${clase ? `<span class="gasto-tag gasto-tag-clase">${esc(clase)}</span>` : ''}
@@ -3801,7 +3801,7 @@ function renderIngresosListInner() {
     const facturado = props['Facturado']?.checkbox || false;
     return `<div class="gasto-card">
       <div class="gasto-card-main">
-        <div class="gasto-card-concepto">${esc(servicioTitle)}${props['Excluir de KPIs']?.checkbox ? ' <span class="kpi-excluido-tag">🔁 interno</span>' : ''}</div>
+        <div class="gasto-card-concepto">${esc(servicioTitle)}${kpiBadgeHTML(props)}</div>
         <div class="gasto-card-meta">
           ${tipo ? `<span class="gasto-tag">${esc(tipo)}</span>` : ''}
           ${facturado ? `<span class="gasto-tag gasto-tag-svc">📄 Facturado</span>` : ''}
@@ -3999,9 +3999,17 @@ function montoOf(props, kind = 'gasto') {
   const monto = esUY ? (uyVal ?? usdVal ?? 0) : (usdVal ?? uyVal ?? 0);
   return { moneda, esUY, monto };
 }
-// Filas marcadas "Excluir de KPIs" (movimientos internos: cambios de moneda, depósitos propios,
-// préstamos entre empresas) NO suman en ningún KPI. Siguen visibles en las listas (badge "interno").
-function kpiIncluido(r) { return !(r?.properties?.['Excluir de KPIs']?.checkbox === true); }
+// Filas que NO cuentan en el RESULTADO OPERATIVO: movimientos internos marcados "Excluir de KPIs"
+// (cambios de moneda, depósitos propios) Y el financiamiento (préstamos de socios). El financiamiento
+// se muestra aparte en su propio bloque (deuda). Las filas siguen visibles en las listas (con badge).
+function esFinanciamiento(r) { return !!(r?.properties?.['Financiamiento']?.select?.name); }
+function kpiIncluido(r) { return !(r?.properties?.['Excluir de KPIs']?.checkbox === true || esFinanciamiento(r)); }
+// Badge para una card: financiamiento (préstamo) o interno (excluido). props = page.properties.
+function kpiBadgeHTML(props) {
+  if (props?.['Financiamiento']?.select?.name) return ' <span class="kpi-excluido-tag">🏦 préstamo</span>';
+  if (props?.['Excluir de KPIs']?.checkbox === true) return ' <span class="kpi-excluido-tag">🔁 interno</span>';
+  return '';
+}
 // Formatea un monto con su etiqueta de moneda. UY$ sin decimales, USD con hasta 2.
 function fmtMoneda(monto, moneda) {
   const esUY = moneda === '🇺🇾 UY$';
@@ -4282,7 +4290,7 @@ function renderGastoCard(g) {
   const fotoUrl = fotoFiles[0]?.external?.url || fotoFiles[0]?.file?.url || '';
   return `<div class="gasto-card">
     <div class="gasto-card-main">
-      <div class="gasto-card-concepto">${esc(concepto)}${props['Excluir de KPIs']?.checkbox ? ' <span class="kpi-excluido-tag">🔁 interno</span>' : ''}</div>
+      <div class="gasto-card-concepto">${esc(concepto)}${kpiBadgeHTML(props)}</div>
       <div class="gasto-card-meta">
         ${categoria ? `<span class="gasto-tag">${esc(categoria)}</span>` : ''}
         ${clase ? `<span class="gasto-tag gasto-tag-clase">${esc(clase)}</span>` : ''}
@@ -6462,11 +6470,15 @@ async function renderCEOFinanzas() {
     const mkFilter  = (s, e, extra) => ({ and: [ ...(extra ? [extra] : []), { property: 'Fecha', date: { on_or_after: s } }, { property: 'Fecha', date: { on_or_before: e } } ] });
 
     // PAGINADO (año/rango pueden tener >100 filas → si no, los totales quedan cortos).
-    const [ingData, gasData, ingYear, gasYear] = await Promise.all([
+    // finIng/finGas = financiamiento de TODO el tiempo (deuda acumulada, no solo el período).
+    const finF = { property: 'Financiamiento', select: { is_not_empty: true } };
+    const [ingData, gasData, ingYear, gasYear, finIng, finGas] = await Promise.all([
       callNotionAll(`databases/${INGRESOS_DB_ID}/query`, { filter: mkFilter(start, end, fcf) }),
       callNotionAll(`databases/${GASTOS_DB_ID}/query`, { filter: mkFilter(start, end, fcf) }),
       callNotionAll(`databases/${INGRESOS_DB_ID}/query`, { filter: mkFilter(yearStart, yearEnd, fcf) }),
-      callNotionAll(`databases/${GASTOS_DB_ID}/query`, { filter: mkFilter(yearStart, yearEnd, fcf) })
+      callNotionAll(`databases/${GASTOS_DB_ID}/query`, { filter: mkFilter(yearStart, yearEnd, fcf) }),
+      callNotionAll(`databases/${INGRESOS_DB_ID}/query`, { filter: finF }),
+      callNotionAll(`databases/${GASTOS_DB_ID}/query`, { filter: finF })
     ]);
     _ceoDataTime = Date.now();
 
@@ -6482,10 +6494,21 @@ async function renderCEOFinanzas() {
     (ingYear.results || []).forEach(r => { const m = (r.properties?.['Fecha']?.date?.start || '').substring(0,7); if (m) ingByMonth[m] = (ingByMonth[m]||0) + amt(r,'ingreso'); });
     (gasYear.results || []).forEach(r => { const m = (r.properties?.['Fecha']?.date?.start || '').substring(0,7); if (m) gasByMonth[m] = (gasByMonth[m]||0) + amt(r,'gasto'); });
 
-    // Totales del período (moneda seleccionada)
+    // Totales del período (moneda seleccionada). amt() ya excluye financiamiento y "Excluir de KPIs"
+    // → balance = RESULTADO OPERATIVO (negocio puro: ingresos de clientes − gastos reales).
     const ingresos = (ingData.results||[]).reduce((s,r) => s + amt(r,'ingreso'), 0);
     const gastos   = (gasData.results||[]).reduce((s,r) => s + amt(r,'gasto'), 0);
     const balance  = ingresos - gastos;
+
+    // FINANCIAMIENTO (préstamos de socios, ej. Neidat): NO entra en el resultado operativo.
+    // Monto del registro en la moneda activa SOLO si está marcado Financiamiento.
+    const finAmt = (r, kind) => { if (!esFinanciamiento(r)) return 0; const { esUY, monto } = montoOf(r.properties || {}, kind); return ((cur === 'uyu') === esUY) ? monto : 0; };
+    const finRecTot = (finIng.results||[]).reduce((s,r) => s + finAmt(r,'ingreso'), 0);  // recibido (todo el tiempo)
+    const finDevTot = (finGas.results||[]).reduce((s,r) => s + finAmt(r,'gasto'), 0);     // devuelto (todo el tiempo)
+    const deuda     = finRecTot - finDevTot;                                              // deuda acumulada
+    const finRecPer = (ingData.results||[]).reduce((s,r) => s + finAmt(r,'ingreso'), 0);  // recibido en el período
+    const finDevPer = (gasData.results||[]).reduce((s,r) => s + finAmt(r,'gasto'), 0);    // devuelto en el período
+    const caja      = balance + finRecPer - finDevPer;                                    // flujo de caja del período
 
     // Agrupar CON items para cards desplegables (solo registros en la moneda activa).
     const groupBy = (results, kind, keyFn) => { const g = {}; (results||[]).forEach(r => { const a = amt(r, kind); if (!a) return; const k = keyFn(r) || 'Otros'; (g[k] = g[k] || { total: 0, items: [] }); g[k].total += a; g[k].items.push(r); }); return g; };
@@ -6535,12 +6558,27 @@ async function renderCEOFinanzas() {
       renderCEOPeriodSelector() +
       '<div class="acct">' +
         '<div class="estado-cuenta">' +
-          '<div class="ec-title">ESTADO DE CUENTA · ' + monedaLabel + ' · ' + periodLabelF + '</div>' +
-          '<div class="ec-row"><span>Entradas</span><span style="color:var(--green)">+ ' + fmt(ingresos) + '</span></div>' +
-          '<div class="ec-row"><span>Salidas</span><span style="color:var(--red)">− ' + fmt(gastos) + '</span></div>' +
+          '<div class="ec-title">RESULTADO OPERATIVO · ' + monedaLabel + ' · ' + periodLabelF + '</div>' +
+          '<div class="ec-row"><span>Ingresos de clientes</span><span style="color:var(--green)">+ ' + fmt(ingresos) + '</span></div>' +
+          '<div class="ec-row"><span>Gastos reales</span><span style="color:var(--red)">− ' + fmt(gastos) + '</span></div>' +
           '<div class="ec-sep"></div>' +
-          '<div class="ec-saldo"><span>SALDO</span><span style="color:' + saldoCol + '">' + (balance < 0 ? '−' : '') + fmt(balance) + ' ' + (balance >= 0 ? '🟢' : '🔴') + '</span></div>' +
-          '<div class="ec-counts">' + (ingData.results || []).length + ' cobros · ' + (gasData.results || []).length + ' gastos</div>' +
+          '<div class="ec-saldo"><span>RESULTADO OPERATIVO</span><span style="color:' + saldoCol + '">' + (balance < 0 ? '−' : '') + fmt(balance) + ' ' + (balance >= 0 ? '🟢' : '🔴') + '</span></div>' +
+          '<div class="ec-counts">' + (balance >= 0 ? 'El negocio se sostiene solo' : 'El negocio NO se cubre solo — se financia (ver abajo)') + '</div>' +
+        '</div>' +
+        // FINANCIAMIENTO (préstamos de socios) — aparte del negocio. Deuda acumulada.
+        ((deuda || finRecPer || finDevPer) ?
+        '<div class="estado-cuenta" style="margin-top:10px">' +
+          '<div class="ec-title">🏦 FINANCIAMIENTO · préstamos de socios (Neidat)</div>' +
+          (finRecPer ? '<div class="ec-row"><span>Recibido (período)</span><span>+ ' + fmt(finRecPer) + '</span></div>' : '') +
+          (finDevPer ? '<div class="ec-row"><span>Devuelto (período)</span><span>− ' + fmt(finDevPer) + '</span></div>' : '') +
+          '<div class="ec-sep"></div>' +
+          '<div class="ec-saldo"><span>DEUDA con Neidat</span><span style="color:var(--text)">' + (deuda < 0 ? '−' : '') + fmt(deuda) + '</span></div>' +
+          '<div class="ec-counts">No es ingreso ni gasto: es deuda a devolver.</div>' +
+        '</div>' : '') +
+        // CAJA del período = resultado operativo + financiamiento neto.
+        '<div class="estado-cuenta" style="margin-top:10px">' +
+          '<div class="ec-saldo"><span>💵 CAJA del período</span><span style="color:' + (caja >= 0 ? 'var(--green)' : 'var(--red)') + '">' + (caja < 0 ? '−' : '') + fmt(caja) + '</span></div>' +
+          '<div class="ec-counts">operativo ' + (balance < 0 ? '−' : '+') + fmt(balance) + ' + financiamiento neto del período</div>' +
         '</div>' +
         '<button class="ceo-acc-head" onclick="toggleCeoAcc(this)"><span>📊 Ingresos vs Gastos ' + now.getFullYear() + '</span><span class="fin-arrow">▾</span></button>' +
         '<div class="ceo-acc-body" style="display:none;padding:4px 14px">' + buildFinanceChart(ingByMonth, gasByMonth, now.getFullYear(), start.substring(0, 7)) + '</div>' +
