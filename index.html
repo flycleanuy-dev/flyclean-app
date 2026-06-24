@@ -1440,6 +1440,7 @@ body::before {
     <div class="ceo-tab active" id="ceotab-metricas" data-i18n="ceo.tab.metricas" onclick="setCEOTab('metricas')">📊 Métricas</div>
     <div class="ceo-tab" id="ceotab-servicios" data-i18n="ceo.tab.servicios" onclick="setCEOTab('servicios')">📋 Servicios</div>
     <div class="ceo-tab" id="ceotab-finanzas" data-i18n="ceo.tab.finanzas" onclick="setCEOTab('finanzas')">💰 Finanzas</div>
+    <div class="ceo-tab" id="ceotab-porcobrar" onclick="setCEOTab('porcobrar')">💰 Por cobrar</div>
     <div class="ceo-tab" id="ceotab-equipo" data-i18n="ceo.tab.equipo" onclick="setCEOTab('equipo')">👥 Equipo</div>
     <div class="ceo-tab" id="ceotab-comunicaciones" data-i18n="ceo.tab.mensajes" onclick="setCEOTab('comunicaciones')">💬 Mensajes</div>
   </div>
@@ -1462,6 +1463,7 @@ body::before {
   </div>
   <div class="ceo-tab-bar">
     <div class="ceo-tab active" id="ftab-resumen" onclick="setFinanzasTab('resumen')">📊 Resumen</div>
+    <div class="ceo-tab" id="ftab-porcobrar" onclick="setFinanzasTab('porcobrar')">💰 Por cobrar</div>
     <div class="ceo-tab" id="ftab-gastos" data-i18n="finanzas.tab.gastos" onclick="setFinanzasTab('gastos')">💸 Gastos</div>
     <div class="ceo-tab" id="ftab-ingresos" data-i18n="finanzas.tab.ingresos" onclick="setFinanzasTab('ingresos')">💵 Ingresos</div>
     <div class="ceo-tab" id="ftab-reportes" onclick="setFinanzasTab('reportes')">📊 Reportes</div>
@@ -3658,7 +3660,7 @@ async function fetchIngresosForMonth() {
 function setFinanzasTab(tab) {
   activeFinanzasTab = tab;
   markUserActive();
-  ['resumen', 'gastos', 'ingresos', 'reportes'].forEach(t => {
+  ['resumen', 'porcobrar', 'gastos', 'ingresos', 'reportes'].forEach(t => {
     const el = document.getElementById('ftab-' + t);
     if (el) el.classList.toggle('active', t === tab);
   });
@@ -3671,7 +3673,8 @@ function setFinanzasTab(tab) {
     ceoViewCountry = 'Uruguay';
     _ceoRerender = renderCEOFinanzas;
     renderCEOFinanzas();
-  } else if (tab === 'gastos') renderGastosList();
+  } else if (tab === 'porcobrar') { _ceoContentId = 'finanzas-content'; _ceoRerender = () => renderPorCobrar('finanzas-content'); renderPorCobrar('finanzas-content'); }
+  else if (tab === 'gastos') renderGastosList();
   else if (tab === 'ingresos') renderIngresosList();
   else renderReportes();
 }
@@ -6079,15 +6082,16 @@ async function setCEOCountry(country) {
 async function setCEOTab(tab) {
   activeCEOTab = tab;
   _ceoContentId = 'ceo-content';
-  ['metricas','servicios','finanzas','equipo','comunicaciones'].forEach(t =>
-    document.getElementById('ceotab-' + t).classList.toggle('active', t === tab)
+  ['metricas','servicios','finanzas','porcobrar','equipo','comunicaciones'].forEach(t =>
+    document.getElementById('ceotab-' + t)?.classList.toggle('active', t === tab)
   );
-  // Global country tabs: hidden while in Métricas (it has its own sub-tabs)
+  // Global country tabs: hidden en Métricas (tiene sub-tabs propias) y en Por cobrar (muestra todo).
   const globalTabs = document.getElementById('ceo-country-tabs');
-  if (globalTabs) globalTabs.style.display = tab === 'metricas' ? 'none' : '';
+  if (globalTabs) globalTabs.style.display = (tab === 'metricas' || tab === 'porcobrar') ? 'none' : '';
   if (tab === 'metricas') { _ceoRerender = renderCEOMetricas; await renderCEOMetricas(); }
   else if (tab === 'servicios') await renderCEOServicios();
   else if (tab === 'finanzas') { _ceoRerender = renderCEOFinanzas; await renderCEOFinanzas(); }
+  else if (tab === 'porcobrar') { _ceoRerender = () => renderPorCobrar('ceo-content'); await renderPorCobrar('ceo-content'); }
   else if (tab === 'equipo') await renderCEOEquipo();
   else renderComunicaciones();
 }
@@ -6590,6 +6594,70 @@ async function renderCEOFinanzas() {
       '</div>';
   } catch (e) {
     content.innerHTML = '<div class="coord-empty">' + t('ceo.error.finanzas') + '<br><small>' + esc(e.message) + '</small></div>';
+  }
+}
+
+// Vista "Por cobrar" (solo lectura): por cada servicio Completado cruza el PRECIO (de la propuesta
+// vinculada, Importe estimado) con lo COBRADO (suma de los cobros vinculados) → saldo y % cobrado.
+// Cálculo en cliente (join servicios+propuestas+ingresos en memoria) → no toca el esquema de Servicios.
+async function renderPorCobrar(containerId) {
+  const content = document.getElementById(containerId);
+  if (!content) return;
+  content.innerHTML = '<div style="text-align:center;padding:40px 0"><div class="spinner" style="margin:0 auto"></div></div>';
+  try {
+    const [svc, prop, ing] = await Promise.all([
+      callNotionAll(`databases/${DB_ID}/query`, {}),
+      callNotionAll(`databases/${PROPUESTAS_DB_ID}/query`, {}),
+      callNotionAll(`databases/${INGRESOS_DB_ID}/query`, {})
+    ]);
+    const norm = s => (s || '').replace(/-/g, '');
+    const precioBy = {};
+    (prop.results || []).forEach(p => { precioBy[norm(p.id)] = p.properties?.['Importe estimado']?.number || 0; });
+    const ingBy = {};
+    (ing.results || []).forEach(i => { ingBy[norm(i.id)] = { usd: i.properties?.['Monto USD']?.number || 0, uy: i.properties?.['Monto UY$ cobrado']?.number || 0 }; });
+
+    const comp = (svc.results || []).filter(s => (s.properties?.['Estado']?.select?.name || '') === '✅ Completado');
+    const rows = comp.map(s => {
+      const p = s.properties || {};
+      const nombre = p['Nombre del servicio']?.title?.[0]?.plain_text || '(servicio)';
+      const propId = p['Propuesta']?.relation?.[0]?.id;
+      const precio = propId ? (precioBy[norm(propId)] || 0) : 0;
+      let cobUSD = 0, cobUY = 0;
+      (p['Ingresos']?.relation || []).forEach(r => { const v = ingBy[norm(r.id)]; if (v) { cobUSD += v.usd; cobUY += v.uy; } });
+      const saldo = precio - cobUSD;
+      let estado;
+      if (!precio) estado = 'sinprecio';
+      else if (cobUSD >= precio - 0.5) estado = 'cobrado';
+      else if (cobUSD > 0) estado = 'parcial';
+      else estado = 'acobrar';
+      return { nombre, precio, cobUSD, cobUY, saldo, pct: precio ? Math.round(cobUSD / precio * 100) : 0, estado };
+    });
+
+    const grupos = { acobrar: [], parcial: [], cobrado: [], sinprecio: [] };
+    rows.forEach(r => grupos[r.estado].push(r));
+    const totalPorCobrar = [...grupos.acobrar, ...grupos.parcial].reduce((s, r) => s + r.saldo, 0);
+    const fU = n => fmtMoneda(n, '🇺🇸 USD');
+    const rowHTML = r => '<div class="ec-row" style="align-items:flex-start;gap:10px"><div style="min-width:0"><div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(r.nombre) + '</div>' +
+      '<div style="font-size:11px;color:var(--text3)">' + (r.precio ? 'Precio ' + fU(r.precio) + ' · Cobrado ' + fU(r.cobUSD) + (r.cobUY ? ' + UY$ ' + r.cobUY.toLocaleString('es-UY') : '') + (r.estado === 'parcial' ? ' · ' + r.pct + '%' : '') : (r.cobUSD ? 'Cobrado ' + fU(r.cobUSD) + ' · sin precio' : 'sin precio ni cobros')) + '</div></div>' +
+      '<div style="text-align:right;font-weight:700;white-space:nowrap;color:' + (r.saldo > 0 && r.precio ? 'var(--red)' : 'var(--green)') + '">' + (r.precio ? (r.saldo > 0 ? 'falta ' + fU(r.saldo) : '✅') : '—') + '</div></div>';
+    const sec = (titulo, arr, sumar) => arr.length ? '<div class="ec-section-total"><span>' + titulo + ' (' + arr.length + ')</span><span style="color:var(--red)">' + (sumar ? fU(arr.reduce((s, r) => s + r.saldo, 0)) : '') + '</span></div>' + arr.slice().sort((a, b) => b.saldo - a.saldo).map(rowHTML).join('') : '';
+
+    content.innerHTML =
+      ceoHeaderHTML('Por cobrar') +
+      '<div class="acct">' +
+        '<div class="estado-cuenta">' +
+          '<div class="ec-title">💰 TOTAL POR COBRAR · USD</div>' +
+          '<div class="ec-saldo"><span>Pendiente de cobro</span><span style="color:var(--red)">' + fU(totalPorCobrar) + '</span></div>' +
+          '<div class="ec-counts">' + grupos.acobrar.length + ' sin cobrar · ' + grupos.parcial.length + ' parciales · ' + grupos.cobrado.length + ' cobrados' + (grupos.sinprecio.length ? ' · ' + grupos.sinprecio.length + ' sin precio' : '') + '</div>' +
+        '</div>' +
+        sec('🔴 A COBRAR (sin pago)', grupos.acobrar, true) +
+        sec('🟡 PARCIAL', grupos.parcial, true) +
+        (grupos.sinprecio.length ? '<div class="ec-section-total"><span>⚠️ FALTA VINCULAR PROPUESTA (' + grupos.sinprecio.length + ')</span><span style="color:var(--text3);font-size:11px">no sé su precio</span></div>' + grupos.sinprecio.slice().sort((a, b) => a.nombre.localeCompare(b.nombre)).map(rowHTML).join('') : '') +
+        (grupos.cobrado.length ? '<button class="ceo-acc-head" onclick="toggleCeoAcc(this)"><span>✅ Cobrados (' + grupos.cobrado.length + ')</span><span class="fin-arrow">▾</span></button><div class="ceo-acc-body" style="display:none">' + grupos.cobrado.slice().sort((a, b) => b.precio - a.precio).map(rowHTML).join('') + '</div>' : '') +
+        '<div style="padding:12px 14px;font-size:11px;color:var(--text3)">El precio sale de la propuesta vinculada y lo cobrado de los cobros vinculados al servicio. Si falta vincular, aparece arriba para completarlo.</div>' +
+      '</div>';
+  } catch (e) {
+    content.innerHTML = '<div class="coord-empty">No se pudo cargar Por cobrar<br><small>' + esc(e.message) + '</small></div>';
   }
 }
 
