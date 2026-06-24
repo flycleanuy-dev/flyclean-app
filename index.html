@@ -6667,7 +6667,7 @@ async function renderPorCobrar(containerId, opts = {}) {
     ]);
     const norm = s => (s || '').replace(/-/g, '');
     const precioBy = {};
-    (prop.results || []).forEach(p => { precioBy[norm(p.id)] = p.properties?.['Importe estimado']?.number || 0; });
+    (prop.results || []).forEach(p => { precioBy[norm(p.id)] = { monto: p.properties?.['Importe estimado']?.number || 0, moneda: p.properties?.['Moneda']?.select?.name || '🇺🇸 USD' }; });
     const ingBy = {};
     (ing.results || []).forEach(i => { ingBy[norm(i.id)] = { usd: i.properties?.['Monto USD']?.number || 0, uy: i.properties?.['Monto UY$ cobrado']?.number || 0 }; });
 
@@ -6679,32 +6679,40 @@ async function renderPorCobrar(containerId, opts = {}) {
       if (ti === '🧪 Prueba' || ti === '🔍 Relevamiento') return false;
       const nm = s.properties?.['Nombre del servicio']?.title?.[0]?.plain_text || '';
       if (/relevamiento|prueba/i.test(nm)) return false;
-      return true;
+      return kpiIncluido(s); // por las dudas: no contar internos/financiamiento como cobrables
     });
     const rows = comp.map(s => {
       const p = s.properties || {};
       const nombre = p['Nombre del servicio']?.title?.[0]?.plain_text || '(servicio)';
       const propId = p['Propuesta']?.relation?.[0]?.id;
-      const precio = propId ? (precioBy[norm(propId)] || 0) : 0;
+      const pr = propId ? precioBy[norm(propId)] : null;
+      const precio = pr ? pr.monto : 0;
+      const esUY = !!pr && pr.moneda === '🇺🇾 UY$';        // moneda del PRECIO (default USD)
       let cobUSD = 0, cobUY = 0;
       (p['Ingresos']?.relation || []).forEach(r => { const v = ingBy[norm(r.id)]; if (v) { cobUSD += v.usd; cobUY += v.uy; } });
-      const saldo = precio - cobUSD;
+      const cobrado = esUY ? cobUY : cobUSD;               // cobrado EN LA MONEDA DEL PRECIO (no mezclar)
+      const cobradoOtra = esUY ? cobUSD : cobUY;           // lo cobrado en la otra moneda (informativo)
+      const saldo = precio - cobrado;
       let estado;
       if (!precio) estado = 'sinprecio';
-      else if (cobUSD >= precio - 0.5) estado = 'cobrado';
-      else if (cobUSD > 0) estado = 'parcial';
+      else if (cobrado >= precio - 0.5) estado = 'cobrado';
+      else if (cobrado > 0) estado = 'parcial';
       else estado = 'acobrar';
-      return { nombre, precio, cobUSD, cobUY, saldo, pct: precio ? Math.round(cobUSD / precio * 100) : 0, estado };
+      return { nombre, precio, esUY, cobrado, cobradoOtra, saldo, pct: precio ? Math.round(cobrado / precio * 100) : 0, estado };
     });
 
     const grupos = { acobrar: [], parcial: [], cobrado: [], sinprecio: [] };
     rows.forEach(r => grupos[r.estado].push(r));
-    const totalPorCobrar = [...grupos.acobrar, ...grupos.parcial].reduce((s, r) => s + r.saldo, 0);
     const fU = n => fmtMoneda(n, '🇺🇸 USD');
+    const fMon = (n, esUY) => fmtMoneda(n, esUY ? '🇺🇾 UY$' : '🇺🇸 USD');
+    // Total por cobrar SEPARADO por moneda (nunca mezcla UY$ con USD).
+    const totalSplit = arr => arr.reduce((acc, r) => { if (r.esUY) acc.uyu += r.saldo; else acc.usd += r.saldo; return acc; }, { uyu: 0, usd: 0 });
+    const totalPC = totalSplit([...grupos.acobrar, ...grupos.parcial]);
+    const splitStr = t => [t.usd ? fU(t.usd) : '', t.uyu ? fMon(t.uyu, true) : ''].filter(Boolean).join(' · ') || fU(0);
     const rowHTML = r => '<div class="ec-row" style="align-items:flex-start;gap:10px"><div style="min-width:0"><div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(r.nombre) + '</div>' +
-      '<div style="font-size:11px;color:var(--text3)">' + (r.precio ? 'Precio ' + fU(r.precio) + ' · Cobrado ' + fU(r.cobUSD) + (r.cobUY ? ' + UY$ ' + r.cobUY.toLocaleString('es-UY') : '') + (r.estado === 'parcial' ? ' · ' + r.pct + '%' : '') : (r.cobUSD ? 'Cobrado ' + fU(r.cobUSD) + ' · sin precio' : 'sin precio ni cobros')) + '</div></div>' +
-      '<div style="text-align:right;font-weight:700;white-space:nowrap;color:' + (r.saldo > 0 && r.precio ? 'var(--red)' : 'var(--green)') + '">' + (r.precio ? (r.saldo > 0 ? 'falta ' + fU(r.saldo) : '✅') : '—') + '</div></div>';
-    const sec = (titulo, arr, sumar) => arr.length ? '<div class="ec-section-total"><span>' + titulo + ' (' + arr.length + ')</span><span style="color:var(--red)">' + (sumar ? fU(arr.reduce((s, r) => s + r.saldo, 0)) : '') + '</span></div>' + arr.slice().sort((a, b) => b.saldo - a.saldo).map(rowHTML).join('') : '';
+      '<div style="font-size:11px;color:var(--text3)">' + (r.precio ? 'Precio ' + fMon(r.precio, r.esUY) + ' · Cobrado ' + fMon(r.cobrado, r.esUY) + (r.cobradoOtra ? ' (+ ' + fMon(r.cobradoOtra, !r.esUY) + ' en otra moneda)' : '') + (r.estado === 'parcial' ? ' · ' + r.pct + '%' : '') : 'sin precio') + '</div></div>' +
+      '<div style="text-align:right;font-weight:700;white-space:nowrap;color:' + (r.saldo > 0 && r.precio ? 'var(--red)' : 'var(--green)') + '">' + (r.precio ? (r.saldo > 0 ? 'falta ' + fMon(r.saldo, r.esUY) : '✅') : '—') + '</div></div>';
+    const sec = (titulo, arr, sumar) => arr.length ? '<div class="ec-section-total"><span>' + titulo + ' (' + arr.length + ')</span><span style="color:var(--red)">' + (sumar ? splitStr(totalSplit(arr)) : '') + '</span></div>' + arr.slice().sort((a, b) => b.saldo - a.saldo).map(rowHTML).join('') : '';
 
     // Herramienta de asociación (paso 2): cobros que NO están vinculados a ningún servicio (y no son
     // financiamiento ni internos). Permite asociarlos con un toque → el precio/cobrado se vuelve real.
@@ -6726,8 +6734,8 @@ async function renderPorCobrar(containerId, opts = {}) {
       (opts.headerless ? '' : ceoHeaderHTML('Por cobrar')) +
       '<div class="acct">' +
         '<div class="estado-cuenta">' +
-          '<div class="ec-title">💰 TOTAL POR COBRAR · USD</div>' +
-          '<div class="ec-saldo"><span>Pendiente de cobro</span><span style="color:var(--red)">' + fU(totalPorCobrar) + '</span></div>' +
+          '<div class="ec-title">💰 TOTAL POR COBRAR</div>' +
+          '<div class="ec-saldo"><span>Pendiente de cobro</span><span style="color:var(--red)">' + splitStr(totalPC) + '</span></div>' +
           '<div class="ec-counts">' + grupos.acobrar.length + ' sin cobrar · ' + grupos.parcial.length + ' parciales · ' + grupos.cobrado.length + ' cobrados' + (grupos.sinprecio.length ? ' · ' + grupos.sinprecio.length + ' sin precio' : '') + '</div>' +
         '</div>' +
         sec('🔴 A COBRAR (sin pago)', grupos.acobrar, true) +
