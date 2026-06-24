@@ -28,6 +28,7 @@
 // Sin este bump los clientes con la PWA instalada seguirían viendo el index.html
 // viejo desde caché y el bug del modal de gasto se mantendría visible aun con el
 // deploy live. Cache de Notion no necesita bump (solo cambió HTML).
+// v62: Por cobrar excluye JORNADAS (días de trabajo que componen un servicio; se cobra la Orden una vez, no cada jornada). Evita el doble conteo.
 // v61: Por cobrar consciente de moneda — el precio de la propuesta define la moneda del saldo (campo Moneda en Propuestas, default USD); nunca mezcla UY$/USD; total separado por moneda.
 // v60: cola offline — guard 'processing' anti doble-sync entre pestañas + errores de IndexedDB ya no se tragan (console.warn). PATCH es idempotente; esto evita reprocesos.
 // v59: fix sistémico — coord Inicio/Servicios ahora respetan el mes (fetchCoordItemsForMonth re-filtra fecha en cliente; el proxy descarta el filtro server por multi-data-source). Helper filtrarServicios() central.
@@ -54,7 +55,7 @@
 // v33: VELOCIDAD — SW vuelve a stale-while-revalidate (cache al instante + revalida en bg); proxy con timeout+reintento+429; operario auto-reintenta.
 // v5: cambiar estrategia de Notion API de stale-while-revalidate a NETWORK-FIRST con timeout.
 
-const CACHE = 'flyclean-v61';
+const CACHE = 'flyclean-v62';
 const SHELL = [
   '/',
   '/index.html',
