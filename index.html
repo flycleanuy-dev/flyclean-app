@@ -1209,6 +1209,7 @@ body::before {
     <div class="coord-tab active" id="ctab-inicio" data-i18n="coord.tab.inicio" onclick="setCoordTab('inicio')">🏠 Inicio</div>
     <div class="coord-tab" id="ctab-resumen" data-i18n="coord.tab.resumen" onclick="setCoordTab('resumen')">📊 Resumen</div>
     <div class="coord-tab" id="ctab-porcobrar" onclick="setCoordTab('porcobrar')">💰 Por cobrar</div>
+    <div class="coord-tab" id="ctab-clientes" onclick="setCoordTab('clientes')">👥 Clientes</div>
     <div class="coord-tab" id="ctab-servicios" data-i18n="coord.tab.servicios" onclick="setCoordTab('servicios')">📋 Servicios</div>
     <div class="coord-tab" id="ctab-pruebas" data-i18n="coord.tab.pruebas" onclick="setCoordTab('pruebas')">🧪 Pruebas</div>
     <div class="coord-tab" id="ctab-relevamientos" data-i18n="coord.tab.relevamientos" onclick="setCoordTab('relevamientos')">🔍 Relevamientos</div>
@@ -1442,6 +1443,7 @@ body::before {
     <div class="ceo-tab" id="ceotab-servicios" data-i18n="ceo.tab.servicios" onclick="setCEOTab('servicios')">📋 Servicios</div>
     <div class="ceo-tab" id="ceotab-finanzas" data-i18n="ceo.tab.finanzas" onclick="setCEOTab('finanzas')">💰 Finanzas</div>
     <div class="ceo-tab" id="ceotab-porcobrar" onclick="setCEOTab('porcobrar')">💰 Por cobrar</div>
+    <div class="ceo-tab" id="ceotab-clientes" onclick="setCEOTab('clientes')">👥 Clientes</div>
     <div class="ceo-tab" id="ceotab-equipo" data-i18n="ceo.tab.equipo" onclick="setCEOTab('equipo')">👥 Equipo</div>
     <div class="ceo-tab" id="ceotab-comunicaciones" data-i18n="ceo.tab.mensajes" onclick="setCEOTab('comunicaciones')">💬 Mensajes</div>
   </div>
@@ -1465,6 +1467,7 @@ body::before {
   <div class="ceo-tab-bar">
     <div class="ceo-tab active" id="ftab-resumen" onclick="setFinanzasTab('resumen')">📊 Resumen</div>
     <div class="ceo-tab" id="ftab-porcobrar" onclick="setFinanzasTab('porcobrar')">💰 Por cobrar</div>
+    <div class="ceo-tab" id="ftab-clientes" onclick="setFinanzasTab('clientes')">👥 Clientes</div>
     <div class="ceo-tab" id="ftab-gastos" data-i18n="finanzas.tab.gastos" onclick="setFinanzasTab('gastos')">💸 Gastos</div>
     <div class="ceo-tab" id="ftab-ingresos" data-i18n="finanzas.tab.ingresos" onclick="setFinanzasTab('ingresos')">💵 Ingresos</div>
     <div class="ceo-tab" id="ftab-reportes" onclick="setFinanzasTab('reportes')">📊 Reportes</div>
@@ -3687,7 +3690,7 @@ async function fetchIngresosForMonth() {
 function setFinanzasTab(tab) {
   activeFinanzasTab = tab;
   markUserActive();
-  ['resumen', 'porcobrar', 'gastos', 'ingresos', 'reportes'].forEach(t => {
+  ['resumen', 'porcobrar', 'clientes', 'gastos', 'ingresos', 'reportes'].forEach(t => {
     const el = document.getElementById('ftab-' + t);
     if (el) el.classList.toggle('active', t === tab);
   });
@@ -3701,6 +3704,7 @@ function setFinanzasTab(tab) {
     _ceoRerender = renderCEOFinanzas;
     renderCEOFinanzas();
   } else if (tab === 'porcobrar') { _ceoContentId = 'finanzas-content'; _ceoRerender = () => renderPorCobrar('finanzas-content'); renderPorCobrar('finanzas-content'); }
+  else if (tab === 'clientes') { _ceoContentId = 'finanzas-content'; _ceoRerender = () => renderClientes('finanzas-content'); renderClientes('finanzas-content'); }
   else if (tab === 'gastos') renderGastosList();
   else if (tab === 'ingresos') renderIngresosList();
   else renderReportes();
@@ -5092,7 +5096,7 @@ function setTab(tab) {
 function setCoordTab(tab) {
   activeCoordTab = tab;
   markUserActive();
-  ['inicio', 'resumen', 'porcobrar', 'servicios', 'pruebas', 'relevamientos', 'propuestas', 'contactos', 'pedidos', 'comunicaciones'].forEach(t => {
+  ['inicio', 'resumen', 'porcobrar', 'clientes', 'servicios', 'pruebas', 'relevamientos', 'propuestas', 'contactos', 'pedidos', 'comunicaciones'].forEach(t => {
     const el = document.getElementById('ctab-' + t);
     if (el) el.classList.toggle('active', t === tab);
   });
@@ -5118,6 +5122,7 @@ function setCoordTab(tab) {
   if (tab === 'inicio') renderCoordInicio();
   else if (tab === 'resumen') renderCoordResumen();
   else if (tab === 'porcobrar') renderPorCobrar('coord-content', { readonly: true, headerless: true });
+  else if (tab === 'clientes') renderClientes('coord-content', { headerless: true });
   else if (tab === 'servicios') renderCoordServicios();
   else if (tab === 'pruebas') renderCoordPruebas();
   else if (tab === 'relevamientos') renderCoordRelevamientos();
@@ -6115,16 +6120,17 @@ async function setCEOCountry(country) {
 async function setCEOTab(tab) {
   activeCEOTab = tab;
   _ceoContentId = 'ceo-content';
-  ['metricas','servicios','finanzas','porcobrar','equipo','comunicaciones'].forEach(t =>
+  ['metricas','servicios','finanzas','porcobrar','clientes','equipo','comunicaciones'].forEach(t =>
     document.getElementById('ceotab-' + t)?.classList.toggle('active', t === tab)
   );
-  // Global country tabs: hidden en Métricas (tiene sub-tabs propias) y en Por cobrar (muestra todo).
+  // Global country tabs: hidden en Métricas (tiene sub-tabs propias), Por cobrar y Clientes (muestran todo).
   const globalTabs = document.getElementById('ceo-country-tabs');
-  if (globalTabs) globalTabs.style.display = (tab === 'metricas' || tab === 'porcobrar') ? 'none' : '';
+  if (globalTabs) globalTabs.style.display = (tab === 'metricas' || tab === 'porcobrar' || tab === 'clientes') ? 'none' : '';
   if (tab === 'metricas') { _ceoRerender = renderCEOMetricas; await renderCEOMetricas(); }
   else if (tab === 'servicios') await renderCEOServicios();
   else if (tab === 'finanzas') { _ceoRerender = renderCEOFinanzas; await renderCEOFinanzas(); }
   else if (tab === 'porcobrar') { _ceoRerender = () => renderPorCobrar('ceo-content'); await renderPorCobrar('ceo-content'); }
+  else if (tab === 'clientes') { _ceoRerender = () => renderClientes('ceo-content'); await renderClientes('ceo-content'); }
   else if (tab === 'equipo') await renderCEOEquipo();
   else renderComunicaciones();
 }
@@ -6765,6 +6771,81 @@ async function asociarCobro(ingId) {
   } catch (e) {
     if (sel) sel.disabled = false;
     alert('No se pudo asociar: ' + (e.message || e));
+  }
+}
+
+// ── CRM "Cliente 360" (Fase 1 del Hub, solo lectura). Por cada Contacto muestra su ficha: servicios,
+// pagos y propuestas, con resumen $ (cobrado / presupuestado / pendiente). Aprovecha las relaciones que
+// Notion ya guarda (Contacto ↔ Servicios/Cobros/Propuestas) → join en memoria, no toca ningún esquema.
+async function renderClientes(containerId, opts = {}) {
+  const content = document.getElementById(containerId);
+  if (!content) return;
+  content.innerHTML = '<div style="text-align:center;padding:40px 0"><div class="spinner" style="margin:0 auto"></div></div>';
+  try {
+    const [cont, svc, ing, prop] = await Promise.all([
+      callNotionAll(`databases/${CONTACTOS_DB_ID}/query`, {}),
+      callNotionAll(`databases/${DB_ID}/query`, {}),
+      callNotionAll(`databases/${INGRESOS_DB_ID}/query`, {}),
+      callNotionAll(`databases/${PROPUESTAS_DB_ID}/query`, {})
+    ]);
+    const norm = s => (s || '').replace(/-/g, '');
+    const svcById = {}, ingById = {}, propById = {};
+    (svc.results || []).forEach(s => { svcById[norm(s.id)] = s; });
+    (ing.results || []).forEach(i => { ingById[norm(i.id)] = i; });
+    (prop.results || []).forEach(p => { propById[norm(p.id)] = p; });
+    const fU = n => fmtMoneda(n, '🇺🇸 USD');
+    const mon = (n, esUY) => fmtMoneda(n, esUY ? '🇺🇾 UY$' : '🇺🇸 USD');
+
+    const clientes = (cont.results || []).map(c => {
+      const p = c.properties || {};
+      const nombre = p['Nombre / Empresa']?.title?.[0]?.plain_text || '(sin nombre)';
+      const tipo = p['Tipo de cliente']?.select?.name || '';
+      const pais = p['País']?.select?.name || '';
+      const tel = p['Teléfono / WhatsApp']?.phone_number || '';
+      const servicios = (p['Servicios']?.relation || []).map(r => svcById[norm(r.id)]).filter(Boolean);
+      const cobros = (p['Cobros']?.relation || []).map(r => ingById[norm(r.id)]).filter(Boolean);
+      const propuestas = (p['Propuestas']?.relation || []).map(r => propById[norm(r.id)]).filter(Boolean);
+      let cobUSD = 0, cobUY = 0;
+      cobros.forEach(i => { cobUSD += i.properties?.['Monto USD']?.number || 0; cobUY += i.properties?.['Monto UY$ cobrado']?.number || 0; });
+      let presup = 0;
+      propuestas.forEach(pr => { presup += pr.properties?.['Importe estimado']?.number || 0; });
+      const completados = servicios.filter(s => (s.properties?.['Estado']?.select?.name || '').includes('Completado')).length;
+      return { id: c.id, nombre, tipo, pais, tel, servicios, cobros, propuestas, cobUSD, cobUY, presup, completados };
+    }).filter(c => c.servicios.length || c.cobros.length || c.propuestas.length);
+    clientes.sort((a, b) => (b.presup - b.cobUSD) - (a.presup - a.cobUSD));
+
+    const svcLine = s => { const p = s.properties || {}; const nm = p['Nombre del servicio']?.title?.[0]?.plain_text || '(servicio)'; const est = p['Estado']?.select?.name || ''; return '<div class="ec-row" style="cursor:pointer;font-size:12px" onclick="openServicioQuickView(\'' + esc(s.id) + '\')"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(nm) + '</span><span style="color:var(--text3);white-space:nowrap">' + esc(est) + ' ›</span></div>'; };
+    const cobLine = i => { const p = i.properties || {}; const u = p['Monto USD']?.number, y = p['Monto UY$ cobrado']?.number; const f = (p['Fecha']?.date?.start || '').slice(0, 10); return '<div class="ec-row" style="font-size:12px"><span style="color:var(--text3)">' + f + '</span><span style="font-weight:600">' + (u ? fU(u) : (y ? mon(y, true) : '—')) + '</span></div>'; };
+    const propLine = pr => { const p = pr.properties || {}; const nm = p['Nombre de propuesta']?.title?.[0]?.plain_text || '(propuesta)'; const imp = p['Importe estimado']?.number; const est = p['Estado pipeline']?.select?.name || ''; return '<div class="ec-row" style="font-size:12px"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(nm) + (est ? ' <span style="color:var(--text3);font-size:10px">' + esc(est) + '</span>' : '') + '</span><span style="white-space:nowrap">' + (imp ? fU(imp) : '—') + '</span></div>'; };
+
+    const card = c => {
+      const pend = c.presup - c.cobUSD;
+      const cobradoStr = [c.cobUSD ? fU(c.cobUSD) : '', c.cobUY ? mon(c.cobUY, true) : ''].filter(Boolean).join(' · ') || fU(0);
+      const headRight = c.presup ? ('pend ' + fU(pend)) : (c.cobUSD || c.cobUY ? 'cobr ' + cobradoStr : '—');
+      return '<div class="fin-group">' +
+        '<button class="fin-group-head" type="button" onclick="toggleFinGroup(this)">' +
+          '<span class="finance-row-label">' + esc(c.nombre) + ' <span style="color:var(--text3);font-weight:400;font-size:11px">' + esc(c.tipo) + (c.servicios.length ? ' · ' + c.completados + '/' + c.servicios.length + ' serv' : '') + '</span></span>' +
+          '<span class="fin-group-right"><span class="finance-row-value" style="color:' + (pend > 0.5 ? 'var(--red)' : 'var(--green)') + '">' + headRight + '</span><span class="fin-arrow">▾</span></span>' +
+        '</button>' +
+        '<div class="fin-group-detail" style="display:none">' +
+          ([c.pais, c.tel].filter(Boolean).length ? '<div class="ec-row" style="font-size:11px;color:var(--text3)"><span>' + esc([c.pais, c.tel].filter(Boolean).join(' · ')) + '</span><span></span></div>' : '') +
+          '<div class="ec-saldo" style="font-size:13px"><span>Cobrado</span><span style="color:var(--green)">' + cobradoStr + '</span></div>' +
+          (c.presup ? '<div class="ec-row" style="font-size:12px"><span>Presupuestado</span><span>' + fU(c.presup) + '</span></div>' + '<div class="ec-row" style="font-size:12px;font-weight:700"><span>Pendiente (aprox)</span><span style="color:' + (pend > 0.5 ? 'var(--red)' : 'var(--green)') + '">' + fU(pend) + '</span></div>' : '') +
+          (c.servicios.length ? '<div class="ec-section-total"><span>🛠️ Servicios (' + c.servicios.length + ')</span><span></span></div>' + c.servicios.map(svcLine).join('') : '') +
+          (c.cobros.length ? '<div class="ec-section-total"><span>💳 Pagos (' + c.cobros.length + ')</span><span></span></div>' + c.cobros.map(cobLine).join('') : '') +
+          (c.propuestas.length ? '<div class="ec-section-total"><span>📄 Propuestas (' + c.propuestas.length + ')</span><span></span></div>' + c.propuestas.map(propLine).join('') : '') +
+        '</div>' +
+      '</div>';
+    };
+
+    content.innerHTML =
+      (opts.headerless ? '' : ceoHeaderHTML('Clientes')) +
+      '<div class="acct">' +
+        '<div class="estado-cuenta"><div class="ec-title">👥 CLIENTES (' + clientes.length + ')</div><div class="ec-counts">Tocá un cliente para ver su ficha 360: servicios, pagos y pendiente. (Lo "pendiente" es aprox. hasta terminar de vincular cobros/propuestas.)</div></div>' +
+        (clientes.length ? clientes.map(card).join('') : '<div class="coord-empty" style="padding:16px">Sin clientes con actividad vinculada todavía.</div>') +
+      '</div>';
+  } catch (e) {
+    content.innerHTML = '<div class="coord-empty">No se pudo cargar Clientes<br><small>' + esc(e.message) + '</small></div>';
   }
 }
 
