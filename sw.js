@@ -28,6 +28,7 @@
 // Sin este bump los clientes con la PWA instalada seguirían viendo el index.html
 // viejo desde caché y el bug del modal de gasto se mantendría visible aun con el
 // deploy live. Cache de Notion no necesita bump (solo cambió HTML).
+// v56: Por cobrar — excluye también los Relevamientos (no se cobran, igual que las Pruebas).
 // v55: Finanzas — cambios de moneda identificados (campo 'Tipo interno': 💱 Cambio a pesos/dólares, 🏦 Depósito propio, 🔁 Traspaso). Badge específico + sección 'Cambios de moneda' en el dashboard. No cuentan como gasto/ganancia.
 // v54: Por cobrar — excluye Pruebas (demos gratis); herramienta 'asociar cobro a servicio' (un toque, paso 2); tab read-only para el coordinador (paso 3).
 // v53: vista 'Por cobrar' (tab nueva en CEO y Finanzas): por servicio completado, precio (propuesta vinculada) vs cobrado (cobros vinculados) → saldo + % + total pendiente. Marca los que faltan vincular. Read-only.
@@ -48,7 +49,7 @@
 // v33: VELOCIDAD — SW vuelve a stale-while-revalidate (cache al instante + revalida en bg); proxy con timeout+reintento+429; operario auto-reintenta.
 // v5: cambiar estrategia de Notion API de stale-while-revalidate a NETWORK-FIRST con timeout.
 
-const CACHE = 'flyclean-v55';
+const CACHE = 'flyclean-v56';
 const SHELL = [
   '/',
   '/index.html',
