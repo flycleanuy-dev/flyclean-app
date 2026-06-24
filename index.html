@@ -6644,9 +6644,16 @@ async function renderPorCobrar(containerId, opts = {}) {
     const ingBy = {};
     (ing.results || []).forEach(i => { ingBy[norm(i.id)] = { usd: i.properties?.['Monto USD']?.number || 0, uy: i.properties?.['Monto UY$ cobrado']?.number || 0 }; });
 
-    // Solo servicios facturables: Completados que NO son Pruebas (las pruebas son demos gratis, no se cobran).
-    const comp = (svc.results || []).filter(s => (s.properties?.['Estado']?.select?.name || '') === '✅ Completado'
-      && (s.properties?.['Tipo de registro']?.select?.name || '') !== '🧪 Prueba');
+    // Solo servicios facturables: Completados que NO son Pruebas ni Relevamientos (demos / relevamientos
+    // no se cobran). Filtra por Tipo de registro y, por las dudas, también por el nombre (algunos tienen el tipo vacío).
+    const comp = (svc.results || []).filter(s => {
+      if ((s.properties?.['Estado']?.select?.name || '') !== '✅ Completado') return false;
+      const ti = s.properties?.['Tipo de registro']?.select?.name || '';
+      if (ti === '🧪 Prueba' || ti === '🔍 Relevamiento') return false;
+      const nm = s.properties?.['Nombre del servicio']?.title?.[0]?.plain_text || '';
+      if (/relevamiento|prueba/i.test(nm)) return false;
+      return true;
+    });
     const rows = comp.map(s => {
       const p = s.properties || {};
       const nombre = p['Nombre del servicio']?.title?.[0]?.plain_text || '(servicio)';
