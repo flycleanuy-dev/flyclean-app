@@ -1209,12 +1209,11 @@ body::before {
     <div class="coord-tab active" id="ctab-inicio" data-i18n="coord.tab.inicio" onclick="setCoordTab('inicio')">🏠 Inicio</div>
     <div class="coord-tab" id="ctab-resumen" data-i18n="coord.tab.resumen" onclick="setCoordTab('resumen')">📊 Resumen</div>
     <div class="coord-tab" id="ctab-porcobrar" onclick="setCoordTab('porcobrar')">💰 Por cobrar</div>
-    <div class="coord-tab" id="ctab-clientes" onclick="setCoordTab('clientes')">👥 Clientes</div>
     <div class="coord-tab" id="ctab-servicios" data-i18n="coord.tab.servicios" onclick="setCoordTab('servicios')">📋 Servicios</div>
     <div class="coord-tab" id="ctab-pruebas" data-i18n="coord.tab.pruebas" onclick="setCoordTab('pruebas')">🧪 Pruebas</div>
     <div class="coord-tab" id="ctab-relevamientos" data-i18n="coord.tab.relevamientos" onclick="setCoordTab('relevamientos')">🔍 Relevamientos</div>
     <div class="coord-tab" id="ctab-propuestas" data-i18n="coord.tab.propuestas" onclick="setCoordTab('propuestas')">💼 Propuestas</div>
-    <div class="coord-tab" id="ctab-contactos" data-i18n="coord.tab.contactos" onclick="setCoordTab('contactos')">👥 Contactos</div>
+    <div class="coord-tab" id="ctab-contactos" data-i18n="coord.tab.contactos" onclick="setCoordTab('contactos')">👥 Clientes</div>
     <div class="coord-tab" id="ctab-pedidos" data-i18n="coord.tab.pedidos" onclick="setCoordTab('pedidos')">📦 Pedidos</div>
     <div class="coord-tab" id="ctab-comunicaciones" data-i18n="coord.tab.mensajes" onclick="setCoordTab('comunicaciones')">💬 Mensajes</div>
   </div>
@@ -1809,7 +1808,7 @@ const TRANSLATIONS = {
     'coord.resumen.empty': 'Sin datos para este mes.',
     'coord.tab.servicios': '📋 Servicios',
     'coord.tab.propuestas': '💼 Propuestas',
-    'coord.tab.contactos': '👥 Contactos',
+    'coord.tab.contactos': '👥 Clientes',
     'coord.tab.pedidos': '📦 Pedidos',
     'coord.tab.mensajes': '💬 Mensajes',
     'pedido.title': '📦 Pedir insumo',
@@ -2358,7 +2357,7 @@ const TRANSLATIONS = {
     'coord.resumen.empty': 'Sem dados para este mês.',
     'coord.tab.servicios': '📋 Serviços',
     'coord.tab.propuestas': '💼 Propostas',
-    'coord.tab.contactos': '👥 Contatos',
+    'coord.tab.contactos': '👥 Clientes',
     'coord.tab.pedidos': '📦 Pedidos',
     'coord.tab.mensajes': '💬 Mensagens',
     'pedido.title': '📦 Pedir insumo',
@@ -3704,7 +3703,7 @@ function setFinanzasTab(tab) {
     _ceoRerender = renderCEOFinanzas;
     renderCEOFinanzas();
   } else if (tab === 'porcobrar') { _ceoContentId = 'finanzas-content'; _ceoRerender = () => renderPorCobrar('finanzas-content'); renderPorCobrar('finanzas-content'); }
-  else if (tab === 'clientes') { _ceoContentId = 'finanzas-content'; _ceoRerender = () => renderClientes('finanzas-content'); renderClientes('finanzas-content'); }
+  else if (tab === 'clientes') { _ceoContentId = 'finanzas-content'; _ceoRerender = () => renderClientesView('finanzas-content'); renderClientesView('finanzas-content'); }
   else if (tab === 'gastos') renderGastosList();
   else if (tab === 'ingresos') renderIngresosList();
   else renderReportes();
@@ -5096,7 +5095,7 @@ function setTab(tab) {
 function setCoordTab(tab) {
   activeCoordTab = tab;
   markUserActive();
-  ['inicio', 'resumen', 'porcobrar', 'clientes', 'servicios', 'pruebas', 'relevamientos', 'propuestas', 'contactos', 'pedidos', 'comunicaciones'].forEach(t => {
+  ['inicio', 'resumen', 'porcobrar', 'servicios', 'pruebas', 'relevamientos', 'propuestas', 'contactos', 'pedidos', 'comunicaciones'].forEach(t => {
     const el = document.getElementById('ctab-' + t);
     if (el) el.classList.toggle('active', t === tab);
   });
@@ -5122,7 +5121,6 @@ function setCoordTab(tab) {
   if (tab === 'inicio') renderCoordInicio();
   else if (tab === 'resumen') renderCoordResumen();
   else if (tab === 'porcobrar') renderPorCobrar('coord-content', { readonly: true, headerless: true });
-  else if (tab === 'clientes') renderClientes('coord-content', { headerless: true });
   else if (tab === 'servicios') renderCoordServicios();
   else if (tab === 'pruebas') renderCoordPruebas();
   else if (tab === 'relevamientos') renderCoordRelevamientos();
@@ -6130,7 +6128,7 @@ async function setCEOTab(tab) {
   else if (tab === 'servicios') await renderCEOServicios();
   else if (tab === 'finanzas') { _ceoRerender = renderCEOFinanzas; await renderCEOFinanzas(); }
   else if (tab === 'porcobrar') { _ceoRerender = () => renderPorCobrar('ceo-content'); await renderPorCobrar('ceo-content'); }
-  else if (tab === 'clientes') { _ceoRerender = () => renderClientes('ceo-content'); await renderClientes('ceo-content'); }
+  else if (tab === 'clientes') { _ceoRerender = () => renderClientesView('ceo-content'); await renderClientesView('ceo-content'); }
   else if (tab === 'equipo') await renderCEOEquipo();
   else renderComunicaciones();
 }
@@ -9432,7 +9430,36 @@ async function savePropEdit() {
 // ─────────────────────────────────────────────
 // CONTACTOS
 // ─────────────────────────────────────────────
+// Contenedor activo de la vista Clientes (antes "Contactos"). El coordinador usa 'coord-content';
+// Finanzas/CEO la reusan vía renderClientesView con su propio contenedor. filterContacts/cargarMasContactos
+// leen esta variable → la misma lista funciona en cualquier pantalla.
+let _contactsContainerId = 'coord-content';
+function cargarMasContactos() {
+  _coordVisibleLimit += COORD_PAGE_SIZE;
+  renderContactList(_coordAllContacts, true);
+}
+function refreshContactsView() {
+  // Re-render tras guardar/crear, en el contenedor donde se está mirando.
+  return _contactsContainerId === 'coord-content' ? renderCoordContactos() : renderClientesView(_contactsContainerId);
+}
+// Vista "Clientes" unificada para Finanzas/CEO: misma lista + buscador + crear/editar + ficha 360 que el
+// coordinador (renderContactList + openContactSheet). Sin filtro de país (ven todos los clientes).
+async function renderClientesView(containerId) {
+  _contactsContainerId = containerId;
+  const content = document.getElementById(containerId);
+  if (!content) return;
+  content.innerHTML = '<div style="text-align:center;padding:40px 0"><div class="spinner" style="margin:0 auto"></div></div>';
+  try {
+    const data = await callNotion(`databases/${CONTACTOS_DB_ID}/query`, 'POST', { sorts: [{ property: 'Nombre / Empresa', direction: 'ascending' }] });
+    _coordAllContacts = data.results || [];
+    renderContactList(_coordAllContacts);
+  } catch (e) {
+    content.innerHTML = `<div class="coord-empty">No se pudieron cargar los clientes<br><small>${esc(e.message)}</small></div>`;
+  }
+}
+
 async function renderCoordContactos() {
+  _contactsContainerId = 'coord-content';
   const content = document.getElementById('coord-content');
   content.innerHTML = '<div style="text-align:center;padding:40px 0"><div class="spinner" style="margin:0 auto"></div></div>';
   const myTab = 'contactos';
@@ -9452,7 +9479,8 @@ async function renderCoordContactos() {
 
 function renderContactList(contacts, keepLimit) {
   if (!keepLimit) _coordVisibleLimit = COORD_PAGE_SIZE;
-  const content = document.getElementById('coord-content');
+  const content = document.getElementById(_contactsContainerId);
+  if (!content) return;
   const searchVal = document.getElementById('contact-search-input')?.value?.toLowerCase() || '';
   const filteredAll = searchVal
     ? contacts.filter(c => {
@@ -9465,8 +9493,11 @@ function renderContactList(contacts, keepLimit) {
   const filtered = filteredAll.slice(0, _coordVisibleLimit);
   const remaining = total - filtered.length;
 
+  const cargarMas = remaining > 0
+    ? `<div class="cargar-mas-wrap"><button class="cargar-mas-btn" onclick="cargarMasContactos()">↓ ${t('coord.cargar.mas').replace('{n}', Math.min(COORD_PAGE_SIZE, remaining))} · ${t('coord.restantes').replace('{n}', remaining)}</button></div>`
+    : '';
   const listHTML = filtered.length
-    ? filtered.map(c => coordContactCard(c)).join('') + renderCargarMasButton(remaining)
+    ? filtered.map(c => coordContactCard(c)).join('') + cargarMas
     : `<div class="coord-empty" style="margin-top:0">${t('coord.empty.search')}</div>`;
 
   content.innerHTML =
@@ -9651,7 +9682,7 @@ async function saveContactEdit() {
       await updateServiceProps(editingContact.id, props);
     }
     closeContactSheet();
-    await renderCoordContactos();
+    await refreshContactsView();
   } catch (e) {
     btn.textContent = contactSheetMode === 'create' ? t('btn.create.notion') : t('btn.save.notion');
     btn.disabled = false;
@@ -9739,7 +9770,20 @@ function renderContactHistory(items) {
   const dateLocale = currentLang === 'pt-BR' ? 'pt-BR' : 'es-UY';
   const fmtDate = (d) => d ? new Date(d.length === 10 ? d + 'T00:00:00' : d).toLocaleDateString(dateLocale, { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
 
-  container.innerHTML = items.map(item => {
+  // Resumen financiero 360 del cliente (reusa lo que ya se cargó: ingresos + propuestas + servicios).
+  let cobUSD = 0, cobUY = 0, presupUSD = 0;
+  items.forEach(it => {
+    if (it.type === 'ingreso') { const { moneda, monto } = montoOf(it.data.properties || {}, 'ingreso'); if (/UY/.test(moneda)) cobUY += monto || 0; else cobUSD += monto || 0; }
+    else if (it.type === 'propuesta') { presupUSD += it.data.properties?.['Importe estimado']?.number || 0; }
+  });
+  const nServ = items.filter(it => it.type === 'servicio').length;
+  const cobStr = [cobUSD ? fmtMoneda(cobUSD, '🇺🇸 USD') : '', cobUY ? fmtMoneda(cobUY, '🇺🇾 UY$') : ''].filter(Boolean).join(' · ') || '—';
+  const summaryHTML =
+    `<div class="ec-saldo" style="margin-bottom:6px;font-size:13px"><span>💵 Cobrado</span><span style="color:var(--green);font-weight:700">${cobStr}</span></div>` +
+    (presupUSD ? `<div class="ec-row" style="font-size:12px;margin-bottom:4px"><span>📄 Presupuestado</span><span>${fmtMoneda(presupUSD, '🇺🇸 USD')}</span></div>` : '') +
+    (nServ ? `<div class="ec-row" style="font-size:12px;margin-bottom:8px"><span>🛠️ Servicios completados</span><span>${nServ}</span></div>` : '');
+
+  container.innerHTML = summaryHTML + items.map(item => {
     const p = item.data.properties || {};
     const id = item.data.id;
     const fecha = fmtDate(item.date);
