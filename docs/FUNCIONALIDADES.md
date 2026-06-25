@@ -430,6 +430,15 @@
 
 ## ➕ Agregado después de la generación (fundir al regenerar)
 
+- **Propuesta ligada a Cliente (CRM interconectado)** (sw v74) — el sheet de propuesta (crear/editar) tiene
+  un selector **👤 Cliente** (elegir existente o "➕ Nuevo cliente") + **Teléfono** + **Email**. Al guardar
+  (`savePropEdit`): si es nuevo crea el Contacto (nombre+tel+email+país, Estado Lead), si es existente actualiza
+  su tel/email, y **linkea `propuesta.Contacto`**. Helpers: `propClienteSectionHTML`/`propClienteChanged`/
+  `loadPropContactos` (reusa patrón del alta de ingreso). Como `createServicio/Prueba/RelevamientoFromPropuesta`
+  ya propagan el Contacto, **toda la cadena queda interconectada** (Cliente ← Propuestas ← Servicios ← Cobros).
+  _En criollo: cuando Federico crea una propuesta, elige o crea el cliente con su tel/email; eso queda en la
+  ficha del cliente y todo lo que venga después (servicios, cobros) queda colgado de ese cliente._
+
 - **Contratos recurrentes + comisiones** (sw v73) — una propuesta `Tipo = 🔄 Recurrente` con `Servicios por
   año` + `Comisión %` (Notion) funciona como contrato. El sheet de propuesta (crear/editar) tiene esos 2
   campos (`openNewPropSheet`/`openPropSheet`/`savePropEdit`). El **Cliente 360** (`renderContactHistory`)

@@ -9106,10 +9106,63 @@ async function renderCoordRelevamientos() {
   }
 }
 
+// ── Propuesta ligada a Cliente (Federico): elegir cliente existente o crear uno nuevo con tel/email.
+// El tel/email van a la ficha del Cliente (fuente única) y la propuesta queda linkeada → todo el CRM se
+// interconecta (los servicios creados desde la propuesta ya heredan el Contacto).
+let _propContactos = null;
+function propClienteInputsHTML() {
+  const s = propEditState;
+  const esNuevo = !s.clienteSel || s.clienteSel === '__new__';
+  const inp = (ph, key, type) => `<input type="${type}" class="edit-date-input" style="margin-top:6px" placeholder="${ph}" value="${esc(s[key] || '')}" oninput="propEditState.${key}=this.value"/>`;
+  return (esNuevo ? inp('Nombre del cliente', 'nombreCliente', 'text') : '') +
+    inp('📞 Teléfono / WhatsApp', 'tel', 'tel') +
+    inp('✉️ Email', 'email', 'email') +
+    `<div style="font-size:11px;color:var(--text3);margin-top:4px">${esNuevo ? 'Se crea el cliente con estos datos.' : 'Tel/email se guardan en la ficha del cliente.'}</div>`;
+}
+function propClienteSectionHTML() {
+  return `<div class="edit-section"><div class="edit-section-label">👤 Cliente</div>
+    <select id="prop-cliente-select" class="edit-date-input" onchange="propClienteChanged(this.value)">
+      <option value="__new__">➕ Nuevo cliente</option>
+      <option value="" disabled>cargando clientes…</option>
+    </select>
+    <div id="prop-cliente-fields">${propClienteInputsHTML()}</div></div>`;
+}
+function propClienteChanged(val) {
+  propEditState.clienteSel = val || '__new__';
+  if (val && val !== '__new__') {
+    const c = (_propContactos || []).find(x => x.id === val);
+    if (c) {
+      propEditState.nombreCliente = c.properties?.['Nombre / Empresa']?.title?.[0]?.plain_text || '';
+      propEditState.tel = c.properties?.['Teléfono / WhatsApp']?.phone_number || '';
+      propEditState.email = c.properties?.['Email']?.email || '';
+    }
+  } else {
+    propEditState.nombreCliente = ''; propEditState.tel = ''; propEditState.email = '';
+  }
+  const w = document.getElementById('prop-cliente-fields');
+  if (w) w.innerHTML = propClienteInputsHTML();
+}
+async function loadPropContactos() {
+  try {
+    if (!_propContactos) {
+      const d = await callNotion(`databases/${CONTACTOS_DB_ID}/query`, 'POST', { sorts: [{ property: 'Nombre / Empresa', direction: 'ascending' }] });
+      _propContactos = d.results || [];
+    }
+    const sel = document.getElementById('prop-cliente-select');
+    if (!sel) return;
+    const cur = propEditState.clienteSel || '__new__';
+    const tit = c => c.properties?.['Nombre / Empresa']?.title?.[0]?.plain_text || '(sin nombre)';
+    sel.innerHTML = '<option value="__new__">➕ Nuevo cliente</option>' +
+      _propContactos.slice().sort((a, b) => tit(a).localeCompare(tit(b))).map(c => `<option value="${esc(c.id)}">${esc(tit(c))}</option>`).join('');
+    sel.value = cur;
+    if (cur !== '__new__') propClienteChanged(cur); // prefill tel/email del cliente ya linkeado
+  } catch (e) { /* el form sirve igual (queda solo "Nuevo cliente") */ }
+}
+
 function openNewPropSheet() {
   propSheetMode = 'create';
   editingProp = null;
-  propEditState = { nombre: '', estado: '🆕 Nuevo lead', pais: '🇺🇾 Uruguay', tipo: '', aprobacion: '⏳ Pendiente', importe: '', fechaEnvio: '', ultimaInt: new Date().toISOString().split('T')[0], obs: '', serviciosAnio: '', comision: '' };
+  propEditState = { nombre: '', estado: '🆕 Nuevo lead', pais: '🇺🇾 Uruguay', tipo: '', aprobacion: '⏳ Pendiente', importe: '', fechaEnvio: '', ultimaInt: new Date().toISOString().split('T')[0], obs: '', serviciosAnio: '', comision: '', clienteSel: '__new__', nombreCliente: '', tel: '', email: '' };
 
   document.getElementById('prop-sheet-title').textContent = t('sheet.prop.title.nueva');
   document.getElementById('prop-sheet-sub').textContent = t('sheet.prop.subtitle.nueva');
@@ -9128,6 +9181,7 @@ function openNewPropSheet() {
   document.getElementById('prop-sheet-body').innerHTML =
     `<div class="edit-section"><div class="edit-section-label">${t('sheet.prop.section.nombre')}</div>
       <input type="text" class="edit-date-input" placeholder="${t('sheet.prop.nombre.placeholder')}" oninput="propEditState.nombre=this.value" style="font-size:14px"/></div>` +
+    propClienteSectionHTML() +
     btnGroup(t('sheet.prop.section.estado'), 'estado', PIPELINE) +
     btnGroup(t('sheet.prop.section.pais'), 'pais', PAISES) +
     btnGroup(t('sheet.prop.section.tipo'), 'tipo', TIPOS) +
@@ -9151,6 +9205,7 @@ function openNewPropSheet() {
   const delBtn = document.getElementById('delete-prop-btn');
   if (delBtn) delBtn.style.display = 'none';
   document.getElementById('prop-overlay').classList.add('open');
+  loadPropContactos();
 }
 
 function openPropSheet(pageId) {
@@ -9169,8 +9224,9 @@ function openPropSheet(pageId) {
   const obs = props['Observaciones']?.rich_text?.[0]?.plain_text || '';
   const serviciosAnio = props['Servicios por año']?.number ?? '';
   const comision = props['Comisión %']?.number ?? '';
+  const clienteSel = props['Contacto']?.relation?.[0]?.id || '__new__';
 
-  propEditState = { estado, pais, tipo, aprobacion, importe, fechaEnvio, ultimaInt, obs, serviciosAnio, comision };
+  propEditState = { estado, pais, tipo, aprobacion, importe, fechaEnvio, ultimaInt, obs, serviciosAnio, comision, clienteSel, nombreCliente: '', tel: '', email: '' };
 
   document.getElementById('prop-sheet-title').textContent = nombre;
   document.getElementById('prop-sheet-sub').textContent = pais || t('sheet.prop.subtitle.default');
@@ -9187,6 +9243,7 @@ function openPropSheet(pageId) {
   }
 
   document.getElementById('prop-sheet-body').innerHTML =
+    propClienteSectionHTML() +
     btnGroup(t('sheet.prop.section.estado'), 'estado', PIPELINE) +
     btnGroup(t('sheet.prop.section.pais'), 'pais', PAISES) +
     btnGroup(t('sheet.prop.section.tipo'), 'tipo', TIPOS) +
@@ -9225,6 +9282,7 @@ function openPropSheet(pageId) {
     delPropBtn.disabled = false;
   }
   document.getElementById('prop-overlay').classList.add('open');
+  loadPropContactos();
 }
 
 async function deletePropuesta() {
@@ -9438,11 +9496,31 @@ async function savePropEdit() {
   const btn = document.getElementById('prop-save-btn');
   btn.textContent = t('btn.saving'); btn.disabled = true;
   try {
+    if (propSheetMode === 'create' && !propEditState.nombre.trim()) {
+      btn.textContent = t('btn.create.notion'); btn.disabled = false;
+      alert(t('sheet.prop.error.nombre')); return;
+    }
+    // Resolver/crear el cliente → dejar su id en clienteId. La propuesta se linkea (Contacto) y, vía la
+    // propagación que ya existe, los servicios creados desde la propuesta heredan el cliente → CRM interconectado.
+    let clienteId = (propEditState.clienteSel && propEditState.clienteSel !== '__new__') ? propEditState.clienteSel : null;
+    if (clienteId) {
+      const upd = {};
+      if (propEditState.tel) upd['Teléfono / WhatsApp'] = { phone_number: propEditState.tel };
+      if (propEditState.email) upd['Email'] = { email: propEditState.email };
+      if (Object.keys(upd).length) { try { await updateServiceProps(clienteId, upd); } catch (_) {} }
+    } else if ((propEditState.nombreCliente || '').trim() || propEditState.tel || propEditState.email) {
+      const cprops = {
+        'Nombre / Empresa': { title: [{ text: { content: (propEditState.nombreCliente || propEditState.nombre || 'Cliente s/n').trim() } }] },
+        'Estado': { select: { name: '🆕 Lead' } },
+      };
+      if (propEditState.pais) cprops['País'] = { select: { name: propEditState.pais } };
+      if (propEditState.tel) cprops['Teléfono / WhatsApp'] = { phone_number: propEditState.tel };
+      if (propEditState.email) cprops['Email'] = { email: propEditState.email };
+      const nc = await callNotion('pages', 'POST', { parent: { database_id: CONTACTOS_DB_ID }, properties: cprops });
+      clienteId = nc && nc.id;
+      _propContactos = null;
+    }
     if (propSheetMode === 'create') {
-      if (!propEditState.nombre.trim()) {
-        btn.textContent = t('btn.create.notion'); btn.disabled = false;
-        alert(t('sheet.prop.error.nombre')); return;
-      }
       const props = { 'Nombre de propuesta': { title: [{ text: { content: propEditState.nombre.trim() } }] } };
       if (propEditState.estado) props['Estado pipeline'] = { select: { name: propEditState.estado } };
       if (propEditState.pais) props['País'] = { select: { name: propEditState.pais } };
@@ -9454,6 +9532,7 @@ async function savePropEdit() {
       if (propEditState.fechaEnvio) props['Fecha de envío'] = { date: { start: propEditState.fechaEnvio } };
       if (propEditState.ultimaInt) props['Última interacción'] = { date: { start: propEditState.ultimaInt } };
       if (propEditState.obs) props['Observaciones'] = { rich_text: [{ text: { content: propEditState.obs } }] };
+      if (clienteId) props['Contacto'] = { relation: [{ id: clienteId }] };
       await callNotion('pages', 'POST', { parent: { database_id: PROPUESTAS_DB_ID }, properties: props });
     } else {
       const props = {};
@@ -9467,6 +9546,7 @@ async function savePropEdit() {
       if (propEditState.fechaEnvio) props['Fecha de envío'] = { date: { start: propEditState.fechaEnvio } };
       if (propEditState.ultimaInt) props['Última interacción'] = { date: { start: propEditState.ultimaInt } };
       props['Observaciones'] = { rich_text: propEditState.obs ? [{ text: { content: propEditState.obs } }] : [] };
+      if (clienteId) props['Contacto'] = { relation: [{ id: clienteId }] };
       await updateServiceProps(editingProp.id, props);
     }
     closePropSheet();
