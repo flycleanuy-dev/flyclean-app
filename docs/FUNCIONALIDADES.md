@@ -430,6 +430,14 @@
 
 ## ➕ Agregado después de la generación (fundir al regenerar)
 
+- **Botones deseleccionables + reflejo en Notion (bilateral)** (sw v75) — los selects de una sola opción en
+  los sheets de **Cliente** y **Propuesta** ahora se deseleccionan al tocar el activo (`propSetField`/
+  `contactSetField`), EXCEPTO `País` y `Estado` (obligatorios). Y al guardar, los campos opcionales vacíos se
+  escriben como **`null`** (`saveContactEdit`/`savePropEdit`) → **deseleccionar en la app BORRA en Notion**
+  (antes solo agregaba; era el único agujero one-way). El resto ya era bilateral (la app lee Notion en cada
+  pantalla y escribe al guardar). _En criollo: si te arrepentís de un dato y lo deseleccionás, se borra también
+  en Notion; País y Estado siempre quedan marcados._
+
 - **Propuesta ligada a Cliente (CRM interconectado)** (sw v74) — el sheet de propuesta (crear/editar) tiene
   un selector **👤 Cliente** (elegir existente o "➕ Nuevo cliente") + **Teléfono** + **Email**. Al guardar
   (`savePropEdit`): si es nuevo crea el Contacto (nombre+tel+email+país, Estado Lead), si es existente actualiza

@@ -50,6 +50,16 @@ La app **no muere** si Notion tarda o cae, gracias a 3 capas:
    (`enqueueWrite`), se reintentan al volver `online` y cada 30s, con tope de reintentos.
 3. **Proxy con timeout + reintento** (`api/notion.js`): AbortController 9s, respeta `Retry-After`.
 
+## Bilateralidad con Notion (la app es un espejo vivo)
+
+La app **lee y escribe** Notion en ambos sentidos:
+- **App → Notion**: cada guardado hace `PATCH`/`POST` vía `/api/notion` (altas de cliente/propuesta/servicio/
+  ingreso, ediciones, asociaciones). Al **deseleccionar** un campo opcional se escribe `null` → se borra en
+  Notion (no solo se agrega). Obligatorios: `País` y `Estado`.
+- **Notion → App**: cada pantalla **consulta Notion** al renderizar (con el SW stale-while-revalidate: muestra
+  cache al instante y revalida por detrás). Lo que se edita en Notion aparece en la app al refrescar.
+No es push en tiempo real, pero a efectos de CRM es un espejo vivo (un solo origen de datos = Notion).
+
 ## Quirks pinneados (NO romper)
 
 - **R2 / checksum**: el cliente S3 de `upload-url.js` usa `requestChecksumCalculation: 'WHEN_REQUIRED'`.

@@ -9438,9 +9438,16 @@ async function createRelevamientoFromPropuesta(propPageId) {
 }
 
 function propSetField(key, el, val) {
-  propEditState[key] = val;
-  el.closest('.estado-btns').querySelectorAll('.estado-btn').forEach(b => b.classList.remove('active'));
-  el.classList.add('active');
+  // País y Estado son obligatorios (no se deseleccionan); el resto: tocar el activo lo vacía (toggle).
+  const obligatorio = (key === 'pais' || key === 'estado');
+  if (!obligatorio && el.classList.contains('active')) {
+    propEditState[key] = '';
+    el.classList.remove('active');
+  } else {
+    propEditState[key] = val;
+    el.closest('.estado-btns').querySelectorAll('.estado-btn').forEach(b => b.classList.remove('active'));
+    el.classList.add('active');
+  }
   if (key === 'estado') updateCreateSvcBtnVisibility();
 }
 
@@ -9524,11 +9531,11 @@ async function savePropEdit() {
       const props = { 'Nombre de propuesta': { title: [{ text: { content: propEditState.nombre.trim() } }] } };
       if (propEditState.estado) props['Estado pipeline'] = { select: { name: propEditState.estado } };
       if (propEditState.pais) props['País'] = { select: { name: propEditState.pais } };
-      if (propEditState.tipo) props['Tipo'] = { select: { name: propEditState.tipo } };
-      if (propEditState.aprobacion) props['Aprobación interna'] = { select: { name: propEditState.aprobacion } };
-      if (propEditState.importe !== '') props['Importe estimado'] = { number: parseFloat(propEditState.importe) || null };
-      if (propEditState.serviciosAnio !== '') props['Servicios por año'] = { number: parseFloat(propEditState.serviciosAnio) || null };
-      if (propEditState.comision !== '') props['Comisión %'] = { number: parseFloat(propEditState.comision) || null };
+      props['Tipo'] = { select: propEditState.tipo ? { name: propEditState.tipo } : null };
+      props['Aprobación interna'] = { select: propEditState.aprobacion ? { name: propEditState.aprobacion } : null };
+      props['Importe estimado'] = { number: parseFloat(propEditState.importe) || null };
+      props['Servicios por año'] = { number: parseFloat(propEditState.serviciosAnio) || null };
+      props['Comisión %'] = { number: parseFloat(propEditState.comision) || null };
       if (propEditState.fechaEnvio) props['Fecha de envío'] = { date: { start: propEditState.fechaEnvio } };
       if (propEditState.ultimaInt) props['Última interacción'] = { date: { start: propEditState.ultimaInt } };
       if (propEditState.obs) props['Observaciones'] = { rich_text: [{ text: { content: propEditState.obs } }] };
@@ -9538,11 +9545,11 @@ async function savePropEdit() {
       const props = {};
       if (propEditState.estado) props['Estado pipeline'] = { select: { name: propEditState.estado } };
       if (propEditState.pais) props['País'] = { select: { name: propEditState.pais } };
-      if (propEditState.tipo) props['Tipo'] = { select: { name: propEditState.tipo } };
-      if (propEditState.aprobacion) props['Aprobación interna'] = { select: { name: propEditState.aprobacion } };
-      if (propEditState.importe !== '') props['Importe estimado'] = { number: parseFloat(propEditState.importe) || null };
-      if (propEditState.serviciosAnio !== '') props['Servicios por año'] = { number: parseFloat(propEditState.serviciosAnio) || null };
-      if (propEditState.comision !== '') props['Comisión %'] = { number: parseFloat(propEditState.comision) || null };
+      props['Tipo'] = { select: propEditState.tipo ? { name: propEditState.tipo } : null };
+      props['Aprobación interna'] = { select: propEditState.aprobacion ? { name: propEditState.aprobacion } : null };
+      props['Importe estimado'] = { number: parseFloat(propEditState.importe) || null };
+      props['Servicios por año'] = { number: parseFloat(propEditState.serviciosAnio) || null };
+      props['Comisión %'] = { number: parseFloat(propEditState.comision) || null };
       if (propEditState.fechaEnvio) props['Fecha de envío'] = { date: { start: propEditState.fechaEnvio } };
       if (propEditState.ultimaInt) props['Última interacción'] = { date: { start: propEditState.ultimaInt } };
       props['Observaciones'] = { rich_text: propEditState.obs ? [{ text: { content: propEditState.obs } }] : [] };
@@ -9769,9 +9776,16 @@ function openNewContactSheet() {
 }
 
 function contactSetField(key, el, val) {
-  contactEditState[key] = val;
-  el.closest('.estado-btns').querySelectorAll('.estado-btn').forEach(b => b.classList.remove('active'));
-  el.classList.add('active');
+  // País y Estado obligatorios; el resto: tocar el activo lo vacía (toggle / deseleccionar).
+  const obligatorio = (key === 'pais' || key === 'estado');
+  if (!obligatorio && el.classList.contains('active')) {
+    contactEditState[key] = '';
+    el.classList.remove('active');
+  } else {
+    contactEditState[key] = val;
+    el.closest('.estado-btns').querySelectorAll('.estado-btn').forEach(b => b.classList.remove('active'));
+    el.classList.add('active');
+  }
 }
 
 function contactToggleMulti(key, el, val) {
@@ -9792,9 +9806,9 @@ async function saveContactEdit() {
     const s = contactEditState;
     const props = {};
     if (s.estado) props['Estado'] = { select: { name: s.estado } };
-    if (s.tipo) props['Tipo de cliente'] = { select: { name: s.tipo } };
+    props['Tipo de cliente'] = { select: s.tipo ? { name: s.tipo } : null };
     if (s.pais) props['País'] = { select: { name: s.pais } };
-    if (s.canal) props['Canal de captación'] = { select: { name: s.canal } };
+    props['Canal de captación'] = { select: s.canal ? { name: s.canal } : null };
     props['Servicio de interés'] = { multi_select: s.servicios.map(n => ({ name: n })) };
     props['Teléfono / WhatsApp'] = { phone_number: s.tel || null };
     props['Email'] = { email: s.email || null };
