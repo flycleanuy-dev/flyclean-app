@@ -6864,7 +6864,7 @@ async function renderPorCobrar(containerId, opts = {}) {
 
     // Herramienta de asociación (paso 2): cobros que NO están vinculados a ningún servicio (y no son
     // financiamiento ni internos). Permite asociarlos con un toque → el precio/cobrado se vuelve real.
-    const sinAsociar = (ing.results || []).filter(i => !((i.properties?.['Servicio vinculado']?.relation || []).length) && !((i.properties?.['Servicio']?.relation || []).length) && !esFinanciamiento(i) && !(i.properties?.['Excluir de KPIs']?.checkbox === true));
+    const sinAsociar = (ing.results || []).filter(i => finRecEnPais(i) && !((i.properties?.['Servicio vinculado']?.relation || []).length) && !((i.properties?.['Servicio']?.relation || []).length) && !esFinanciamiento(i) && !(i.properties?.['Excluir de KPIs']?.checkbox === true));
     // Opciones de servicio para asociar un cobro: los servicios DEL CLIENTE del cobro van primero;
     // si el cliente tiene exactamente un servicio, queda pre-seleccionado (asociar en 1 clic).
     const nrm = x => (x || '').replace(/-/g, '');
