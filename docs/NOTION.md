@@ -76,3 +76,15 @@ Un registro por objeto, segmentado por una property **`País`** (UY / BR / PA / 
 
 Umbrales (cron diario): alerta a los 15 días sin cambio de estado; auto-mover a "Sin respuesta"
 a los 45. La antigüedad sale de la fórmula `Días sin respuesta` (cuenta desde `Última interacción`).
+
+## Propuestas — contrato recurrente (2026-06-25)
+
+Una propuesta con `Tipo = 🔄 Recurrente` funciona como el **contrato** del cliente. Properties nuevas:
+
+| Property | Tipo | Para qué |
+|---|---|---|
+| `Servicios por año` | number | Cuántos servicios incluye el contrato al año (ej. Aseo = 6) |
+| `Comisión %` | number | % que se lleva el intermediario, **dentro del pago** (ej. Rivero en Aseo). Neto FlyClean = cobrado × (1 − %) |
+
+El Cliente 360 (ficha) calcula **Esperado/año** = `Servicios por año × Importe estimado`, y con la comisión
+muestra **Comisión** y **Neto FlyClean** sobre lo cobrado. El intermediario sale de `Cliente.Intermediario`.

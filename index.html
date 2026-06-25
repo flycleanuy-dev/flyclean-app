@@ -9109,7 +9109,7 @@ async function renderCoordRelevamientos() {
 function openNewPropSheet() {
   propSheetMode = 'create';
   editingProp = null;
-  propEditState = { nombre: '', estado: '🆕 Nuevo lead', pais: '🇺🇾 Uruguay', tipo: '', aprobacion: '⏳ Pendiente', importe: '', fechaEnvio: '', ultimaInt: new Date().toISOString().split('T')[0], obs: '' };
+  propEditState = { nombre: '', estado: '🆕 Nuevo lead', pais: '🇺🇾 Uruguay', tipo: '', aprobacion: '⏳ Pendiente', importe: '', fechaEnvio: '', ultimaInt: new Date().toISOString().split('T')[0], obs: '', serviciosAnio: '', comision: '' };
 
   document.getElementById('prop-sheet-title').textContent = t('sheet.prop.title.nueva');
   document.getElementById('prop-sheet-sub').textContent = t('sheet.prop.subtitle.nueva');
@@ -9134,6 +9134,9 @@ function openNewPropSheet() {
     btnGroup(t('sheet.prop.section.aprobacion'), 'aprobacion', APROBACIONES) +
     `<div class="edit-section"><div class="edit-section-label">${t('sheet.prop.section.importe')}</div>
       <input type="number" class="edit-date-input" placeholder="${t('sheet.prop.importe.placeholder')}" step="100" oninput="propEditState.importe=this.value"/></div>` +
+    `<div class="edit-section"><div class="edit-section-label">🔄 Contrato recurrente (si aplica)</div>
+      <input type="number" class="edit-date-input" placeholder="Servicios por año (ej. 6)" value="${propEditState.serviciosAnio ?? ''}" oninput="propEditState.serviciosAnio=this.value"/>
+      <input type="number" class="edit-date-input" style="margin-top:6px" placeholder="Comisión % del intermediario (ej. 10)" value="${propEditState.comision ?? ''}" oninput="propEditState.comision=this.value"/></div>` +
     `<div class="edit-section"><div class="edit-section-label">${t('sheet.prop.section.fechaenvio')}</div>
       <input type="date" class="edit-date-input" onchange="propEditState.fechaEnvio=this.value"/></div>` +
     `<div class="edit-section"><div class="edit-section-label">${t('sheet.prop.section.ultimaint')}</div>
@@ -9164,8 +9167,10 @@ function openPropSheet(pageId) {
   const fechaEnvio = props['Fecha de envío']?.date?.start || '';
   const ultimaInt = props['Última interacción']?.date?.start || '';
   const obs = props['Observaciones']?.rich_text?.[0]?.plain_text || '';
+  const serviciosAnio = props['Servicios por año']?.number ?? '';
+  const comision = props['Comisión %']?.number ?? '';
 
-  propEditState = { estado, pais, tipo, aprobacion, importe, fechaEnvio, ultimaInt, obs };
+  propEditState = { estado, pais, tipo, aprobacion, importe, fechaEnvio, ultimaInt, obs, serviciosAnio, comision };
 
   document.getElementById('prop-sheet-title').textContent = nombre;
   document.getElementById('prop-sheet-sub').textContent = pais || t('sheet.prop.subtitle.default');
@@ -9188,6 +9193,9 @@ function openPropSheet(pageId) {
     btnGroup(t('sheet.prop.section.aprobacion'), 'aprobacion', APROBACIONES) +
     `<div class="edit-section"><div class="edit-section-label">${t('sheet.prop.section.importe')}</div>
       <input type="number" class="edit-date-input" value="${importe}" placeholder="${t('sheet.prop.importe.placeholder')}" step="100" oninput="propEditState.importe=this.value"/></div>` +
+    `<div class="edit-section"><div class="edit-section-label">🔄 Contrato recurrente (si aplica)</div>
+      <input type="number" class="edit-date-input" placeholder="Servicios por año (ej. 6)" value="${serviciosAnio}" oninput="propEditState.serviciosAnio=this.value"/>
+      <input type="number" class="edit-date-input" style="margin-top:6px" placeholder="Comisión % del intermediario (ej. 10)" value="${comision}" oninput="propEditState.comision=this.value"/></div>` +
     `<div class="edit-section"><div class="edit-section-label">${t('sheet.prop.section.fechaenvio')}</div>
       <input type="date" class="edit-date-input" value="${fechaEnvio}" onchange="propEditState.fechaEnvio=this.value"/></div>` +
     `<div class="edit-section"><div class="edit-section-label">${t('sheet.prop.section.ultimaint')}</div>
@@ -9441,6 +9449,8 @@ async function savePropEdit() {
       if (propEditState.tipo) props['Tipo'] = { select: { name: propEditState.tipo } };
       if (propEditState.aprobacion) props['Aprobación interna'] = { select: { name: propEditState.aprobacion } };
       if (propEditState.importe !== '') props['Importe estimado'] = { number: parseFloat(propEditState.importe) || null };
+      if (propEditState.serviciosAnio !== '') props['Servicios por año'] = { number: parseFloat(propEditState.serviciosAnio) || null };
+      if (propEditState.comision !== '') props['Comisión %'] = { number: parseFloat(propEditState.comision) || null };
       if (propEditState.fechaEnvio) props['Fecha de envío'] = { date: { start: propEditState.fechaEnvio } };
       if (propEditState.ultimaInt) props['Última interacción'] = { date: { start: propEditState.ultimaInt } };
       if (propEditState.obs) props['Observaciones'] = { rich_text: [{ text: { content: propEditState.obs } }] };
@@ -9452,6 +9462,8 @@ async function savePropEdit() {
       if (propEditState.tipo) props['Tipo'] = { select: { name: propEditState.tipo } };
       if (propEditState.aprobacion) props['Aprobación interna'] = { select: { name: propEditState.aprobacion } };
       if (propEditState.importe !== '') props['Importe estimado'] = { number: parseFloat(propEditState.importe) || null };
+      if (propEditState.serviciosAnio !== '') props['Servicios por año'] = { number: parseFloat(propEditState.serviciosAnio) || null };
+      if (propEditState.comision !== '') props['Comisión %'] = { number: parseFloat(propEditState.comision) || null };
       if (propEditState.fechaEnvio) props['Fecha de envío'] = { date: { start: propEditState.fechaEnvio } };
       if (propEditState.ultimaInt) props['Última interacción'] = { date: { start: propEditState.ultimaInt } };
       props['Observaciones'] = { rich_text: propEditState.obs ? [{ text: { content: propEditState.obs } }] : [] };
@@ -9817,10 +9829,30 @@ function renderContactHistory(items) {
   });
   const nServ = items.filter(it => it.type === 'servicio').length;
   const cobStr = [cobUSD ? fmtMoneda(cobUSD, '🇺🇸 USD') : '', cobUY ? fmtMoneda(cobUY, '🇺🇾 UY$') : ''].filter(Boolean).join(' · ') || '—';
+  // Contrato recurrente: si hay una propuesta 🔄 Recurrente con "Servicios por año" → esperado/año + comisión + neto.
+  const contrato = items.find(it => it.type === 'propuesta'
+    && /Recurrente/.test(it.data.properties?.['Tipo']?.select?.name || '')
+    && (it.data.properties?.['Servicios por año']?.number));
+  let contratoHTML = '';
+  if (contrato) {
+    const cp = contrato.data.properties || {};
+    const sa = cp['Servicios por año'].number || 0;
+    const imp = cp['Importe estimado']?.number || 0;
+    const com = cp['Comisión %']?.number || 0;
+    const comUSD = cobUSD * com / 100, comUY = cobUY * com / 100;
+    const comStr = [comUSD ? fmtMoneda(comUSD, '🇺🇸 USD') : '', comUY ? fmtMoneda(comUY, '🇺🇾 UY$') : ''].filter(Boolean).join(' · ') || '—';
+    const netoStr = [cobUSD ? fmtMoneda(cobUSD - comUSD, '🇺🇸 USD') : '', cobUY ? fmtMoneda(cobUY - comUY, '🇺🇾 UY$') : ''].filter(Boolean).join(' · ') || '—';
+    contratoHTML =
+      `<div class="ec-section-total"><span>📑 CONTRATO RECURRENTE</span><span></span></div>` +
+      `<div class="ec-row" style="font-size:12px"><span>Esperado/año (${sa} × ${fmtMoneda(imp, '🇺🇸 USD')})</span><span>${fmtMoneda(sa * imp, '🇺🇸 USD')}</span></div>` +
+      (com ? `<div class="ec-row" style="font-size:12px"><span>Comisión intermediario (${com}%)</span><span style="color:var(--red)">− ${comStr}</span></div>` +
+             `<div class="ec-row" style="font-size:12px;font-weight:700"><span>Neto FlyClean</span><span style="color:var(--green)">${netoStr}</span></div>` : '');
+  }
   const summaryHTML =
     `<div class="ec-saldo" style="margin-bottom:6px;font-size:13px"><span>💵 Cobrado</span><span style="color:var(--green);font-weight:700">${cobStr}</span></div>` +
     (presupUSD ? `<div class="ec-row" style="font-size:12px;margin-bottom:4px"><span>📄 Presupuestado</span><span>${fmtMoneda(presupUSD, '🇺🇸 USD')}</span></div>` : '') +
-    (nServ ? `<div class="ec-row" style="font-size:12px;margin-bottom:8px"><span>🛠️ Servicios completados</span><span>${nServ}</span></div>` : '');
+    (nServ ? `<div class="ec-row" style="font-size:12px;margin-bottom:8px"><span>🛠️ Servicios completados</span><span>${nServ}</span></div>` : '') +
+    contratoHTML;
 
   container.innerHTML = summaryHTML + items.map(item => {
     const p = item.data.properties || {};

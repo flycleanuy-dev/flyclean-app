@@ -428,5 +428,14 @@
 - **Validaciones OCR Server-side** — Post-LLM: monto >0 < 100k, fecha ±365 días (valida ISO), moneda forzado a enum, proveedor 80 chars, categoría map a enum, confianza enum, motivo enum. Nunca expone mensajes internos.
   - `sanitizeAndCap() @ /api/extract-receipt.js:136-186`
 
+## ➕ Agregado después de la generación (fundir al regenerar)
+
+- **Contratos recurrentes + comisiones** (sw v73) — una propuesta `Tipo = 🔄 Recurrente` con `Servicios por
+  año` + `Comisión %` (Notion) funciona como contrato. El sheet de propuesta (crear/editar) tiene esos 2
+  campos (`openNewPropSheet`/`openPropSheet`/`savePropEdit`). El **Cliente 360** (`renderContactHistory`)
+  muestra **Esperado/año** (servicios×importe), **Comisión** del intermediario y **Neto FlyClean** sobre lo
+  cobrado. _En criollo: cargás "6 servicios/año, 10% de comisión" en el contrato del cliente y ves cuánto
+  esperás cobrar, cuánto se lleva el intermediario y cuánto te queda neto._
+
 ---
 _Generado automáticamente del código (workflow `inventario-funcionalidades`). Si algo no coincide con el código, gana el código → regenerar._
