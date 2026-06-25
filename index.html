@@ -6851,7 +6851,22 @@ async function renderPorCobrar(containerId, opts = {}) {
     // Herramienta de asociación (paso 2): cobros que NO están vinculados a ningún servicio (y no son
     // financiamiento ni internos). Permite asociarlos con un toque → el precio/cobrado se vuelve real.
     const sinAsociar = (ing.results || []).filter(i => !((i.properties?.['Servicio vinculado']?.relation || []).length) && !((i.properties?.['Servicio']?.relation || []).length) && !esFinanciamiento(i) && !(i.properties?.['Excluir de KPIs']?.checkbox === true));
-    const optsHTML = comp.slice().sort((a, b) => (a.properties?.['Nombre del servicio']?.title?.[0]?.plain_text || '').localeCompare(b.properties?.['Nombre del servicio']?.title?.[0]?.plain_text || '')).map(s => '<option value="' + s.id + '">' + esc(s.properties?.['Nombre del servicio']?.title?.[0]?.plain_text || '?') + '</option>').join('');
+    // Opciones de servicio para asociar un cobro: los servicios DEL CLIENTE del cobro van primero;
+    // si el cliente tiene exactamente un servicio, queda pre-seleccionado (asociar en 1 clic).
+    const nrm = x => (x || '').replace(/-/g, '');
+    const svcNombre = s => s.properties?.['Nombre del servicio']?.title?.[0]?.plain_text || '?';
+    const compSorted = comp.slice().sort((a, b) => svcNombre(a).localeCompare(svcNombre(b)));
+    const optsFor = i => {
+      const cliId = nrm((i.properties?.['Cuenta']?.relation || [])[0]?.id || '');
+      const matches = cliId ? compSorted.filter(s => (s.properties?.['Contacto']?.relation || []).some(r => nrm(r.id) === cliId)) : [];
+      const matchIds = new Set(matches.map(s => s.id));
+      const rest = compSorted.filter(s => !matchIds.has(s.id));
+      const opt = (s, sel) => '<option value="' + s.id + '"' + (sel ? ' selected' : '') + '>' + esc(svcNombre(s)) + '</option>';
+      const preSel = matches.length === 1;
+      return (preSel ? '' : '<option value="">— elegí servicio —</option>') +
+        (matches.length ? matches.map((s, idx) => opt(s, preSel && idx === 0)).join('') + (rest.length ? '<option value="" disabled>────────</option>' : '') : '') +
+        rest.map(s => opt(s, false)).join('');
+    };
     const ingCli = i => i.properties?.['Cliente']?.rich_text?.[0]?.plain_text || i.properties?.['Servicio']?.title?.[0]?.plain_text || '(cobro)';
     const ingMonto = i => { const u = i.properties?.['Monto USD']?.number, y = i.properties?.['Monto UY$ cobrado']?.number; return u ? fU(u) : (y ? 'UY$ ' + y.toLocaleString('es-UY') : '—'); };
     const asociarHTML = (!readonly && sinAsociar.length) ?
@@ -6859,7 +6874,7 @@ async function renderPorCobrar(containerId, opts = {}) {
       sinAsociar.slice().sort((a, b) => (a.properties?.['Fecha']?.date?.start || '').localeCompare(b.properties?.['Fecha']?.date?.start || '')).map(i =>
         '<div class="ec-row" style="flex-direction:column;align-items:stretch;gap:6px;padding:8px 16px">' +
           '<div style="display:flex;justify-content:space-between;gap:8px"><span style="font-weight:600">' + esc(ingCli(i)) + '</span><span style="font-weight:700;white-space:nowrap">' + ingMonto(i) + ' <span style="color:var(--text3);font-weight:400;font-size:11px">' + (i.properties?.['Fecha']?.date?.start || '').slice(0, 10) + '</span></span></div>' +
-          '<div style="display:flex;gap:6px"><select id="assoc-' + i.id + '" style="flex:1;min-width:0;padding:6px;border-radius:6px;background:var(--bg);color:var(--text);border:1px solid var(--border);font-size:12px;font-family:inherit"><option value="">— elegí servicio —</option>' + optsHTML + '</select>' +
+          '<div style="display:flex;gap:6px"><select id="assoc-' + i.id + '" style="flex:1;min-width:0;padding:6px;border-radius:6px;background:var(--bg);color:var(--text);border:1px solid var(--border);font-size:12px;font-family:inherit">' + optsFor(i) + '</select>' +
           '<button class="fin-svc-link" style="white-space:nowrap" onclick="asociarCobro(\'' + i.id + '\')">Asociar</button></div>' +
         '</div>'
       ).join('') : '';
