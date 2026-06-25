@@ -1208,7 +1208,6 @@ body::before {
   <div class="coord-tab-bar">
     <div class="coord-tab active" id="ctab-inicio" data-i18n="coord.tab.inicio" onclick="setCoordTab('inicio')">🏠 Inicio</div>
     <div class="coord-tab" id="ctab-resumen" data-i18n="coord.tab.resumen" onclick="setCoordTab('resumen')">📊 Resumen</div>
-    <div class="coord-tab" id="ctab-porcobrar" onclick="setCoordTab('porcobrar')">💰 Por cobrar</div>
     <div class="coord-tab" id="ctab-servicios" data-i18n="coord.tab.servicios" onclick="setCoordTab('servicios')">📋 Servicios</div>
     <div class="coord-tab" id="ctab-pruebas" data-i18n="coord.tab.pruebas" onclick="setCoordTab('pruebas')">🧪 Pruebas</div>
     <div class="coord-tab" id="ctab-relevamientos" data-i18n="coord.tab.relevamientos" onclick="setCoordTab('relevamientos')">🔍 Relevamientos</div>
@@ -1444,7 +1443,6 @@ body::before {
     <div class="ceo-tab" id="ceotab-porcobrar" onclick="setCEOTab('porcobrar')">💰 Por cobrar</div>
     <div class="ceo-tab" id="ceotab-clientes" onclick="setCEOTab('clientes')">👥 Clientes</div>
     <div class="ceo-tab" id="ceotab-equipo" data-i18n="ceo.tab.equipo" onclick="setCEOTab('equipo')">👥 Equipo</div>
-    <div class="ceo-tab" id="ceotab-comunicaciones" data-i18n="ceo.tab.mensajes" onclick="setCEOTab('comunicaciones')">💬 Mensajes</div>
   </div>
   <div id="alerts-banner-ceo"></div>
   <div class="ceo-content" id="ceo-content">
@@ -4604,6 +4602,13 @@ async function onGastoReciboSelected(input) {
   try {
     const { publicUrl } = await uploadReceiptPhoto(file, gastoState.gastoId);
     gastoState.reciboUrl = publicUrl;
+    // IA/OCR: por ahora SOLO Uruguay. Fuera de UY → carga manual (la foto igual quedó subida como respaldo).
+    if (currentUser?.country !== 'Uruguay') {
+      gastoState.ocr = { confianza: 'manual' };
+      gastoState.step = 'edit-form';
+      renderGastoSheet();
+      return;
+    }
     const ocr = await extractReceiptViaAI(publicUrl);
     gastoState.ocr = ocr;
     // Mapear OCR al form.
@@ -5095,7 +5100,7 @@ function setTab(tab) {
 function setCoordTab(tab) {
   activeCoordTab = tab;
   markUserActive();
-  ['inicio', 'resumen', 'porcobrar', 'servicios', 'pruebas', 'relevamientos', 'propuestas', 'contactos', 'pedidos', 'comunicaciones'].forEach(t => {
+  ['inicio', 'resumen', 'servicios', 'pruebas', 'relevamientos', 'propuestas', 'contactos', 'pedidos', 'comunicaciones'].forEach(t => {
     const el = document.getElementById('ctab-' + t);
     if (el) el.classList.toggle('active', t === tab);
   });
@@ -5120,7 +5125,6 @@ function setCoordTab(tab) {
 
   if (tab === 'inicio') renderCoordInicio();
   else if (tab === 'resumen') renderCoordResumen();
-  else if (tab === 'porcobrar') renderPorCobrar('coord-content', { readonly: true, headerless: true });
   else if (tab === 'servicios') renderCoordServicios();
   else if (tab === 'pruebas') renderCoordPruebas();
   else if (tab === 'relevamientos') renderCoordRelevamientos();
@@ -6118,7 +6122,7 @@ async function setCEOCountry(country) {
 async function setCEOTab(tab) {
   activeCEOTab = tab;
   _ceoContentId = 'ceo-content';
-  ['metricas','servicios','finanzas','porcobrar','clientes','equipo','comunicaciones'].forEach(t =>
+  ['metricas','servicios','finanzas','porcobrar','clientes','equipo'].forEach(t =>
     document.getElementById('ceotab-' + t)?.classList.toggle('active', t === tab)
   );
   // Global country tabs: hidden en Métricas (tiene sub-tabs propias), Por cobrar y Clientes (muestran todo).
@@ -6130,7 +6134,6 @@ async function setCEOTab(tab) {
   else if (tab === 'porcobrar') { _ceoRerender = () => renderPorCobrar('ceo-content'); await renderPorCobrar('ceo-content'); }
   else if (tab === 'clientes') { _ceoRerender = () => renderClientesView('ceo-content'); await renderClientesView('ceo-content'); }
   else if (tab === 'equipo') await renderCEOEquipo();
-  else renderComunicaciones();
 }
 
 function backFromCEO() {
@@ -6646,7 +6649,8 @@ async function renderCEOFinanzas() {
         renderGroups(gasGroups, 'gasto', 'var(--red)', t('ceo.fin.empty.gastos')) +
         '<div class="ec-section-total"><span>INGRESOS POR TIPO</span><span style="color:var(--green)">+ ' + fmt(ingresos) + '</span></div>' +
         renderGroups(ingGroups, 'ingreso', 'var(--green)', t('ceo.fin.empty.ingresos')) +
-        '<div style="padding:14px"><button class="ceo-nuevo-gasto-btn" style="width:100%" onclick="openNuevoGastoSheet({ defaultClase: \'🔁 Indirecto\' })">+ ' + t('ceo.gasto.add') + '</button></div>' +
+        // El botón de cargar gasto es tarea de Finanzas, no del CEO (que solo mira).
+        (_ceoContentId === 'finanzas-content' ? '<div style="padding:14px"><button class="ceo-nuevo-gasto-btn" style="width:100%" onclick="openNuevoGastoSheet({ defaultClase: \'🔁 Indirecto\' })">+ ' + t('ceo.gasto.add') + '</button></div>' : '') +
       '</div>';
   } catch (e) {
     content.innerHTML = '<div class="coord-empty">' + t('ceo.error.finanzas') + '<br><small>' + esc(e.message) + '</small></div>';
@@ -8763,19 +8767,10 @@ async function renderCoordResumen() {
       { property: 'Fecha programada', date: { on_or_after: s } },
       { property: 'Fecha programada', date: { on_or_before: e } }
     ]});
-    // Filtro Ingresos por mes (Fecha). NOTA: los ingresos NO se filtran por país server-side;
-    // la DB Ingresos usa labels de país distintos (COUNTRY_FINANCE_MAP: '🇺🇾 UY', no '🇺🇾 Uruguay')
-    // y muchos cobros UY se cargan sin País → el filtrado país se hace cliente-side abajo (tolerante a vacío).
-    const ingMonthFilter = (s, e) => ({ and: [
-      { property: 'Fecha', date: { on_or_after: s } },
-      { property: 'Fecha', date: { on_or_before: e } }
-    ]});
-
-    const [svcCurRaw, svcPrevRaw, ingCurRaw, ingPrevRaw, allProps] = await Promise.all([
+    // El coordinador NO ve métricas financieras (Facturado/Ticket/Jornada) → no se piden Ingresos.
+    const [svcCurRaw, svcPrevRaw, allProps] = await Promise.all([
       callNotion(`databases/${DB_ID}/query`, 'POST', { filter: svcMonthFilter(cur.start, cur.end) }),
       callNotion(`databases/${DB_ID}/query`, 'POST', { filter: svcMonthFilter(prev.start, prev.end) }),
-      callNotionAll(`databases/${INGRESOS_DB_ID}/query`, { filter: ingMonthFilter(cur.start, cur.end) }),
-      callNotionAll(`databases/${INGRESOS_DB_ID}/query`, { filter: ingMonthFilter(prev.start, prev.end) }),
       fetchAllPropuestas()
     ]);
     if (activeCoordTab !== myTab) return; // tab cambió mientras se cargaba → abortar
@@ -8811,18 +8806,6 @@ async function renderCoordResumen() {
     };
     const cliCur = clientesSet(svcCur), cliPrev = clientesSet(svcPrev);
 
-    // 3) Facturado (Ingresos del mes) — país cliente-side, tolerante a vacío (estilo finanzas UY).
-    const finVal = svcCF ? COUNTRY_FINANCE_MAP[selectedCountry] : null;
-    const ingInPais = r => {
-      if (!finVal) return true;
-      const p = r.properties?.['País']?.select?.name || '';
-      return p === finVal || p === ''; // incluye los cargados sin País (todo es del país del coord)
-    };
-    const ingCur = (ingCurRaw.results || []).filter(ingInPais).filter(kpiIncluido);
-    const ingPrev = (ingPrevRaw.results || []).filter(ingInPais);
-    const factCur = sumByMoneda(ingCur, 'ingreso');   // { uyu, usd }
-    const factPrev = sumByMoneda(ingPrev, 'ingreso');
-
     // ── Propuestas (cliente-side desde allProps). ──
     const propPaisOk = p => !svcCountryNotion || (p.properties?.['País']?.select?.name === svcCountryNotion);
     const propsScoped = allProps.filter(propPaisOk);
@@ -8847,34 +8830,6 @@ async function renderCoordResumen() {
     // 7) Pendientes (snapshot actual, no por mes): Enviada al cliente / Negociando.
     const pendientesN = propsScoped.filter(p => { const e = estadoPipe(p); return e.includes('Enviada al cliente') || e.includes('Negociando'); }).length;
 
-    // 8/9) Ticket promedio + por tipo + jornada promedio (best-effort por vínculo Ingreso→Servicio).
-    const svcCompCur = svcCur.filter(s => estadoDe(s).includes('Completado'));
-    const svcCompN = svcCompCur.length;
-    const ticketGen = svcCompN ? { uyu: factCur.uyu / svcCompN, usd: factCur.usd / svcCompN } : null;
-
-    // Mapa serviceId → { tipo, esJornada } con los servicios del mes (todos).
-    const svcById = {};
-    svcCur.forEach(s => { svcById[s.id] = { tipo: s.properties?.['Tipo de servicio']?.select?.name || 'Otros', jornada: esJornada(s) }; });
-    const nJornadasCur = svcCur.filter(esJornada).length;
-    // Atribución de ingresos por vínculo.
-    let ingVinc = 0, ingTotalN = ingCur.length;
-    const factPorTipo = {};        // tipo → { uyu, usd }
-    const factJornada = { uyu: 0, usd: 0 };
-    ingCur.forEach(r => {
-      const rel = r.properties?.['Servicio vinculado']?.relation || [];
-      const svcId = rel[0]?.id;
-      const meta = svcId ? svcById[svcId] : null;
-      if (!meta) return; // sin vínculo o vínculo fuera del mes/país → no atribuible
-      ingVinc++;
-      const { esUY, monto } = montoOf(r.properties || {}, 'ingreso');
-      const bucket = (factPorTipo[meta.tipo] = factPorTipo[meta.tipo] || { uyu: 0, usd: 0 });
-      if (esUY) bucket.uyu += monto; else bucket.usd += monto;
-      if (meta.jornada) { if (esUY) factJornada.uyu += monto; else factJornada.usd += monto; }
-    });
-    const cobertura = ingTotalN ? (ingVinc / ingTotalN) : 0;
-    const mostrarPorTipo = cobertura >= 0.30 && Object.keys(factPorTipo).length > 0;
-    const jornadaProm = (nJornadasCur && mostrarPorTipo) ? { uyu: factJornada.uyu / nJornadasCur, usd: factJornada.usd / nJornadasCur } : null;
-
     // ── Delta helper: ▲/▼ + diferencia absoluta. unit opcional ('UY$'/'USD' o número). ──
     const deltaCount = (c, p) => {
       const diff = c - p;
@@ -8882,42 +8837,12 @@ async function renderCoordResumen() {
       const up = diff > 0;
       return '<div class="kpi-delta ' + (up ? 'up' : 'down') + '">' + (up ? '▲' : '▼') + ' ' + (up ? '+' : '−') + Math.abs(diff) + ' ' + t('coord.resumen.vsmesant') + '</div>';
     };
-    // Delta de facturado: compara por moneda; muestra la diferencia de la moneda predominante.
-    const deltaMoney = (curS, prevS) => {
-      const dU = curS.uyu - prevS.uyu, dD = curS.usd - prevS.usd;
-      const parts = [];
-      if (curS.uyu || prevS.uyu) { const up = dU >= 0; parts.push('<span class="kpi-delta ' + (up ? 'up' : 'down') + '">' + (up ? '▲ +' : '▼ −') + fmtMoneda(Math.abs(dU), '🇺🇾 UY$') + '</span>'); }
-      if (curS.usd || prevS.usd) { const up = dD >= 0; parts.push('<span class="kpi-delta ' + (up ? 'up' : 'down') + '">' + (up ? '▲ +' : '▼ −') + fmtMoneda(Math.abs(dD), '🇺🇸 USD') + '</span>'); }
-      if (!parts.length) return '';
-      return '<div style="margin-top:6px;line-height:1.6">' + parts.join('<br>') + '<div class="metric-note" style="font-style:normal">' + t('coord.resumen.vsmesant') + '</div></div>';
-    };
-
-    // ── Tarjeta facturado (split UY$/USD). ──
-    const facturadoHTML = '<div class="metric-value small">' + fmtTotalSplit(factCur) + '</div>';
-
-    // ── Ticket card: general + (opcional) por tipo. ──
-    let ticketExtra = '';
-    // Quita emojis del label de tipo (ej. '🪟 Vidrios' → 'Vidrios') para que se lea limpio.
-    const stripEmoji = s => String(s || '').replace(/[\p{Extended_Pictographic}\u{1F1E6}-\u{1F1FF}️‍]/gu, '').replace(/\s+/g, ' ').trim();
-    if (mostrarPorTipo) {
-      const rows = Object.entries(factPorTipo).map(([tp, sp]) => {
-        const cant = svcCompCur.filter(s => (s.properties?.['Tipo de servicio']?.select?.name || 'Otros') === tp).length;
-        const tk = cant ? { uyu: sp.uyu / cant, usd: sp.usd / cant } : sp;
-        return '<div><b>' + esc(stripEmoji(tp) || tp) + ':</b> ' + fmtTotalSplit(tk) + '</div>';
-      }).join('');
-      ticketExtra = '<div class="metric-extra">' + rows + '</div>';
-    } else if (ingTotalN) {
-      ticketExtra = '<div class="metric-note">' + t('coord.resumen.novinc') + '</div>';
-    }
-
     // ── Render de la grilla. ──
     const cards = [];
     // 1 Días trabajados
     cards.push('<div class="metric-card"><div class="metric-label">' + t('coord.resumen.diastrab') + '</div><div class="metric-value">' + diasCur + '</div><div class="metric-sub">' + t('coord.resumen.diastrab.sub') + '</div>' + deltaCount(diasCur, diasPrev) + '</div>');
     // 2 Clientes
     cards.push('<div class="metric-card"><div class="metric-label">' + t('coord.resumen.clientes') + '</div><div class="metric-value">' + cliCur + '</div><div class="metric-sub">' + t('coord.resumen.clientes.sub') + '</div>' + deltaCount(cliCur, cliPrev) + '</div>');
-    // 3 Facturado
-    cards.push('<div class="metric-card"><div class="metric-label">' + t('coord.resumen.facturado') + '</div>' + facturadoHTML + '<div class="metric-sub">' + t('coord.resumen.facturado.sub') + '</div>' + deltaMoney(factCur, factPrev) + '</div>');
     // 4 Presupuestos enviados
     cards.push('<div class="metric-card"><div class="metric-label">' + t('coord.resumen.presupuestos') + '</div><div class="metric-value">' + enviadasCurN + '</div><div class="metric-sub">' + t('coord.resumen.presupuestos.sub') + '</div>' + deltaCount(enviadasCurN, enviadasPrevN) + '</div>');
     // 5 Propuestas recibidas
@@ -8928,12 +8853,6 @@ async function renderCoordResumen() {
     cards.push('<div class="metric-card"><div class="metric-label">' + t('coord.resumen.aceptadas') + '</div><div class="metric-value">' + aceptVal + '</div><div class="metric-sub">' + aceptSub + '</div></div>');
     // 7 Pendientes (snapshot)
     cards.push('<div class="metric-card"><div class="metric-label">' + t('coord.resumen.pendientes') + '</div><div class="metric-value">' + pendientesN + '</div><div class="metric-sub">' + t('coord.resumen.pendientes.sub') + '</div></div>');
-    // 8 Ticket promedio
-    cards.push('<div class="metric-card"><div class="metric-label">' + t('coord.resumen.ticket') + '</div><div class="metric-value small">' + (ticketGen ? fmtTotalSplit(ticketGen) : '—') + '</div><div class="metric-sub">' + t('coord.resumen.ticket.sub') + '</div>' + ticketExtra + '</div>');
-    // 9 Jornada promedio
-    const jornadaVal = jornadaProm ? fmtTotalSplit(jornadaProm) : '—';
-    const jornadaNote = (!jornadaProm && nJornadasCur && !mostrarPorTipo) ? '<div class="metric-note">' + t('coord.resumen.novinc') + '</div>' : '';
-    cards.push('<div class="metric-card"><div class="metric-label">' + t('coord.resumen.jornada') + '</div><div class="metric-value small">' + jornadaVal + '</div><div class="metric-sub">' + t('coord.resumen.jornada.sub') + (nJornadasCur ? ' (' + nJornadasCur + ')' : '') + '</div>' + jornadaNote + '</div>');
 
     content.innerHTML = '<div class="metric-grid">' + cards.join('') + '</div>';
   } catch (e) {
