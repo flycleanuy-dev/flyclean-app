@@ -1625,7 +1625,11 @@ const USERS = [
   { id: 'ceo-panama',       name: 'CEO Panamá',         role: '👔 CEO',          emoji: '🧑‍💼', notionId: null, country: 'Panamá' },
   { id: 'ceo-guatemala',    name: 'CEO Guatemala',      role: '👔 CEO',          emoji: '🧑‍💼', notionId: null, country: 'Guatemala' },
   { id: 'ceo-mexico',       name: 'CEO México',         role: '👔 CEO',          emoji: '🧑‍💼', notionId: null, country: 'México' },
-  { id: 'finanzas-uy',      name: 'Finanzas',           role: '📊 Administración', emoji: '💼', notionId: null, country: 'Uruguay' }
+  { id: 'finanzas-uy',      name: 'Finanzas',           role: '📊 Administración', emoji: '💼', notionId: null, country: 'Uruguay' },
+  { id: 'finanzas-brasil',    name: 'Finanzas Brasil',    role: '📊 Administración', emoji: '💼', notionId: null, country: 'Brasil' },
+  { id: 'finanzas-panama',    name: 'Finanzas Panamá',    role: '📊 Administración', emoji: '💼', notionId: null, country: 'Panamá' },
+  { id: 'finanzas-guatemala', name: 'Finanzas Guatemala', role: '📊 Administración', emoji: '💼', notionId: null, country: 'Guatemala' },
+  { id: 'finanzas-mexico',    name: 'Finanzas México',    role: '📊 Administración', emoji: '💼', notionId: null, country: 'México' }
 ];
 
 const COUNTRY_NOTION_MAP = {
@@ -2880,6 +2884,15 @@ function getCEOFinanceFilter() {
 function finRecEnPais(r) {
   if (ceoViewCountry === 'all') return true;
   const val = COUNTRY_FINANCE_MAP[ceoViewCountry];
+  if (!val) return true;
+  const p = r.properties?.['País']?.select?.name || '';
+  return ceoViewCountry === 'Uruguay' ? (p === val || p === '') : (p === val);
+}
+// Igual, pero con el esquema de NOMBRES COMPLETOS (Servicios/Contactos usan '🇺🇾 Uruguay', no '🇺🇾 UY').
+// Aísla Por cobrar (servicios) y Clientes (contactos) por país. UY (HQ) incluye los registros sin País.
+function recEnPaisNotion(r) {
+  if (ceoViewCountry === 'all') return true;
+  const val = COUNTRY_NOTION_MAP[ceoViewCountry];
   if (!val) return true;
   const p = r.properties?.['País']?.select?.name || '';
   return ceoViewCountry === 'Uruguay' ? (p === val || p === '') : (p === val);
@@ -6808,6 +6821,7 @@ async function renderPorCobrar(containerId, opts = {}) {
     // cobra una vez (su precio), NO se cobra cada jornada aparte → contar la Orden, nunca las jornadas.
     // Filtra por Tipo de registro y, por las dudas, también por el nombre (algunos tienen el tipo vacío).
     const comp = (svc.results || []).filter(s => {
+      if (!recEnPaisNotion(s)) return false; // aislar Por cobrar por país (socios)
       if ((s.properties?.['Estado']?.select?.name || '') !== '✅ Completado') return false;
       const ti = s.properties?.['Tipo de registro']?.select?.name || '';
       if (ti === '🧪 Prueba' || ti === '🔍 Relevamiento' || ti === '📅 Jornada') return false;
@@ -9433,7 +9447,7 @@ async function renderClientesView(containerId) {
   content.innerHTML = '<div style="text-align:center;padding:40px 0"><div class="spinner" style="margin:0 auto"></div></div>';
   try {
     const data = await callNotion(`databases/${CONTACTOS_DB_ID}/query`, 'POST', { sorts: [{ property: 'Nombre / Empresa', direction: 'ascending' }] });
-    _coordAllContacts = data.results || [];
+    _coordAllContacts = (data.results || []).filter(recEnPaisNotion); // aislar clientes por país (socios)
     renderContactList(_coordAllContacts);
   } catch (e) {
     content.innerHTML = `<div class="coord-empty">No se pudieron cargar los clientes<br><small>${esc(e.message)}</small></div>`;
