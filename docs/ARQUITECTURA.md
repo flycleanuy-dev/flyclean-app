@@ -31,7 +31,9 @@ App **PWA mobile-first sin framework ni build step**. Todo el frontend vive en u
 | `upload-url.js` | `/api/upload-url` | Emite PUT presignados a R2. Valida origen, MIME (jpeg/png/webp/heic + pdf para recibos) y `fotoType`. |
 | `img.js` | `/api/img?u=` | Proxy de imágenes same-origin (allow-list a `cdn.flyclean.app`). Lo usa el PDF de devolución. `redirect:'manual'` (anti-SSRF). |
 | `extract-receipt.js` | `/api/extract-receipt` | OCR de recibos de gastos con Claude (Anthropic). Defensa anti-prompt-injection + sanitización server-side. |
-| `verify-pin.js` | `/api/verify-pin` | Valida `{id, pin}` contra `process.env.USER_PINS` (JSON). Rate-limit básico. |
+| `verify-pin.js` | `/api/verify-pin` | Valida `{id, pin}` (prioridad **KV**, fallback `USER_PINS`); si OK emite **token de sesión** (HMAC). Rate-limit básico. |
+| `set-pin.js` | `/api/set-pin` | El usuario cambia SU PIN (exige sesión + PIN actual). Guarda hash scrypt en KV. |
+| `admin-set-pin.js` | `/api/admin-set-pin` | Un **admin** (allow-list `ADMIN_IDS`) setea/resetea el PIN de OTRO usuario → KV. No pide el anterior. |
 | `version.js` | `/api/version` | `{ web, minApkRequired }` — el APK (TWA) consulta si está desactualizado. |
 | `cron-pipeline.js` | cron diario | Mueve propuestas +45d a "Sin respuesta", marca +15d para re-contactar, email si hay novedades. |
 | `cron-report.js` | cron viernes/lunes | Email de resumen/pendientes al CEO. |
@@ -60,11 +62,18 @@ La app **no muere** si Notion tarda o cae, gracias a 3 capas:
 - **Clave de cache del SW**: usa el body de la request por `?k=` (NO un fragmento `#`, que el
   navegador descarta → consultas pisándose). Ver historia en `sw.js`.
 
-## Modelo de roles / auth (estado actual)
+## Modelo de roles / auth (estado actual, 2026-06-25)
 
-Los roles (Operario · Coordinador · CEO · Administración) son **client-side** (qué pantallas ve
-cada usuario). El PIN se valida en el servidor (`verify-pin.js`) contra `USER_PINS`. La lista de
-usuarios está en `const USERS` en `index.html` (sin PINs).
+Los roles (Operario · Coordinador · CEO · Administración/Finanzas · Dirección) son **client-side**
+(qué pantallas ve cada usuario; `const USERS` en `index.html`, sin PINs).
 
-> ⚠️ **Deuda conocida (ver auditoría)**: el proxy `/api/notion` autentica solo por CORS (evadible
-> fuera del navegador). Endurecerlo con un token de sesión es un pendiente prioritario.
+- **Login + sesión**: `verify-pin.js` valida `{id, pin}` y, si OK, **emite un token de sesión firmado
+  (HMAC)**. El cliente lo manda en cada pedido; `api/notion`, `upload-url`, `extract-receipt` y
+  `admin-set-pin` **exigen** ese token → cerró el viejo agujero de "autentica solo por CORS" (YA NO es deuda).
+- **PINs**: prioridad **KV** (hash scrypt, `_lib/pins.js`) sobre el default `USER_PINS` (env, legacy).
+  El usuario cambia el suyo (`set-pin.js`); un **admin** (allow-list `ADMIN_IDS`) setea/resetea el de
+  otros **desde la app** (`admin-set-pin.js` → KV), en CEO→Equipo ("🔑 Cuentas de acceso"). No se edita
+  el env a mano.
+- **Aislamiento multi-país (socios)**: cada usuario no-UY ve **solo su país** (helpers `finRecEnPais` para
+  Gastos/Ingresos y `recEnPaisNotion` para Servicios/Contactos); UY (HQ) incluye registros sin país;
+  Dirección + CEO-UY ven global (`ceoViewCountry='all'`).

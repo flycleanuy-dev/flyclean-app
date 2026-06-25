@@ -7,7 +7,7 @@ La app es un cliente de Notion. Los IDs de las bases están centralizados en
 
 | Módulo | Base | Database ID |
 |---|---|---|
-| CRM | Contactos / Cuentas | `250115612de74e0582366549bbe5e389` |
+| CRM | **Clientes** (ex "Contactos / Cuentas") | `250115612de74e0582366549bbe5e389` |
 | CRM | Propuestas / Presupuestos | `2c0a4257f4294941b994dfebc1098633` |
 | Ops | **Servicios / Trabajos** | `ccaf276c7f6a460caeb3d2800deab2e5` |
 | Ops | Tareas | `ed5509c20cdd4672aab8cc1710e7ffd5` |
@@ -33,10 +33,16 @@ Servicios  ↔ Propuestas
 Servicios  ↔ Contactos
 Tareas     ↔ Servicios
 Reg.Tiempo ↔ Servicios / Tareas
-Ingresos   ↔ Contactos / Servicios
+Ingresos   ↔ Clientes / Servicios
 Gastos     → Proveedores  (ONE-WAY)
 Activos    ↔ Equipo
+Clientes   ↔ Clientes  (self-relation: `Intermediario` ↔ `Clientes traídos`)
 ```
+
+> **Clientes (ex Contactos)**: la base se renombró a **Clientes** (2026-06-25). Title = `Nombre / Empresa`.
+> Property nueva **`Intermediario`** (self-relation dual): un cliente puede venir vía un intermediario/canal
+> (tipo `🤝 Intermediario`, ej. Aseo→Hospital Británico, Belhouse→sus obras); la inversa se llama
+> **`Clientes traídos`**. Cada registro lleva `País` (UY/BR/PA/GT/MX) → la app aísla por país.
 
 ## Properties clave — DB Servicios
 
