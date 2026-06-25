@@ -1384,6 +1384,18 @@ body::before {
     <div id="gasto-sheet-body" style="padding:0 0 24px"></div>
   </div>
 </div>
+<!-- Modal: Nuevo ingreso / pago manual (Finanzas) — sibling de body. Sin IA, carga 100% manual. -->
+<div class="edit-overlay" id="ingreso-overlay" onclick="ingresoOverlayClick(event)">
+  <div class="edit-sheet" id="ingreso-sheet">
+    <button class="sheet-close-btn" type="button" aria-label="Cerrar" onclick="closeIngresoSheet()">×</button>
+    <div class="edit-sheet-handle"></div>
+    <div class="edit-sheet-header">
+      <div class="edit-sheet-title">💵 Nuevo ingreso / pago</div>
+      <div class="edit-sheet-sub">Registrá un cobro a mano.</div>
+    </div>
+    <div id="ingreso-sheet-body" style="padding:0 0 24px"></div>
+  </div>
+</div>
 <!-- Modal: Solicitud de compras (pedir insumo) — sibling de body para
      funcionar desde operario / coord sin importar la screen activa. -->
 <div class="edit-overlay" id="pedido-overlay" onclick="pedidoOverlayClick(event)">
@@ -3652,7 +3664,7 @@ async function loadFinanzas() {
   markUserActive();
   showScreen('finanzas');
   document.getElementById('finanzas-header-user').textContent = (currentUser.emoji + ' ' + currentUser.name);
-  ceoViewCountry = 'Uruguay';
+  ceoViewCountry = currentUser?.country || 'Uruguay'; // Finanzas país-aware: cada encargado ve SU país (UY incluye registros sin país)
   ceoPeriod = { mode: 'mes', off: 0, from: '', to: '' };
   setFinanzasTab('resumen');
 }
@@ -3697,7 +3709,7 @@ function setFinanzasTab(tab) {
   _finanzasFilterTipo = '';
   if (tab === 'resumen') {
     _ceoContentId = 'finanzas-content';
-    ceoViewCountry = 'Uruguay';
+    ceoViewCountry = currentUser?.country || 'Uruguay'; // Finanzas país-aware: cada encargado ve SU país (UY incluye registros sin país)
     _ceoRerender = renderCEOFinanzas;
     renderCEOFinanzas();
   } else if (tab === 'porcobrar') { _ceoContentId = 'finanzas-content'; _ceoRerender = () => renderPorCobrar('finanzas-content'); renderPorCobrar('finanzas-content'); }
@@ -3756,6 +3768,7 @@ function renderGastosListInner() {
     const { moneda, monto } = montoOf(props, 'gasto');
     const fecha = props['Fecha']?.date?.start || '';
     const proveedor = props['Tienda / Proveedor']?.rich_text?.[0]?.plain_text || '';
+    const cargadoPor = props['Cargado por']?.select?.name || '';
     const servicioVinculado = (props['Servicio']?.relation || []).length > 0;
     const fotoFiles = props['Foto del recibo']?.files || [];
     const fotoUrl = fotoFiles[0]?.external?.url || fotoFiles[0]?.file?.url || '';
@@ -3766,6 +3779,7 @@ function renderGastosListInner() {
           ${categoria ? `<span class="gasto-tag">${esc(categoria)}</span>` : ''}
           ${clase ? `<span class="gasto-tag gasto-tag-clase">${esc(clase)}</span>` : ''}
           ${servicioVinculado ? `<span class="gasto-tag gasto-tag-svc">🔗 Servicio</span>` : ''}
+          ${cargadoPor ? `<span class="gasto-tag">👤 ${esc(cargadoPor)}</span>` : ''}
         </div>
         <div class="gasto-card-bottom">
           ${proveedor ? `<span style="font-size:11px;color:var(--text3)">${esc(proveedor)}</span>` : ''}
@@ -3850,7 +3864,105 @@ function renderIngresosListInner() {
 
   const empty = total === 0 ? `<div class="coord-empty">${t('finanzas.ingresos.none')}</div>` : '';
   const cargarMas = remaining > 0 ? renderCargarMasButton(remaining) : '';
-  content.innerHTML = filtersHTML + (cards || empty) + cargarMas;
+  const addBtn = `<div style="padding:12px 16px 4px"><button class="edit-save-btn" onclick="openNuevoIngresoSheet()">💵 + Nuevo ingreso / pago</button></div>`;
+  content.innerHTML = addBtn + filtersHTML + (cards || empty) + cargarMas;
+}
+
+// ── Nuevo ingreso / pago manual (Finanzas) — sin IA, carga 100% manual. ──
+let ingresoState = null;
+function ingresoOverlayClick(e) { if (e.target?.id === 'ingreso-overlay') closeIngresoSheet(); }
+function closeIngresoSheet() { document.getElementById('ingreso-overlay')?.classList.remove('open'); ingresoState = null; }
+function ingresoSetCliente(id) {
+  if (!ingresoState) return;
+  ingresoState.form.clienteId = id;
+  const c = ingresoState.contactos.find(x => x.id === id);
+  ingresoState.form.clienteNombre = c ? (c.properties?.['Nombre / Empresa']?.title?.[0]?.plain_text || '') : '';
+  ingresoState.form.servicioId = '';
+  renderIngresoSheet();
+}
+async function openNuevoIngresoSheet() {
+  const hoy = new Date().toISOString().slice(0, 10);
+  ingresoState = { saving: false, loading: true, contactos: [], servicios: [], form: { clienteId: '', clienteNombre: '', servicioId: '', monto: 0, moneda: '🇺🇸 USD', fecha: hoy, tipo: '🔧 Otro', detalle: '', facturado: false } };
+  document.getElementById('ingreso-overlay')?.classList.add('open');
+  renderIngresoSheet();
+  try {
+    const [cont, svc] = await Promise.all([
+      callNotion(`databases/${CONTACTOS_DB_ID}/query`, 'POST', { sorts: [{ property: 'Nombre / Empresa', direction: 'ascending' }] }),
+      callNotion(`databases/${DB_ID}/query`, 'POST', {})
+    ]);
+    if (!ingresoState) return; // se cerró mientras cargaba
+    ingresoState.contactos = cont.results || [];
+    ingresoState.servicios = svc.results || [];
+  } catch (e) { /* el form igual sirve sin dropdowns */ }
+  if (ingresoState) { ingresoState.loading = false; renderIngresoSheet(); }
+}
+function renderIngresoSheet() {
+  const body = document.getElementById('ingreso-sheet-body');
+  if (!body || !ingresoState) return;
+  const s = ingresoState, f = s.form;
+  if (s.saving) { body.innerHTML = '<div style="text-align:center;padding:40px 0"><div class="spinner" style="margin:0 auto"></div><div style="margin-top:10px;color:var(--text3)">Guardando…</div></div>'; return; }
+  const tit = c => c.properties?.['Nombre / Empresa']?.title?.[0]?.plain_text || '(sin nombre)';
+  const contactOpts = s.contactos.slice().sort((a, b) => tit(a).localeCompare(tit(b)))
+    .map(c => `<option value="${esc(c.id)}" ${f.clienteId === c.id ? 'selected' : ''}>${esc(tit(c))}</option>`).join('');
+  const svcTit = sv => sv.properties?.['Nombre del servicio']?.title?.[0]?.plain_text || '(servicio)';
+  const norm = x => (x || '').replace(/-/g, '');
+  const svcsDelCliente = f.clienteId ? s.servicios.filter(sv => (sv.properties?.['Contacto']?.relation || []).some(r => norm(r.id) === norm(f.clienteId))) : [];
+  const svcOpts = svcsDelCliente.map(sv => `<option value="${esc(sv.id)}" ${f.servicioId === sv.id ? 'selected' : ''}>${esc(svcTit(sv))}</option>`).join('');
+  const monedas = ['🇺🇸 USD', '🇺🇾 UY$'];
+  const clienteSection = s.loading
+    ? `<div class="edit-section"><div class="edit-section-label">Cliente</div><div style="color:var(--text3);font-size:13px;padding:6px 0">Cargando clientes…</div></div>`
+    : `<div class="edit-section"><div class="edit-section-label">Cliente</div>
+         <select class="finanzas-filter-select" style="width:100%" onchange="ingresoSetCliente(this.value)">
+           <option value="">— Elegí un cliente —</option>${contactOpts}
+         </select></div>` +
+      (f.clienteId ? `<div class="edit-section"><div class="edit-section-label">Servicio vinculado (opcional)</div>
+         <select class="finanzas-filter-select" style="width:100%" onchange="ingresoState.form.servicioId=this.value">
+           <option value="">— Sin servicio —</option>${svcOpts}
+         </select></div>` : '');
+  body.innerHTML =
+    clienteSection +
+    `<div class="edit-section"><div class="edit-section-label">Moneda</div><div class="estado-btns">${monedas.map(m => `<button class="estado-btn ${f.moneda === m ? 'active' : ''}" onclick="ingresoState.form.moneda='${m}';renderIngresoSheet()">${m}</button>`).join('')}</div></div>` +
+    `<div class="edit-section"><div class="edit-section-label">Monto</div><input type="number" inputmode="decimal" class="edit-date-input" value="${f.monto || ''}" oninput="ingresoState.form.monto=parseFloat(this.value)||0" placeholder="0"/></div>` +
+    `<div class="edit-section"><div class="edit-section-label">Fecha</div><input type="date" class="edit-date-input" value="${f.fecha}" oninput="ingresoState.form.fecha=this.value"/></div>` +
+    `<div class="edit-section"><div class="edit-section-label">Tipo</div><div class="estado-btns">${INGRESO_TIPOS.map(tp => `<button class="estado-btn ${f.tipo === tp ? 'active' : ''}" onclick="ingresoState.form.tipo='${tp.replace(/'/g, "\\'")}';renderIngresoSheet()">${tp}</button>`).join('')}</div></div>` +
+    `<div class="edit-section"><div class="edit-section-label">Detalle (opcional)</div><textarea class="edit-date-input" rows="2" style="resize:none;height:60px" oninput="ingresoState.form.detalle=this.value" placeholder="Nota…">${esc(f.detalle || '')}</textarea></div>` +
+    `<div class="edit-section"><label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" ${f.facturado ? 'checked' : ''} onchange="ingresoState.form.facturado=this.checked"/> <span style="font-size:14px">Facturado</span></label></div>` +
+    `<div style="padding:14px 16px"><button class="edit-save-btn" style="width:100%" onclick="saveIngreso()">💾 Guardar ingreso</button></div>`;
+}
+async function saveIngreso() {
+  if (!ingresoState || ingresoState.saving) return;
+  const f = ingresoState.form;
+  if (!f.monto || f.monto <= 0) { alert('Ingresá un monto mayor a 0.'); return; }
+  if (!f.fecha) { alert('Ingresá la fecha.'); return; }
+  ingresoState.saving = true; renderIngresoSheet();
+  const meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  const [yy, mm] = f.fecha.split('-').map(Number);
+  const mesLabel = `${meses[mm - 1]} ${yy}`;
+  const countryMap = { 'Uruguay': '🇺🇾 UY', 'Brasil': '🇧🇷 BR', 'Panamá': '🇵🇦 PA', 'Guatemala': '🇬🇹 GT', 'México': '🇲🇽 MX' };
+  const props = {
+    'Servicio': { title: [{ text: { content: f.clienteNombre || 'Cobro manual' } }] },
+    'Fecha': { date: { start: f.fecha } },
+    'Mes': { select: { name: mesLabel } },
+    'Tipo': { select: { name: f.tipo } },
+    'Moneda cobro': { select: { name: f.moneda } },
+    'País': { select: { name: countryMap[currentUser?.country] || '🇺🇾 UY' } },
+    'Facturado': { checkbox: !!f.facturado },
+  };
+  if (f.moneda === '🇺🇾 UY$') props['Monto UY$ cobrado'] = { number: f.monto };
+  else props['Monto USD'] = { number: f.monto };
+  if (f.clienteId) props['Cuenta'] = { relation: [{ id: f.clienteId }] };
+  if (f.clienteNombre) props['Cliente'] = { rich_text: [{ text: { content: f.clienteNombre } }] };
+  if (f.servicioId) props['Servicio vinculado'] = { relation: [{ id: f.servicioId }] };
+  if (f.detalle) props['Detalle'] = { rich_text: [{ text: { content: f.detalle } }] };
+  try {
+    await callNotion('pages', 'POST', { parent: { type: 'data_source_id', data_source_id: INGRESOS_DS_ID }, properties: props });
+    _ingresosCache = null;
+    closeIngresoSheet();
+    if (activeFinanzasTab === 'ingresos') renderIngresosList();
+  } catch (e) {
+    if (ingresoState) { ingresoState.saving = false; renderIngresoSheet(); }
+    alert('No se pudo guardar el ingreso: ' + e.message);
+  }
 }
 
 function renderReportes() {
@@ -3986,6 +4098,8 @@ function cargarMasFinanzas() {
 // Reusa constants definidas para fotos de servicios (~línea 2417).
 // Si en el futuro se refactoriza, mantener nombres canónicos.
 const GASTOS_DS_ID = '58fd9475-9baf-4d0e-9128-486185bf7ed8';
+const INGRESOS_DS_ID = '6bb3da36-1865-4668-9d43-cc6bb9966784'; // data source de Ingresos (para crear cobros a mano)
+const INGRESO_TIPOS = ['🏢 Fachada', '🪟 Vidrio', '📋 Relevamiento', '🔧 Otro'];
 const SOLICITUDES_DB_ID = NOTION_DBS.solicitudes;
 const SOLICITUDES_DS_ID = '0d49d612-1fea-40d7-8b94-d2b0dcae1b12';
 const DOCUMENTOS_DB_ID = NOTION_DBS.documentos;
