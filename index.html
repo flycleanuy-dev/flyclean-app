@@ -3838,8 +3838,9 @@ function renderIngresosListInner() {
 
   const cards = visible.map(i => {
     const props = i.properties || {};
-    const servicioTitle = props['Servicio']?.title?.[0]?.plain_text || '(sin nombre)';
     const cliente = props['Cliente']?.rich_text?.[0]?.plain_text || '';
+    // El título "Servicio" suele venir vacío (cowork + automatización Notion) → caer al Cliente.
+    const servicioTitle = props['Servicio']?.title?.[0]?.plain_text || cliente || '(sin nombre)';
     const tipo = props['Tipo']?.select?.name || '';
     const { moneda, monto } = montoOf(props, 'ingreso');
     const fecha = props['Fecha']?.date?.start || '';
@@ -3852,7 +3853,7 @@ function renderIngresosListInner() {
           ${facturado ? `<span class="gasto-tag gasto-tag-svc">📄 Facturado</span>` : ''}
         </div>
         <div class="gasto-card-bottom">
-          ${cliente ? `<span style="font-size:11px;color:var(--text3)">${esc(cliente)}</span>` : ''}
+          ${cliente && cliente !== servicioTitle ? `<span style="font-size:11px;color:var(--text3)">${esc(cliente)}</span>` : ''}
           <span style="font-size:11px;color:var(--text3)">${esc(fecha)}</span>
         </div>
       </div>
