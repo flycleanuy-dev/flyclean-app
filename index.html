@@ -6945,6 +6945,49 @@ function toggleFinGroup(btn) {
 }
 
 let _ceoEquipoCache = null;
+// Admins que pueden resetear PINs ajenos (espejo de ADMIN_IDS en api/admin-set-pin.js; el server igual valida).
+function isAppAdmin() { return ['diego-laxalt', 'eduardo-cabral'].includes(currentUser?.id); }
+
+// Admin: setear/resetear el PIN de un usuario (escribe en KV vía endpoint). No pide el PIN anterior.
+async function adminSetPin(targetId, nombre) {
+  const newPin = prompt('Nuevo PIN para ' + nombre + ' (4 o 6 dígitos):');
+  if (newPin == null) return;
+  if (!/^(\d{4}|\d{6})$/.test(newPin.trim())) { alert('El PIN debe ser de 4 o 6 dígitos.'); return; }
+  try {
+    const r = await fetch('/api/admin-set-pin', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (localStorage.getItem('fc_token') || '') },
+      body: JSON.stringify({ targetId, newPin: newPin.trim() })
+    });
+    const j = await r.json().catch(() => ({}));
+    if (j.ok) alert('✅ PIN actualizado para ' + nombre + '.');
+    else alert('❌ No se pudo: ' + (j.error || ('error ' + r.status)));
+  } catch (e) { alert('❌ Error: ' + e.message); }
+}
+
+// Sección admin (solo admins): cuentas de acceso (login) por país, con botón Set/Reset PIN.
+// Se arma desde USERS (que tienen el id de login + PIN), no desde el roster de Notion.
+function adminAccountsHTML() {
+  if (!isAppAdmin()) return '';
+  const flagByCountry = { 'Uruguay': '🇺🇾', 'Brasil': '🇧🇷', 'Panamá': '🇵🇦', 'Guatemala': '🇬🇹', 'México': '🇲🇽' };
+  const isGlobal = ceoViewCountry === 'all';
+  const scoped = isGlobal ? USERS : USERS.filter(u => u.country === ceoViewCountry);
+  const byC = {};
+  scoped.forEach(u => { (byC[u.country] = byC[u.country] || []).push(u); });
+  let h = '<div class="ceo-section-title">🔑 Cuentas de acceso (PINs)</div>';
+  for (const [c, list] of Object.entries(byC)) {
+    h += '<div style="font-size:11px;color:var(--text3);padding:2px 16px 4px">' + (flagByCountry[c] || '') + ' ' + esc(c) + '</div>';
+    list.forEach(u => {
+      h += '<div class="equipo-card">' +
+        '<div class="equipo-emoji">' + (u.emoji || '👤') + '</div>' +
+        '<div style="flex:1;min-width:0"><div class="equipo-name">' + esc(u.name) + '</div><div class="equipo-role">' + esc(translateRole(u.role)) + '</div></div>' +
+        '<button class="fin-svc-link" style="white-space:nowrap" onclick="adminSetPin(\'' + esc(u.id) + '\', \'' + esc(u.name).replace(/'/g, "\\'") + '\')">🔑 PIN</button>' +
+        '</div>';
+    });
+  }
+  return h + '<div style="height:16px"></div>';
+}
+
 async function renderCEOEquipo() {
   const content = document.getElementById('ceo-content');
   content.innerHTML = '<div style="text-align:center;padding:40px 0"><div class="spinner" style="margin:0 auto"></div></div>';
@@ -6978,7 +7021,7 @@ async function renderCEOEquipo() {
           countryTag + '</div>';
       }
     }
-    content.innerHTML = html;
+    content.innerHTML = adminAccountsHTML() + html;
   } catch (e) {
     console.warn('[ceo] equipo Notion fetch falló, uso lista local:', e.message);
     renderCEOEquipoLocal();
@@ -7005,7 +7048,7 @@ function renderCEOEquipoLocal() {
         countryTag + '</div>';
     }
   }
-  content.innerHTML = html;
+  content.innerHTML = adminAccountsHTML() + html;
 }
 
 // ─────────────────────────────────────────────
