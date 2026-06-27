@@ -3914,8 +3914,10 @@ async function openNuevoIngresoSheet() {
       callNotion(`databases/${DB_ID}/query`, 'POST', {})
     ]);
     if (!ingresoState) return; // se cerró mientras cargaba
-    ingresoState.contactos = cont.results || [];
-    ingresoState.servicios = svc.results || [];
+    // Aislamiento por país: cada Finanzas ve solo clientes/servicios de su país (el proxy descarta el filtro
+    // de servidor en Servicios multi-source, así que filtramos cliente-side con el mismo helper del resto de la app).
+    ingresoState.contactos = (cont.results || []).filter(recEnPaisNotion);
+    ingresoState.servicios = (svc.results || []).filter(recEnPaisNotion);
   } catch (e) { /* el form igual sirve sin dropdowns */ }
   if (ingresoState) { ingresoState.loading = false; renderIngresoSheet(); }
 }
@@ -4087,7 +4089,7 @@ async function openServicePickerForReport() {
     let res = null;
     try { const d = await callNotion(`databases/${DB_ID}/query`, 'POST', { page_size: 100 }); res = d.results || []; }
     catch (e) { res = null; }
-    if (res && res.length) comp = res.filter(s => ((s.properties?.['Estado']?.select?.name) || '').includes('Completado'));
+    if (res && res.length) comp = res.filter(s => ((s.properties?.['Estado']?.select?.name) || '').includes('Completado') && recEnPaisNotion(s));
     if (!comp.length) await new Promise(r => setTimeout(r, 1100));
   }
   if (activeFinanzasTab !== 'reportes') return;
@@ -8014,8 +8016,29 @@ async function fetchOperarioOptions() {
   return _operarioOptions;
 }
 
+// Operarios/coordinadores (gente de campo) de un país — fuente del selector de PILOTO y AYUDANTES.
+// Filtra por el país del servicio y excluye Dirección/CEO/Administración (no son pilotos → Diego Laxalt NO aparece).
+// El país viene en formato Notion ('🇺🇾 Uruguay') o pelado; vacío → Uruguay (HQ).
+function paisToCountry(paisNotion) {
+  if (!paisNotion) return 'Uruguay';
+  for (const country of Object.keys(COUNTRY_NOTION_MAP)) {
+    if (paisNotion === COUNTRY_NOTION_MAP[country] || paisNotion === country || paisNotion.includes(country)) return country;
+  }
+  return 'Uruguay';
+}
+function operariosDePais(paisNotion) {
+  const target = paisToCountry(paisNotion);
+  return USERS
+    .filter(u => u.country === target && (String(u.role || '').includes('Operario') || String(u.role || '').includes('Coordinador')))
+    .map(u => u.name);
+}
+// Operarios agregados a mano (botón "+ nuevo") durante la sesión — se suman al selector.
+let _extraOperarios = [];
+
 function renderOperarioBtns(current) {
-  const options = _operarioOptions || USERS.map(u => u.name);
+  let options = operariosDePais(editState.pais);
+  if (current && !options.includes(current)) options = [current, ...options]; // no perder la asignación actual
+  _extraOperarios.forEach(n => { if (!options.includes(n)) options.push(n); });
   document.getElementById('edit-operario-btns').innerHTML =
     `<button class="operario-btn ${!current ? 'active' : ''}" onclick="selectEditOperario(null,this)">${t('sheet.edit.operario.sinasignar')}</button>` +
     options.map(name => `<button class="operario-btn ${current === name ? 'active' : ''}" onclick="selectEditOperario('${name.replace(/'/g,"\\'")}',this)">${name}</button>`).join('') +
@@ -8035,8 +8058,7 @@ function confirmNewOperario() {
   const input = document.getElementById('new-op-input');
   const name = input?.value.trim();
   if (!name) return;
-  if (!_operarioOptions) _operarioOptions = [];
-  if (!_operarioOptions.includes(name)) _operarioOptions.push(name);
+  if (!_extraOperarios.includes(name)) _extraOperarios.push(name);
   editState.operario = name;
   renderOperarioBtns(name);
   renderParticipantesBtns(); // refresh ayudantes para excluir al nuevo piloto
@@ -8047,12 +8069,15 @@ function confirmNewOperario() {
 function renderParticipantesBtns() {
   const container = document.getElementById('edit-participantes-btns');
   if (!container) return;
-  const options = (_operarioOptions || USERS.map(u => u.name)).filter(name => name !== editState.operario);
+  let options = operariosDePais(editState.pais).filter(name => name !== editState.operario);
+  // incluir ayudantes ya seleccionados / agregados a mano aunque no sean del país (no perder datos)
+  (editState.participantes || []).forEach(n => { if (n !== editState.operario && !options.includes(n)) options.push(n); });
+  _extraOperarios.forEach(n => { if (n !== editState.operario && !options.includes(n)) options.push(n); });
   const selected = editState.participantes || [];
   container.innerHTML = options.map(name => {
     const isActive = selected.includes(name);
     return `<button class="operario-btn ${isActive ? 'active' : ''}" data-name="${escAttrEdit(name)}" onclick="toggleParticipante(this.dataset.name, this)">${name}</button>`;
-  }).join('') || `<div style="font-size:12px;color:var(--text3);font-style:italic">Sin operarios disponibles (el piloto ya ocupa la posición).</div>`;
+  }).join('') || `<div style="font-size:12px;color:var(--text3);font-style:italic">Sin operarios disponibles en este país.</div>`;
 }
 
 // Escape simple para atributo HTML
@@ -8100,7 +8125,7 @@ async function openEditSheet(pageId) {
   }
   const lugar = props['Lugar']?.rich_text?.[0]?.plain_text || '';
   const mapa = props['Mapa']?.url || '';
-  editState = { estado: estadoActual, operario: operarioActual, fecha, hora, lugar, mapa, participantes: participantesActuales };
+  editState = { estado: estadoActual, operario: operarioActual, fecha, hora, lugar, mapa, participantes: participantesActuales, pais: props['País']?.select?.name || '' };
   document.getElementById('edit-sheet-title').textContent = nombre;
   const dateLocale = currentLang === 'pt-BR' ? 'pt-BR' : 'es-UY';
   document.getElementById('edit-sheet-sub').textContent = fecha ? new Date(fecha + 'T00:00:00').toLocaleDateString(dateLocale, { weekday: 'long', day: 'numeric', month: 'long' }) : t('sheet.alert.fecha');
@@ -8176,7 +8201,6 @@ async function openEditSheet(pageId) {
   }
 
   document.getElementById('edit-overlay').classList.add('open');
-  await fetchOperarioOptions();
   renderOperarioBtns(operarioActual);
   renderParticipantesBtns();
 }
@@ -8398,9 +8422,9 @@ async function openCreateJornadaSheet() {
   document.getElementById('jornada-fecha').value = jornadaState.fecha;
   document.getElementById('jornada-sheet-sub').textContent = nombre;
 
-  // Botones de operario (reusa _operarioOptions ya cargado)
-  await fetchOperarioOptions();
-  const options = _operarioOptions || USERS.map(u => u.name);
+  // Botones de operario — solo pilotos del país del servicio padre (mismo criterio que el sheet de edición).
+  let options = operariosDePais(props['País']?.select?.name || '');
+  if (jornadaState.operario && !options.includes(jornadaState.operario)) options = [jornadaState.operario, ...options];
   document.getElementById('jornada-operario-btns').innerHTML =
     `<button class="operario-btn ${!jornadaState.operario ? 'active' : ''}" onclick="selectJornadaOperario(null,this)">${t('sheet.edit.operario.sinasignar')}</button>` +
     options.map(name => `<button class="operario-btn ${jornadaState.operario === name ? 'active' : ''}" onclick="selectJornadaOperario(${JSON.stringify(name)},this)">${name}</button>`).join('');
@@ -9516,15 +9540,33 @@ async function savePropEdit() {
       if (propEditState.email) upd['Email'] = { email: propEditState.email };
       if (Object.keys(upd).length) { try { await updateServiceProps(clienteId, upd); } catch (_) {} }
     } else if ((propEditState.nombreCliente || '').trim() || propEditState.tel || propEditState.email) {
-      const cprops = {
-        'Nombre / Empresa': { title: [{ text: { content: (propEditState.nombreCliente || propEditState.nombre || 'Cliente s/n').trim() } }] },
-        'Estado': { select: { name: '🆕 Lead' } },
-      };
-      if (propEditState.pais) cprops['País'] = { select: { name: propEditState.pais } };
-      if (propEditState.tel) cprops['Teléfono / WhatsApp'] = { phone_number: propEditState.tel };
-      if (propEditState.email) cprops['Email'] = { email: propEditState.email };
-      const nc = await callNotion('pages', 'POST', { parent: { database_id: CONTACTOS_DB_ID }, properties: cprops });
-      clienteId = nc && nc.id;
+      // Dedup: buscar un cliente con ese teléfono o email antes de crear uno nuevo (evita duplicados).
+      let existing = null;
+      const orf = [];
+      if (propEditState.tel) orf.push({ property: 'Teléfono / WhatsApp', phone_number: { equals: propEditState.tel } });
+      if (propEditState.email) orf.push({ property: 'Email', email: { equals: propEditState.email } });
+      if (orf.length) {
+        const dup = await callNotion(`databases/${CONTACTOS_DB_ID}/query`, 'POST', { filter: orf.length === 1 ? orf[0] : { or: orf }, page_size: 1 }).catch(() => ({ results: [] }));
+        if (dup.results && dup.results.length) existing = dup.results[0];
+      }
+      if (existing) {
+        // Ya existe → linkear ese cliente y completar tel/email si le faltaban.
+        clienteId = existing.id;
+        const upd = {};
+        if (propEditState.tel && !existing.properties?.['Teléfono / WhatsApp']?.phone_number) upd['Teléfono / WhatsApp'] = { phone_number: propEditState.tel };
+        if (propEditState.email && !existing.properties?.['Email']?.email) upd['Email'] = { email: propEditState.email };
+        if (Object.keys(upd).length) { try { await updateServiceProps(existing.id, upd); } catch (_) {} }
+      } else {
+        const cprops = {
+          'Nombre / Empresa': { title: [{ text: { content: (propEditState.nombreCliente || propEditState.nombre || 'Cliente s/n').trim() } }] },
+          'Estado': { select: { name: '🆕 Lead' } },
+        };
+        if (propEditState.pais) cprops['País'] = { select: { name: propEditState.pais } };
+        if (propEditState.tel) cprops['Teléfono / WhatsApp'] = { phone_number: propEditState.tel };
+        if (propEditState.email) cprops['Email'] = { email: propEditState.email };
+        const nc = await callNotion('pages', 'POST', { parent: { database_id: CONTACTOS_DB_ID }, properties: cprops });
+        clienteId = nc && nc.id;
+      }
       _propContactos = null;
     }
     if (propSheetMode === 'create') {
@@ -9821,6 +9863,19 @@ async function saveContactEdit() {
         btn.textContent = t('btn.create.notion'); btn.disabled = false;
         alert(t('sheet.contact.error.nombre')); return;
       }
+      // Dedup: si ya hay un cliente con ese teléfono o email, avisar y NO duplicar.
+      const orf = [];
+      if (s.tel) orf.push({ property: 'Teléfono / WhatsApp', phone_number: { equals: s.tel } });
+      if (s.email) orf.push({ property: 'Email', email: { equals: s.email } });
+      if (orf.length) {
+        const dup = await callNotion(`databases/${CONTACTOS_DB_ID}/query`, 'POST', { filter: orf.length === 1 ? orf[0] : { or: orf }, page_size: 1 }).catch(() => ({ results: [] }));
+        if (dup.results && dup.results.length) {
+          const exNom = dup.results[0].properties?.['Nombre / Empresa']?.title?.[0]?.plain_text || 'otro cliente';
+          btn.textContent = t('btn.create.notion'); btn.disabled = false;
+          alert('Ya existe un cliente con ese teléfono o email: "' + exNom + '". Editá el existente en vez de duplicar.');
+          return;
+        }
+      }
       props['Nombre / Empresa'] = { title: [{ text: { content: s.nombre.trim() } }] };
       await callNotion('pages', 'POST', { parent: { database_id: CONTACTOS_DB_ID }, properties: props });
     } else {
@@ -9874,16 +9929,18 @@ async function loadContactHistory(contactId) {
 
     // El proxy hace search fallback para Servicios (multi-source) que ignora el filter
     // → filtrar cliente-side por contactId Y tipoReg
+    // Además del contacto/tipo, filtramos por país (recEnPaisNotion) para que un usuario de un país no vea
+    // servicios de otro aunque entre por un id de contacto ajeno.
     const relevs = (relevRes.results || []).filter(s => {
       const tipoReg = s.properties?.['Tipo de registro']?.select?.name || '';
       const contactos = s.properties?.['Contacto']?.relation || [];
-      return tipoReg.includes('Relevamiento') && contactos.some(r => r.id === contactId);
+      return tipoReg.includes('Relevamiento') && contactos.some(r => r.id === contactId) && recEnPaisNotion(s);
     });
     const svcs = (svcRes.results || []).filter(s => {
       const tipoReg = s.properties?.['Tipo de registro']?.select?.name || '';
       const estado = s.properties?.['Estado']?.select?.name || '';
       const contactos = s.properties?.['Contacto']?.relation || [];
-      return tipoReg.includes('Orden de trabajo') && estado.includes('Completado') && contactos.some(r => r.id === contactId);
+      return tipoReg.includes('Orden de trabajo') && estado.includes('Completado') && contactos.some(r => r.id === contactId) && recEnPaisNotion(s);
     });
 
     const items = [

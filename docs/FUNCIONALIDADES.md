@@ -430,6 +430,18 @@
 
 ## ➕ Agregado después de la generación (fundir al regenerar)
 
+- **Pilotos/ayudantes por país + 5 fixes** (sw v76) — el selector de **PILOTO** y **AYUDANTES** del sheet de
+  servicio (y al crear jornada) ahora arma la lista desde `USERS` filtrando por el **país del servicio** y por
+  **rol de campo** (Operario/Coordinador): los de otros países desaparecen y **Diego Laxalt** (Dirección) y
+  CEO/Finanzas **ya no aparecen** como pilotos. Helpers nuevos `operariosDePais`/`paisToCountry` + `editState.pais`;
+  el botón "+ nuevo operario" se mantiene (`_extraOperarios`). _En criollo: cada país ve solo a sus pilotos, las
+  listas dejan de ser eternas._ Además, en esta tanda: **(1)** cerradas 3 fugas de lectura por país
+  (`openServicePickerForReport`, `openNuevoIngresoSheet`, `loadContactHistory` → filtran client-side con
+  `recEnPaisNotion`); **(2)** **dedup de clientes** al crear (busca por tel/email antes de crear, en `savePropEdit`
+  y `saveContactEdit`); **(3)** **OCR rate-limit a KV** (`api/extract-receipt.js`: contador global por hora, no por
+  instancia); **(4)** `admin-set-pin` documentado (ya era seguro: sesión + KV + allow-list); **(5)** script
+  `npm run audit` (el `manifest.json` ya tenía `scope`).
+
 - **Botones deseleccionables + reflejo en Notion (bilateral)** (sw v75) — los selects de una sola opción en
   los sheets de **Cliente** y **Propuesta** ahora se deseleccionan al tocar el activo (`propSetField`/
   `contactSetField`), EXCEPTO `País` y `Estado` (obligatorios). Y al guardar, los campos opcionales vacíos se

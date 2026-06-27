@@ -9,7 +9,8 @@
   },
   "scripts": {
     "test": "node tests/smoke.mjs",
-    "check": "node tests/check-html.mjs"
+    "check": "node tests/check-html.mjs",
+    "audit": "npm audit --audit-level=high"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.105.0",
