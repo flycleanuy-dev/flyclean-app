@@ -77,3 +77,13 @@ real está publicado en `/.well-known/`. Empaquetado vía pwabuilder.com cuando 
 - GitHub org: `flycleanuy-dev`. Vercel scope: `fly-clean-app-s-projects`.
 - Dominio: `flyclean.app` (Cloudflare). CDN de fotos: `cdn.flyclean.app` (R2 custom domain).
 - LICENSE: propietaria, a nombre de FLYCLEAN S.A.S.
+
+## Continuidad / Emergencias (bus factor)
+
+Si el autor original no está disponible, ver el **Playbook de Continuidad** (fuera del repo, en la carpeta de
+trabajo: `PLAYBOOK-CONTINUIDAD.md`) y la bóveda **1Password "FlyClean Emergencias"** (a futuro). Ahí está el
+inventario completo de accesos y el "si pasa X → hacé Y".
+
+- **Respaldo NO técnico:** Eduardo Cabral (CEO) — admin de la app (resetea PINs en CEO→Equipo→🔑) + lo administrativo.
+- **Respaldo técnico:** programador de "guardia" (a definir) — deploys/bugs/caídas; deploy = `git push` a `main` (ver arriba).
+- Todos los secretos/valores reales viven en Vercel (Sensitive) y, a futuro, en 1Password — **nunca en el repo**.

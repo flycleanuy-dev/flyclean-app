@@ -15,7 +15,13 @@ const ALLOWED_ORIGINS = [
 const ALLOWED_ORIGIN_REGEX = /^https:\/\/flyclean-app-[a-z0-9]+-fly-clean-app-s-projects\.vercel\.app$/;
 function originAllowed(o) { return !!o && (ALLOWED_ORIGINS.includes(o) || ALLOWED_ORIGIN_REGEX.test(o)); }
 
-// Admins que pueden resetear PINs ajenos. Override por env ADMIN_IDS (coma-separado). Default: Dirección + CEO UY.
+// Admins que pueden resetear PINs ajenos. Modelo de seguridad (defensa en capas, ya fail-closed para terceros):
+//   1) la request exige token de sesión HMAC válido (login con PIN real),
+//   2) exige KV configurado (más arriba),
+//   3) el llamante debe estar en esta allow-list.
+// El default ('diego-laxalt,eduardo-cabral') es CERRADO a todos salvo los 2 dueños — no es "abierto".
+// La env ADMIN_IDS (coma-separada) lo SOBREESCRIBE por completo: setearla en Vercel para ampliar/restringir
+// sin tocar el código. Si querés que SOLO valga el env (default vacío), avisá y lo cambiamos.
 function adminIds() {
   return String(process.env.ADMIN_IDS || 'diego-laxalt,eduardo-cabral').split(',').map(s => s.trim()).filter(Boolean);
 }

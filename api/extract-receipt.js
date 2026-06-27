@@ -27,18 +27,43 @@ function isOriginAllowed(origin) {
   return false;
 }
 
-// Rate limit naive (in-memory, per-instance). El equipo es chico (7 personas),
-// 60 calls/hora total cubre uso real con margen y bloquea abuso obvio.
-// Para hardening: KV/Upstash. Hoy es defensa en profundidad sobre el costo.
+// Rate limit del OCR (gasta créditos Anthropic). Contador GLOBAL en Vercel KV con ventana fija de 1h,
+// atómico vía INCR + EXPIRE → NO se evade con múltiples instancias serverless ni cold-starts.
+// Si KV no está configurado o falla, cae a un buffer in-memory por instancia (best-effort, no rompe el OCR).
+const KV_URL = process.env.KV_REST_API_URL || '';
+const KV_TOKEN = process.env.KV_REST_API_TOKEN || '';
 const RL_WINDOW_MS = 60 * 60 * 1000;
 const RL_MAX_CALLS = 60;
 const rlBuffer = [];
-function rateLimitCheck() {
-  const now = Date.now();
-  while (rlBuffer.length && rlBuffer[0] < now - RL_WINDOW_MS) rlBuffer.shift();
-  if (rlBuffer.length >= RL_MAX_CALLS) return false;
-  rlBuffer.push(now);
-  return true;
+
+async function kvCmd(cmd) {
+  const r = await fetch(KV_URL, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${KV_TOKEN}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(cmd),
+  });
+  if (!r.ok) throw new Error('KV ' + r.status);
+  return (await r.json()).result;
+}
+
+async function rateLimitCheck() {
+  // Sin KV → fallback in-memory por instancia (mismo comportamiento de antes).
+  if (!(KV_URL && KV_TOKEN)) {
+    const now = Date.now();
+    while (rlBuffer.length && rlBuffer[0] < now - RL_WINDOW_MS) rlBuffer.shift();
+    if (rlBuffer.length >= RL_MAX_CALLS) return false;
+    rlBuffer.push(now);
+    return true;
+  }
+  try {
+    const bucket = Math.floor(Date.now() / RL_WINDOW_MS); // ventana fija de 1h, compartida entre instancias
+    const key = `rl:ocr:${bucket}`;
+    const count = Number(await kvCmd(['INCR', key]));
+    if (count === 1) { try { await kvCmd(['EXPIRE', key, Math.ceil(RL_WINDOW_MS / 1000) + 60]); } catch (_) {} }
+    return !(Number.isFinite(count) && count > RL_MAX_CALLS);
+  } catch (_) {
+    return true; // KV caído → no bloquear el OCR (la sesión ya es requisito).
+  }
 }
 
 // Categorías = el enum de DB Gastos en Notion. Si Claude sugiere otra cosa, la
@@ -209,7 +234,7 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'AI service not configured' });
   }
 
-  if (!rateLimitCheck()) {
+  if (!(await rateLimitCheck())) {
     return res.status(429).json({ error: 'Rate limit exceeded. Try again in a few minutes.' });
   }
 

@@ -1,3 +1,6 @@
+// v76: pilotos/ayudantes por país (solo gente de campo del país del servicio, sin Diego) + cierre de 3 fugas de
+//      lectura por país (reporte por servicio, nuevo ingreso, historia de contacto) + dedup de clientes al crear +
+//      OCR rate-limit a KV (global, no por instancia).
 // v32: el picker reintenta hasta traer servicios COMPLETADOS (el search-fallback a veces devuelve sin Estado).
 // v31: el picker 'reporte por servicio' reintenta cuando la DB Servicios devuelve vacío (search-fallback bajo carga).
 // v30: fix signo del SALDO negativo en el PDF financiero (mostraba el valor absoluto).
@@ -55,7 +58,7 @@
 // v33: VELOCIDAD — SW vuelve a stale-while-revalidate (cache al instante + revalida en bg); proxy con timeout+reintento+429; operario auto-reintenta.
 // v5: cambiar estrategia de Notion API de stale-while-revalidate a NETWORK-FIRST con timeout.
 
-const CACHE = 'flyclean-v75';
+const CACHE = 'flyclean-v76';
 const SHELL = [
   '/',
   '/index.html',
