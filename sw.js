@@ -1,3 +1,5 @@
+// v77: ficha de cliente (Finanzas/CEO) ya no sale vacía — openContactSheet blindado (trae la ficha de Notion por
+//      id si la lista no cargó) + CEO en solo-lectura (ve todo, no toca; Finanzas/Coord/Dirección editan).
 // v76: pilotos/ayudantes por país (solo gente de campo del país del servicio, sin Diego) + cierre de 3 fugas de
 //      lectura por país (reporte por servicio, nuevo ingreso, historia de contacto) + dedup de clientes al crear +
 //      OCR rate-limit a KV (global, no por instancia).
@@ -58,7 +60,7 @@
 // v33: VELOCIDAD — SW vuelve a stale-while-revalidate (cache al instante + revalida en bg); proxy con timeout+reintento+429; operario auto-reintenta.
 // v5: cambiar estrategia de Notion API de stale-while-revalidate a NETWORK-FIRST con timeout.
 
-const CACHE = 'flyclean-v76';
+const CACHE = 'flyclean-v77';
 const SHELL = [
   '/',
   '/index.html',
