@@ -9776,10 +9776,15 @@ function buildContactSheetBody(mode) {
       : '');
 }
 
-function openContactSheet(pageId) {
+async function openContactSheet(pageId) {
   contactSheetMode = 'edit';
-  editingContact = _coordAllContacts.find(c => c.id === pageId);
-  if (!editingContact) return;
+  editingContact = (_coordAllContacts || []).find(c => c.id === pageId);
+  // Blindaje: si la lista todavía no terminó de cargar (race en Finanzas/CEO), traer la ficha de Notion por id
+  // → la ficha NUNCA sale vacía, sin importar el timing.
+  if (!editingContact) {
+    try { editingContact = await callNotion('pages/' + pageId, 'GET'); } catch (_) {}
+  }
+  if (!editingContact || !editingContact.properties) return;
   const props = editingContact.properties || {};
   contactEditState = {
     estado: props['Estado']?.select?.name || '',
@@ -9797,8 +9802,17 @@ function openContactSheet(pageId) {
   document.getElementById('contact-sheet-title').textContent = nombre;
   document.getElementById('contact-sheet-sub').textContent = contactEditState.tipo || t('sheet.contact.title.default');
   document.getElementById('contact-sheet-body').innerHTML = buildContactSheetBody('edit');
+  // Permisos: CEO = solo lectura (ve TODO, no toca). Finanzas / Coordinador / Dirección = pueden editar.
+  const soloLectura = !!(currentUser?.role && currentUser.role.includes('CEO'));
   const btn = document.getElementById('contact-save-btn');
-  btn.textContent = t('btn.save.notion'); btn.disabled = false;
+  const body = document.getElementById('contact-sheet-body');
+  if (soloLectura) {
+    if (btn) btn.style.display = 'none';
+    body.querySelectorAll('input, select, textarea').forEach(el => { el.disabled = true; });
+    body.querySelectorAll('.estado-btn').forEach(el => { el.style.pointerEvents = 'none'; el.style.opacity = '0.6'; });
+  } else if (btn) {
+    btn.style.display = ''; btn.textContent = t('btn.save.notion'); btn.disabled = false;
+  }
   document.getElementById('contact-overlay').classList.add('open');
 
   // Cargar historial async (no bloquea apertura del sheet)
@@ -9842,6 +9856,7 @@ function contactOverlayClick(e) { if (e.target.id === 'contact-overlay') closeCo
 function closeContactSheet() { document.getElementById('contact-overlay').classList.remove('open'); editingContact = null; }
 
 async function saveContactEdit() {
+  if (currentUser?.role && currentUser.role.includes('CEO')) return; // CEO = solo lectura, no guarda
   const btn = document.getElementById('contact-save-btn');
   btn.textContent = t('btn.saving'); btn.disabled = true;
   try {
