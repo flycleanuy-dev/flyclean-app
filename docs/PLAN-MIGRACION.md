@@ -22,9 +22,13 @@ para franquicias — **sin romper la app**, **por fases**, **reversible**, y con
 | Operaciones (servicios, jornadas) | ✅ | ✅ |
 | Seguimiento: pruebas, relevamiento, propuesta | ✅ | ✅ |
 | Pedidos importantes (solicitudes de compra) | ✅ | ✅ |
-| Roles operario / coordinador / finanzas | ✅ | ✅ |
+| Roles: operario / coordinador / finanzas / **CEO** | ✅ | ✅ |
 | **Gasto por foto con IA (lo cargan operario/coord)** | ✅ | ❌ |
 | Gastos: **carga manual por el usuario Finanzas** | ✅ | ✅ (único modo allá) |
+
+> **CEO por país:** cada país tiene su CEO (ve SOLO su país, aislado por RLS). **Excepción:** el CEO de Uruguay
+> (Eduardo) y la **Dirección** (Diego) ven TODO (global). El CEO no carga gastos — su panel es la vista del negocio
+> (métricas, finanzas, equipo); por eso la diferencia de la IA-gastos NO lo afecta.
 
 - **Única diferencia (por ahora):** en el resto de países, operarios/coordinadores **NO cargan gastos con IA** — los
   gastos los carga **manualmente el usuario Finanzas**. Todo lo demás, igual que Uruguay.

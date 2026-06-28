@@ -17,8 +17,11 @@ const ALLOWED_ORIGINS = [
 const ALLOWED_ORIGIN_REGEX = /^https:\/\/flyclean-app-[a-z0-9]+-fly-clean-app-s-projects\.vercel\.app$/;
 function originAllowed(o) { return !!o && (ALLOWED_ORIGINS.includes(o) || ALLOWED_ORIGIN_REGEX.test(o)); }
 
-// Allow-list: qué "resource" de la app mapea a qué tabla de Supabase. (Fase 2: solo Clientes.)
-const RESOURCES = { clientes: 'clientes' };
+// Allow-list: qué "resource" de la app mapea a qué tabla de Supabase.
+const RESOURCES = {
+  clientes: 'clientes', servicios: 'servicios', propuestas: 'propuestas',
+  ingresos: 'ingresos', gastos: 'gastos',
+};
 
 const SUPABASE_URL = (process.env.SUPABASE_URL || '').replace(/\/$/, '');
 const SERVICE_KEY  = process.env.SUPABASE_SERVICE_KEY || '';
