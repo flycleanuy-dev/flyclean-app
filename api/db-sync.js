@@ -5,9 +5,10 @@
 // - Trae la página de Notion (server-side, con NOTION_TOKEN) y la mapea con el MISMO mapeo del sync batch.
 // - Upsert idempotente por notion_id (PostgREST on_conflict) → tocar dos veces NO duplica; no necesita
 //   políticas RLS de escritura (usa service_role, que solo corre acá en el server).
-// Respuesta mínima (status, sin devolver datos) → no es una vía de lectura.
+// - Defensa en profundidad: exige sesión + un usuario NO global solo puede sincronizar registros de SU país
+//   (espeja el aislamiento de /api/db). Respuesta mínima (status, sin datos del registro) → no es vía de lectura.
 import { verifySession, tokenFromReq } from './_lib/session.js';
-import { userById } from './_lib/users.js';
+import { userById, esGlobal } from './_lib/users.js';
 import { mapRow } from './_lib/notion-map.js';
 
 const ALLOWED_ORIGINS = [
@@ -63,6 +64,7 @@ export default async function handler(req, res) {
     });
     if (!nr.ok) {
       const j = await nr.json().catch(() => ({}));
+      console.error('[db-sync] notion fetch', { notion_id: notionId, resource, status: nr.status, code: j.code });
       return res.status(502).json({ error: 'notion fetch', detail: String(j.code || nr.status).slice(0, 60) });
     }
     const page = await nr.json();
@@ -70,6 +72,18 @@ export default async function handler(req, res) {
     // 2) Mapear con el mismo mapeo del sync batch (lossless: guarda `raw`).
     const row = mapRow(resource, page);
     if (!row) return res.status(400).json({ error: 'sin mapeo' });
+
+    // 2b) Defensa en profundidad: un usuario NO global solo puede sincronizar registros de SU país
+    //     (espeja el aislamiento de /api/db). UY incluye filas sin país. El espejo nunca filtra solo;
+    //     este gate evita que alguien fuerce el re-sync de un registro de otro país.
+    if (!esGlobal(u)) {
+      const rp = row.pais || null;
+      const okPais = u.pais === 'Uruguay' ? (rp === 'Uruguay' || rp === null) : (rp === u.pais);
+      if (!okPais) {
+        console.error('[db-sync] país mismatch', { notion_id: notionId, resource, userPais: u.pais, rowPais: rp });
+        return res.status(403).json({ error: 'país' });
+      }
+    }
 
     // 3) Upsert idempotente por notion_id (no duplica; mirror queda 1:1 con Notion).
     const ur = await fetch(`${SUPABASE_URL}/rest/v1/${table}?on_conflict=notion_id`, {
@@ -81,12 +95,14 @@ export default async function handler(req, res) {
       body: JSON.stringify([row]),
     });
     if (!ur.ok) {
-      const t = await ur.text().catch(() => '');
-      return res.status(502).json({ error: 'supabase upsert', detail: String(t).slice(0, 120) });
+      const tx = await ur.text().catch(() => '');
+      console.error('[db-sync] supabase upsert', { notion_id: notionId, resource, status: ur.status, detail: tx.slice(0, 200) });
+      return res.status(502).json({ error: 'supabase upsert', detail: String(tx).slice(0, 120) });
     }
     res.setHeader('Cache-Control', 'no-store');
-    return res.status(200).json({ ok: true, resource, archived: !!page.archived });
+    return res.status(200).json({ ok: true, resource }); // respuesta mínima (no devuelve datos del registro)
   } catch (e) {
+    console.error('[db-sync] error', { notion_id: notionId, resource, msg: String(e.message || e).slice(0, 160) });
     return res.status(502).json({ error: 'sync failed', detail: String(e.message || e).slice(0, 120) });
   }
 }
