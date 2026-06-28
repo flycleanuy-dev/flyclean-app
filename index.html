@@ -10141,10 +10141,29 @@ async function renderCoordPropuestas() {
       { property: 'Estado pipeline', select: { does_not_equal: '😶 Sin respuesta' } }
     ];
     if (cf) andConditions.push(cf);
-    const data = await callNotion(`databases/${PROPUESTAS_DB_ID}/query`, 'POST', {
+    const notionFetch = () => callNotion(`databases/${PROPUESTAS_DB_ID}/query`, 'POST', {
       filter: { and: andConditions },
       sorts: [{ property: 'Última interacción', direction: 'descending' }]
     });
+    // Fase 2: si el flag está prendido, leer propuestas de Supabase; si falla → fallback a Notion. Como /api/db trae
+    // las propuestas país-filtradas pero sin el filtro de estado/orden, lo replicamos en cliente (igual que el query de Notion).
+    let data;
+    if (localStorage.getItem('fc_db_propuestas') === '1') {
+      try {
+        const all = await callDb('propuestas');
+        const excl = ['❌ Rechazada', '😶 Sin respuesta'];
+        const paisVal = cf ? COUNTRY_NOTION_MAP[selectedCountry] : null;
+        const results = (all.results || []).filter(p => {
+          const estado = p.properties?.['Estado pipeline']?.select?.name || '';
+          if (excl.includes(estado)) return false;
+          if (paisVal && (p.properties?.['País']?.select?.name || '') !== paisVal) return false;
+          return true;
+        }).sort((a, b) => (b.properties?.['Última interacción']?.date?.start || '').localeCompare(a.properties?.['Última interacción']?.date?.start || ''));
+        data = { results };
+      } catch (e) { data = await notionFetch(); }
+    } else {
+      data = await notionFetch();
+    }
     if (activeCoordTab !== myTab) return;
     _coordAllProps = data.results || [];
     renderCoordPropuestasList();
