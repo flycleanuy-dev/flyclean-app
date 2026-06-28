@@ -1,0 +1,91 @@
+// /api/db — lee de la base NUEVA (Supabase) devolviendo el MISMO formato que Notion. Fase 2 (piloto: Clientes).
+//
+// La app sigue ESCRIBIENDO en Notion; este endpoint es SOLO LECTURA. Aísla por país a nivel servidor/base:
+//  - Si hay SUPABASE_JWT_SECRET → mintea un JWT del usuario (claims pais/rol) y deja que la RLS de Supabase filtre.
+//  - Si no (o usuario global) → service_role + filtro por país server-side (espejo de recEnPaisNotion).
+// Devuelve { results: [{ object:'page', id:notion_id, properties:raw }] } → idéntico a la respuesta de Notion,
+// gracias a que el sync guardó `raw` = las properties tal cual de Notion. Así el render de la app NO cambia.
+import { verifySession, tokenFromReq } from './_lib/session.js';
+import { userById, esGlobal } from './_lib/users.js';
+import crypto from 'node:crypto';
+
+const ALLOWED_ORIGINS = [
+  'https://flyclean.app',
+  'https://www.flyclean.app',
+  'https://flyclean-app.vercel.app',
+];
+const ALLOWED_ORIGIN_REGEX = /^https:\/\/flyclean-app-[a-z0-9]+-fly-clean-app-s-projects\.vercel\.app$/;
+function originAllowed(o) { return !!o && (ALLOWED_ORIGINS.includes(o) || ALLOWED_ORIGIN_REGEX.test(o)); }
+
+// Allow-list: qué "resource" de la app mapea a qué tabla de Supabase. (Fase 2: solo Clientes.)
+const RESOURCES = { clientes: 'clientes' };
+
+const SUPABASE_URL = (process.env.SUPABASE_URL || '').replace(/\/$/, '');
+const SERVICE_KEY  = process.env.SUPABASE_SERVICE_KEY || '';
+const ANON_KEY     = process.env.SUPABASE_ANON_KEY || '';
+const JWT_SECRET   = process.env.SUPABASE_JWT_SECRET || '';
+
+function b64url(buf) { return Buffer.from(buf).toString('base64').replace(/=+$/, '').replace(/\+/g, '-').replace(/\//g, '_'); }
+function mintUserJWT(u, id) {
+  const now = Math.floor(Date.now() / 1000);
+  const header  = b64url(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
+  const payload = b64url(JSON.stringify({ role: 'authenticated', aud: 'authenticated', sub: id, iat: now, exp: now + 300, pais: u.pais, rol: u.rol, nombre: u.nombre }));
+  const sig = b64url(crypto.createHmac('sha256', JWT_SECRET).update(header + '.' + payload).digest());
+  return header + '.' + payload + '.' + sig;
+}
+
+// Filtro PostgREST por país (espejo de recEnPaisNotion: UY incluye filas sin país).
+function paisQuery(u) {
+  if (esGlobal(u)) return '';
+  if (u.pais === 'Uruguay') return '&or=(pais.eq.Uruguay,pais.is.null)';
+  return '&pais=eq.' + encodeURIComponent(u.pais);
+}
+
+export default async function handler(req, res) {
+  const origin = req.headers.origin || '';
+  res.setHeader('Access-Control-Allow-Origin', originAllowed(origin) ? origin : 'https://flyclean.app');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Vary', 'Origin');
+  if (req.method === 'OPTIONS') return res.status(200).end();
+  if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
+  if (!originAllowed(origin)) return res.status(403).json({ error: 'origin' });
+
+  // Exige sesión (mismo token HMAC que el resto de la app).
+  const session = verifySession(tokenFromReq(req));
+  if (!session || !session.id) return res.status(401).json({ error: 'auth required' });
+  const u = userById(session.id);
+  if (!u) return res.status(403).json({ error: 'usuario desconocido' });
+
+  const resource = String((req.query && req.query.resource) || '');
+  const table = RESOURCES[resource];
+  if (!table) return res.status(400).json({ error: 'resource inválido' });
+
+  if (!SUPABASE_URL || !SERVICE_KEY) return res.status(500).json({ error: 'db no configurada' });
+
+  try {
+    let rows;
+    if (JWT_SECRET && ANON_KEY && !esGlobal(u)) {
+      // Camino RLS pura: la base filtra por país según los claims del JWT.
+      const jwt = mintUserJWT(u, session.id);
+      const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}?select=notion_id,raw`, {
+        headers: { apikey: ANON_KEY, Authorization: 'Bearer ' + jwt },
+      });
+      if (!r.ok) throw new Error('supabase ' + r.status);
+      rows = await r.json();
+    } else {
+      // Fallback (o usuario global): service_role + filtro por país server-side.
+      const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}?select=notion_id,raw${paisQuery(u)}`, {
+        headers: { apikey: SERVICE_KEY, Authorization: 'Bearer ' + SERVICE_KEY },
+      });
+      if (!r.ok) throw new Error('supabase ' + r.status);
+      rows = await r.json();
+    }
+    // Formato Notion → el render de la app no cambia.
+    const results = (rows || []).map(x => ({ object: 'page', id: x.notion_id, properties: x.raw || {} }));
+    res.setHeader('Cache-Control', 'no-store');
+    return res.status(200).json({ object: 'list', results, _source: 'supabase' });
+  } catch (e) {
+    return res.status(502).json({ error: 'db read failed', detail: String(e.message || e).slice(0, 120) });
+  }
+}

@@ -3310,6 +3310,16 @@ async function callNotion(endpoint, method = 'GET', body = null) {
   return response.json();
 }
 
+// Lee de la base NUEVA (Supabase) vía /api/db, devolviendo el MISMO formato que Notion. Fase 2 (piloto Clientes).
+async function callDb(resource) {
+  const response = await fetch('/api/db?resource=' + encodeURIComponent(resource), {
+    headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('fc_token') || '') }
+  });
+  if (response.status === 401) { forceRelogin(); throw new Error('Sesión expirada'); }
+  if (!response.ok) throw new Error('DB error ' + response.status);
+  return response.json();
+}
+
 // Igual que callNotion pero PAGINA (sigue next_cursor) y junta todos los resultados.
 // Necesario para sumar año/rango con >100 filas (Gastos/Ingresos). No usar en Servicios
 // (multi-data-source: la paginación del fallback de búsqueda no aplica).
@@ -9630,7 +9640,14 @@ async function renderClientesView(containerId) {
   if (!content) return;
   content.innerHTML = '<div style="text-align:center;padding:40px 0"><div class="spinner" style="margin:0 auto"></div></div>';
   try {
-    const data = await callNotion(`databases/${CONTACTOS_DB_ID}/query`, 'POST', { sorts: [{ property: 'Nombre / Empresa', direction: 'ascending' }] });
+    // Fase 2 (piloto): si el flag está prendido, leer de la base nueva (Supabase); si falla → fallback a Notion.
+    const notionQuery = () => callNotion(`databases/${CONTACTOS_DB_ID}/query`, 'POST', { sorts: [{ property: 'Nombre / Empresa', direction: 'ascending' }] });
+    let data;
+    if (localStorage.getItem('fc_db_clientes') === '1') {
+      try { data = await callDb('clientes'); } catch (e) { data = await notionQuery(); }
+    } else {
+      data = await notionQuery();
+    }
     _coordAllContacts = (data.results || []).filter(recEnPaisNotion); // aislar clientes por país (socios)
     renderContactList(_coordAllContacts);
   } catch (e) {
