@@ -1,3 +1,6 @@
+// v81: Fase 2.4 — callNotion enruta TODAS las lecturas operativas a Supabase según flag (servicios siempre seguro;
+//      otras tablas solo sin filtro server-side). Cubre operario, CEO servicios, por cobrar, etc. Finanzas con
+//      filtro de fecha quedan en Notion (números intactos). Flags OFF por defecto.
 // v80: Fase 2.3 — Propuestas del coordinador pueden leer de Supabase (flag 'fc_db_propuestas', fallback Notion);
 //      se replica en cliente el filtro de estado/país y el orden que hacía el query de Notion. OFF por defecto.
 // v79: Fase 2.2 — los Servicios del coordinador también pueden leer de Supabase (flag 'fc_db_servicios', fallback
@@ -66,7 +69,7 @@
 // v33: VELOCIDAD — SW vuelve a stale-while-revalidate (cache al instante + revalida en bg); proxy con timeout+reintento+429; operario auto-reintenta.
 // v5: cambiar estrategia de Notion API de stale-while-revalidate a NETWORK-FIRST con timeout.
 
-const CACHE = 'flyclean-v80';
+const CACHE = 'flyclean-v81';
 const SHELL = [
   '/',
   '/index.html',
