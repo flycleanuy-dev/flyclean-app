@@ -1,3 +1,7 @@
+// v82: Fase 3 (piloto Clientes) — "sync tras guardar": tras guardar un cliente en Notion (la fuente), la app
+//      refleja ESE registro en la base nueva vía /api/db-sync (upsert idempotente por notion_id). Fire-and-forget,
+//      detrás del flag 'fc_db_writesync' (OFF por defecto) → no rompe nada. Mapeo Notion→fila compartido en
+//      api/_lib/notion-map.js (lo usa también el sync batch). Writes siguen yendo a Notion.
 // v81: Fase 2.4 — callNotion enruta TODAS las lecturas operativas a Supabase según flag (servicios siempre seguro;
 //      otras tablas solo sin filtro server-side). Cubre operario, CEO servicios, por cobrar, etc. Finanzas con
 //      filtro de fecha quedan en Notion (números intactos). Flags OFF por defecto.
@@ -69,7 +73,7 @@
 // v33: VELOCIDAD — SW vuelve a stale-while-revalidate (cache al instante + revalida en bg); proxy con timeout+reintento+429; operario auto-reintenta.
 // v5: cambiar estrategia de Notion API de stale-while-revalidate a NETWORK-FIRST con timeout.
 
-const CACHE = 'flyclean-v81';
+const CACHE = 'flyclean-v82';
 const SHELL = [
   '/',
   '/index.html',

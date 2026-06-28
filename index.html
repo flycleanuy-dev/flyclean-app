@@ -3342,6 +3342,22 @@ async function callDb(resource) {
   return response.json();
 }
 
+// Fase 3 ("sync tras guardar"): después de un guardado EXITOSO en Notion (la fuente), refleja ESE
+// registro en la base nueva (Supabase) vía /api/db-sync (upsert idempotente por notion_id). Es
+// fire-and-forget: si falla, NO rompe nada (Notion ya guardó; el sync batch lo recupera después).
+// Detrás del flag localStorage.fc_db_writesync (OFF por defecto). resource ∈ {clientes,servicios,propuestas,gastos,ingresos}.
+function syncAfterWrite(notionId, resource) {
+  try {
+    if (localStorage.getItem('fc_db_writesync') !== '1') return;
+    if (!notionId || !resource) return;
+    fetch('/api/db-sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (localStorage.getItem('fc_token') || '') },
+      body: JSON.stringify({ resource, notion_id: notionId }),
+    }).catch(() => {});
+  } catch (_) {}
+}
+
 // Igual que callNotion pero PAGINA (sigue next_cursor) y junta todos los resultados.
 // Necesario para sumar año/rango con >100 filas (Gastos/Ingresos). No usar en Servicios
 // (multi-data-source: la paginación del fallback de búsqueda no aplica).
@@ -9936,9 +9952,11 @@ async function saveContactEdit() {
         }
       }
       props['Nombre / Empresa'] = { title: [{ text: { content: s.nombre.trim() } }] };
-      await callNotion('pages', 'POST', { parent: { database_id: CONTACTOS_DB_ID }, properties: props });
+      const created = await callNotion('pages', 'POST', { parent: { database_id: CONTACTOS_DB_ID }, properties: props });
+      syncAfterWrite(created?.id, 'clientes'); // refleja el alta en la base nueva (flag fc_db_writesync)
     } else {
       await updateServiceProps(editingContact.id, props);
+      syncAfterWrite(editingContact.id, 'clientes'); // refleja la edición en la base nueva (flag fc_db_writesync)
     }
     closeContactSheet();
     await refreshContactsView();
