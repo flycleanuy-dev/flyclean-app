@@ -1,3 +1,6 @@
+// v83: hardening de /api/db-sync (revisión adversarial Fase 3): gate de país (usuario no-global solo sincroniza
+//      registros de su país, espeja /api/db), respuesta sin el campo 'archived' (no devuelve datos del registro),
+//      y logging server-side ([db-sync] ...) en los caminos de error para diagnosticar en prod.
 // v82: Fase 3 (piloto Clientes) — "sync tras guardar": tras guardar un cliente en Notion (la fuente), la app
 //      refleja ESE registro en la base nueva vía /api/db-sync (upsert idempotente por notion_id). Fire-and-forget,
 //      detrás del flag 'fc_db_writesync' (OFF por defecto) → no rompe nada. Mapeo Notion→fila compartido en
@@ -73,7 +76,7 @@
 // v33: VELOCIDAD — SW vuelve a stale-while-revalidate (cache al instante + revalida en bg); proxy con timeout+reintento+429; operario auto-reintenta.
 // v5: cambiar estrategia de Notion API de stale-while-revalidate a NETWORK-FIRST con timeout.
 
-const CACHE = 'flyclean-v82';
+const CACHE = 'flyclean-v83';
 const SHELL = [
   '/',
   '/index.html',
