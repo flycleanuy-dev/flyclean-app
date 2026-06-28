@@ -9031,10 +9031,15 @@ async function fetchCoordItemsForMonth() {
       )
     ]
   };
-  const data = await callNotion(`databases/${DB_ID}/query`, 'POST', {
-    filter,
-    sorts: [{ property: 'Fecha programada', direction: 'ascending' }]
-  });
+  // Fase 2: si el flag está prendido, leer servicios de la base NUEVA (Supabase, más confiable que el search-fallback
+  // multi-source de Notion); si falla → fallback a Notion. El re-filtro cliente (filtrarServicios) es el mismo.
+  const notionFetch = () => callNotion(`databases/${DB_ID}/query`, 'POST', { filter, sorts: [{ property: 'Fecha programada', direction: 'ascending' }] });
+  let data;
+  if (localStorage.getItem('fc_db_servicios') === '1') {
+    try { data = await callDb('servicios'); } catch (e) { data = await notionFetch(); }
+  } else {
+    data = await notionFetch();
+  }
   // El proxy descarta el filtro server-side (multi-data-source) → re-filtrar SIEMPRE en cliente:
   // país + mes (incluyendo los servicios SIN fecha, que se muestran en todos los meses, igual que el filtro server).
   const notionVal = getCountryFilter() ? COUNTRY_NOTION_MAP[selectedCountry] : null;
