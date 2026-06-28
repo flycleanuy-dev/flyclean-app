@@ -49,7 +49,9 @@ export default async function handler(req, res) {
   res.setHeader('Vary', 'Origin');
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
-  if (!originAllowed(origin)) return res.status(403).json({ error: 'origin' });
+  // El navegador NO manda Origin en un GET del mismo origen → solo bloqueamos orígenes presentes y no permitidos.
+  // Igual exige sesión (Bearer) y el navegador bloquea lecturas cross-origin por CORS.
+  if (origin && !originAllowed(origin)) return res.status(403).json({ error: 'origin' });
 
   // Exige sesión (mismo token HMAC que el resto de la app).
   const session = verifySession(tokenFromReq(req));
