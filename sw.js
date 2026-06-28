@@ -1,3 +1,5 @@
+// v80: Fase 2.3 — Propuestas del coordinador pueden leer de Supabase (flag 'fc_db_propuestas', fallback Notion);
+//      se replica en cliente el filtro de estado/país y el orden que hacía el query de Notion. OFF por defecto.
 // v79: Fase 2.2 — los Servicios del coordinador también pueden leer de Supabase (flag 'fc_db_servicios', fallback
 //      Notion). /api/db amplía la allow-list (servicios/propuestas/ingresos/gastos). OFF por defecto.
 // v78: Fase 2 migración (piloto) — la lista de Clientes puede leer de la base nueva (Supabase) vía /api/db
@@ -64,7 +66,7 @@
 // v33: VELOCIDAD — SW vuelve a stale-while-revalidate (cache al instante + revalida en bg); proxy con timeout+reintento+429; operario auto-reintenta.
 // v5: cambiar estrategia de Notion API de stale-while-revalidate a NETWORK-FIRST con timeout.
 
-const CACHE = 'flyclean-v79';
+const CACHE = 'flyclean-v80';
 const SHELL = [
   '/',
   '/index.html',
