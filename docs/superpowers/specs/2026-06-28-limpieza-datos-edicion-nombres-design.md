@@ -163,8 +163,11 @@ Solo al confirmar se ejecuta. Muestra progreso por paso y resultado final.
 2. Editar un nombre en un registro **inofensivo** primero y confirmar que persiste en Notion.
 3. Fusión probada con **2 clientes de prueba creados a propósito** (crear → fusionar → verificar relaciones reapuntadas
    → ganador con todo, perdedor `Archivado`) → idempotencia (re-ejecutar no rompe).
-4. **Británico**: renombrar los 4 servicios a `"Hospital Británico"` **con Diego**, viendo el plan; decidir junto si
-   22/05 vs 29/05 es visita repetida (archivar) o dos reales.
+4. **Británico** (decisión confirmada por Diego): los 4 servicios quedan **todos exactamente `"Hospital Británico"`**
+   (idénticos — Diego prefiere el nombre uniforme por sobre uno con fecha). Ese es el **nombre canónico fijo** del
+   cliente para todas las visitas, pasadas y futuras (contrato recurrente). `Aseo` = intermediario, cliente aparte (no
+   se fusiona). Al ejecutar, ver el plan; si Diego marca que 22/05 vs 29/05 es una visita cargada dos veces, archivar
+   una (por defecto se mantienen las 4 como visitas reales).
 5. Verificación de UI con Playwright (la pestaña 🧹 solo aparece a Dirección; CEO ve el nombre editable y el resto no).
 
 ## Riesgos / decisiones
