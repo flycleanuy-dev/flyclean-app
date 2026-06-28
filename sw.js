@@ -1,3 +1,5 @@
+// v78: Fase 2 migración (piloto) — la lista de Clientes puede leer de la base nueva (Supabase) vía /api/db
+//      detrás del flag localStorage 'fc_db_clientes', con fallback a Notion. OFF por defecto (no cambia nada aún).
 // v77: ficha de cliente (Finanzas/CEO) ya no sale vacía — openContactSheet blindado (trae la ficha de Notion por
 //      id si la lista no cargó) + CEO en solo-lectura (ve todo, no toca; Finanzas/Coord/Dirección editan).
 // v76: pilotos/ayudantes por país (solo gente de campo del país del servicio, sin Diego) + cierre de 3 fugas de
@@ -60,7 +62,7 @@
 // v33: VELOCIDAD — SW vuelve a stale-while-revalidate (cache al instante + revalida en bg); proxy con timeout+reintento+429; operario auto-reintenta.
 // v5: cambiar estrategia de Notion API de stale-while-revalidate a NETWORK-FIRST con timeout.
 
-const CACHE = 'flyclean-v77';
+const CACHE = 'flyclean-v78';
 const SHELL = [
   '/',
   '/index.html',
