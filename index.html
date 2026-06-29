@@ -1249,6 +1249,10 @@ body::before {
         <div class="edit-sheet-sub" id="edit-sheet-sub"></div>
       </div>
       <div class="edit-section">
+        <div class="edit-section-label">NOMBRE DEL SERVICIO</div>
+        <input type="text" class="edit-date-input" id="edit-nombre" oninput="editState.nombre=this.value"/>
+      </div>
+      <div class="edit-section">
         <div class="edit-section-label" data-i18n="sheet.edit.section.estado">ESTADO</div>
         <div class="estado-btns" id="edit-estado-btns"></div>
       </div>
@@ -8173,7 +8177,7 @@ async function openEditSheet(pageId) {
   }
   const lugar = props['Lugar']?.rich_text?.[0]?.plain_text || '';
   const mapa = props['Mapa']?.url || '';
-  editState = { estado: estadoActual, operario: operarioActual, fecha, hora, lugar, mapa, participantes: participantesActuales, pais: props['País']?.select?.name || '' };
+  editState = { estado: estadoActual, operario: operarioActual, fecha, hora, lugar, mapa, participantes: participantesActuales, pais: props['País']?.select?.name || '', nombre };
   document.getElementById('edit-sheet-title').textContent = nombre;
   const dateLocale = currentLang === 'pt-BR' ? 'pt-BR' : 'es-UY';
   document.getElementById('edit-sheet-sub').textContent = fecha ? new Date(fecha + 'T00:00:00').toLocaleDateString(dateLocale, { weekday: 'long', day: 'numeric', month: 'long' }) : t('sheet.alert.fecha');
@@ -8185,6 +8189,7 @@ async function openEditSheet(pageId) {
   document.getElementById('edit-hora').value = hora;
   document.getElementById('edit-lugar').value = lugar;
   document.getElementById('edit-mapa').value = mapa;
+  const nombreInput = document.getElementById('edit-nombre'); if (nombreInput) nombreInput.value = nombre;
   document.getElementById('edit-save-btn').textContent = t('btn.save.notion');
   document.getElementById('edit-save-btn').disabled = false;
   const delBtn = document.getElementById('delete-svc-btn');
@@ -8563,6 +8568,9 @@ async function saveServiceEdit() {
   btn.textContent = t('btn.saving'); btn.disabled = true;
   try {
     const props = {};
+    const nombreSvc = String(editState.nombre || '').trim();
+    if (!nombreSvc) { btn.textContent = t('btn.save.notion'); btn.disabled = false; alert('El nombre del servicio no puede quedar vacío.'); return; }
+    props['Nombre del servicio'] = { title: [{ text: { content: nombreSvc } }] };
     if (editState.estado) props['Estado'] = { select: { name: editState.estado } };
     if (editState.fecha) props['Fecha programada'] = { date: { start: editState.fecha } };
     // Hora Inicio: combinar fecha + hora en ISO con time. Si no hay hora, limpiar la property.
@@ -8584,6 +8592,7 @@ async function saveServiceEdit() {
     const participantes = Array.isArray(editState.participantes) ? editState.participantes : [];
     props['Operarios participantes'] = { multi_select: participantes.map(name => ({ name })) };
     await updateServiceProps(editingService.id, props);
+    syncAfterWrite(editingService.id, 'servicios');
     closeEditSheet();
     await renderCoordServicios();
   } catch (e) {
