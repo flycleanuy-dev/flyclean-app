@@ -10170,6 +10170,18 @@ function buildContactSheetBody(mode) {
       <input type="email" class="edit-date-input" placeholder="${t('sheet.contact.email.placeholder')}" value="${s.email || ''}" oninput="contactEditState.email=this.value"/></div>` +
     `<div class="edit-section"><div class="edit-section-label">${t('sheet.contact.section.ciudad')}</div>
       <input type="text" class="edit-date-input" placeholder="${t('sheet.contact.ciudad.placeholder')}" value="${s.ciudad || ''}" oninput="contactEditState.ciudad=this.value"/></div>` +
+    `<div class="edit-section"><div class="edit-section-label">${t('sheet.contact.section.mapa')}</div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input type="url" id="contact-mapa-input" class="edit-date-input" style="flex:1" placeholder="${t('sheet.contact.mapa.placeholder')}" value="${esc(s.mapa || '')}" oninput="contactEditState.mapa=this.value"/>
+        <button type="button" class="estado-btn" style="white-space:nowrap" onclick="contactOpenMapa()">${t('sheet.contact.mapa.abrir')}</button>
+      </div></div>` +
+    (mode === 'edit'
+      ? `<div class="edit-section"><div class="edit-section-label">${t('sheet.contact.section.intermediario')}</div>
+          <select id="contact-intermediario-select" class="edit-date-input" onchange="contactIntermediarioChanged(this.value)">
+            <option value="">${t('sheet.contact.intermediario.none')}</option>
+            <option value="__loading__" disabled>${t('sheet.contact.intermediario.loading')}</option>
+          </select></div>`
+      : '') +
     `<div class="edit-section"><div class="edit-section-label">${t('sheet.contact.section.interlocutor')}</div>
       <input type="text" class="edit-date-input" placeholder="${t('sheet.contact.interlocutor.placeholder')}" value="${s.interlocutor || ''}" oninput="contactEditState.interlocutor=this.value"/></div>` +
     `<div class="edit-section"><div class="edit-section-label">${t('sheet.contact.section.notas')}</div>
@@ -10202,7 +10214,9 @@ async function openContactSheet(pageId) {
     email: props['Email']?.email || '',
     ciudad: props['Ciudad / Zona']?.rich_text?.[0]?.plain_text || '',
     interlocutor: props['Interlocutor']?.rich_text?.[0]?.plain_text || '',
-    notas: props['Notas']?.rich_text?.[0]?.plain_text || ''
+    notas: props['Notas']?.rich_text?.[0]?.plain_text || '',
+    mapa: props['Mapa']?.url || '',
+    intermediario: props['Intermediario']?.relation?.[0]?.id || ''
   };
   const nombre = props['Nombre / Empresa']?.title?.[0]?.plain_text || t('common.sinnombre');
   document.getElementById('contact-sheet-title').textContent = nombre;
@@ -10225,14 +10239,15 @@ async function openContactSheet(pageId) {
   }
   document.getElementById('contact-overlay').classList.add('open');
 
-  // Cargar historial async (no bloquea apertura del sheet)
+  // Cargar historial e intermediarios async (no bloquean apertura del sheet)
   loadContactHistory(pageId);
+  loadContactIntermediarios(pageId);
 }
 
 function openNewContactSheet() {
   contactSheetMode = 'create';
   editingContact = null;
-  contactEditState = { nombre: '', estado: '🆕 Lead', tipo: '', pais: '🇺🇾 Uruguay', canal: '', servicios: [], tel: '', email: '', ciudad: '', interlocutor: '', notas: '' };
+  contactEditState = { nombre: '', estado: '🆕 Lead', tipo: '', pais: '🇺🇾 Uruguay', canal: '', servicios: [], tel: '', email: '', ciudad: '', interlocutor: '', notas: '', mapa: '', intermediario: '' };
   document.getElementById('contact-sheet-title').textContent = t('sheet.contact.title.nuevo');
   document.getElementById('contact-sheet-sub').textContent = t('sheet.contact.subtitle.nuevo');
   document.getElementById('contact-sheet-body').innerHTML = buildContactSheetBody('create');
@@ -10262,6 +10277,42 @@ function contactToggleMulti(key, el, val) {
   el.classList.toggle('active', arr.includes(val));
 }
 
+function contactOpenMapa() {
+  const u = (contactEditState.mapa || '').trim();
+  if (!u) { alert(t('sheet.svc.ubicacion.none')); return; }
+  window.open(u, '_blank', 'noopener');
+}
+
+let _contactIntermediarios = null;
+async function loadContactIntermediarios(selfId) {
+  const sel = document.getElementById('contact-intermediario-select');
+  if (!sel) return;
+  try {
+    if (!_contactIntermediarios) {
+      if (Array.isArray(_coordAllContacts) && _coordAllContacts.length) {
+        _contactIntermediarios = _coordAllContacts;
+      } else {
+        const d = await callNotion(`databases/${CONTACTOS_DB_ID}/query`, 'POST', { sorts: [{ property: 'Nombre / Empresa', direction: 'ascending' }] });
+        _contactIntermediarios = d.results || [];
+      }
+    }
+    const tit = c => c.properties?.['Nombre / Empresa']?.title?.[0]?.plain_text || '(sin nombre)';
+    const cur = contactEditState.intermediario || '';
+    sel.innerHTML = `<option value="">${t('sheet.contact.intermediario.none')}</option>` +
+      _contactIntermediarios.slice()
+        .filter(c => c.id !== selfId)
+        .sort((a, b) => tit(a).localeCompare(tit(b)))
+        .map(c => `<option value="${esc(c.id)}">${esc(tit(c))}</option>`).join('');
+    sel.value = cur;
+    // CEO solo lectura: el bloque soloLectura de openContactSheet ya deshabilita selects del body,
+    // pero ese bloque corre ANTES de poblar este select async → re-aplicar el disabled si corresponde.
+    if (currentUser?.role && currentUser.role.includes('CEO')) sel.disabled = true;
+  } catch (_) { /* el form sirve igual: queda "Directo" */ }
+}
+function contactIntermediarioChanged(val) {
+  contactEditState.intermediario = val || '';
+}
+
 function contactOverlayClick(e) { if (e.target.id === 'contact-overlay') closeContactSheet(); }
 function closeContactSheet() { document.getElementById('contact-overlay').classList.remove('open'); editingContact = null; }
 
@@ -10289,6 +10340,8 @@ async function saveContactEdit() {
     props['Teléfono / WhatsApp'] = { phone_number: s.tel || null };
     props['Email'] = { email: s.email || null };
     props['Ciudad / Zona'] = { rich_text: s.ciudad ? [{ text: { content: s.ciudad } }] : [] };
+    props['Mapa'] = { url: s.mapa && s.mapa.trim() ? s.mapa.trim() : null };
+    props['Intermediario'] = { relation: s.intermediario ? [{ id: s.intermediario }] : [] };
     props['Interlocutor'] = { rich_text: s.interlocutor ? [{ text: { content: s.interlocutor } }] : [] };
     props['Notas'] = { rich_text: s.notas ? [{ text: { content: s.notas } }] : [] };
     props['Nombre / Empresa'] = { title: [{ text: { content: nombre } }] };
@@ -10312,6 +10365,7 @@ async function saveContactEdit() {
       await updateServiceProps(editingContact.id, props);
       syncAfterWrite(editingContact.id, 'clientes');
     }
+    _contactIntermediarios = null; // forzar recarga: cambió la lista/relaciones
     closeContactSheet();
     await refreshContactsView();
   } catch (e) {
