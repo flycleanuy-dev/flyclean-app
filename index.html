@@ -9810,10 +9810,8 @@ function buildContactSheetBody(mode) {
     }</div></div>`;
   }
 
-  return (mode === 'create'
-    ? `<div class="edit-section"><div class="edit-section-label">${t('sheet.contact.section.nombre')}</div>
-        <input type="text" class="edit-date-input" placeholder="${t('sheet.contact.nombre.placeholder')}" value="${s.nombre || ''}" oninput="contactEditState.nombre=this.value" style="font-size:14px"/></div>`
-    : '') +
+  return `<div class="edit-section"><div class="edit-section-label">${t('sheet.contact.section.nombre')}</div>
+        <input type="text" id="contact-nombre-input" class="edit-date-input" placeholder="${t('sheet.contact.nombre.placeholder')}" value="${esc(s.nombre || '')}" oninput="contactEditState.nombre=this.value" style="font-size:14px"/></div>` +
     btnGroup(t('sheet.contact.section.estado'), 'estado', ESTADOS) +
     btnGroup(t('sheet.contact.section.tipo'), 'tipo', TIPOS) +
     btnGroup(t('sheet.contact.section.pais'), 'pais', PAISES) +
@@ -9847,6 +9845,7 @@ async function openContactSheet(pageId) {
   if (!editingContact || !editingContact.properties) return;
   const props = editingContact.properties || {};
   contactEditState = {
+    nombre: props['Nombre / Empresa']?.title?.[0]?.plain_text || '',
     estado: props['Estado']?.select?.name || '',
     tipo: props['Tipo de cliente']?.select?.name || '',
     pais: props['País']?.select?.name || '',
@@ -9870,6 +9869,10 @@ async function openContactSheet(pageId) {
     if (btn) btn.style.display = 'none';
     body.querySelectorAll('input, select, textarea').forEach(el => { el.disabled = true; });
     body.querySelectorAll('.estado-btn').forEach(el => { el.style.pointerEvents = 'none'; el.style.opacity = '0.6'; });
+    // El CEO puede editar SOLO el nombre (no el resto).
+    const nombreInput = document.getElementById('contact-nombre-input');
+    if (nombreInput) nombreInput.disabled = false;
+    if (btn) { btn.style.display = ''; btn.textContent = t('btn.save.notion'); btn.disabled = false; }
   } else if (btn) {
     btn.style.display = ''; btn.textContent = t('btn.save.notion'); btn.disabled = false;
   }
@@ -9916,11 +9919,20 @@ function contactOverlayClick(e) { if (e.target.id === 'contact-overlay') closeCo
 function closeContactSheet() { document.getElementById('contact-overlay').classList.remove('open'); editingContact = null; }
 
 async function saveContactEdit() {
-  if (currentUser?.role && currentUser.role.includes('CEO')) return; // CEO = solo lectura, no guarda
+  const esCEO = !!(currentUser?.role && currentUser.role.includes('CEO'));
+  const s = contactEditState;
+  const nombre = String(s.nombre || '').trim();
+  if (!nombre) { alert(t('sheet.contact.error.nombre')); return; }
   const btn = document.getElementById('contact-save-btn');
   btn.textContent = t('btn.saving'); btn.disabled = true;
   try {
-    const s = contactEditState;
+    // CEO: SOLO el nombre (el resto de la ficha es solo-lectura).
+    if (esCEO) {
+      if (contactSheetMode !== 'edit' || !editingContact) { btn.disabled = false; return; }
+      await updateServiceProps(editingContact.id, { 'Nombre / Empresa': { title: [{ text: { content: nombre } }] } });
+      syncAfterWrite(editingContact.id, 'clientes');
+      closeContactSheet(); await refreshContactsView(); return;
+    }
     const props = {};
     if (s.estado) props['Estado'] = { select: { name: s.estado } };
     props['Tipo de cliente'] = { select: s.tipo ? { name: s.tipo } : null };
@@ -9932,13 +9944,9 @@ async function saveContactEdit() {
     props['Ciudad / Zona'] = { rich_text: s.ciudad ? [{ text: { content: s.ciudad } }] : [] };
     props['Interlocutor'] = { rich_text: s.interlocutor ? [{ text: { content: s.interlocutor } }] : [] };
     props['Notas'] = { rich_text: s.notas ? [{ text: { content: s.notas } }] : [] };
+    props['Nombre / Empresa'] = { title: [{ text: { content: nombre } }] };
 
     if (contactSheetMode === 'create') {
-      if (!s.nombre.trim()) {
-        btn.textContent = t('btn.create.notion'); btn.disabled = false;
-        alert(t('sheet.contact.error.nombre')); return;
-      }
-      // Dedup: si ya hay un cliente con ese teléfono o email, avisar y NO duplicar.
       const orf = [];
       if (s.tel) orf.push({ property: 'Teléfono / WhatsApp', phone_number: { equals: s.tel } });
       if (s.email) orf.push({ property: 'Email', email: { equals: s.email } });
@@ -9951,12 +9959,11 @@ async function saveContactEdit() {
           return;
         }
       }
-      props['Nombre / Empresa'] = { title: [{ text: { content: s.nombre.trim() } }] };
       const created = await callNotion('pages', 'POST', { parent: { database_id: CONTACTOS_DB_ID }, properties: props });
-      syncAfterWrite(created?.id, 'clientes'); // refleja el alta en la base nueva (flag fc_db_writesync)
+      syncAfterWrite(created?.id, 'clientes');
     } else {
       await updateServiceProps(editingContact.id, props);
-      syncAfterWrite(editingContact.id, 'clientes'); // refleja la edición en la base nueva (flag fc_db_writesync)
+      syncAfterWrite(editingContact.id, 'clientes');
     }
     closeContactSheet();
     await refreshContactsView();
