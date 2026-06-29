@@ -8543,9 +8543,9 @@ function operariosDePais(paisNotion) {
 let _extraOperarios = [];
 
 function renderOperarioBtns(current) {
-  let options = operariosDePais(editState.pais);
+  let options = operariosDePais(editState.pais).filter(name => name !== editState.operarioManual);
   if (current && !options.includes(current)) options = [current, ...options]; // no perder la asignación actual
-  _extraOperarios.forEach(n => { if (!options.includes(n)) options.push(n); });
+  _extraOperarios.forEach(n => { if (n !== editState.operarioManual && !options.includes(n)) options.push(n); });
   document.getElementById('edit-operario-btns').innerHTML =
     `<button class="operario-btn ${!current ? 'active' : ''}" onclick="selectEditOperario(null,this)">${t('sheet.edit.operario.sinasignar')}</button>` +
     options.map(name => `<button class="operario-btn ${current === name ? 'active' : ''}" onclick="selectEditOperario('${name.replace(/'/g,"\\'")}',this)">${name}</button>`).join('') +
@@ -8575,9 +8575,9 @@ function confirmNewOperario() {
 function renderOperarioManualBtns(current) {
   const container = document.getElementById('edit-operario-manual-btns');
   if (!container) return;
-  let options = operariosDePais(editState.pais);
+  let options = operariosDePais(editState.pais).filter(name => name !== editState.operario);
   if (current && !options.includes(current)) options = [current, ...options]; // no perder la asignación actual
-  _extraOperarios.forEach(n => { if (!options.includes(n)) options.push(n); });
+  _extraOperarios.forEach(n => { if (n !== editState.operario && !options.includes(n)) options.push(n); });
   container.innerHTML =
     `<button class="operario-btn ${!current ? 'active' : ''}" onclick="selectEditOperarioManual(null,this)">${t('sheet.edit.operario.sinasignar')}</button>` +
     options.map(name => `<button class="operario-btn ${current === name ? 'active' : ''}" data-name="${escAttrEdit(name)}" onclick="selectEditOperarioManual(this.dataset.name,this)">${name}</button>`).join('');
@@ -8593,6 +8593,11 @@ function selectEditOperarioManual(name, el) {
   // Si el nuevo operario manual estaba en ayudantes, quitarlo.
   if (name && Array.isArray(editState.participantes)) {
     editState.participantes = editState.participantes.filter(p => p !== name);
+  }
+  // Si el nuevo operario manual era el piloto, limpiar (no puede ser ambos).
+  if (name && editState.operario === name) {
+    editState.operario = null;
+    renderOperarioBtns(null);
   }
   renderParticipantesBtns();
 }
@@ -9139,6 +9144,11 @@ function selectEditOperario(name, el) {
   // Si el nuevo piloto estaba en ayudantes, quitarlo (no puede ser ambos).
   if (name && Array.isArray(editState.participantes)) {
     editState.participantes = editState.participantes.filter(p => p !== name);
+  }
+  // Si el nuevo piloto era el operario manual, limpiar (no puede ser ambos).
+  if (name && editState.operarioManual === name) {
+    editState.operarioManual = null;
+    renderOperarioManualBtns(null);
   }
   renderParticipantesBtns();
 }
