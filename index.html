@@ -1278,11 +1278,7 @@ body::before {
         <div class="edit-section-label" data-i18n="sheet.edit.section.lugar">LUGAR</div>
         <input type="text" class="edit-date-input" id="edit-lugar" placeholder="Ej. Edificio Trento, Carrasco" oninput="editState.lugar=this.value"/>
       </div>
-      <div class="edit-section">
-        <div class="edit-section-label" data-i18n="sheet.edit.section.mapa">LINK GOOGLE MAPS</div>
-        <div class="edit-section-hint" data-i18n="sheet.edit.section.mapa.hint" style="font-size:11px;color:var(--text3);margin-bottom:8px">Pegá el link de Google Maps (botón 'Compartir' → 'Copiar link'). El operario abre Maps/Waze directo.</div>
-        <input type="url" class="edit-date-input" id="edit-mapa" placeholder="https://maps.app.goo.gl/..." oninput="editState.mapa=this.value"/>
-      </div>
+      <div class="edit-section" id="edit-cliente-ubicacion"></div>
       <button class="edit-save-btn" id="edit-save-btn" data-i18n="btn.save.notion" onclick="saveServiceEdit()">💾 GUARDAR EN NOTION</button>
       <button class="report-pdf-btn" id="report-pdf-btn" onclick="openReportStep(editingService)" style="display:none">📄 Generar reporte</button>
       <div class="edit-section jornada-cta-wrap" id="edit-jornada-cta" style="display:none">
@@ -5914,7 +5910,7 @@ function renderStep() {
   const horaInicio = props['Hora Inicio']?.date?.start || '';
   const horaFmt = (horaInicio && horaInicio.includes('T')) ? new Date(horaInicio).toTimeString().slice(0, 5) : '';
   const lugar = props['Lugar']?.rich_text?.[0]?.plain_text || '';
-  const mapa = props['Mapa']?.url || '';
+  const mapa = resolveMapsUrl({ svcMapa: props['Mapa']?.url || '' });
   const tipo = props['Tipo de servicio']?.select?.name || '';
   const pais = props['País']?.select?.name || '';
   const tipoReg = props['Tipo de registro']?.select?.name || '';
@@ -8499,7 +8495,9 @@ async function openEditSheet(pageId) {
   }
   const lugar = props['Lugar']?.rich_text?.[0]?.plain_text || '';
   const mapa = props['Mapa']?.url || '';
-  editState = { estado: estadoActual, operario: operarioActual, fecha, hora, lugar, mapa, participantes: participantesActuales, pais: props['País']?.select?.name || '', nombre };
+  const contactoId = props['Contacto']?.relation?.[0]?.id || props['Contactos']?.relation?.[0]?.id || '';
+  editState = { estado: estadoActual, operario: operarioActual, fecha, hora, lugar, mapa, participantes: participantesActuales, pais: props['País']?.select?.name || '', nombre,
+    contactoId, clienteNombre: '', clienteMapa: '', propMapa: '' };
   document.getElementById('edit-sheet-title').textContent = nombre;
   const dateLocale = currentLang === 'pt-BR' ? 'pt-BR' : 'es-UY';
   document.getElementById('edit-sheet-sub').textContent = fecha ? new Date(fecha + 'T00:00:00').toLocaleDateString(dateLocale, { weekday: 'long', day: 'numeric', month: 'long' }) : t('sheet.alert.fecha');
@@ -8510,7 +8508,6 @@ async function openEditSheet(pageId) {
   document.getElementById('edit-fecha').value = fecha;
   document.getElementById('edit-hora').value = hora;
   document.getElementById('edit-lugar').value = lugar;
-  document.getElementById('edit-mapa').value = mapa;
   const nombreInput = document.getElementById('edit-nombre'); if (nombreInput) nombreInput.value = nombre;
   document.getElementById('edit-save-btn').textContent = t('btn.save.notion');
   document.getElementById('edit-save-btn').disabled = false;
@@ -8578,6 +8575,77 @@ async function openEditSheet(pageId) {
   document.getElementById('edit-overlay').classList.add('open');
   renderOperarioBtns(operarioActual);
   renderParticipantesBtns();
+  renderSvcClienteUbicacion(); // estado inicial (muestra lo que ya hay sin esperar el fetch)
+  resolveSvcUbicacion(pageId); // completa cliente/maps async
+}
+
+// ─────────────────────────────────────────────
+// BLOQUE CLIENTE + UBICACIÓN en el sheet de edición del servicio (B-5 / B-6)
+// ─────────────────────────────────────────────
+
+async function resolveSvcUbicacion(svcId) {
+  const svc = editingService;
+  if (!svc || svc.id !== svcId) return;
+  const p = svc.properties || {};
+  // Cliente: nombre + su Mapa heredable.
+  const contactoId = editState.contactoId;
+  if (contactoId) {
+    try {
+      const c = await callNotion('pages/' + contactoId, 'GET');
+      if (editingService?.id !== svcId) return;
+      const cp = c?.properties || {};
+      let nom = '';
+      for (const k in cp) { const tt = cp[k]?.title; if (Array.isArray(tt) && tt.length) { nom = tt.map(x => x.plain_text).join(''); break; } }
+      editState.clienteNombre = nom || '';
+      editState.clienteMapa = cp['Mapa']?.url || '';
+    } catch (_) {}
+  }
+  // Propuesta vinculada: su Mapa (precede al del cliente, no al del servicio).
+  const propId = p['Propuesta']?.relation?.[0]?.id;
+  if (propId) {
+    try {
+      const prop = await callNotion('pages/' + propId, 'GET');
+      if (editingService?.id !== svcId) return;
+      editState.propMapa = prop?.properties?.['Mapa']?.url || '';
+    } catch (_) {}
+  }
+  renderSvcClienteUbicacion();
+}
+
+function renderSvcClienteUbicacion() {
+  const box = document.getElementById('edit-cliente-ubicacion');
+  if (!box) return;
+  const url = resolveMapsUrl({ svcMapa: editState.mapa, propMapa: editState.propMapa, clienteMapa: editState.clienteMapa });
+  const nombre = editState.clienteNombre || '';
+  const hasOverride = !!(editState.mapa && editState.mapa.trim());
+  const overrideShown = box.getAttribute('data-override') === '1' || hasOverride;
+  const clienteRow = nombre
+    ? `<div class="info-row" style="margin-bottom:8px"><span class="info-label">${t('sheet.svc.cliente.label')}:</span> <span class="info-val">${esc(nombre)}</span></div>`
+    : '';
+  const ubicBtn = url
+    ? `<button type="button" class="estado-btn" onclick="openSvcUbicacion()">${t('sheet.svc.ubicacion.btn')}</button>`
+    : `<button type="button" class="estado-btn" disabled style="opacity:.5">${t('sheet.svc.ubicacion.btn')}</button>
+       <div style="font-size:11px;color:var(--text3);margin-top:4px">${t('sheet.svc.ubicacion.none')}</div>`;
+  const overrideLink = `<button type="button" onclick="toggleSvcUbicacionOverride()" style="background:none;border:none;color:var(--text3);font-size:11px;text-decoration:underline;cursor:pointer;padding:6px 0">${t('sheet.svc.ubicacion.override')}</button>`;
+  const overrideInput = overrideShown
+    ? `<div class="edit-section-label" style="margin-top:8px">${t('sheet.svc.ubicacion.override.label')}</div>
+       <div class="edit-section-hint" style="font-size:11px;color:var(--text3);margin-bottom:6px">${t('sheet.svc.ubicacion.override.hint')}</div>
+       <input type="url" class="edit-date-input" placeholder="https://maps.app.goo.gl/..." value="${esc(editState.mapa || '')}" oninput="editState.mapa=this.value"/>`
+    : '';
+  box.innerHTML = clienteRow + ubicBtn + ' ' + overrideLink + overrideInput;
+}
+
+function toggleSvcUbicacionOverride() {
+  const box = document.getElementById('edit-cliente-ubicacion');
+  if (!box) return;
+  box.setAttribute('data-override', box.getAttribute('data-override') === '1' ? '0' : '1');
+  renderSvcClienteUbicacion();
+}
+
+function openSvcUbicacion() {
+  const url = resolveMapsUrl({ svcMapa: editState.mapa, propMapa: editState.propMapa, clienteMapa: editState.clienteMapa });
+  if (!url) { alert(t('sheet.svc.ubicacion.none')); return; }
+  window.open(url, '_blank', 'noopener');
 }
 
 // ─────────────────────────────────────────────
