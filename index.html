@@ -1214,6 +1214,7 @@ body::before {
     <div class="coord-tab" id="ctab-propuestas" data-i18n="coord.tab.propuestas" onclick="setCoordTab('propuestas')">💼 Propuestas</div>
     <div class="coord-tab" id="ctab-contactos" data-i18n="coord.tab.contactos" onclick="setCoordTab('contactos')">👥 Clientes</div>
     <div class="coord-tab" id="ctab-pedidos" data-i18n="coord.tab.pedidos" onclick="setCoordTab('pedidos')">📦 Pedidos</div>
+    <div class="coord-tab" id="ctab-limpieza" style="display:none" onclick="setCoordTab('limpieza')">🧹 Limpieza</div>
     <div class="coord-tab" id="ctab-comunicaciones" data-i18n="coord.tab.mensajes" onclick="setCoordTab('comunicaciones')">💬 Mensajes</div>
   </div>
   <div id="alerts-banner-coord"></div>
@@ -1247,6 +1248,10 @@ body::before {
       <div class="edit-sheet-header">
         <div class="edit-sheet-title" id="edit-sheet-title" data-i18n="sheet.edit.title.default">Editar servicio</div>
         <div class="edit-sheet-sub" id="edit-sheet-sub"></div>
+      </div>
+      <div class="edit-section">
+        <div class="edit-section-label" data-i18n="sheet.edit.section.nombre">NOMBRE DEL SERVICIO</div>
+        <input type="text" class="edit-date-input" id="edit-nombre" oninput="editState.nombre=this.value"/>
       </div>
       <div class="edit-section">
         <div class="edit-section-label" data-i18n="sheet.edit.section.estado">ESTADO</div>
@@ -1416,6 +1421,14 @@ body::before {
       <div class="edit-sheet-sub" id="report-step-sub">Agregá una observación para el cliente (opcional).</div>
     </div>
     <div id="report-step-body" style="padding:16px 20px 24px"></div>
+  </div>
+</div>
+<div class="edit-overlay" id="merge-plan-overlay" onclick="if(event.target.id==='merge-plan-overlay')closeMergePlan()">
+  <div class="edit-sheet" id="merge-plan-sheet">
+    <button class="sheet-close-btn" type="button" aria-label="Cerrar" onclick="closeMergePlan()">×</button>
+    <div class="edit-sheet-handle"></div>
+    <div class="edit-sheet-header"><div class="edit-sheet-title">🔀 Plan de fusión</div><div class="edit-sheet-sub" id="merge-plan-sub"></div></div>
+    <div id="merge-plan-body" style="padding:16px 20px 24px"></div>
   </div>
 </div>
 <!-- Consentimiento legal — se muestra una sola vez por dispositivo (sibling de body) -->
@@ -2009,6 +2022,7 @@ const TRANSLATIONS = {
     'chart.ingresos': 'Ingresos',
     'chart.gastos': 'Gastos',
     'sheet.edit.title.default': 'Editar servicio',
+    'sheet.edit.section.nombre': 'NOMBRE DEL SERVICIO',
     'sheet.edit.section.estado': 'ESTADO',
     'sheet.edit.section.operario': 'PILOTO',
     'sheet.edit.section.participantes': 'AYUDANTES',
@@ -2558,6 +2572,7 @@ const TRANSLATIONS = {
     'chart.ingresos': 'Receita',
     'chart.gastos': 'Despesas',
     'sheet.edit.title.default': 'Editar serviço',
+    'sheet.edit.section.nombre': 'NOME DO SERVIÇO',
     'sheet.edit.section.estado': 'STATUS',
     'sheet.edit.section.operario': 'PILOTO',
     'sheet.edit.section.participantes': 'AJUDANTES',
@@ -3402,6 +3417,7 @@ async function getMyServices(userId) {
   const validStates = ['📋 Pendiente', '🔄 Asignado', '✈️ En curso'];
   const userCountryNotion = COUNTRY_NOTION_MAP[user?.country] || null;
   let results = (data.results || []).filter(r => {
+    if (esArchivado(r)) return false;
     const props = r.properties || {};
     const estado = props['Estado']?.select?.name || '';
     const operarioApp = props['Operario App']?.select?.name || '';
@@ -4223,7 +4239,8 @@ function montoOf(props, kind = 'gasto') {
 function esFinanciamiento(r) { return !!(r?.properties?.['Financiamiento']?.select?.name); }
 // Tipo interno: cambio de moneda / depósito propio / traspaso → NO es gasto ni ingreso real.
 function tipoInterno(r) { return r?.properties?.['Tipo interno']?.select?.name || ''; }
-function kpiIncluido(r) { return !(r?.properties?.['Excluir de KPIs']?.checkbox === true || esFinanciamiento(r) || !!tipoInterno(r)); }
+function esArchivado(r) { return r?.properties?.['🗄️ Archivado']?.checkbox === true; }
+function kpiIncluido(r) { return !(esArchivado(r) || r?.properties?.['Excluir de KPIs']?.checkbox === true || esFinanciamiento(r) || !!tipoInterno(r)); }
 // Badge para una card: financiamiento (préstamo) / tipo interno (💱 cambio, 🏦 depósito, 🔁 traspaso) / interno genérico.
 function kpiBadgeHTML(props) {
   if (props?.['Financiamiento']?.select?.name) return ' <span class="kpi-excluido-tag">🏦 préstamo</span>';
@@ -5284,10 +5301,14 @@ function setTab(tab) {
   renderServices(_allServices);
 }
 
+function esDireccion(u = currentUser) { return !!(u?.role && u.role.includes('Dirección')); }
+function puedeEditarNombre(u = currentUser) { return !!(u?.role && (u.role.includes('Coordinador') || u.role.includes('CEO') || u.role.includes('Dirección'))); }
+
 function setCoordTab(tab) {
+  if (tab === 'limpieza' && !esDireccion()) return;
   activeCoordTab = tab;
   markUserActive();
-  ['inicio', 'resumen', 'servicios', 'pruebas', 'relevamientos', 'propuestas', 'contactos', 'pedidos', 'comunicaciones'].forEach(t => {
+  ['inicio', 'resumen', 'servicios', 'pruebas', 'relevamientos', 'propuestas', 'contactos', 'pedidos', 'comunicaciones', 'limpieza'].forEach(t => {
     const el = document.getElementById('ctab-' + t);
     if (el) el.classList.toggle('active', t === tab);
   });
@@ -5318,7 +5339,231 @@ function setCoordTab(tab) {
   else if (tab === 'propuestas') renderCoordPropuestas();
   else if (tab === 'contactos') renderCoordContactos();
   else if (tab === 'pedidos') renderCoordPedidos();
+  else if (tab === 'limpieza') renderLimpieza();
   else renderComunicaciones();
+}
+
+// ── Pestaña Limpieza (solo Dirección) ──────────────────────────────────────
+let limpiezaSubtab = 'clientes';
+function renderLimpieza() {
+  if (!esDireccion()) return;
+  const cont = document.getElementById('coord-content');
+  if (!cont) return;
+  cont.innerHTML = `
+    <div style="display:flex;gap:8px;padding:12px 4px">
+      <button class="estado-btn ${limpiezaSubtab==='clientes'?'active':''}" onclick="setLimpiezaSubtab('clientes')">👥 Clientes duplicados</button>
+      <button class="estado-btn ${limpiezaSubtab==='servicios'?'active':''}" onclick="setLimpiezaSubtab('servicios')">📋 Servicios a revisar</button>
+      <label style="margin-left:auto;font-size:12px;color:var(--text3);display:flex;align-items:center;gap:6px"><input type="checkbox" id="limpieza-show-archived" onchange="renderLimpieza()"> Mostrar archivados</label>
+    </div>
+    <div id="limpieza-body"><div class="spinner" style="margin:24px auto"></div></div>`;
+  if (limpiezaSubtab === 'clientes') renderLimpiezaDuplicados();
+  else renderLimpiezaServicios();
+}
+function setLimpiezaSubtab(t) { limpiezaSubtab = t; renderLimpieza(); }
+async function loadAllClientesGlobal() {
+  const data = await callNotionAll(`databases/${CONTACTOS_DB_ID}/query`, {});
+  return (data.results || []).filter(c => !esArchivado(c));
+}
+function normName(s){ return (s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/\s+/g,' ').trim(); }
+function normTel(s){ return (s||'').replace(/\D/g,''); }
+function clienteNombre(c){ return c.properties?.['Nombre / Empresa']?.title?.[0]?.plain_text || ''; }
+function clientePais(c){ return c.properties?.['País']?.select?.name || ''; }
+// Agrupa por mismo teléfono, mismo email, o nombre igual normalizado. Devuelve solo grupos de 2+.
+function detectDuplicateClients(list){
+  const byKey = {};
+  const add = (k, c) => { if(!k) return; (byKey[k] = byKey[k] || []).push(c); };
+  list.forEach(c => {
+    const p = c.properties || {};
+    add('tel:'+normTel(p['Teléfono / WhatsApp']?.phone_number), c);
+    add('mail:'+((p['Email']?.email||'').toLowerCase().trim()), c);
+    add('name:'+normName(clienteNombre(c)), c);
+  });
+  // dedup de grupos por set de ids
+  const seen = new Set(), groups = [];
+  Object.entries(byKey).forEach(([k, arr]) => {
+    if (k.endsWith(':') || arr.length < 2) return;
+    const ids = arr.map(c=>c.id).sort().join('|');
+    if (seen.has(ids)) return; seen.add(ids); groups.push(arr);
+  });
+  return groups;
+}
+async function renderLimpiezaDuplicados(){
+  const body = document.getElementById('limpieza-body');
+  const showArch = document.getElementById('limpieza-show-archived')?.checked;
+  body.innerHTML = '<div class="spinner" style="margin:24px auto"></div>';
+  try {
+    const list = await loadAllClientesGlobal();
+    const groups = detectDuplicateClients(list);
+    let archivedHtml = '';
+    if (showArch) {
+      const allData = await callNotionAll(`databases/${CONTACTOS_DB_ID}/query`, {});
+      const archived = (allData.results || []).filter(c => esArchivado(c));
+      if (archived.length) {
+        archivedHtml = `<div style="margin-top:16px">
+          <div style="font-weight:700;margin-bottom:8px;color:var(--text3)">🗄️ Archivados (${archived.length})</div>
+          ${archived.map(c=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-top:1px solid var(--border2)">
+            <span>${esc(clienteNombre(c)||'(sin nombre)')} <span style="color:var(--text3);font-size:11px">${esc(clientePais(c))}</span></span>
+            <button class="estado-btn" onclick="unarchive('${esc(c.id)}','clientes')">Desarchivar</button>
+          </div>`).join('')}
+        </div>`;
+      }
+    }
+    if (!groups.length){
+      body.innerHTML = '<div style="padding:24px;color:var(--text3);text-align:center">✅ Sin clientes duplicados ('+list.length+' clientes revisados).</div>' + archivedHtml;
+      return;
+    }
+    body.innerHTML = groups.map((g,gi)=>`
+      <div style="border:1px solid var(--border2);border-radius:12px;padding:12px;margin:10px 4px">
+        <div style="font-weight:700;margin-bottom:8px">Posible duplicado (${g.length})</div>
+        ${g.map(c=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0">
+          <span>${esc(clienteNombre(c)||'(sin nombre)')} <span style="color:var(--text3);font-size:11px">${esc(clientePais(c))}</span></span>
+          <button class="estado-btn" onclick="chooseWinner('${gi}','${esc(c.id)}')">Queda este</button>
+        </div>`).join('')}
+      </div>`).join('') + archivedHtml;
+    window._limpiezaGroups = groups; // para chooseWinner/startMerge
+  } catch(e){ body.innerHTML = '<div style="padding:24px;color:#c45">Error: '+esc(e.message)+'</div>'; }
+}
+function chooseWinner(gi, winnerId){
+  const g = (window._limpiezaGroups||[])[gi]; if(!g) return;
+  const losers = g.filter(c=>c.id!==winnerId);
+  startMerge(winnerId, losers.map(c=>c.id)); // Task 6
+}
+function closeMergePlan(){ document.getElementById('merge-plan-overlay').classList.remove('open'); }
+async function buildMergePlan(winnerId, loserIds){
+  const norm = id => (id||'').replace(/-/g,'');
+  const loserSet = new Set(loserIds.map(norm));
+  const rel0 = r => norm(r?.relation?.[0]?.id);
+  const relHas = (arr, set) => (arr||[]).some(x => set.has(norm(x.id)));
+  // Servicios: el proxy descarta el filtro server-side → traer TODO y filtrar client-side por Contacto.
+  const [svcAll, propAll, ingAll] = await Promise.all([
+    callNotionAll(`databases/${DB_ID}/query`, {}),
+    callNotionAll(`databases/${PROPUESTAS_DB_ID}/query`, {}),
+    callNotionAll(`databases/${INGRESOS_DB_ID}/query`, {}),
+  ]);
+  const servicios = (svcAll.results||[]).filter(s => relHas(s.properties?.['Contacto']?.relation, loserSet));
+  const svcIds = new Set(servicios.map(s=>norm(s.id)));
+  const propuestas = (propAll.results||[]).filter(p => relHas(p.properties?.['Contacto']?.relation, loserSet));
+  const ingresos = (ingAll.results||[]).filter(i =>
+    relHas(i.properties?.['Cuenta']?.relation, loserSet) ||
+    svcIds.has(rel0(i.properties?.['Servicio vinculado']))
+  );
+  return { servicios, propuestas, ingresos };
+}
+async function startMerge(winnerId, loserIds){
+  if (!esDireccion()) return;
+  const ov = document.getElementById('merge-plan-overlay');
+  const body = document.getElementById('merge-plan-body');
+  ov.classList.add('open');
+  body.innerHTML = '<div class="spinner" style="margin:24px auto"></div>';
+  const all = window._limpiezaGroups ? window._limpiezaGroups.flat() : [];
+  const winner = all.find(c=>c.id===winnerId);
+  const losers = loserIds.map(id => all.find(c=>c.id===id)).filter(Boolean);
+  const plan = await buildMergePlan(winnerId, loserIds);
+  const paisW = clientePais(winner);
+  const cruzaPais = losers.some(l => (clientePais(l) || '') !== (paisW || ''));
+  window._mergeCtx = { winnerId, loserIds, plan };
+  document.getElementById('merge-plan-sub').textContent = 'Revisá antes de confirmar.';
+  body.innerHTML = `
+    <p>Queda: <b>${esc(clienteNombre(winner))}</b> ${esc(paisW)}</p>
+    <p>Se archivan: ${losers.map(l=>'<b>'+esc(clienteNombre(l))+'</b> '+esc(clientePais(l))).join(', ')}</p>
+    <p>Se reapuntan al que queda:</p>
+    <ul>
+      <li>${plan.servicios.length} servicios</li>
+      <li>${plan.propuestas.length} propuestas</li>
+      <li>${plan.ingresos.length} ingresos/cobros</li>
+    </ul>
+    ${cruzaPais ? '<p style="color:#c45;font-weight:700">⚠️ Países distintos — no se puede fusionar entre países.</p>' : ''}
+    <button class="estado-btn" onclick="closeMergePlan()">Cancelar</button>
+    ${cruzaPais ? '' : '<button class="estado-btn active" onclick="executeMerge()">Confirmar fusión</button>'}`;
+}
+async function executeMerge(){
+  if (!esDireccion()) return;
+  const ctx = window._mergeCtx; if(!ctx) return;
+  const norm = id => (id||'').replace(/-/g,'');
+  const loserSet = new Set(ctx.loserIds.map(norm));
+  const repoint = arr => { // reemplaza ids perdedores por el ganador, sin duplicar, conservando otros
+    const ids = (arr||[]).map(x=>x.id).filter(id => !loserSet.has(norm(id)));
+    if (!ids.map(norm).includes(norm(ctx.winnerId))) ids.push(ctx.winnerId);
+    return ids.map(id => ({ id }));
+  };
+  const relHasLoser = arr => (arr||[]).some(x => loserSet.has(norm(x.id)));
+  const body = document.getElementById('merge-plan-body');
+  const steps = [
+    ...ctx.plan.servicios.map(s => ({ id:s.id, res:'servicios', prop:'Contacto', cur:s.properties?.['Contacto']?.relation })),
+    ...ctx.plan.propuestas.map(p => ({ id:p.id, res:'propuestas', prop:'Contacto', cur:p.properties?.['Contacto']?.relation })),
+    ...ctx.plan.ingresos.filter(i => relHasLoser(i.properties?.['Cuenta']?.relation)).map(i => ({ id:i.id, res:'ingresos', prop:'Cuenta', cur:i.properties?.['Cuenta']?.relation })),
+  ];
+  try {
+    for (let k=0;k<steps.length;k++){
+      const st = steps[k];
+      body.innerHTML = `<div class="spinner" style="margin:8px auto"></div><p>Reapuntando ${k+1}/${steps.length}…</p>`;
+      await updateServiceProps(st.id, { [st.prop]: { relation: repoint(st.cur) } });
+      syncAfterWrite(st.id, st.res);
+    }
+    // Archivar perdedores al final
+    for (const lid of ctx.loserIds){ await updateServiceProps(lid, { '🗄️ Archivado': { checkbox: true } }); syncAfterWrite(lid, 'clientes'); }
+    body.innerHTML = '<p>✅ Fusión completa.</p><button class="estado-btn" onclick="closeMergePlan();renderLimpieza()">Cerrar</button>';
+  } catch(e){
+    body.innerHTML = '<p style="color:#c45">❌ Se detuvo: '+esc(e.message)+'. Lo ya hecho quedó; podés reintentar (es idempotente).</p><button class="estado-btn" onclick="closeMergePlan()">Cerrar</button>';
+  }
+}
+async function renderLimpiezaServicios(){
+  const body = document.getElementById('limpieza-body');
+  const showArch = document.getElementById('limpieza-show-archived')?.checked;
+  body.innerHTML = '<div class="spinner" style="margin:24px auto"></div>';
+  const data = await callNotionAll(`databases/${DB_ID}/query`, {});
+  let svc = (data.results||[]);
+  if (!showArch) svc = svc.filter(s => !esArchivado(s));
+  // Agrupar por cliente (Contacto[0]); marcar nombres inconsistentes dentro del grupo.
+  const byCli = {};
+  svc.forEach(s => { const cid = s.properties?.['Contacto']?.relation?.[0]?.id || 'sin-cliente'; (byCli[cid] = byCli[cid] || []).push(s); });
+  const grupos = Object.entries(byCli).filter(([,arr]) => arr.length>1 || arr.some(s => /\s{2,}|\s$/.test(s.properties?.['Nombre del servicio']?.title?.[0]?.plain_text||'')));
+  body.innerHTML = grupos.map(([cid,arr]) => {
+    const nombres = [...new Set(arr.map(s => (s.properties?.['Nombre del servicio']?.title?.[0]?.plain_text||'').trim()))];
+    const inconsistente = nombres.length > 1;
+    return `<div style="border:1px solid var(--border2);border-radius:12px;padding:12px;margin:10px 4px">
+      <div style="font-weight:700">${arr.length} servicios ${inconsistente?'· ⚠️ nombres distintos':''}</div>
+      ${arr.map(s=>{
+        const archivado = esArchivado(s);
+        return `<div style="display:flex;justify-content:space-between;gap:8px;padding:4px 0${archivado?';opacity:0.6':''}">
+          <input class="edit-date-input" style="flex:1" value="${esc((s.properties?.['Nombre del servicio']?.title?.[0]?.plain_text||''))}" onchange="renameOneService('${esc(s.id)}',this.value)"${archivado?' disabled':''}/>
+          ${archivado
+            ? `<button class="estado-btn" onclick="unarchive('${esc(s.id)}','servicios')">Desarchivar</button>`
+            : `<button class="estado-btn" onclick="archiveService('${esc(s.id)}')">🗄️</button>`
+          }
+        </div>`;
+      }).join('')}
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <input id="bulk-${esc(cid)}" class="edit-date-input" placeholder="Renombrar TODOS a…" style="flex:1"/>
+        <button class="estado-btn active" onclick="bulkRenameServices('${esc(cid)}')">Aplicar</button>
+      </div>
+    </div>`;
+  }).join('') || '<div style="padding:24px;color:var(--text3);text-align:center">✅ Nada para revisar.</div>';
+}
+async function renameOneService(id, nombre){
+  const n = String(nombre||'').trim(); if(!n) return;
+  await updateServiceProps(id, { 'Nombre del servicio': { title: [{ text: { content: n } }] } });
+  syncAfterWrite(id, 'servicios');
+}
+async function bulkRenameServices(cid){
+  const n = String(document.getElementById('bulk-'+cid)?.value||'').trim(); if(!n){ alert('Escribí el nombre.'); return; }
+  const data = await callNotionAll(`databases/${DB_ID}/query`, {});
+  const arr = (data.results||[]).filter(s => (s.properties?.['Contacto']?.relation?.[0]?.id||'')===cid && !esArchivado(s));
+  if (!confirm(`Renombrar ${arr.length} servicios a "${n}"?`)) return;
+  for (const s of arr){ await updateServiceProps(s.id, { 'Nombre del servicio': { title: [{ text: { content: n } }] } }); syncAfterWrite(s.id, 'servicios'); }
+  renderLimpieza();
+}
+async function archiveService(id){
+  if (!confirm('Archivar este servicio? (reversible)')) return;
+  await updateServiceProps(id, { '🗄️ Archivado': { checkbox: true } });
+  syncAfterWrite(id, 'servicios');
+  renderLimpieza();
+}
+async function unarchive(id, resource){
+  if (!confirm('Desarchivar este registro?')) return;
+  await updateServiceProps(id, { '🗄️ Archivado': { checkbox: false } });
+  syncAfterWrite(id, resource);
+  renderLimpieza();
 }
 
 // Sesión inválida o expirada (el proxy respondió 401): limpiar token y volver al login.
@@ -6379,8 +6624,8 @@ async function renderCEOMetricas() {
     // El fallback de búsqueda de Servicios ignora el filtro del server → filtramos por Estado en el cliente.
     const estadoDe = s => (s.properties?.['Estado']?.select?.name) || '';
     const enPeriodo = s => { const f = s.properties?.['Fecha programada']?.date?.start || ''; return f ? (f >= start && f <= end) : (ceoPeriod.mode === 'todo'); };
-    const svcComp   = applyCountryFilter(svcAllData.results || []).filter(s => estadoDe(s).includes('Completado') && enPeriodo(s));
-    const svcActivo = applyCountryFilter(svcAllData.results || []).filter(s => estadoDe(s).includes('En curso') || estadoDe(s).includes('Asignado'));
+    const svcComp   = applyCountryFilter(svcAllData.results || []).filter(s => !esArchivado(s) && estadoDe(s).includes('Completado') && enPeriodo(s));
+    const svcActivo = applyCountryFilter(svcAllData.results || []).filter(s => !esArchivado(s) && (estadoDe(s).includes('En curso') || estadoDe(s).includes('Asignado')));
 
     _ceoDataTime = Date.now();
     const ingSplit = sumByMoneda(ingData.results, 'ingreso');
@@ -6494,6 +6739,7 @@ async function renderCEOServicios() {
       const notionVal = COUNTRY_NOTION_MAP[ceoViewCountry];
       results = results.filter(s => s.properties?.['País']?.select?.name === notionVal);
     }
+    results = results.filter(s => !esArchivado(s));
     if (!results.length) { content.innerHTML = `<div class="coord-empty">${t('ceo.empty.servicios')}</div>`; return; }
     const ESTADO_CLASS = { '✅ Completado': 'estado-completado', '✈️ En curso': 'estado-en-curso', '🔄 Asignado': 'estado-asignado' };
     const paiFlag = { '🇺🇾 Uruguay': '🇺🇾', '🇧🇷 Brasil': '🇧🇷', '🇵🇦 Panamá': '🇵🇦', '🇬🇹 Guatemala': '🇬🇹', '🇲🇽 México': '🇲🇽' };
@@ -7346,6 +7592,8 @@ async function loadCoordinator() {
   loadAlerts(currentUser.role, 'alerts-banner-coord');
   // Arrancamos en 🏠 Inicio (centro de mando, tab default). setCoordTab deja todo
   // consistente: tab activo, toolbar, month-nav, view-toggle visible y el render.
+  const limpiezaTab = document.getElementById('ctab-limpieza');
+  if (limpiezaTab) limpiezaTab.style.display = esDireccion() ? '' : 'none';
   setCoordTab('inicio');
 }
 
@@ -8173,7 +8421,7 @@ async function openEditSheet(pageId) {
   }
   const lugar = props['Lugar']?.rich_text?.[0]?.plain_text || '';
   const mapa = props['Mapa']?.url || '';
-  editState = { estado: estadoActual, operario: operarioActual, fecha, hora, lugar, mapa, participantes: participantesActuales, pais: props['País']?.select?.name || '' };
+  editState = { estado: estadoActual, operario: operarioActual, fecha, hora, lugar, mapa, participantes: participantesActuales, pais: props['País']?.select?.name || '', nombre };
   document.getElementById('edit-sheet-title').textContent = nombre;
   const dateLocale = currentLang === 'pt-BR' ? 'pt-BR' : 'es-UY';
   document.getElementById('edit-sheet-sub').textContent = fecha ? new Date(fecha + 'T00:00:00').toLocaleDateString(dateLocale, { weekday: 'long', day: 'numeric', month: 'long' }) : t('sheet.alert.fecha');
@@ -8185,6 +8433,7 @@ async function openEditSheet(pageId) {
   document.getElementById('edit-hora').value = hora;
   document.getElementById('edit-lugar').value = lugar;
   document.getElementById('edit-mapa').value = mapa;
+  const nombreInput = document.getElementById('edit-nombre'); if (nombreInput) nombreInput.value = nombre;
   document.getElementById('edit-save-btn').textContent = t('btn.save.notion');
   document.getElementById('edit-save-btn').disabled = false;
   const delBtn = document.getElementById('delete-svc-btn');
@@ -8563,6 +8812,9 @@ async function saveServiceEdit() {
   btn.textContent = t('btn.saving'); btn.disabled = true;
   try {
     const props = {};
+    const nombreSvc = String(editState.nombre || '').trim();
+    if (!nombreSvc) { btn.textContent = t('btn.save.notion'); btn.disabled = false; alert('El nombre del servicio no puede quedar vacío.'); return; }
+    props['Nombre del servicio'] = { title: [{ text: { content: nombreSvc } }] };
     if (editState.estado) props['Estado'] = { select: { name: editState.estado } };
     if (editState.fecha) props['Fecha programada'] = { date: { start: editState.fecha } };
     // Hora Inicio: combinar fecha + hora en ISO con time. Si no hay hora, limpiar la property.
@@ -8584,6 +8836,7 @@ async function saveServiceEdit() {
     const participantes = Array.isArray(editState.participantes) ? editState.participantes : [];
     props['Operarios participantes'] = { multi_select: participantes.map(name => ({ name })) };
     await updateServiceProps(editingService.id, props);
+    syncAfterWrite(editingService.id, 'servicios');
     closeEditSheet();
     await renderCoordServicios();
   } catch (e) {
@@ -8973,8 +9226,8 @@ async function renderCoordResumen() {
     // El search-fallback de la DB Servicios IGNORA el filtro de fecha server-side → re-filtrar por mes
     // en CLIENTE (si no, "Días trabajados" y "Clientes" mostraban TODO y no se movían al cambiar de mes).
     const inRango = (s, st, en) => { const f = s.properties?.['Fecha programada']?.date?.start || ''; return !!f && f >= st && f <= en; };
-    const svcCur = (svcCurRaw.results || []).filter(inPais).filter(s => inRango(s, cur.start, cur.end));
-    const svcPrev = (svcPrevRaw.results || []).filter(inPais).filter(s => inRango(s, prev.start, prev.end));
+    const svcCur = (svcCurRaw.results || []).filter(inPais).filter(s => !esArchivado(s) && inRango(s, cur.start, cur.end));
+    const svcPrev = (svcPrevRaw.results || []).filter(inPais).filter(s => !esArchivado(s) && inRango(s, prev.start, prev.end));
 
     // Helpers de lectura de servicios.
     const estadoDe = s => s.properties?.['Estado']?.select?.name || '';
@@ -9099,7 +9352,7 @@ async function renderCoordInicio() {
   try {
     const items = await fetchCoordItemsForMonth();
     if (activeCoordTab !== myTab) return; // tab cambió → abortar
-    _coordAllServices = items; // SIN filtro de tipo → todos (servicios + jornadas + pruebas + relevamientos)
+    _coordAllServices = items.filter(s => !esArchivado(s)); // SIN filtro de tipo → todos (servicios + jornadas + pruebas + relevamientos)
     if (!selectedCoordDay) selectedCoordDay = 'all';
     renderWeekStrip(_coordAllServices);
     // El toggle Lista/Tablero/Calendario solo se ve en Inicio. renderCoordServiciosView lo muestra (display:flex) y decide qué pintar.
@@ -9123,6 +9376,7 @@ async function renderCoordServicios() {
     const items = await fetchCoordItemsForMonth();
     if (activeCoordTab !== myTab) return; // tab cambió → abortar
     _coordAllServices = items.filter(s => {
+      if (esArchivado(s)) return false;
       const tipoReg = s.properties?.['Tipo de registro']?.select?.name || '';
       return !tipoReg.includes('Relevamiento') && !tipoReg.includes('Prueba');
     });
@@ -9147,6 +9401,7 @@ async function renderCoordPruebas() {
     const items = await fetchCoordItemsForMonth();
     if (activeCoordTab !== myTab) return;
     _coordAllServices = items.filter(s => {
+      if (esArchivado(s)) return false;
       const tipoReg = s.properties?.['Tipo de registro']?.select?.name || '';
       return tipoReg.includes('Prueba');
     });
@@ -9170,6 +9425,7 @@ async function renderCoordRelevamientos() {
     const items = await fetchCoordItemsForMonth();
     if (activeCoordTab !== myTab) return;
     _coordAllServices = items.filter(s => {
+      if (esArchivado(s)) return false;
       const tipoReg = s.properties?.['Tipo de registro']?.select?.name || '';
       return tipoReg.includes('Relevamiento');
     });
@@ -9691,7 +9947,7 @@ async function renderClientesView(containerId) {
     } else {
       data = await notionQuery();
     }
-    _coordAllContacts = (data.results || []).filter(recEnPaisNotion); // aislar clientes por país (socios)
+    _coordAllContacts = (data.results || []).filter(c => !esArchivado(c)).filter(recEnPaisNotion); // aislar clientes por país (socios)
     renderContactList(_coordAllContacts);
   } catch (e) {
     content.innerHTML = `<div class="coord-empty">No se pudieron cargar los clientes<br><small>${esc(e.message)}</small></div>`;
@@ -9709,7 +9965,7 @@ async function renderCoordContactos() {
     if (cf) queryBody.filter = cf;
     const data = await callNotion(`databases/${CONTACTOS_DB_ID}/query`, 'POST', queryBody);
     if (activeCoordTab !== myTab) return;
-    _coordAllContacts = data.results || [];
+    _coordAllContacts = (data.results || []).filter(c => !esArchivado(c));
     renderContactList(_coordAllContacts);
   } catch (e) {
     if (activeCoordTab !== myTab) return;
@@ -9810,10 +10066,8 @@ function buildContactSheetBody(mode) {
     }</div></div>`;
   }
 
-  return (mode === 'create'
-    ? `<div class="edit-section"><div class="edit-section-label">${t('sheet.contact.section.nombre')}</div>
-        <input type="text" class="edit-date-input" placeholder="${t('sheet.contact.nombre.placeholder')}" value="${s.nombre || ''}" oninput="contactEditState.nombre=this.value" style="font-size:14px"/></div>`
-    : '') +
+  return `<div class="edit-section"><div class="edit-section-label">${t('sheet.contact.section.nombre')}</div>
+        <input type="text" id="contact-nombre-input" class="edit-date-input" placeholder="${t('sheet.contact.nombre.placeholder')}" value="${esc(s.nombre || '')}" oninput="contactEditState.nombre=this.value" style="font-size:14px"/></div>` +
     btnGroup(t('sheet.contact.section.estado'), 'estado', ESTADOS) +
     btnGroup(t('sheet.contact.section.tipo'), 'tipo', TIPOS) +
     btnGroup(t('sheet.contact.section.pais'), 'pais', PAISES) +
@@ -9847,6 +10101,7 @@ async function openContactSheet(pageId) {
   if (!editingContact || !editingContact.properties) return;
   const props = editingContact.properties || {};
   contactEditState = {
+    nombre: props['Nombre / Empresa']?.title?.[0]?.plain_text || '',
     estado: props['Estado']?.select?.name || '',
     tipo: props['Tipo de cliente']?.select?.name || '',
     pais: props['País']?.select?.name || '',
@@ -9870,6 +10125,10 @@ async function openContactSheet(pageId) {
     if (btn) btn.style.display = 'none';
     body.querySelectorAll('input, select, textarea').forEach(el => { el.disabled = true; });
     body.querySelectorAll('.estado-btn').forEach(el => { el.style.pointerEvents = 'none'; el.style.opacity = '0.6'; });
+    // El CEO puede editar SOLO el nombre (no el resto).
+    const nombreInput = document.getElementById('contact-nombre-input');
+    if (nombreInput) nombreInput.disabled = false;
+    if (btn) { btn.style.display = ''; btn.textContent = t('btn.save.notion'); btn.disabled = false; }
   } else if (btn) {
     btn.style.display = ''; btn.textContent = t('btn.save.notion'); btn.disabled = false;
   }
@@ -9916,11 +10175,20 @@ function contactOverlayClick(e) { if (e.target.id === 'contact-overlay') closeCo
 function closeContactSheet() { document.getElementById('contact-overlay').classList.remove('open'); editingContact = null; }
 
 async function saveContactEdit() {
-  if (currentUser?.role && currentUser.role.includes('CEO')) return; // CEO = solo lectura, no guarda
+  const esCEO = !!(currentUser?.role && currentUser.role.includes('CEO'));
+  const s = contactEditState;
+  const nombre = String(s.nombre || '').trim();
+  if (!nombre) { alert(t('sheet.contact.error.nombre')); return; }
   const btn = document.getElementById('contact-save-btn');
   btn.textContent = t('btn.saving'); btn.disabled = true;
   try {
-    const s = contactEditState;
+    // CEO: SOLO el nombre (el resto de la ficha es solo-lectura).
+    if (esCEO) {
+      if (contactSheetMode !== 'edit' || !editingContact) { btn.disabled = false; return; }
+      await updateServiceProps(editingContact.id, { 'Nombre / Empresa': { title: [{ text: { content: nombre } }] } });
+      syncAfterWrite(editingContact.id, 'clientes');
+      closeContactSheet(); await refreshContactsView(); return;
+    }
     const props = {};
     if (s.estado) props['Estado'] = { select: { name: s.estado } };
     props['Tipo de cliente'] = { select: s.tipo ? { name: s.tipo } : null };
@@ -9932,13 +10200,9 @@ async function saveContactEdit() {
     props['Ciudad / Zona'] = { rich_text: s.ciudad ? [{ text: { content: s.ciudad } }] : [] };
     props['Interlocutor'] = { rich_text: s.interlocutor ? [{ text: { content: s.interlocutor } }] : [] };
     props['Notas'] = { rich_text: s.notas ? [{ text: { content: s.notas } }] : [] };
+    props['Nombre / Empresa'] = { title: [{ text: { content: nombre } }] };
 
     if (contactSheetMode === 'create') {
-      if (!s.nombre.trim()) {
-        btn.textContent = t('btn.create.notion'); btn.disabled = false;
-        alert(t('sheet.contact.error.nombre')); return;
-      }
-      // Dedup: si ya hay un cliente con ese teléfono o email, avisar y NO duplicar.
       const orf = [];
       if (s.tel) orf.push({ property: 'Teléfono / WhatsApp', phone_number: { equals: s.tel } });
       if (s.email) orf.push({ property: 'Email', email: { equals: s.email } });
@@ -9951,12 +10215,11 @@ async function saveContactEdit() {
           return;
         }
       }
-      props['Nombre / Empresa'] = { title: [{ text: { content: s.nombre.trim() } }] };
       const created = await callNotion('pages', 'POST', { parent: { database_id: CONTACTOS_DB_ID }, properties: props });
-      syncAfterWrite(created?.id, 'clientes'); // refleja el alta en la base nueva (flag fc_db_writesync)
+      syncAfterWrite(created?.id, 'clientes');
     } else {
       await updateServiceProps(editingContact.id, props);
-      syncAfterWrite(editingContact.id, 'clientes'); // refleja la edición en la base nueva (flag fc_db_writesync)
+      syncAfterWrite(editingContact.id, 'clientes');
     }
     closeContactSheet();
     await refreshContactsView();
