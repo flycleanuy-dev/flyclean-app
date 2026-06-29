@@ -3463,6 +3463,14 @@ async function getMyServices(userId) {
   return results;
 }
 
+// Precedencia de ubicación (Fase B): el override del SERVICIO gana sobre el de la PROPUESTA,
+// que gana sobre el del CLIENTE. Devuelve la primera URL no vacía, o null si no hay ninguna.
+// Reusado por el sheet del servicio (botón Ubicación) y por el step 0 del operario.
+function resolveMapsUrl({ svcMapa, propMapa, clienteMapa } = {}) {
+  const pick = (v) => (typeof v === 'string' && v.trim()) ? v.trim() : null;
+  return pick(svcMapa) || pick(propMapa) || pick(clienteMapa) || null;
+}
+
 async function updateServiceProps(pageId, properties) {
   return callNotion(`pages/${pageId}`, 'PATCH', { properties });
 }
