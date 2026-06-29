@@ -5440,7 +5440,7 @@ async function startMerge(winnerId, loserIds){
   const losers = loserIds.map(id => all.find(c=>c.id===id)).filter(Boolean);
   const plan = await buildMergePlan(winnerId, loserIds);
   const paisW = clientePais(winner);
-  const cruzaPais = losers.some(l => clientePais(l) && paisW && clientePais(l) !== paisW);
+  const cruzaPais = losers.some(l => (clientePais(l) || '') !== (paisW || ''));
   window._mergeCtx = { winnerId, loserIds, plan };
   document.getElementById('merge-plan-sub').textContent = 'Revisá antes de confirmar.';
   body.innerHTML = `
@@ -5466,11 +5466,12 @@ async function executeMerge(){
     if (!ids.map(norm).includes(norm(ctx.winnerId))) ids.push(ctx.winnerId);
     return ids.map(id => ({ id }));
   };
+  const relHasLoser = arr => (arr||[]).some(x => loserSet.has(norm(x.id)));
   const body = document.getElementById('merge-plan-body');
   const steps = [
     ...ctx.plan.servicios.map(s => ({ id:s.id, res:'servicios', prop:'Contacto', cur:s.properties?.['Contacto']?.relation })),
     ...ctx.plan.propuestas.map(p => ({ id:p.id, res:'propuestas', prop:'Contacto', cur:p.properties?.['Contacto']?.relation })),
-    ...ctx.plan.ingresos.map(i => ({ id:i.id, res:'ingresos', prop:'Cuenta', cur:i.properties?.['Cuenta']?.relation })),
+    ...ctx.plan.ingresos.filter(i => relHasLoser(i.properties?.['Cuenta']?.relation)).map(i => ({ id:i.id, res:'ingresos', prop:'Cuenta', cur:i.properties?.['Cuenta']?.relation })),
   ];
   try {
     for (let k=0;k<steps.length;k++){
