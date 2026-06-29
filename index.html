@@ -1423,6 +1423,14 @@ body::before {
     <div id="report-step-body" style="padding:16px 20px 24px"></div>
   </div>
 </div>
+<div class="edit-overlay" id="merge-plan-overlay" onclick="if(event.target.id==='merge-plan-overlay')closeMergePlan()">
+  <div class="edit-sheet" id="merge-plan-sheet">
+    <button class="sheet-close-btn" type="button" aria-label="Cerrar" onclick="closeMergePlan()">×</button>
+    <div class="edit-sheet-handle"></div>
+    <div class="edit-sheet-header"><div class="edit-sheet-title">🔀 Plan de fusión</div><div class="edit-sheet-sub" id="merge-plan-sub"></div></div>
+    <div id="merge-plan-body" style="padding:16px 20px 24px"></div>
+  </div>
+</div>
 <!-- Consentimiento legal — se muestra una sola vez por dispositivo (sibling de body) -->
 <div id="consent-overlay" style="display:none;position:fixed;inset:0;z-index:3000;background:rgba(4,12,9,0.92);align-items:center;justify-content:center;padding:24px">
   <div style="background:#0d1714;border:1px solid #1d2a25;border-radius:16px;max-width:380px;width:100%;padding:28px 24px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.5)">
@@ -5399,6 +5407,83 @@ function chooseWinner(gi, winnerId){
   const g = (window._limpiezaGroups||[])[gi]; if(!g) return;
   const losers = g.filter(c=>c.id!==winnerId);
   startMerge(winnerId, losers.map(c=>c.id)); // Task 6
+}
+function closeMergePlan(){ document.getElementById('merge-plan-overlay').classList.remove('open'); }
+async function buildMergePlan(winnerId, loserIds){
+  const norm = id => (id||'').replace(/-/g,'');
+  const loserSet = new Set(loserIds.map(norm));
+  const rel0 = r => norm(r?.relation?.[0]?.id);
+  const relHas = (arr, set) => (arr||[]).some(x => set.has(norm(x.id)));
+  // Servicios: el proxy descarta el filtro server-side → traer TODO y filtrar client-side por Contacto.
+  const [svcAll, propAll, ingAll] = await Promise.all([
+    callNotionAll(`databases/${DB_ID}/query`, {}),
+    callNotionAll(`databases/${PROPUESTAS_DB_ID}/query`, {}),
+    callNotionAll(`databases/${INGRESOS_DB_ID}/query`, {}),
+  ]);
+  const servicios = (svcAll.results||[]).filter(s => relHas(s.properties?.['Contacto']?.relation, loserSet));
+  const svcIds = new Set(servicios.map(s=>norm(s.id)));
+  const propuestas = (propAll.results||[]).filter(p => relHas(p.properties?.['Contacto']?.relation, loserSet));
+  const ingresos = (ingAll.results||[]).filter(i =>
+    relHas(i.properties?.['Cuenta']?.relation, loserSet) ||
+    svcIds.has(rel0(i.properties?.['Servicio vinculado']))
+  );
+  return { servicios, propuestas, ingresos };
+}
+async function startMerge(winnerId, loserIds){
+  if (!esDireccion()) return;
+  const ov = document.getElementById('merge-plan-overlay');
+  const body = document.getElementById('merge-plan-body');
+  ov.classList.add('open');
+  body.innerHTML = '<div class="spinner" style="margin:24px auto"></div>';
+  const all = window._limpiezaGroups ? window._limpiezaGroups.flat() : [];
+  const winner = all.find(c=>c.id===winnerId);
+  const losers = loserIds.map(id => all.find(c=>c.id===id)).filter(Boolean);
+  const plan = await buildMergePlan(winnerId, loserIds);
+  const paisW = clientePais(winner);
+  const cruzaPais = losers.some(l => clientePais(l) && paisW && clientePais(l) !== paisW);
+  window._mergeCtx = { winnerId, loserIds, plan };
+  document.getElementById('merge-plan-sub').textContent = 'Revisá antes de confirmar.';
+  body.innerHTML = `
+    <p>Queda: <b>${esc(clienteNombre(winner))}</b> ${esc(paisW)}</p>
+    <p>Se archivan: ${losers.map(l=>'<b>'+esc(clienteNombre(l))+'</b> '+esc(clientePais(l))).join(', ')}</p>
+    <p>Se reapuntan al que queda:</p>
+    <ul>
+      <li>${plan.servicios.length} servicios</li>
+      <li>${plan.propuestas.length} propuestas</li>
+      <li>${plan.ingresos.length} ingresos/cobros</li>
+    </ul>
+    ${cruzaPais ? '<p style="color:#c45;font-weight:700">⚠️ Países distintos — no se puede fusionar entre países.</p>' : ''}
+    <button class="estado-btn" onclick="closeMergePlan()">Cancelar</button>
+    ${cruzaPais ? '' : '<button class="estado-btn active" onclick="executeMerge()">Confirmar fusión</button>'}`;
+}
+async function executeMerge(){
+  const ctx = window._mergeCtx; if(!ctx) return;
+  const norm = id => (id||'').replace(/-/g,'');
+  const loserSet = new Set(ctx.loserIds.map(norm));
+  const repoint = arr => { // reemplaza ids perdedores por el ganador, sin duplicar, conservando otros
+    const ids = (arr||[]).map(x=>x.id).filter(id => !loserSet.has(norm(id)));
+    if (!ids.map(norm).includes(norm(ctx.winnerId))) ids.push(ctx.winnerId);
+    return ids.map(id => ({ id }));
+  };
+  const body = document.getElementById('merge-plan-body');
+  const steps = [
+    ...ctx.plan.servicios.map(s => ({ id:s.id, res:'servicios', prop:'Contacto', cur:s.properties?.['Contacto']?.relation })),
+    ...ctx.plan.propuestas.map(p => ({ id:p.id, res:'propuestas', prop:'Contacto', cur:p.properties?.['Contacto']?.relation })),
+    ...ctx.plan.ingresos.map(i => ({ id:i.id, res:'ingresos', prop:'Cuenta', cur:i.properties?.['Cuenta']?.relation })),
+  ];
+  try {
+    for (let k=0;k<steps.length;k++){
+      const st = steps[k];
+      body.innerHTML = `<div class="spinner" style="margin:8px auto"></div><p>Reapuntando ${k+1}/${steps.length}…</p>`;
+      await updateServiceProps(st.id, { [st.prop]: { relation: repoint(st.cur) } });
+      syncAfterWrite(st.id, st.res);
+    }
+    // Archivar perdedores al final
+    for (const lid of ctx.loserIds){ await updateServiceProps(lid, { '🗄️ Archivado': { checkbox: true } }); syncAfterWrite(lid, 'clientes'); }
+    body.innerHTML = '<p>✅ Fusión completa.</p><button class="estado-btn" onclick="closeMergePlan();renderLimpieza()">Cerrar</button>';
+  } catch(e){
+    body.innerHTML = '<p style="color:#c45">❌ Se detuvo: '+esc(e.message)+'. Lo ya hecho quedó; podés reintentar (es idempotente).</p><button class="estado-btn" onclick="closeMergePlan()">Cerrar</button>';
+  }
 }
 function renderLimpiezaServicios() { document.getElementById('limpieza-body').textContent = '…'; }   // Task 7
 
