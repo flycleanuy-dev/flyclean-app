@@ -3406,6 +3406,7 @@ async function getMyServices(userId) {
   const validStates = ['📋 Pendiente', '🔄 Asignado', '✈️ En curso'];
   const userCountryNotion = COUNTRY_NOTION_MAP[user?.country] || null;
   let results = (data.results || []).filter(r => {
+    if (esArchivado(r)) return false;
     const props = r.properties || {};
     const estado = props['Estado']?.select?.name || '';
     const operarioApp = props['Operario App']?.select?.name || '';
@@ -4227,7 +4228,8 @@ function montoOf(props, kind = 'gasto') {
 function esFinanciamiento(r) { return !!(r?.properties?.['Financiamiento']?.select?.name); }
 // Tipo interno: cambio de moneda / depósito propio / traspaso → NO es gasto ni ingreso real.
 function tipoInterno(r) { return r?.properties?.['Tipo interno']?.select?.name || ''; }
-function kpiIncluido(r) { return !(r?.properties?.['Excluir de KPIs']?.checkbox === true || esFinanciamiento(r) || !!tipoInterno(r)); }
+function esArchivado(r) { return r?.properties?.['🗄️ Archivado']?.checkbox === true; }
+function kpiIncluido(r) { return !(esArchivado(r) || r?.properties?.['Excluir de KPIs']?.checkbox === true || esFinanciamiento(r) || !!tipoInterno(r)); }
 // Badge para una card: financiamiento (préstamo) / tipo interno (💱 cambio, 🏦 depósito, 🔁 traspaso) / interno genérico.
 function kpiBadgeHTML(props) {
   if (props?.['Financiamiento']?.select?.name) return ' <span class="kpi-excluido-tag">🏦 préstamo</span>';
@@ -9132,6 +9134,7 @@ async function renderCoordServicios() {
     const items = await fetchCoordItemsForMonth();
     if (activeCoordTab !== myTab) return; // tab cambió → abortar
     _coordAllServices = items.filter(s => {
+      if (esArchivado(s)) return false;
       const tipoReg = s.properties?.['Tipo de registro']?.select?.name || '';
       return !tipoReg.includes('Relevamiento') && !tipoReg.includes('Prueba');
     });
@@ -9156,6 +9159,7 @@ async function renderCoordPruebas() {
     const items = await fetchCoordItemsForMonth();
     if (activeCoordTab !== myTab) return;
     _coordAllServices = items.filter(s => {
+      if (esArchivado(s)) return false;
       const tipoReg = s.properties?.['Tipo de registro']?.select?.name || '';
       return tipoReg.includes('Prueba');
     });
@@ -9179,6 +9183,7 @@ async function renderCoordRelevamientos() {
     const items = await fetchCoordItemsForMonth();
     if (activeCoordTab !== myTab) return;
     _coordAllServices = items.filter(s => {
+      if (esArchivado(s)) return false;
       const tipoReg = s.properties?.['Tipo de registro']?.select?.name || '';
       return tipoReg.includes('Relevamiento');
     });
@@ -9700,7 +9705,7 @@ async function renderClientesView(containerId) {
     } else {
       data = await notionQuery();
     }
-    _coordAllContacts = (data.results || []).filter(recEnPaisNotion); // aislar clientes por país (socios)
+    _coordAllContacts = (data.results || []).filter(c => !esArchivado(c)).filter(recEnPaisNotion); // aislar clientes por país (socios)
     renderContactList(_coordAllContacts);
   } catch (e) {
     content.innerHTML = `<div class="coord-empty">No se pudieron cargar los clientes<br><small>${esc(e.message)}</small></div>`;
@@ -9718,7 +9723,7 @@ async function renderCoordContactos() {
     if (cf) queryBody.filter = cf;
     const data = await callNotion(`databases/${CONTACTOS_DB_ID}/query`, 'POST', queryBody);
     if (activeCoordTab !== myTab) return;
-    _coordAllContacts = data.results || [];
+    _coordAllContacts = (data.results || []).filter(c => !esArchivado(c));
     renderContactList(_coordAllContacts);
   } catch (e) {
     if (activeCoordTab !== myTab) return;
