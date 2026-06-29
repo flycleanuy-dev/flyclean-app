@@ -50,7 +50,7 @@ export const MAP = {
     telefono: phone(props, 'Teléfono / WhatsApp'), email: email(props, 'Email'),
     ciudad: rich(props, 'Ciudad / Zona'), interlocutor: rich(props, 'Interlocutor'),
     notas: rich(props, 'Notas'), servicio_interes: msel(props, 'Servicio de interés'),
-    intermediario_notion_id: relId(props, 'Intermediario'), raw: props,
+    intermediario_notion_id: relId(props, 'Intermediario'), archivado: check(props, '🗄️ Archivado'), raw: props,
   }),
   propuestas: (props, page) => ({
     notion_id: page.id, nombre: title(props, 'Nombre de propuesta'),
@@ -71,7 +71,7 @@ export const MAP = {
     resultado: sel(props, 'Resultado'), resultado_prueba: sel(props, 'Resultado prueba'),
     ubicacion_gps: url(props, 'Ubicación GPS'), observacion_cliente: rich(props, 'Observación cliente'),
     excluir_kpis: check(props, 'Excluir de KPIs'), cliente_notion_id: relId(props, 'Contacto'),
-    propuesta_notion_id: relId(props, 'Propuesta'), raw: props,
+    propuesta_notion_id: relId(props, 'Propuesta'), archivado: check(props, '🗄️ Archivado'), raw: props,
   }),
   ingresos: (props, page) => ({
     notion_id: page.id, titulo: title(props, 'Nombre') || title(props, 'Servicio') || null,
