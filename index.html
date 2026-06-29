@@ -1214,6 +1214,7 @@ body::before {
     <div class="coord-tab" id="ctab-propuestas" data-i18n="coord.tab.propuestas" onclick="setCoordTab('propuestas')">💼 Propuestas</div>
     <div class="coord-tab" id="ctab-contactos" data-i18n="coord.tab.contactos" onclick="setCoordTab('contactos')">👥 Clientes</div>
     <div class="coord-tab" id="ctab-pedidos" data-i18n="coord.tab.pedidos" onclick="setCoordTab('pedidos')">📦 Pedidos</div>
+    <div class="coord-tab" id="ctab-limpieza" style="display:none" onclick="setCoordTab('limpieza')">🧹 Limpieza</div>
     <div class="coord-tab" id="ctab-comunicaciones" data-i18n="coord.tab.mensajes" onclick="setCoordTab('comunicaciones')">💬 Mensajes</div>
   </div>
   <div id="alerts-banner-coord"></div>
@@ -5290,10 +5291,14 @@ function setTab(tab) {
   renderServices(_allServices);
 }
 
+function esDireccion(u = currentUser) { return !!(u?.role && u.role.includes('Dirección')); }
+function puedeEditarNombre(u = currentUser) { return !!(u?.role && (u.role.includes('Coordinador') || u.role.includes('CEO') || u.role.includes('Dirección'))); }
+
 function setCoordTab(tab) {
+  if (tab === 'limpieza' && !esDireccion()) return;
   activeCoordTab = tab;
   markUserActive();
-  ['inicio', 'resumen', 'servicios', 'pruebas', 'relevamientos', 'propuestas', 'contactos', 'pedidos', 'comunicaciones'].forEach(t => {
+  ['inicio', 'resumen', 'servicios', 'pruebas', 'relevamientos', 'propuestas', 'contactos', 'pedidos', 'comunicaciones', 'limpieza'].forEach(t => {
     const el = document.getElementById('ctab-' + t);
     if (el) el.classList.toggle('active', t === tab);
   });
@@ -5324,8 +5329,29 @@ function setCoordTab(tab) {
   else if (tab === 'propuestas') renderCoordPropuestas();
   else if (tab === 'contactos') renderCoordContactos();
   else if (tab === 'pedidos') renderCoordPedidos();
+  else if (tab === 'limpieza') renderLimpieza();
   else renderComunicaciones();
 }
+
+// ── Pestaña Limpieza (solo Dirección) ──────────────────────────────────────
+let limpiezaSubtab = 'clientes';
+function renderLimpieza() {
+  if (!esDireccion()) return;
+  const cont = document.getElementById('coord-content');
+  if (!cont) return;
+  cont.innerHTML = `
+    <div style="display:flex;gap:8px;padding:12px 4px">
+      <button class="estado-btn ${limpiezaSubtab==='clientes'?'active':''}" onclick="setLimpiezaSubtab('clientes')">👥 Clientes duplicados</button>
+      <button class="estado-btn ${limpiezaSubtab==='servicios'?'active':''}" onclick="setLimpiezaSubtab('servicios')">📋 Servicios a revisar</button>
+      <label style="margin-left:auto;font-size:12px;color:var(--text3);display:flex;align-items:center;gap:6px"><input type="checkbox" id="limpieza-show-archived" onchange="renderLimpieza()"> Mostrar archivados</label>
+    </div>
+    <div id="limpieza-body"><div class="spinner" style="margin:24px auto"></div></div>`;
+  if (limpiezaSubtab === 'clientes') renderLimpiezaDuplicados();
+  else renderLimpiezaServicios();
+}
+function setLimpiezaSubtab(t) { limpiezaSubtab = t; renderLimpieza(); }
+function renderLimpiezaDuplicados() { document.getElementById('limpieza-body').textContent = '…'; } // Task 5
+function renderLimpiezaServicios() { document.getElementById('limpieza-body').textContent = '…'; }   // Task 7
 
 // Sesión inválida o expirada (el proxy respondió 401): limpiar token y volver al login.
 let _reloggingIn = false;
@@ -7352,6 +7378,8 @@ async function loadCoordinator() {
   loadAlerts(currentUser.role, 'alerts-banner-coord');
   // Arrancamos en 🏠 Inicio (centro de mando, tab default). setCoordTab deja todo
   // consistente: tab activo, toolbar, month-nav, view-toggle visible y el render.
+  const limpiezaTab = document.getElementById('ctab-limpieza');
+  if (limpiezaTab) limpiezaTab.style.display = esDireccion() ? '' : 'none';
   setCoordTab('inicio');
 }
 
