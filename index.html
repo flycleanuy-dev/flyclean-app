@@ -1250,7 +1250,7 @@ body::before {
         <div class="edit-sheet-sub" id="edit-sheet-sub"></div>
       </div>
       <div class="edit-section">
-        <div class="edit-section-label">NOMBRE DEL SERVICIO</div>
+        <div class="edit-section-label" data-i18n="sheet.edit.section.nombre">NOMBRE DEL SERVICIO</div>
         <input type="text" class="edit-date-input" id="edit-nombre" oninput="editState.nombre=this.value"/>
       </div>
       <div class="edit-section">
@@ -2022,6 +2022,7 @@ const TRANSLATIONS = {
     'chart.ingresos': 'Ingresos',
     'chart.gastos': 'Gastos',
     'sheet.edit.title.default': 'Editar servicio',
+    'sheet.edit.section.nombre': 'NOMBRE DEL SERVICIO',
     'sheet.edit.section.estado': 'ESTADO',
     'sheet.edit.section.operario': 'PILOTO',
     'sheet.edit.section.participantes': 'AYUDANTES',
@@ -2571,6 +2572,7 @@ const TRANSLATIONS = {
     'chart.ingresos': 'Receita',
     'chart.gastos': 'Despesas',
     'sheet.edit.title.default': 'Editar serviço',
+    'sheet.edit.section.nombre': 'NOME DO SERVIÇO',
     'sheet.edit.section.estado': 'STATUS',
     'sheet.edit.section.operario': 'PILOTO',
     'sheet.edit.section.participantes': 'AJUDANTES',
@@ -6622,8 +6624,8 @@ async function renderCEOMetricas() {
     // El fallback de búsqueda de Servicios ignora el filtro del server → filtramos por Estado en el cliente.
     const estadoDe = s => (s.properties?.['Estado']?.select?.name) || '';
     const enPeriodo = s => { const f = s.properties?.['Fecha programada']?.date?.start || ''; return f ? (f >= start && f <= end) : (ceoPeriod.mode === 'todo'); };
-    const svcComp   = applyCountryFilter(svcAllData.results || []).filter(s => estadoDe(s).includes('Completado') && enPeriodo(s));
-    const svcActivo = applyCountryFilter(svcAllData.results || []).filter(s => estadoDe(s).includes('En curso') || estadoDe(s).includes('Asignado'));
+    const svcComp   = applyCountryFilter(svcAllData.results || []).filter(s => !esArchivado(s) && estadoDe(s).includes('Completado') && enPeriodo(s));
+    const svcActivo = applyCountryFilter(svcAllData.results || []).filter(s => !esArchivado(s) && (estadoDe(s).includes('En curso') || estadoDe(s).includes('Asignado')));
 
     _ceoDataTime = Date.now();
     const ingSplit = sumByMoneda(ingData.results, 'ingreso');
@@ -6737,6 +6739,7 @@ async function renderCEOServicios() {
       const notionVal = COUNTRY_NOTION_MAP[ceoViewCountry];
       results = results.filter(s => s.properties?.['País']?.select?.name === notionVal);
     }
+    results = results.filter(s => !esArchivado(s));
     if (!results.length) { content.innerHTML = `<div class="coord-empty">${t('ceo.empty.servicios')}</div>`; return; }
     const ESTADO_CLASS = { '✅ Completado': 'estado-completado', '✈️ En curso': 'estado-en-curso', '🔄 Asignado': 'estado-asignado' };
     const paiFlag = { '🇺🇾 Uruguay': '🇺🇾', '🇧🇷 Brasil': '🇧🇷', '🇵🇦 Panamá': '🇵🇦', '🇬🇹 Guatemala': '🇬🇹', '🇲🇽 México': '🇲🇽' };
@@ -9223,8 +9226,8 @@ async function renderCoordResumen() {
     // El search-fallback de la DB Servicios IGNORA el filtro de fecha server-side → re-filtrar por mes
     // en CLIENTE (si no, "Días trabajados" y "Clientes" mostraban TODO y no se movían al cambiar de mes).
     const inRango = (s, st, en) => { const f = s.properties?.['Fecha programada']?.date?.start || ''; return !!f && f >= st && f <= en; };
-    const svcCur = (svcCurRaw.results || []).filter(inPais).filter(s => inRango(s, cur.start, cur.end));
-    const svcPrev = (svcPrevRaw.results || []).filter(inPais).filter(s => inRango(s, prev.start, prev.end));
+    const svcCur = (svcCurRaw.results || []).filter(inPais).filter(s => !esArchivado(s) && inRango(s, cur.start, cur.end));
+    const svcPrev = (svcPrevRaw.results || []).filter(inPais).filter(s => !esArchivado(s) && inRango(s, prev.start, prev.end));
 
     // Helpers de lectura de servicios.
     const estadoDe = s => s.properties?.['Estado']?.select?.name || '';
@@ -9349,7 +9352,7 @@ async function renderCoordInicio() {
   try {
     const items = await fetchCoordItemsForMonth();
     if (activeCoordTab !== myTab) return; // tab cambió → abortar
-    _coordAllServices = items; // SIN filtro de tipo → todos (servicios + jornadas + pruebas + relevamientos)
+    _coordAllServices = items.filter(s => !esArchivado(s)); // SIN filtro de tipo → todos (servicios + jornadas + pruebas + relevamientos)
     if (!selectedCoordDay) selectedCoordDay = 'all';
     renderWeekStrip(_coordAllServices);
     // El toggle Lista/Tablero/Calendario solo se ve en Inicio. renderCoordServiciosView lo muestra (display:flex) y decide qué pintar.
