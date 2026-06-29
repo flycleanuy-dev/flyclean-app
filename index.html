@@ -3148,6 +3148,12 @@ function buildIncrementalProps(s) {
   if (Object.keys(_ck.pre).length || Object.keys(_ck.post).length) {
     properties['Estado checklist'] = { rich_text: [{ text: { content: JSON.stringify(_ck) } }] };
   }
+  if (s.metodoTrabajo) {
+    properties['Método de trabajo'] = { select: { name: s.metodoTrabajo } };
+    if (s.metodoTrabajo === '💪 Manual' && s.herramientaManual) {
+      properties['Herramienta manual'] = { select: { name: s.herramientaManual } };
+    }
+  }
   return properties;
 }
 
@@ -3182,6 +3188,11 @@ function hydrateServiceStateFromNotion(svc) {
   if (resultadoPrueba) serviceState.resultadoPrueba = resultadoPrueba;
   const resultado = props['Resultado']?.select?.name;
   if (resultado) serviceState.resultado = resultado;
+
+  const metodoTrabajo = props['Método de trabajo']?.select?.name;
+  if (metodoTrabajo) serviceState.metodoTrabajo = metodoTrabajo;
+  const herramientaManual = props['Herramienta manual']?.select?.name;
+  if (herramientaManual) serviceState.herramientaManual = herramientaManual;
 
   const collect = prop => (prop?.files || [])
     .map(f => ({
@@ -3225,6 +3236,8 @@ function hydrateServiceStateFromLocal(id) {
     if (!serviceState.horaInicio && ls.horaInicio) serviceState.horaInicio = ls.horaInicio;
     if (!serviceState.horaInicioEfectivo && ls.horaInicioEfectivo) serviceState.horaInicioEfectivo = ls.horaInicioEfectivo;
     if (!serviceState.horaCierreEfectivo && ls.horaCierreEfectivo) serviceState.horaCierreEfectivo = ls.horaCierreEfectivo;
+    if (!serviceState.metodoTrabajo && ls.metodoTrabajo) serviceState.metodoTrabajo = ls.metodoTrabajo;
+    if (!serviceState.herramientaManual && ls.herramientaManual) serviceState.herramientaManual = ls.herramientaManual;
     return true;
   } catch (e) { return false; }
 }
@@ -6605,6 +6618,12 @@ async function cerrarServicio() {
   const climaArr = Array.isArray(serviceState.clima) ? serviceState.clima : (serviceState.clima ? [serviceState.clima] : []);
   if (climaArr.length) {
     properties['Condición climática'] = { multi_select: climaArr.map(name => ({ name })) };
+  }
+  if (serviceState.metodoTrabajo) {
+    properties['Método de trabajo'] = { select: { name: serviceState.metodoTrabajo } };
+    if (serviceState.metodoTrabajo === '💪 Manual' && serviceState.herramientaManual) {
+      properties['Herramienta manual'] = { select: { name: serviceState.herramientaManual } };
+    }
   }
   if (((jornadaN != null) || tipoReg.includes('Jornada')) && serviceState.avance !== '') {
     properties['% de avance'] = { number: parseFloat(serviceState.avance) };
