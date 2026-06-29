@@ -5487,7 +5487,52 @@ async function executeMerge(){
     body.innerHTML = '<p style="color:#c45">❌ Se detuvo: '+esc(e.message)+'. Lo ya hecho quedó; podés reintentar (es idempotente).</p><button class="estado-btn" onclick="closeMergePlan()">Cerrar</button>';
   }
 }
-function renderLimpiezaServicios() { document.getElementById('limpieza-body').textContent = '…'; }   // Task 7
+async function renderLimpiezaServicios(){
+  const body = document.getElementById('limpieza-body');
+  const showArch = document.getElementById('limpieza-show-archived')?.checked;
+  body.innerHTML = '<div class="spinner" style="margin:24px auto"></div>';
+  const data = await callNotionAll(`databases/${DB_ID}/query`, {});
+  let svc = (data.results||[]);
+  if (!showArch) svc = svc.filter(s => !esArchivado(s));
+  // Agrupar por cliente (Contacto[0]); marcar nombres inconsistentes dentro del grupo.
+  const byCli = {};
+  svc.forEach(s => { const cid = s.properties?.['Contacto']?.relation?.[0]?.id || 'sin-cliente'; (byCli[cid] = byCli[cid] || []).push(s); });
+  const grupos = Object.entries(byCli).filter(([,arr]) => arr.length>1 || arr.some(s => /\s{2,}|\s$/.test(s.properties?.['Nombre del servicio']?.title?.[0]?.plain_text||'')));
+  body.innerHTML = grupos.map(([cid,arr]) => {
+    const nombres = [...new Set(arr.map(s => (s.properties?.['Nombre del servicio']?.title?.[0]?.plain_text||'').trim()))];
+    const inconsistente = nombres.length > 1;
+    return `<div style="border:1px solid var(--border2);border-radius:12px;padding:12px;margin:10px 4px">
+      <div style="font-weight:700">${arr.length} servicios ${inconsistente?'· ⚠️ nombres distintos':''}</div>
+      ${arr.map(s=>`<div style="display:flex;justify-content:space-between;gap:8px;padding:4px 0">
+        <input class="edit-date-input" style="flex:1" value="${esc((s.properties?.['Nombre del servicio']?.title?.[0]?.plain_text||''))}" onchange="renameOneService('${esc(s.id)}',this.value)"/>
+        <button class="estado-btn" onclick="archiveService('${esc(s.id)}')">🗄️</button>
+      </div>`).join('')}
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <input id="bulk-${esc(cid)}" class="edit-date-input" placeholder="Renombrar TODOS a…" style="flex:1"/>
+        <button class="estado-btn active" onclick="bulkRenameServices('${esc(cid)}')">Aplicar</button>
+      </div>
+    </div>`;
+  }).join('') || '<div style="padding:24px;color:var(--text3);text-align:center">✅ Nada para revisar.</div>';
+}
+async function renameOneService(id, nombre){
+  const n = String(nombre||'').trim(); if(!n) return;
+  await updateServiceProps(id, { 'Nombre del servicio': { title: [{ text: { content: n } }] } });
+  syncAfterWrite(id, 'servicios');
+}
+async function bulkRenameServices(cid){
+  const n = String(document.getElementById('bulk-'+cid)?.value||'').trim(); if(!n){ alert('Escribí el nombre.'); return; }
+  const data = await callNotionAll(`databases/${DB_ID}/query`, {});
+  const arr = (data.results||[]).filter(s => (s.properties?.['Contacto']?.relation?.[0]?.id||'')===cid && !esArchivado(s));
+  if (!confirm(`Renombrar ${arr.length} servicios a "${n}"?`)) return;
+  for (const s of arr){ await updateServiceProps(s.id, { 'Nombre del servicio': { title: [{ text: { content: n } }] } }); syncAfterWrite(s.id, 'servicios'); }
+  renderLimpieza();
+}
+async function archiveService(id){
+  if (!confirm('Archivar este servicio? (reversible)')) return;
+  await updateServiceProps(id, { '🗄️ Archivado': { checkbox: true } });
+  syncAfterWrite(id, 'servicios');
+  renderLimpieza();
+}
 
 // Sesión inválida o expirada (el proxy respondió 401): limpiar token y volver al login.
 let _reloggingIn = false;
