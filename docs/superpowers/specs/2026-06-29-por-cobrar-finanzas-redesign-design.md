@@ -109,3 +109,48 @@ Toda acción que escribe (reconciliar, asignar precio en bloque, archivar, elimi
 
 ## Reversa
 Quitar la vista por-cliente vuelve a la lista por-visita. Las acciones son reversibles: desarchivar, desvincular propuesta/cobro, volver el `Monto USD` reconciliado a 0. Eliminar es recuperable 30 días en Notion.
+
+## Precisiones de la revisión adversarial (IMPRESCINDIBLES antes de implementar)
+
+La revisión confirmó que el enfoque está sólido y NO rompe los números, pero detectó huecos de cableado y casos
+borde de moneda que un dev resolvería mal sin esto:
+
+**P1 — C1 debe cargar también los CLIENTES y que cada fila lleve el `id` del servicio.** `renderPorCobrar` hoy carga
+`svc`/`prop`/`ing` pero NO los clientes, y arma `rows` planas SIN `s.id` (`:7128-7146`). Para agrupar por cliente
+(mostrar nombre/país) y para que cada visita tenga acciones (onclick), C1 debe: (a) cargar `clientes` con
+`callNotionAll(CONTACTOS_DB_ID)` para resolver id→nombre/país; (b) incluir `id` (y `clienteId`) en cada row.
+
+**P2 — Pasar `readonly:true` de verdad para CEO y coordinador.** Hoy los dos call sites de `renderPorCobrar`
+(`:3801` Finanzas, `:6566` CEO) NO pasan `opts` → `readonly` NUNCA es true → el CEO ve la vista editable. La tabla de
+permisos del spec solo se cumple si los call sites de CEO **y** coordinador pasan `{readonly:true}` (y Finanzas no).
+
+**P3 — Reconciliación SIMÉTRICA + sin división por cero + sobre el saldo restante.** `cubrirServicio`:
+- Funciona en **ambos sentidos**: precio USD/pago pesos (setea `Monto USD`) **y** precio pesos/pago USD (setea
+  `Monto UY$ cobrado`). Hoy `cobrado = esUY ? cobUY : cobUSD` (`:7137`) ignora la otra moneda → el botón debe setear
+  el monto en la moneda del PRECIO.
+- El monto que cubre por defecto = **saldo restante** (precio − ya cobrado), NO el precio completo (puede haber pagos
+  parciales previos). Varios cobros sobre una visita suman hacia el precio (ya lo hace el `forEach` de `ingBy`).
+- **Validar `cubierto > 0`** antes de derivar el TC (`TC = monto_otra_moneda / cubierto`) → nunca dividir por 0 ni
+  escribir `TC aplicado = Infinity`. Si `cubierto = 0` o no hay monto en la otra moneda, no escribir TC.
+
+**P4 — C4 "asignar precio del contrato": precio = `Importe estimado` POR VISITA + elegir contrato si hay varios.** El
+precio por visita = `Propuesta.Importe estimado` (para el Británico = USD 2.300 por visita; se asume per-visit). Si el
+cliente tiene **más de una** propuesta recurrente, C4 debe dejar elegir cuál contrato aplicar. NO pisar visitas que ya
+tengan una propuesta vinculada.
+
+**P5 — C6 editar/archivar/eliminar servicio desde Finanzas: cablear el contexto + relajar el bloqueo.** `openEditSheet`
+hace `editingService = _coordAllServices.find(...)` (`:8404`), pero `_coordAllServices` NO se puebla en el flujo
+Finanzas→Por cobrar → abrir el sheet desde ahí haría `return` silencioso. C6 debe **pasar el objeto del servicio
+directo** (o poblar `editingService`) antes de abrir. Y el botón archivar/eliminar se oculta para "Completado"
+(`:8442/8852`) y Por cobrar muestra SOLO Completados → hay que **relajar ese bloqueo para Finanzas** (con confirm de
+papelera). Esto es un cambio de código real, no "reuso" puro.
+
+**P6 — C7 editar cobro: limpiar el campo de la OTRA moneda + re-derivar/limpiar TC.** `MONTO_FIELDS.ingreso` setea
+`Monto UY$ cobrado` o `Monto USD` según la moneda, pero **nunca limpia el otro** (`:4216`). Si Finanzas cambia el
+monto/moneda del cobro y queda un valor viejo en el otro campo, se contamina la lectura. C7 debe: al editar el monto
+real (en `Moneda cobro`), **limpiar el campo de la otra moneda** y **re-derivar o limpiar `TC aplicado`**. La
+reconciliación cross-moneda (C3, el "equivalente") es un concepto SEPARADO del monto real (C7) — el spec los distingue:
+C7 = el pago real; C3 = la cobertura/equivalencia.
+
+**Menores (follow-up, no bloquean):** redacción de "reversible" en algunos puntos; el patrón overlay sibling-de-body ya
+está establecido; eliminar/editar-fecha son de bajo riesgo.
