@@ -10464,6 +10464,14 @@ function renderContactHistory(items) {
     else if (it.type === 'propuesta') { presupUSD += it.data.properties?.['Importe estimado']?.number || 0; }
   });
   const nServ = items.filter(it => it.type === 'servicio').length;
+  const propItems = items.filter(it => it.type === 'propuesta');
+  const nProps = propItems.length;
+  const nPropsAcc = propItems.filter(it => /Aceptada/.test(it.data.properties?.['Estado pipeline']?.select?.name || '')).length;
+  const countHeader =
+    `<div class="ec-saldo" style="margin-bottom:6px;font-size:13px">` +
+      `<span>📄 ${nProps} ${t('sheet.contact.count.props')}${nPropsAcc ? ` (${nPropsAcc} ${t('sheet.contact.count.props.accepted')})` : ''}</span>` +
+      `<span>🧰 ${nServ} ${t('sheet.contact.count.svcs')}</span>` +
+    `</div>`;
   const cobStr = [cobUSD ? fmtMoneda(cobUSD, '🇺🇸 USD') : '', cobUY ? fmtMoneda(cobUY, '🇺🇾 UY$') : ''].filter(Boolean).join(' · ') || '—';
   // Contrato recurrente: si hay una propuesta 🔄 Recurrente con "Servicios por año" → esperado/año + comisión + neto.
   const contrato = items.find(it => it.type === 'propuesta'
@@ -10484,7 +10492,7 @@ function renderContactHistory(items) {
       (com ? `<div class="ec-row" style="font-size:12px"><span>Comisión intermediario (${com}%)</span><span style="color:var(--red)">− ${comStr}</span></div>` +
              `<div class="ec-row" style="font-size:12px;font-weight:700"><span>Neto FlyClean</span><span style="color:var(--green)">${netoStr}</span></div>` : '');
   }
-  const summaryHTML =
+  const summaryHTML = countHeader +
     `<div class="ec-saldo" style="margin-bottom:6px;font-size:13px"><span>💵 Cobrado</span><span style="color:var(--green);font-weight:700">${cobStr}</span></div>` +
     (presupUSD ? `<div class="ec-row" style="font-size:12px;margin-bottom:4px"><span>📄 Presupuestado</span><span>${fmtMoneda(presupUSD, '🇺🇸 USD')}</span></div>` : '') +
     (nServ ? `<div class="ec-row" style="font-size:12px;margin-bottom:8px"><span>🛠️ Servicios completados</span><span>${nServ}</span></div>` : '') +
