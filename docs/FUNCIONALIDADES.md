@@ -430,6 +430,28 @@
 
 ## ➕ Agregado después de la generación (fundir al regenerar)
 
+- **Mejoras operativas (Fases A/B/C)** (sw v85–v87, 2026-06-29) — tres fases de features para operarios y coordinador:
+
+  **Fase A (sw v85)**
+  - **3 botones de propuesta siempre visibles** — los botones "Crear servicio", "Pedir relevamiento" y "Hacer prueba demo" en el sheet de propuesta ahora se muestran SIEMPRE; en vez de ocultarse según el estado del pipeline, se deshabilitan (`disabled`) con la lógica inversa. La función `updateCreateSvcBtnVisibility` pasó de `display:'none'` a `btn.disabled = !show`.
+    - `updateCreateSvcBtnVisibility() → index.html`
+  - **Blindaje del checklist en Notion** — el checklist pre/post del operario ahora se persiste TAMBIÉN en Notion (property `Estado checklist`, rich_text JSON `{pre:{}, post:{}}`) además de localStorage. Si el usuario borra la caché del navegador (reinstalar/limpiar datos), la rehidratación desde Notion actúa como fallback. Funciones afectadas: `buildIncrementalProps`, `cerrarServicio`, `hydrateServiceStateFromNotion`.
+    - `buildIncrementalProps() + cerrarServicio() + hydrateServiceStateFromNotion() → index.html`
+
+  **Fase B (sw v86)**
+  - **Ubicación heredable desde el cliente** — la URL de Google Maps ahora vive en la ficha del **cliente** (property `Mapa` url en DB Clientes) y se hereda a servicios y propuestas. El helper `resolveMapsUrl({svcMapa, propMapa, clienteMapa})` aplica precedencia: override de servicio > override de propuesta > `Mapa` del cliente. Servicios y propuestas pueden tener su propio override puntual.
+    - `resolveMapsUrl() → index.html`
+  - **Ficha de cliente ampliada** — la ficha (`openContactSheet`/`buildContactSheetBody`) suma: (1) input de URL Maps con botón "📍 Abrir"; (2) selector "Llegó por (intermediario)" que expone la relation `Intermediario` ↔ `Clientes traídos` ya existente en Notion; (3) conteo mejorado en el encabezado: `📄 N propuestas (M aceptadas) · 🧰 K servicios`. Datos ya disponibles en `loadContactHistory`.
+    - `openContactSheet() + buildContactSheetBody() + saveContactEdit() + loadContactHistory() → index.html`
+  - **Sheet de servicio: cliente + botón ubicación + quitar Maps suelto** — el sheet de edición del servicio (`openEditSheet`) ahora muestra el nombre del cliente vinculado (relation `Contacto`, resuelta desde `_coordAllContacts`) y un botón "📍 Ubicación" que abre la URL heredada (servicio > propuesta > cliente). El input libre `edit-mapa` se eliminó; su rol lo cubre la ubicación del cliente con override. `openService()` se volvió async para cachear cliente + propuesta y que el operario herede la ubicación en el step 0.
+    - `openEditSheet() + openService() → index.html`
+
+  **Fase C (sw v87)**
+  - **Método de trabajo (Dron / Manual)** — el operario elige su método en el paso `inicio_efectivo` antes de registrar la hora real. UI: botones grandes **🚁 Dron** / **💪 Manual**; al elegir Manual se despliega un selector secundario (Lanzas / Manguera / Hidrolavadora / Otro). El campo es obligatorio: no se puede registrar `Hora Inicio Efectivo` sin elegir método. Se persiste en `serviceState.metodoTrabajo` + `serviceState.herramientaManual`, se guarda en Notion y se rehidrata al reabrir el servicio.
+    - `renderOperarioManualBtns() + selectEditOperarioManual() + registrarInicioEfectivo() + buildIncrementalProps() + hydrateServiceStateFromNotion() → index.html`
+  - **Operario manual en el sheet del coord** — el sheet de edición del servicio tiene 2 columnas: **Piloto** (`Operario App`, izquierda, como siempre) | **Operario manual** (`Operario manual`, nueva property select en Servicios, derecha). Ambos son opcionales y mutuamente excluyentes con los ayudantes.
+    - `renderOperarioManualBtns() + selectEditOperarioManual() → index.html`
+
 - **Pilotos/ayudantes por país + 5 fixes** (sw v76) — el selector de **PILOTO** y **AYUDANTES** del sheet de
   servicio (y al crear jornada) ahora arma la lista desde `USERS` filtrando por el **país del servicio** y por
   **rol de campo** (Operario/Coordinador): los de otros países desaparecen y **Diego Laxalt** (Dirección) y

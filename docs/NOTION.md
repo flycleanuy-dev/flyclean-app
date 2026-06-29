@@ -43,6 +43,10 @@ Clientes   ↔ Clientes  (self-relation: `Intermediario` ↔ `Clientes traídos`
 > Property nueva **`Intermediario`** (self-relation dual): un cliente puede venir vía un intermediario/canal
 > (tipo `🤝 Intermediario`, ej. Aseo→Hospital Británico, Belhouse→sus obras); la inversa se llama
 > **`Clientes traídos`**. Cada registro lleva `País` (UY/BR/PA/GT/MX) → la app aísla por país.
+>
+> **Properties nuevas (2026-06-29)**:
+> - `Mapa` (url) — URL de Google Maps de la ubicación habitual del cliente. Fuente única; los servicios y
+>   propuestas la **heredan** via `resolveMapsUrl()`. Override puntual disponible en cada servicio/propuesta.
 
 ## Properties clave — DB Servicios
 
@@ -59,6 +63,10 @@ Clientes   ↔ Clientes  (self-relation: `Intermediario` ↔ `Clientes traídos`
 | `Resultado prueba` | select | Avanza / No interesado / Re-contactar (solo Pruebas) |
 | `Ubicación GPS` | url | Google Maps del GPS al iniciar (si el operario consiente) |
 | `Observación cliente` | rich_text | Observación para el PDF de devolución |
+| `Estado checklist` | rich_text (JSON) | Checklist pre/post en JSON `{pre:{},post:{}}` — blindaje contra pérdida de localStorage; `hydrateServiceStateFromNotion` lo usa como fallback |
+| `Método de trabajo` | select (`🚁 Dron` / `💪 Manual`) | Cómo se ejecutó el trabajo; obligatorio para registrar `Hora Inicio Efectivo` |
+| `Herramienta manual` | select (`Lanzas` / `Manguera` / `Hidrolavadora` / `Otro`) | Submétodo cuando `Método de trabajo = 💪 Manual`; queda vacío si es dron |
+| `Operario manual` | select | Persona que ejecuta el trabajo manual (columna derecha del sheet del coord); espejo de `Operario App` para el rol manual |
 
 **Separación clave**: `Hora Inicio` (programada, dueño = coord) ≠ `Hora Inicio Efectivo`
 (real, la escribe el operario al apretar "Iniciar"). Nunca escribir `Hora Inicio` desde el flujo
@@ -88,3 +96,9 @@ Una propuesta con `Tipo = 🔄 Recurrente` funciona como el **contrato** del cli
 
 El Cliente 360 (ficha) calcula **Esperado/año** = `Servicios por año × Importe estimado`, y con la comisión
 muestra **Comisión** y **Neto FlyClean** sobre lo cobrado. El intermediario sale de `Cliente.Intermediario`.
+
+## Propuestas — ubicación heredable (2026-06-29)
+
+| Property | Tipo | Para qué |
+|---|---|---|
+| `Mapa` | url | Override de ubicación a nivel propuesta. Si tiene valor, sobreescribe el `Mapa` del cliente; el `Mapa` del servicio sobreescribe a este. Precedencia: servicio > propuesta > cliente. |
