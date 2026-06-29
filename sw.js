@@ -1,3 +1,6 @@
+// v84: editar nombres (clientes/servicios) + Panel 🧹 Limpieza (solo Dirección): detector+fusión de clientes
+//      duplicados (carga global, Servicios client-side, ingresos en el plan), revisor de servicios (renombrar en
+//      lote + archivar), marca 🗄️ Archivado reversible (excluida de KPIs/Por cobrar/listas), desarchivar.
 // v83: hardening de /api/db-sync (revisión adversarial Fase 3): gate de país (usuario no-global solo sincroniza
 //      registros de su país, espeja /api/db), respuesta sin el campo 'archived' (no devuelve datos del registro),
 //      y logging server-side ([db-sync] ...) en los caminos de error para diagnosticar en prod.
@@ -76,7 +79,7 @@
 // v33: VELOCIDAD — SW vuelve a stale-while-revalidate (cache al instante + revalida en bg); proxy con timeout+reintento+429; operario auto-reintenta.
 // v5: cambiar estrategia de Notion API de stale-while-revalidate a NETWORK-FIRST con timeout.
 
-const CACHE = 'flyclean-v83';
+const CACHE = 'flyclean-v84';
 const SHELL = [
   '/',
   '/index.html',
