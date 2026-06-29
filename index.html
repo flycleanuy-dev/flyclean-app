@@ -3068,7 +3068,11 @@ function resetServiceState() {
       dificultades: [],
       servicioSugerido: [],
       notasComercial: ''
-    }
+    },
+    // Cache de URLs de mapa heredadas del cliente y la propuesta vinculada.
+    // Poblado en openService() antes del primer renderStep().
+    clienteMapa: '',
+    propMapa: ''
   };
 }
 
@@ -5805,7 +5809,7 @@ function renderServices(services) {
 // ─────────────────────────────────────────────
 // SERVICE DETAIL
 // ─────────────────────────────────────────────
-function openService(idx) {
+async function openService(idx) {
   currentService = window._services[idx];
   currentStep = 0;
   resetServiceState();
@@ -5838,6 +5842,29 @@ function openService(idx) {
   if (hadLocal) {
     flushPendingPhotosIfNeeded();
   }
+
+  // Heredar URL de mapa del cliente y la propuesta vinculada (si el servicio no tiene override propio).
+  // Se hace en paralelo antes del primer renderStep para que el botón 🗺️ aparezca correctamente
+  // cuando la ubicación viene del cliente (caso de uso central de la Fase B).
+  // Envuelto en try/catch: si falla no bloquea ni rompe el flujo del operario.
+  try {
+    const props = currentService.properties || {};
+    const contactoId = props['Contacto']?.relation?.[0]?.id || props['Contactos']?.relation?.[0]?.id || '';
+    const propId = props['Propuesta']?.relation?.[0]?.id || '';
+    const svcId = currentService.id;
+    await Promise.all([
+      contactoId
+        ? callNotion('pages/' + contactoId, 'GET')
+            .then(c => { if (currentService?.id === svcId) serviceState.clienteMapa = c?.properties?.['Mapa']?.url || ''; })
+            .catch(() => {})
+        : Promise.resolve(),
+      propId
+        ? callNotion('pages/' + propId, 'GET')
+            .then(p => { if (currentService?.id === svcId) serviceState.propMapa = p?.properties?.['Mapa']?.url || ''; })
+            .catch(() => {})
+        : Promise.resolve()
+    ]);
+  } catch (_) {}
 
   const nombre = currentService.properties['Nombre del servicio']?.title?.[0]?.plain_text || t('detail.title.default');
   document.getElementById('detail-title').textContent = nombre;
@@ -5910,7 +5937,7 @@ function renderStep() {
   const horaInicio = props['Hora Inicio']?.date?.start || '';
   const horaFmt = (horaInicio && horaInicio.includes('T')) ? new Date(horaInicio).toTimeString().slice(0, 5) : '';
   const lugar = props['Lugar']?.rich_text?.[0]?.plain_text || '';
-  const mapa = resolveMapsUrl({ svcMapa: props['Mapa']?.url || '' });
+  const mapa = resolveMapsUrl({ svcMapa: props['Mapa']?.url || '', propMapa: serviceState.propMapa || '', clienteMapa: serviceState.clienteMapa || '' });
   const tipo = props['Tipo de servicio']?.select?.name || '';
   const pais = props['País']?.select?.name || '';
   const tipoReg = props['Tipo de registro']?.select?.name || '';
@@ -8575,6 +8602,10 @@ async function openEditSheet(pageId) {
   document.getElementById('edit-overlay').classList.add('open');
   renderOperarioBtns(operarioActual);
   renderParticipantesBtns();
+  // Fix 2: resetear el flag data-override antes de renderizar, para que no quede
+  // expandido de un servicio previo que sí tenía override.
+  const _ubicBox = document.getElementById('edit-cliente-ubicacion');
+  if (_ubicBox) _ubicBox.removeAttribute('data-override');
   renderSvcClienteUbicacion(); // estado inicial (muestra lo que ya hay sin esperar el fetch)
   resolveSvcUbicacion(pageId); // completa cliente/maps async
 }
