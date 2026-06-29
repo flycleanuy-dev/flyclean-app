@@ -5457,6 +5457,7 @@ async function startMerge(winnerId, loserIds){
     ${cruzaPais ? '' : '<button class="estado-btn active" onclick="executeMerge()">Confirmar fusión</button>'}`;
 }
 async function executeMerge(){
+  if (!esDireccion()) return;
   const ctx = window._mergeCtx; if(!ctx) return;
   const norm = id => (id||'').replace(/-/g,'');
   const loserSet = new Set(ctx.loserIds.map(norm));
