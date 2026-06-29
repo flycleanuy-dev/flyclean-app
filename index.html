@@ -5387,11 +5387,29 @@ function detectDuplicateClients(list){
 }
 async function renderLimpiezaDuplicados(){
   const body = document.getElementById('limpieza-body');
+  const showArch = document.getElementById('limpieza-show-archived')?.checked;
   body.innerHTML = '<div class="spinner" style="margin:24px auto"></div>';
   try {
     const list = await loadAllClientesGlobal();
     const groups = detectDuplicateClients(list);
-    if (!groups.length){ body.innerHTML = '<div style="padding:24px;color:var(--text3);text-align:center">✅ Sin clientes duplicados ('+list.length+' clientes revisados).</div>'; return; }
+    let archivedHtml = '';
+    if (showArch) {
+      const allData = await callNotionAll(`databases/${CONTACTOS_DB_ID}/query`, {});
+      const archived = (allData.results || []).filter(c => esArchivado(c));
+      if (archived.length) {
+        archivedHtml = `<div style="margin-top:16px">
+          <div style="font-weight:700;margin-bottom:8px;color:var(--text3)">🗄️ Archivados (${archived.length})</div>
+          ${archived.map(c=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-top:1px solid var(--border2)">
+            <span>${esc(clienteNombre(c)||'(sin nombre)')} <span style="color:var(--text3);font-size:11px">${esc(clientePais(c))}</span></span>
+            <button class="estado-btn" onclick="unarchive('${esc(c.id)}','clientes')">Desarchivar</button>
+          </div>`).join('')}
+        </div>`;
+      }
+    }
+    if (!groups.length){
+      body.innerHTML = '<div style="padding:24px;color:var(--text3);text-align:center">✅ Sin clientes duplicados ('+list.length+' clientes revisados).</div>' + archivedHtml;
+      return;
+    }
     body.innerHTML = groups.map((g,gi)=>`
       <div style="border:1px solid var(--border2);border-radius:12px;padding:12px;margin:10px 4px">
         <div style="font-weight:700;margin-bottom:8px">Posible duplicado (${g.length})</div>
@@ -5399,7 +5417,7 @@ async function renderLimpiezaDuplicados(){
           <span>${esc(clienteNombre(c)||'(sin nombre)')} <span style="color:var(--text3);font-size:11px">${esc(clientePais(c))}</span></span>
           <button class="estado-btn" onclick="chooseWinner('${gi}','${esc(c.id)}')">Queda este</button>
         </div>`).join('')}
-      </div>`).join('');
+      </div>`).join('') + archivedHtml;
     window._limpiezaGroups = groups; // para chooseWinner/startMerge
   } catch(e){ body.innerHTML = '<div style="padding:24px;color:#c45">Error: '+esc(e.message)+'</div>'; }
 }
@@ -5503,10 +5521,16 @@ async function renderLimpiezaServicios(){
     const inconsistente = nombres.length > 1;
     return `<div style="border:1px solid var(--border2);border-radius:12px;padding:12px;margin:10px 4px">
       <div style="font-weight:700">${arr.length} servicios ${inconsistente?'· ⚠️ nombres distintos':''}</div>
-      ${arr.map(s=>`<div style="display:flex;justify-content:space-between;gap:8px;padding:4px 0">
-        <input class="edit-date-input" style="flex:1" value="${esc((s.properties?.['Nombre del servicio']?.title?.[0]?.plain_text||''))}" onchange="renameOneService('${esc(s.id)}',this.value)"/>
-        <button class="estado-btn" onclick="archiveService('${esc(s.id)}')">🗄️</button>
-      </div>`).join('')}
+      ${arr.map(s=>{
+        const archivado = esArchivado(s);
+        return `<div style="display:flex;justify-content:space-between;gap:8px;padding:4px 0${archivado?' opacity:0.6':''}">
+          <input class="edit-date-input" style="flex:1" value="${esc((s.properties?.['Nombre del servicio']?.title?.[0]?.plain_text||''))}" onchange="renameOneService('${esc(s.id)}',this.value)"${archivado?' disabled':''}/>
+          ${archivado
+            ? `<button class="estado-btn" onclick="unarchive('${esc(s.id)}','servicios')">Desarchivar</button>`
+            : `<button class="estado-btn" onclick="archiveService('${esc(s.id)}')">🗄️</button>`
+          }
+        </div>`;
+      }).join('')}
       <div style="display:flex;gap:8px;margin-top:8px">
         <input id="bulk-${esc(cid)}" class="edit-date-input" placeholder="Renombrar TODOS a…" style="flex:1"/>
         <button class="estado-btn active" onclick="bulkRenameServices('${esc(cid)}')">Aplicar</button>
@@ -5531,6 +5555,12 @@ async function archiveService(id){
   if (!confirm('Archivar este servicio? (reversible)')) return;
   await updateServiceProps(id, { '🗄️ Archivado': { checkbox: true } });
   syncAfterWrite(id, 'servicios');
+  renderLimpieza();
+}
+async function unarchive(id, resource){
+  if (!confirm('Desarchivar este registro?')) return;
+  await updateServiceProps(id, { '🗄️ Archivado': { checkbox: false } });
+  syncAfterWrite(id, resource);
   renderLimpieza();
 }
 
