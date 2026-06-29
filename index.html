@@ -5350,7 +5350,56 @@ function renderLimpieza() {
   else renderLimpiezaServicios();
 }
 function setLimpiezaSubtab(t) { limpiezaSubtab = t; renderLimpieza(); }
-function renderLimpiezaDuplicados() { document.getElementById('limpieza-body').textContent = '…'; } // Task 5
+async function loadAllClientesGlobal() {
+  const data = await callNotionAll(`databases/${CONTACTOS_DB_ID}/query`, {});
+  return (data.results || []).filter(c => !esArchivado(c));
+}
+function normName(s){ return (s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/\s+/g,' ').trim(); }
+function normTel(s){ return (s||'').replace(/\D/g,''); }
+function clienteNombre(c){ return c.properties?.['Nombre / Empresa']?.title?.[0]?.plain_text || ''; }
+function clientePais(c){ return c.properties?.['País']?.select?.name || ''; }
+// Agrupa por mismo teléfono, mismo email, o nombre igual normalizado. Devuelve solo grupos de 2+.
+function detectDuplicateClients(list){
+  const byKey = {};
+  const add = (k, c) => { if(!k) return; (byKey[k] = byKey[k] || []).push(c); };
+  list.forEach(c => {
+    const p = c.properties || {};
+    add('tel:'+normTel(p['Teléfono / WhatsApp']?.phone_number), c);
+    add('mail:'+((p['Email']?.email||'').toLowerCase().trim()), c);
+    add('name:'+normName(clienteNombre(c)), c);
+  });
+  // dedup de grupos por set de ids
+  const seen = new Set(), groups = [];
+  Object.entries(byKey).forEach(([k, arr]) => {
+    if (k.endsWith(':') || arr.length < 2) return;
+    const ids = arr.map(c=>c.id).sort().join('|');
+    if (seen.has(ids)) return; seen.add(ids); groups.push(arr);
+  });
+  return groups;
+}
+async function renderLimpiezaDuplicados(){
+  const body = document.getElementById('limpieza-body');
+  body.innerHTML = '<div class="spinner" style="margin:24px auto"></div>';
+  try {
+    const list = await loadAllClientesGlobal();
+    const groups = detectDuplicateClients(list);
+    if (!groups.length){ body.innerHTML = '<div style="padding:24px;color:var(--text3);text-align:center">✅ Sin clientes duplicados ('+list.length+' clientes revisados).</div>'; return; }
+    body.innerHTML = groups.map((g,gi)=>`
+      <div style="border:1px solid var(--border2);border-radius:12px;padding:12px;margin:10px 4px">
+        <div style="font-weight:700;margin-bottom:8px">Posible duplicado (${g.length})</div>
+        ${g.map(c=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0">
+          <span>${esc(clienteNombre(c)||'(sin nombre)')} <span style="color:var(--text3);font-size:11px">${esc(clientePais(c))}</span></span>
+          <button class="estado-btn" onclick="chooseWinner('${gi}','${esc(c.id)}')">Queda este</button>
+        </div>`).join('')}
+      </div>`).join('');
+    window._limpiezaGroups = groups; // para chooseWinner/startMerge
+  } catch(e){ body.innerHTML = '<div style="padding:24px;color:#c45">Error: '+esc(e.message)+'</div>'; }
+}
+function chooseWinner(gi, winnerId){
+  const g = (window._limpiezaGroups||[])[gi]; if(!g) return;
+  const losers = g.filter(c=>c.id!==winnerId);
+  startMerge(winnerId, losers.map(c=>c.id)); // Task 6
+}
 function renderLimpiezaServicios() { document.getElementById('limpieza-body').textContent = '…'; }   // Task 7
 
 // Sesión inválida o expirada (el proxy respondió 401): limpiar token y volver al login.
