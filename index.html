@@ -391,6 +391,12 @@ body::before {
   .clima-opt.green.selected { background: rgba(34,197,94,0.15); border-color: var(--green); color: var(--green); }
   .clima-opt.yellow.selected { background: rgba(245,158,11,0.15); border-color: var(--amber); color: var(--amber); }
   .clima-opt.red.selected { background: rgba(239,68,68,0.15); border-color: var(--red); color: var(--red); }
+  .metodo-group { display: flex; gap: 10px; }
+  .metodo-btn { flex: 1; padding: 16px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border); font-size: 15px; font-weight: 600; cursor: pointer; background: var(--bg); color: var(--text2); font-family: 'Exo 2', sans-serif; transition: all 0.15s; }
+  .metodo-btn.active { background: var(--green-dark); border-color: var(--green); color: var(--green); }
+  .herr-group { display: flex; flex-wrap: wrap; gap: 8px; }
+  .herr-btn { flex: 1 0 calc(50% - 4px); padding: 12px; border-radius: var(--radius-sm); border: 1px solid var(--border); font-size: 13px; font-weight: 500; cursor: pointer; background: var(--bg); color: var(--text2); font-family: 'Exo 2', sans-serif; transition: all 0.15s; }
+  .herr-btn.active { background: var(--green-dark); border-color: var(--green); color: var(--green); }
 
   /* Summary */
   .summary-card { background: var(--card); border-radius: var(--radius); padding: 16px; margin-bottom: 16px; }
@@ -6063,6 +6069,13 @@ function renderStep() {
       { val: '🟡 Precaución KP 2-4', label: '🟡 Precaución — KP 2-4', cls: 'yellow' },
       { val: '🔴 Suspendido +KP4', label: '🔴 Suspendido — KP +4', cls: 'red' },
     ];
+    const herrOpts = [
+      { val: 'Lanzas', key: 'step.metodo.herr.lanzas' },
+      { val: 'Manguera', key: 'step.metodo.herr.manguera' },
+      { val: 'Hidrolavadora', key: 'step.metodo.herr.hidro' },
+      { val: 'Otro', key: 'step.metodo.herr.otro' },
+    ];
+    const esManual = serviceState.metodoTrabajo === '💪 Manual';
     content.innerHTML = `
       ${renderCancelarBanner()}
       <div class="step-title">${t('step.inicioef.title')}</div>
@@ -6074,6 +6087,20 @@ function renderStep() {
         <div class="clima-group">
           ${climaOpts.map(o => `<div class="clima-opt ${o.cls} ${(Array.isArray(serviceState.clima) ? serviceState.clima : []).includes(o.val) ? 'selected' : ''}" onclick="selectClima('${o.val}')">${o.label}</div>`).join('')}
         </div>
+      </div>
+
+      <div class="field-group">
+        <div class="form-label">${t('step.metodo.label')}</div>
+        <div class="hint hint-blue" style="margin-bottom:10px">${t('step.metodo.hint')}</div>
+        <div class="metodo-group">
+          <button type="button" class="metodo-btn ${serviceState.metodoTrabajo === '🚁 Dron' ? 'active' : ''}" onclick="selectMetodoTrabajo('🚁 Dron')">${t('step.metodo.dron')}</button>
+          <button type="button" class="metodo-btn ${esManual ? 'active' : ''}" onclick="selectMetodoTrabajo('💪 Manual')">${t('step.metodo.manual')}</button>
+        </div>
+        ${esManual ? `
+          <div class="form-label" style="margin-top:12px">${t('step.metodo.herramienta.label')}</div>
+          <div class="herr-group">
+            ${herrOpts.map(o => `<button type="button" class="herr-btn ${serviceState.herramientaManual === o.val ? 'active' : ''}" onclick="selectHerramientaManual('${o.val}')">${t(o.key)}</button>`).join('')}
+          </div>` : ''}
       </div>
 
       <div class="hint hint-amber" style="margin-top:12px">${t('step.inicioef.hint')}</div>
@@ -6427,10 +6454,19 @@ async function cancelarInicio() {
 
 async function registrarInicioEfectivo() {
   if (serviceState.horaInicioEfectivo) { renderStep(); return; }
+  // Método de trabajo obligatorio antes de registrar el inicio efectivo.
+  if (!serviceState.metodoTrabajo) { alert(t('step.metodo.required')); return; }
+  if (serviceState.metodoTrabajo === '💪 Manual' && !serviceState.herramientaManual) {
+    alert(t('step.metodo.required.herr')); return;
+  }
   serviceState.horaInicioEfectivo = timeNow();
   try {
     await queueableUpdateServiceProps(currentService.id, {
-      'Hora Inicio Efectivo': { date: { start: isoNow()} }
+      'Hora Inicio Efectivo': { date: { start: isoNow()} },
+      'Método de trabajo': { select: { name: serviceState.metodoTrabajo } },
+      ...(serviceState.metodoTrabajo === '💪 Manual' && serviceState.herramientaManual
+        ? { 'Herramienta manual': { select: { name: serviceState.herramientaManual } } }
+        : {})
     });
     showSaving();
     persistServiceStateToLocal();
@@ -6493,6 +6529,20 @@ function selectClima(val) {
   const idx = serviceState.clima.indexOf(val);
   if (idx === -1) serviceState.clima.push(val);
   else serviceState.clima.splice(idx, 1);
+  persistServiceState();
+  renderStep();
+}
+
+function selectMetodoTrabajo(val) {
+  serviceState.metodoTrabajo = val;
+  // Si vuelve a Dron, limpiar la herramienta manual (no aplica).
+  if (val !== '💪 Manual') serviceState.herramientaManual = '';
+  persistServiceState();
+  renderStep();
+}
+
+function selectHerramientaManual(val) {
+  serviceState.herramientaManual = val;
   persistServiceState();
   renderStep();
 }
