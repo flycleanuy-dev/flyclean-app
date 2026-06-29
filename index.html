@@ -2089,6 +2089,7 @@ const TRANSLATIONS = {
     'sheet.contact.section.mapa': 'UBICACIÓN (GOOGLE MAPS)',
     'sheet.contact.mapa.placeholder': 'https://maps.app.goo.gl/...',
     'sheet.contact.mapa.abrir': '📍 Abrir',
+    'sheet.contact.mapa.none': 'Sin URL de Maps cargada',
     'sheet.contact.section.intermediario': 'LLEGÓ POR (INTERMEDIARIO)',
     'sheet.contact.intermediario.none': '— Directo (sin intermediario) —',
     'sheet.contact.intermediario.loading': 'cargando clientes…',
@@ -2660,6 +2661,7 @@ const TRANSLATIONS = {
     'sheet.contact.section.mapa': 'LOCALIZAÇÃO (GOOGLE MAPS)',
     'sheet.contact.mapa.placeholder': 'https://maps.app.goo.gl/...',
     'sheet.contact.mapa.abrir': '📍 Abrir',
+    'sheet.contact.mapa.none': 'Sem URL de Maps carregada',
     'sheet.contact.section.intermediario': 'CHEGOU POR (INTERMEDIÁRIO)',
     'sheet.contact.intermediario.none': '— Direto (sem intermediário) —',
     'sheet.contact.intermediario.loading': 'carregando clientes…',
@@ -10279,7 +10281,7 @@ function contactToggleMulti(key, el, val) {
 
 function contactOpenMapa() {
   const u = (contactEditState.mapa || '').trim();
-  if (!u) { alert(t('sheet.svc.ubicacion.none')); return; }
+  if (!u) { alert(t('sheet.contact.mapa.none')); return; }
   window.open(u, '_blank', 'noopener');
 }
 
@@ -10341,7 +10343,8 @@ async function saveContactEdit() {
     props['Email'] = { email: s.email || null };
     props['Ciudad / Zona'] = { rich_text: s.ciudad ? [{ text: { content: s.ciudad } }] : [] };
     props['Mapa'] = { url: s.mapa && s.mapa.trim() ? s.mapa.trim() : null };
-    props['Intermediario'] = { relation: s.intermediario ? [{ id: s.intermediario }] : [] };
+    if (contactSheetMode !== 'create')
+      props['Intermediario'] = { relation: s.intermediario ? [{ id: s.intermediario }] : [] };
     props['Interlocutor'] = { rich_text: s.interlocutor ? [{ text: { content: s.interlocutor } }] : [] };
     props['Notas'] = { rich_text: s.notas ? [{ text: { content: s.notas } }] : [] };
     props['Nombre / Empresa'] = { title: [{ text: { content: nombre } }] };
