@@ -5523,7 +5523,7 @@ async function renderLimpiezaServicios(){
       <div style="font-weight:700">${arr.length} servicios ${inconsistente?'· ⚠️ nombres distintos':''}</div>
       ${arr.map(s=>{
         const archivado = esArchivado(s);
-        return `<div style="display:flex;justify-content:space-between;gap:8px;padding:4px 0${archivado?' opacity:0.6':''}">
+        return `<div style="display:flex;justify-content:space-between;gap:8px;padding:4px 0${archivado?';opacity:0.6':''}">
           <input class="edit-date-input" style="flex:1" value="${esc((s.properties?.['Nombre del servicio']?.title?.[0]?.plain_text||''))}" onchange="renameOneService('${esc(s.id)}',this.value)"${archivado?' disabled':''}/>
           ${archivado
             ? `<button class="estado-btn" onclick="unarchive('${esc(s.id)}','servicios')">Desarchivar</button>`
