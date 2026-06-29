@@ -3074,6 +3074,12 @@ function buildIncrementalProps(s) {
   } else if (s.resultado) {
     properties['Resultado'] = { select: { name: s.resultado } };
   }
+  // Blindaje del checklist (Punto 5b): persistir pre/post a Notion en cada auto-save.
+  // Solo escribir si hay al menos un ítem marcado (evita pisar con "{}" un servicio sin tocar).
+  const _ck = { pre: s.checklistPre || {}, post: s.checklistPost || {} };
+  if (Object.keys(_ck.pre).length || Object.keys(_ck.post).length) {
+    properties['Estado checklist'] = { rich_text: [{ text: { content: JSON.stringify(_ck) } }] };
+  }
   return properties;
 }
 
@@ -3121,6 +3127,19 @@ function hydrateServiceStateFromNotion(svc) {
   serviceState.photos.pre = collect(props['📸 Fotos pre-servicio']);
   serviceState.photos.post = collect(props['📸 Fotos post-servicio']);
   serviceState.photos.relevamiento = collect(props['📸 Fotos relevamiento']);
+  // Fallback del checklist desde Notion (Punto 5b): si localStorage se perdió
+  // (caché borrada / reinstalación), reconstruir pre/post desde la property.
+  // hydrateServiceStateFromLocal corre DESPUÉS y, si tiene datos, los superpone (gana lo local).
+  try {
+    const ckRaw = props['Estado checklist']?.rich_text?.[0]?.plain_text;
+    if (ckRaw) {
+      const ck = JSON.parse(ckRaw);
+      if (ck && typeof ck === 'object') {
+        if (ck.pre && Object.keys(ck.pre).length) serviceState.checklistPre = ck.pre;
+        if (ck.post && Object.keys(ck.post).length) serviceState.checklistPost = ck.post;
+      }
+    }
+  } catch (_) { /* JSON corrupto → ignorar, el checklist arranca vacío */ }
 }
 
 function hydrateServiceStateFromLocal(id) {
@@ -6454,6 +6473,13 @@ async function cerrarServicio() {
   if (preFiles.length) properties['📸 Fotos pre-servicio'] = { files: preFiles };
   if (postFiles.length) properties['📸 Fotos post-servicio'] = { files: postFiles };
   if (relevFiles.length) properties['📸 Fotos relevamiento'] = { files: relevFiles };
+
+  // Belt-and-suspenders: guardar estado final del checklist al cerrar (Punto 5b).
+  // Cubre el caso donde el último debounce de auto-save no llegó a flushear.
+  const _ckClose = { pre: serviceState.checklistPre || {}, post: serviceState.checklistPost || {} };
+  if (Object.keys(_ckClose.pre).length || Object.keys(_ckClose.post).length) {
+    properties['Estado checklist'] = { rich_text: [{ text: { content: JSON.stringify(_ckClose) } }] };
+  }
 
   // Si es relevamiento, agregar los 4 campos extra + notas para el comercial
   if (tipoReg.includes('Relevamiento')) {
