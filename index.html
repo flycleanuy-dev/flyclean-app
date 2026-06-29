@@ -2139,6 +2139,9 @@ const TRANSLATIONS = {
     'sheet.prop.delete.error': 'Error al eliminar:',
     'sheet.prop.pedir.relev': 'Pedir relevamiento previo',
     'sheet.prop.creating.relev': 'Creando relevamiento...',
+    'sheet.prop.create.svc.hint': 'Se activa cuando la propuesta está Aceptada.',
+    'sheet.prop.pedir.relev.hint': 'Se activa en estados previos a la venta (lead / contactado / relevamiento / en preparación).',
+    'sheet.prop.pedir.prueba.hint': 'Se activa en estados previos a la venta (lead / contactado / relevamiento / en preparación).',
     'relev.badge': 'RELEVAMIENTO',
     'relev.step.datos.title': '🔍 Datos del relevamiento',
     'relev.step.datos.sub': 'Completá los datos clave del lugar',
@@ -2689,6 +2692,9 @@ const TRANSLATIONS = {
     'sheet.prop.delete.error': 'Erro ao excluir:',
     'sheet.prop.pedir.relev': 'Pedir levantamento prévio',
     'sheet.prop.creating.relev': 'Criando levantamento...',
+    'sheet.prop.create.svc.hint': 'Ativa quando a proposta está Aceita.',
+    'sheet.prop.pedir.relev.hint': 'Ativa nos estados antes da venda (lead / contatado / levantamento / em preparação).',
+    'sheet.prop.pedir.prueba.hint': 'Ativa nos estados antes da venda (lead / contatado / levantamento / em preparação).',
     'relev.badge': 'LEVANTAMENTO',
     'relev.step.datos.title': '🔍 Dados do levantamento',
     'relev.step.datos.sub': 'Preencha os dados-chave do local',
@@ -9789,43 +9795,58 @@ function updateCreateSvcBtnVisibility() {
   const estado = propEditState.estado || '';
   // Estados donde se puede crear servicio (ya vendida)
   const ESTADOS_VENDIDO = ['✅ Aceptada', 'Concretado', 'Servicio Pendiente'];
-  // Estados donde tiene sentido pedir un relevamiento previo (antes de cotizar)
+  // Estados donde tiene sentido pedir un relevamiento o prueba previa (antes de cotizar)
   const ESTADOS_PRE_VENTA = ['🆕 Nuevo lead', '📞 Contactado', '🔍 Relevamiento', '⏳ En preparación'];
 
+  const showSvc = ESTADOS_VENDIDO.includes(estado);
+  const showRelev = ESTADOS_PRE_VENTA.includes(estado);
+  const showPrueba = ESTADOS_PRE_VENTA.includes(estado);
+
+  // Hint corto bajo el botón deshabilitado (en qué estado se activa).
+  function setHint(sectionEl, show, msgKey) {
+    if (!sectionEl) return;
+    let hint = sectionEl.querySelector('.create-btn-hint');
+    if (show) { if (hint) hint.remove(); return; }
+    if (!hint) {
+      hint = document.createElement('div');
+      hint.className = 'edit-section-hint create-btn-hint';
+      hint.style.cssText = 'font-size:11px;color:var(--text3);margin-top:6px';
+      sectionEl.appendChild(hint);
+    }
+    hint.textContent = t(msgKey);
+  }
+
+  // Crear servicio (verde) — siempre visible, habilitado solo si vendida.
   const svcSection = document.getElementById('create-svc-section');
   const svcBtn = document.getElementById('create-svc-btn');
   if (svcSection && svcBtn) {
-    const showSvc = ESTADOS_VENDIDO.includes(estado);
-    svcSection.style.display = showSvc ? '' : 'none';
-    if (showSvc) {
-      const servCount = (editingProp.properties?.['Servicios']?.relation || []).length;
-      svcBtn.textContent = servCount > 0
-        ? '+ ' + t('sheet.prop.create.another.svc') + ' (' + servCount + ' ' + t('sheet.prop.svc.already') + ')'
-        : '→ ' + t('sheet.prop.create.svc');
-      svcBtn.disabled = false;
-    }
+    svcSection.style.display = '';
+    const servCount = (editingProp.properties?.['Servicios']?.relation || []).length;
+    svcBtn.textContent = servCount > 0
+      ? '+ ' + t('sheet.prop.create.another.svc') + ' (' + servCount + ' ' + t('sheet.prop.svc.already') + ')'
+      : '→ ' + t('sheet.prop.create.svc');
+    svcBtn.disabled = !showSvc;
+    setHint(svcSection, showSvc, 'sheet.prop.create.svc.hint');
   }
 
+  // Pedir relevamiento (violeta) — siempre visible, habilitado solo en pre-venta.
   const relevSection = document.getElementById('create-relev-section');
   const relevBtn = document.getElementById('create-relev-btn');
   if (relevSection && relevBtn) {
-    const showRelev = ESTADOS_PRE_VENTA.includes(estado);
-    relevSection.style.display = showRelev ? '' : 'none';
-    if (showRelev) {
-      relevBtn.textContent = '🔍 ' + t('sheet.prop.pedir.relev');
-      relevBtn.disabled = false;
-    }
+    relevSection.style.display = '';
+    relevBtn.textContent = '🔍 ' + t('sheet.prop.pedir.relev');
+    relevBtn.disabled = !showRelev;
+    setHint(relevSection, showRelev, 'sheet.prop.pedir.relev.hint');
   }
 
+  // Hacer prueba demo (rosa) — siempre visible, habilitado solo en pre-venta.
   const pruebaSection = document.getElementById('create-prueba-section');
   const pruebaBtn = document.getElementById('create-prueba-btn');
   if (pruebaSection && pruebaBtn) {
-    const showPrueba = ESTADOS_PRE_VENTA.includes(estado);
-    pruebaSection.style.display = showPrueba ? '' : 'none';
-    if (showPrueba) {
-      pruebaBtn.textContent = '🧪 ' + t('sheet.prop.pedir.prueba');
-      pruebaBtn.disabled = false;
-    }
+    pruebaSection.style.display = '';
+    pruebaBtn.textContent = '🧪 ' + t('sheet.prop.pedir.prueba');
+    pruebaBtn.disabled = !showPrueba;
+    setHint(pruebaSection, showPrueba, 'sheet.prop.pedir.prueba.hint');
   }
 }
 
