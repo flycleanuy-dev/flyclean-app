@@ -1417,6 +1417,18 @@ body::before {
     <div id="ingreso-sheet-body" style="padding:0 0 24px"></div>
   </div>
 </div>
+<!-- Modal: Editar cobro existente (Finanzas) — sibling de body como el resto de overlays. -->
+<div class="edit-overlay" id="cobro-overlay" onclick="cobroOverlayClick(event)">
+  <div class="edit-sheet" id="cobro-sheet">
+    <button class="sheet-close-btn" type="button" aria-label="Cerrar" onclick="closeCobroSheet()">×</button>
+    <div class="edit-sheet-handle"></div>
+    <div class="edit-sheet-header">
+      <div class="edit-sheet-title">✏️ Editar cobro</div>
+      <div class="edit-sheet-sub">Corregí fecha, monto, moneda o el servicio vinculado.</div>
+    </div>
+    <div id="cobro-sheet-body" style="padding:0 0 24px"></div>
+  </div>
+</div>
 <!-- Modal: Solicitud de compras (pedir insumo) — sibling de body para
      funcionar desde operario / coord sin importar la screen activa. -->
 <div class="edit-overlay" id="pedido-overlay" onclick="pedidoOverlayClick(event)">
@@ -4214,6 +4226,83 @@ async function saveIngreso() {
     alert('No se pudo guardar el ingreso: ' + e.message);
   }
 }
+
+// ── C7: Editar cobro existente (Finanzas) ───────────────────────────────────
+// openCobroSheet(ingId) carga el cobro desde Notion + servicios del país y abre el sheet.
+// renderCobroSheet() dibuja los campos (Servicio, Moneda, Monto, Fecha).
+// saveCobroEdit() lo implementa B-5.
+let cobroState = null;
+function cobroOverlayClick(e) { if (e.target?.id === 'cobro-overlay') closeCobroSheet(); }
+function closeCobroSheet() { document.getElementById('cobro-overlay')?.classList.remove('open'); cobroState = null; }
+async function openCobroSheet(ingId) {
+  if (!currentUser?.role?.includes('Administración')) return; // solo Finanzas
+  document.getElementById('cobro-overlay')?.classList.add('open');
+  cobroState = { saving: false, loading: true, servicios: [], ing: null, form: null };
+  renderCobroSheet();
+  try {
+    const [page, svc] = await Promise.all([
+      callNotion('pages/' + ingId, 'GET'),
+      callNotion(`databases/${DB_ID}/query`, 'POST', {})
+    ]);
+    if (!cobroState) return; // cerrado mientras cargaba
+    const p = page.properties || {};
+    const { moneda } = montoOf(p, 'ingreso');
+    const montoReal = (moneda === '🇺🇾 UY$') ? (p['Monto UY$ cobrado']?.number || 0) : (p['Monto USD']?.number || 0);
+    cobroState.ing = page;
+    cobroState.servicios = (svc.results || []).filter(recEnPaisNotion);
+    cobroState.form = {
+      id: ingId,
+      fecha: p['Fecha']?.date?.start ? p['Fecha'].date.start.slice(0, 10) : '',
+      moneda,                                           // '🇺🇸 USD' | '🇺🇾 UY$'
+      monto: montoReal,                                 // monto real en la moneda etiquetada
+      servicioId: (p['Servicio vinculado']?.relation || [])[0]?.id || '',
+      clienteId: (p['Cuenta']?.relation || [])[0]?.id || '',
+      tc: p['TC aplicado']?.number ?? null,             // re-derivado/limpiado en B-5 (P6)
+    };
+    cobroState.loading = false;
+    renderCobroSheet();
+  } catch (e) {
+    if (cobroState) cobroState.loading = false;
+    const b = document.getElementById('cobro-sheet-body');
+    if (b) b.innerHTML = '<div class="coord-empty" style="padding:20px">No se pudo cargar el cobro: ' + esc(e.message || String(e)) + '</div>';
+  }
+}
+function cobroSetServicio(id) { if (cobroState?.form) cobroState.form.servicioId = id; }
+function renderCobroSheet() {
+  const body = document.getElementById('cobro-sheet-body');
+  if (!body || !cobroState) return;
+  const s = cobroState, f = s.form;
+  if (s.loading || !f) {
+    body.innerHTML = '<div style="text-align:center;padding:40px 0"><div class="spinner" style="margin:0 auto"></div></div>';
+    return;
+  }
+  if (s.saving) {
+    body.innerHTML = '<div style="text-align:center;padding:40px 0"><div class="spinner" style="margin:0 auto"></div><div style="margin-top:10px;color:var(--text3)">Guardando…</div></div>';
+    return;
+  }
+  const svcTit = sv => sv.properties?.['Nombre del servicio']?.title?.[0]?.plain_text || '(servicio)';
+  const nrm = x => (x || '').replace(/-/g, '');
+  // Servicios del cliente del cobro primero (si hay clienteId); el resto después.
+  const delCliente = f.clienteId ? s.servicios.filter(sv => (sv.properties?.['Contacto']?.relation || []).some(r => nrm(r.id) === nrm(f.clienteId))) : [];
+  const ids = new Set(delCliente.map(x => x.id));
+  const resto = s.servicios.filter(sv => !ids.has(sv.id));
+  const opt = sv => '<option value="' + esc(sv.id) + '"' + (nrm(f.servicioId) === nrm(sv.id) ? ' selected' : '') + '>' + esc(svcTit(sv)) + '</option>';
+  const svcOpts = '<option value="">— Sin servicio —</option>' +
+    delCliente.map(opt).join('') +
+    (delCliente.length && resto.length ? '<option value="" disabled>────────</option>' : '') +
+    resto.map(opt).join('');
+  const monedas = ['🇺🇸 USD', '🇺🇾 UY$'];
+  body.innerHTML =
+    `<div class="edit-section"><div class="edit-section-label">Servicio vinculado</div>` +
+    `<select class="finanzas-filter-select" style="width:100%" onchange="cobroSetServicio(this.value)">${svcOpts}</select></div>` +
+    `<div class="edit-section"><div class="edit-section-label">Moneda</div><div class="estado-btns">${monedas.map(m => `<button class="estado-btn ${f.moneda === m ? 'active' : ''}" onclick="cobroState.form.moneda='${m}';renderCobroSheet()">${m}</button>`).join('')}</div></div>` +
+    `<div class="edit-section"><div class="edit-section-label">Monto cobrado (real)</div><input type="number" inputmode="decimal" class="edit-date-input" value="${f.monto || ''}" oninput="cobroState.form.monto=parseFloat(this.value)||0" placeholder="0"/></div>` +
+    `<div class="edit-section"><div class="edit-section-label">Fecha de cobro</div><input type="date" class="edit-date-input" value="${esc(f.fecha)}" oninput="cobroState.form.fecha=this.value"/></div>` +
+    `<div style="padding:0 16px 4px;font-size:11px;color:var(--text3)">El monto es lo que entró de verdad, en su moneda. (La cobertura cruzada de un servicio en otra moneda se hace con "✓ cubre este servicio".)</div>` +
+    `<div style="padding:14px 16px"><button class="edit-save-btn" style="width:100%" onclick="saveCobroEdit()">💾 Guardar cambios</button></div>`;
+}
+// saveCobroEdit() se implementa en B-5.
+// ────────────────────────────────────────────────────────────────────────────
 
 function renderReportes() {
   const content = document.getElementById('finanzas-content');
@@ -7510,9 +7599,11 @@ async function renderPorCobrar(containerId, opts = {}) {
           }
           h += '<div class="ec-row" style="flex-direction:column;align-items:stretch;gap:6px;padding:8px 16px">' +
             '<div style="display:flex;justify-content:space-between;gap:8px"><span style="font-weight:600">' + esc(ingCli(i)) + '</span><span style="font-weight:700;white-space:nowrap">' + ingMonto(i) + ' <span style="color:var(--text3);font-weight:400;font-size:11px">' + (i.properties?.['Fecha']?.date?.start || '').slice(0, 10) + '</span></span></div>' +
-            // Slot A-3: select #assoc-<ingId> + botón asociarCobro + botón C3 ✓ cubre (si aplica).
+            // Slot A-3: select #assoc-<ingId> + botón asociarCobro + botón C7 editar + botón C3 ✓ cubre (si aplica).
             '<div style="display:flex;gap:6px"><select id="assoc-' + i.id + '" style="flex:1;min-width:0;padding:6px;border-radius:6px;background:var(--bg);color:var(--text);border:1px solid var(--border);font-size:12px;font-family:inherit">' + optsFor(i) + '</select>' +
-            '<button class="fin-svc-link" style="white-space:nowrap" onclick="asociarCobro(\'' + i.id + '\')">Asociar</button>' + cubreBtn + '</div>' +
+            '<button class="fin-svc-link" style="white-space:nowrap" onclick="asociarCobro(\'' + i.id + '\')">Asociar</button>' +
+            '<button class="fin-svc-link" style="white-space:nowrap" onclick="openCobroSheet(\'' + esc(i.id) + '\')">✏️</button>' +
+            cubreBtn + '</div>' +
           '</div>';
         });
       }
