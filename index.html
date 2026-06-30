@@ -2273,7 +2273,8 @@ const TRANSLATIONS = {
     'porcobrar.cubrir.label': 'Monto que cubre',
     'porcobrar.contrato.title': 'Asignar precio del contrato',
     'porcobrar.contrato.choose': 'Este cliente tiene varios contratos. ¿Cuál aplicar?',
-    'porcobrar.contrato.body': 'Se vinculará la propuesta del contrato ({precio}/visita) a estas {n} visita(s):'
+    'porcobrar.contrato.body': 'Se vinculará la propuesta del contrato ({precio}/visita) a estas {n} visita(s):',
+    'porcobrar.asociar.reconciliar': 'Este cobro está en otra moneda. ¿Querés marcar cuánto cubre del servicio?'
   },
   'pt-BR': {
     'country.tagline': 'Selecione sua região para continuar',
@@ -2865,7 +2866,8 @@ const TRANSLATIONS = {
     'porcobrar.cubrir.label': 'Valor que cobre',
     'porcobrar.contrato.title': 'Atribuir preço do contrato',
     'porcobrar.contrato.choose': 'Este cliente tem vários contratos. Qual aplicar?',
-    'porcobrar.contrato.body': 'A proposta do contrato ({precio}/visita) será vinculada a estas {n} visita(s):'
+    'porcobrar.contrato.body': 'A proposta do contrato ({precio}/visita) será vinculada a estas {n} visita(s):',
+    'porcobrar.asociar.reconciliar': 'Este cobro está em outra moeda. Quer marcar quanto cobre do serviço?'
   }
 };
 
@@ -7530,6 +7532,34 @@ async function renderPorCobrar(containerId, opts = {}) {
         cliIds.map(tarjetaCliente).join('') +
         '<div style="padding:12px 14px;font-size:11px;color:var(--text3)">El precio sale de la propuesta vinculada; lo cobrado, de los cobros vinculados. Reconciliá monedas o asigná el precio del contrato con un toque.</div>' +
       '</div>';
+
+    // A-5: cablear slots pc-cubre-slot para visitas con cobro asociado en moneda cruzada.
+    // Para cada visita que tiene precio + cobradoOtra > 0 (cobro en la otra moneda) y no está fully cobrada
+    // en la moneda del precio, buscamos el cobro cruzado y ponemos el botón "✓ cubre" en el slot.
+    if (!readonly) {
+      const normS = x => (x || '').replace(/-/g, '');
+      // Construir índice svcId → svc.results entry para acceder a las relations de Ingresos.
+      const svcById = {};
+      (svc.results || []).forEach(s => { svcById[normS(s.id)] = s; });
+      rows.forEach(r => {
+        if (!r.precio || !r.cobradoOtra) return;      // no hay cruce de moneda → sin botón
+        if (r.cobrado >= r.precio - 0.5) return;      // ya cobrado en la moneda correcta → sin botón
+        const slot = content.querySelector('.pc-cubre-slot[data-svc="' + r.id + '"]');
+        if (!slot) return;
+        // Encontrar el primer cobro vinculado que tenga monto en la moneda OPUESTA al precio del servicio.
+        const svcEntry = svcById[normS(r.id)];
+        const linkedIds = (svcEntry?.properties?.['Ingresos']?.relation || []).map(x => normS(x.id));
+        const ingCruzado = linkedIds.find(iid => {
+          const im = ingBy[iid] || { usd: 0, uy: 0 };
+          return r.esUY ? im.usd > 0 : im.uy > 0;
+        });
+        if (!ingCruzado) return;
+        // Encontrar el id "original" (con guiones) del cobro para pasarlo a cubrirServicio.
+        const ingEntry = (ing.results || []).find(x => normS(x.id) === ingCruzado);
+        if (!ingEntry) return;
+        slot.innerHTML = ' <button class="fin-svc-link" style="white-space:nowrap;font-size:11px;margin-left:4px" onclick="cubrirServicio(\'' + esc(ingEntry.id) + '\',\'' + esc(r.id) + '\')">✓ cubre</button>';
+      });
+    }
   } catch (e) {
     content.innerHTML = '<div class="coord-empty">No se pudo cargar Por cobrar<br><small>' + esc(e.message) + '</small></div>';
   }
@@ -7544,10 +7574,30 @@ async function asociarCobro(ingId) {
   if (sel) sel.disabled = true;
   try {
     await callNotion('pages/' + ingId, 'PATCH', { properties: { 'Servicio vinculado': { relation: [{ id: svcId }] } } });
+    if (typeof syncAfterWrite === 'function') { try { await syncAfterWrite(ingId, 'ingresos'); } catch (_) {} }
+    // C5: si el cobro está en moneda cruzada o $0 en la moneda del precio → ofrecer reconciliar (C3).
+    const D = _porCobrarData;
+    if (D) {
+      const nrm = x => (x || '').replace(/-/g, '');
+      const sObj = (D.svc.results || []).find(x => x.id === svcId);
+      const propId = sObj?.properties?.['Propuesta']?.relation?.[0]?.id;
+      const pr = propId ? D.precioBy[nrm(propId)] : null;
+      const im = D.ingBy[nrm(ingId)] || { usd: 0, uy: 0 };
+      if (pr) {
+        const precioEsUY = pr.moneda === '🇺🇾 UY$';
+        const enPrecio = precioEsUY ? im.uy : im.usd;   // monto del cobro EN la moneda del precio
+        const enOtra   = precioEsUY ? im.usd : im.uy;   // monto en la otra moneda
+        if (!enPrecio && enOtra) {                       // pagado sólo en la otra moneda → reconciliar
+          if (_porCobrarCtx) await renderPorCobrar(_porCobrarCtx.containerId, _porCobrarCtx.opts);
+          if (confirm(t('porcobrar.asociar.reconciliar'))) cubrirServicio(ingId, svcId);
+          return;
+        }
+      }
+    }
     if (_porCobrarCtx) await renderPorCobrar(_porCobrarCtx.containerId, _porCobrarCtx.opts);
   } catch (e) {
     if (sel) sel.disabled = false;
-    alert('No se pudo asociar: ' + (e.message || e));
+    alert('No se pudo asociar: ' + esc(e.message || String(e)));
   }
 }
 
