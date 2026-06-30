@@ -9224,7 +9224,7 @@ async function openEditSheet(pageId) {
     contactoId, clienteNombre: '', clienteMapa: '', propMapa: '',
     sectoresCliente: [],
     sectores: (() => { try { return JSON.parse(props['Estado sectores']?.rich_text?.[0]?.plain_text || '[]'); } catch (_) { return []; } })(),
-    _sectoresClienteDirty: false };
+    _sectoresClienteDirty: false, _sectoresClienteLoaded: false };
   document.getElementById('edit-sheet-title').textContent = nombre;
   const dateLocale = currentLang === 'pt-BR' ? 'pt-BR' : 'es-UY';
   document.getElementById('edit-sheet-sub').textContent = fecha ? new Date(fecha + 'T00:00:00').toLocaleDateString(dateLocale, { weekday: 'long', day: 'numeric', month: 'long' }) : t('sheet.alert.fecha');
@@ -9334,7 +9334,13 @@ async function resolveSvcUbicacion(svcId) {
       for (const k in cp) { const tt = cp[k]?.title; if (Array.isArray(tt) && tt.length) { nom = tt.map(x => x.plain_text).join(''); break; } }
       editState.clienteNombre = nom || '';
       editState.clienteMapa = cp['Mapa']?.url || '';
-      try { editState.sectoresCliente = JSON.parse(cp['Sectores']?.rich_text?.[0]?.plain_text || '[]'); } catch (_) { editState.sectoresCliente = []; }
+      try {
+        const cargados = JSON.parse(cp['Sectores']?.rich_text?.[0]?.plain_text || '[]');
+        const previos = Array.isArray(editState.sectoresCliente) ? editState.sectoresCliente : [];
+        const extra = previos.filter(p => !cargados.some(c => c.id === p.id));
+        editState.sectoresCliente = cargados.concat(extra);
+      } catch (_) { if (!Array.isArray(editState.sectoresCliente)) editState.sectoresCliente = []; }
+      editState._sectoresClienteLoaded = true;
       renderEditSectores();
     } catch (_) {}
   }
@@ -9796,7 +9802,7 @@ async function saveServiceEdit() {
       props['Estado sectores'] = { rich_text: secs.length ? [{ text: { content: JSON.stringify(secs) } }] : [] };
     }
     // Si se agregó un sector nuevo desde el servicio, persistirlo a la lista reusable del cliente.
-    if (editState._sectoresClienteDirty && editState.contactoId) {
+    if (editState._sectoresClienteDirty && editState.contactoId && editState._sectoresClienteLoaded) {
       try {
         const cli = (Array.isArray(editState.sectoresCliente) ? editState.sectoresCliente : [])
           .map(x => ({ id: x.id, nombre: String(x.nombre || '').trim() }))
