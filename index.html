@@ -1319,6 +1319,7 @@ body::before {
         <div id="edit-gastos-chips"></div>
         <button class="add-equipo-btn" onclick="openNuevoGastoSheet({ defaultClase: '📌 Directo', servicioId: editingService?.id })" data-i18n="sheet.edit.gastos.add">+ Agregar gasto</button>
       </div>
+      <button class="delete-svc-btn" id="archive-svc-btn" style="display:none;border-color:var(--text3);color:var(--text3)" onclick="archivarServicioFinanzas()">🗄️ Archivar servicio</button>
       <button class="delete-svc-btn" id="delete-svc-btn" data-i18n="sheet.edit.delete" onclick="deleteService()">🗑️ Eliminar servicio</button>
     </div>
   </div>
@@ -9053,14 +9054,17 @@ async function openEditSheet(pageId) {
   const nombreInput = document.getElementById('edit-nombre'); if (nombreInput) nombreInput.value = nombre;
   document.getElementById('edit-save-btn').textContent = t('btn.save.notion');
   document.getElementById('edit-save-btn').disabled = false;
+  const esFin = !!(currentUser?.role && currentUser.role.includes('Administración'));
+  const isCompletado = estadoActual.includes('Completado');
   const delBtn = document.getElementById('delete-svc-btn');
   if (delBtn) {
-    // Regla: no permitir eliminar servicios completados (registro histórico inmutable)
-    const isCompletado = estadoActual.includes('Completado');
-    delBtn.style.display = isCompletado ? 'none' : '';
+    // Coord/Dirección: NO eliminar completados (histórico). Finanzas: SÍ puede (papelera + doble confirm).
+    delBtn.style.display = (isCompletado && !esFin) ? 'none' : '';
     delBtn.textContent = '🗑️ ' + t('sheet.edit.delete');
     delBtn.disabled = false;
   }
+  const archBtn = document.getElementById('archive-svc-btn');
+  if (archBtn) { archBtn.style.display = esFin ? '' : 'none'; archBtn.disabled = false; archBtn.textContent = '🗄️ Archivar servicio'; }
   const reportBtn = document.getElementById('report-pdf-btn');
   if (reportBtn) {
     const tipoReg = props['Tipo de registro']?.select?.name || '';
@@ -9568,23 +9572,46 @@ async function deleteService() {
   if (!editingService) return;
   const props = editingService.properties || {};
   const estado = props['Estado']?.select?.name || '';
-  if (estado.includes('Completado')) {
-    alert(t('sheet.edit.delete.blocked.completed'));
-    return;
-  }
+  const esFin = !!(currentUser?.role && currentUser.role.includes('Administración'));
+  // Coord/Dirección: NO eliminar completados (histórico inmutable). Finanzas: SÍ (papelera Notion, recuperable 30 días).
+  if (estado.includes('Completado') && !esFin) { alert(t('sheet.edit.delete.blocked.completed')); return; }
   const nombre = props['Nombre del servicio']?.title?.[0]?.plain_text || t('common.sinnombre');
   if (!confirm(t('sheet.edit.delete.confirm').replace('{name}', nombre))) return;
+  // Doble confirmación para Finanzas (papelera de Notion).
+  if (esFin && !confirm('Confirmá de nuevo: "' + nombre + '" se va a la PAPELERA de Notion (recuperable 30 días). ¿Eliminar?')) return;
 
   const btn = document.getElementById('delete-svc-btn');
   if (btn) { btn.textContent = '⏳ ' + t('sheet.edit.deleting'); btn.disabled = true; }
   try {
     // Archive en Notion (in_trash=true). No es delete permanente — recuperable desde la papelera.
     await callNotion('pages/' + editingService.id, 'PATCH', { in_trash: true });
+    syncAfterWrite(editingService.id, 'servicios');
     closeEditSheet();
-    await renderCoordServicios();
+    if (_editFromPorCobrar && _porCobrarCtx) { _editFromPorCobrar = false; await renderPorCobrar(_porCobrarCtx.containerId, _porCobrarCtx.opts); }
+    else await renderCoordServicios();
   } catch (e) {
     if (btn) { btn.textContent = '🗑️ ' + t('sheet.edit.delete'); btn.disabled = false; }
     alert(t('sheet.edit.delete.error') + ' ' + e.message);
+  }
+}
+
+async function archivarServicioFinanzas() {
+  if (!editingService) return;
+  if (!(currentUser?.role && currentUser.role.includes('Administración'))) return;
+  const p = editingService.properties || {};
+  const nombre = p['Nombre del servicio']?.title?.[0]?.plain_text || t('common.sinnombre');
+  if (!confirm('Vas a ARCHIVAR "' + nombre + '".\n\nSale de "Por cobrar" pero NO se borra — Dirección lo puede desarchivar cuando quiera. ¿Confirmás?')) return;
+  const btn = document.getElementById('archive-svc-btn');
+  if (btn) { btn.textContent = '⏳ Archivando…'; btn.disabled = true; }
+  try {
+    await updateServiceProps(editingService.id, { '🗄️ Archivado': { checkbox: true } });
+    syncAfterWrite(editingService.id, 'servicios');
+    closeEditSheet();
+    if (_editFromPorCobrar && _porCobrarCtx) { _editFromPorCobrar = false; await renderPorCobrar(_porCobrarCtx.containerId, _porCobrarCtx.opts); }
+    else await renderCoordServicios();
+  } catch (e) {
+    if (btn) { btn.textContent = '🗄️ Archivar servicio'; btn.disabled = false; }
+    alert('No se pudo archivar: ' + esc(e.message || String(e)));
   }
 }
 
