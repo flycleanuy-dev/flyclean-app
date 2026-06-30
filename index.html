@@ -9131,6 +9131,11 @@ function esc(s) {
     .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
+// Id corto y único para un sector (solo para distinguir filas en el JSON de sectores).
+function genSectorId() {
+  return 'sec-' + Math.random().toString(36).slice(2, 8);
+}
+
 function toggleParticipante(name, btnEl) {
   if (!editState.participantes) editState.participantes = [];
   const idx = editState.participantes.indexOf(name);
