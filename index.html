@@ -7305,6 +7305,7 @@ async function renderCEOFinanzas() {
 // vinculada, Importe estimado) con lo COBRADO (suma de los cobros vinculados) → saldo y % cobrado.
 // Cálculo en cliente (join servicios+propuestas+ingresos en memoria) → no toca el esquema de Servicios.
 var _porCobrarCtx = null;
+var _porCobrarData = null; // dataset indexado del último render (lo usan cubrirServicio/asignarPrecioContrato)
 async function renderPorCobrar(containerId, opts = {}) {
   const readonly = !!opts.readonly;        // coordinador = solo ve, no asocia
   _porCobrarCtx = { containerId, opts };
@@ -7312,16 +7313,24 @@ async function renderPorCobrar(containerId, opts = {}) {
   if (!content) return;
   content.innerHTML = '<div style="text-align:center;padding:40px 0"><div class="spinner" style="margin:0 auto"></div></div>';
   try {
-    const [svc, prop, ing] = await Promise.all([
+    const [svc, prop, ing, cli] = await Promise.all([
       callNotionAll(`databases/${DB_ID}/query`, {}),
       callNotionAll(`databases/${PROPUESTAS_DB_ID}/query`, {}),
-      callNotionAll(`databases/${INGRESOS_DB_ID}/query`, {})
+      callNotionAll(`databases/${INGRESOS_DB_ID}/query`, {}),
+      callNotionAll(`databases/${CONTACTOS_DB_ID}/query`, {})
     ]);
     const norm = s => (s || '').replace(/-/g, '');
     const precioBy = {};
     (prop.results || []).forEach(p => { precioBy[norm(p.id)] = { monto: p.properties?.['Importe estimado']?.number || 0, moneda: p.properties?.['Moneda']?.select?.name || '🇺🇸 USD' }; });
     const ingBy = {};
     (ing.results || []).forEach(i => { ingBy[norm(i.id)] = { usd: i.properties?.['Monto USD']?.number || 0, uy: i.properties?.['Monto UY$ cobrado']?.number || 0 }; });
+    const clientesById = {};
+    (cli.results || []).forEach(c => {
+      clientesById[norm(c.id)] = {
+        nombre: c.properties?.['Nombre / Empresa']?.title?.[0]?.plain_text || '(cliente)',
+        pais: c.properties?.['País']?.select?.name || ''
+      };
+    });
 
     // Solo servicios facturables: Completados que NO son Pruebas, Relevamientos ni JORNADAS.
     // Las jornadas son días de trabajo que componen UN servicio (la Orden de trabajo); el servicio se
@@ -7339,6 +7348,7 @@ async function renderPorCobrar(containerId, opts = {}) {
     const rows = comp.map(s => {
       const p = s.properties || {};
       const nombre = p['Nombre del servicio']?.title?.[0]?.plain_text || '(servicio)';
+      const clienteId = norm(p['Contacto']?.relation?.[0]?.id || '');
       const propId = p['Propuesta']?.relation?.[0]?.id;
       const pr = propId ? precioBy[norm(propId)] : null;
       const precio = pr ? pr.monto : 0;
@@ -7353,7 +7363,8 @@ async function renderPorCobrar(containerId, opts = {}) {
       else if (cobrado >= precio - 0.5) estado = 'cobrado';
       else if (cobrado > 0) estado = 'parcial';
       else estado = 'acobrar';
-      return { nombre, precio, esUY, cobrado, cobradoOtra, saldo, pct: precio ? Math.round(cobrado / precio * 100) : 0, estado };
+      return { id: s.id, clienteId, nombre, precio, esUY, cobrado, cobradoOtra, saldo,
+               pct: precio ? Math.round(cobrado / precio * 100) : 0, estado };
     });
 
     const grupos = { acobrar: [], parcial: [], cobrado: [], sinprecio: [] };
@@ -7399,6 +7410,8 @@ async function renderPorCobrar(containerId, opts = {}) {
           '<button class="fin-svc-link" style="white-space:nowrap" onclick="asociarCobro(\'' + i.id + '\')">Asociar</button></div>' +
         '</div>'
       ).join('') : '';
+
+    _porCobrarData = { svc, prop, ing, clientesById, precioBy, ingBy, comp, readonly };
 
     content.innerHTML =
       (opts.headerless ? '' : ceoHeaderHTML('Por cobrar')) +
