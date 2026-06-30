@@ -2270,7 +2270,10 @@ const TRANSLATIONS = {
     'porcobrar.plan.cancel': 'Cancelar',
     'porcobrar.plan.confirm': 'Confirmar',
     'porcobrar.cubrir.title': 'Cubrir el servicio',
-    'porcobrar.cubrir.label': 'Monto que cubre'
+    'porcobrar.cubrir.label': 'Monto que cubre',
+    'porcobrar.contrato.title': 'Asignar precio del contrato',
+    'porcobrar.contrato.choose': 'Este cliente tiene varios contratos. ¿Cuál aplicar?',
+    'porcobrar.contrato.body': 'Se vinculará la propuesta del contrato ({precio}/visita) a estas {n} visita(s):'
   },
   'pt-BR': {
     'country.tagline': 'Selecione sua região para continuar',
@@ -2859,7 +2862,10 @@ const TRANSLATIONS = {
     'porcobrar.plan.cancel': 'Cancelar',
     'porcobrar.plan.confirm': 'Confirmar',
     'porcobrar.cubrir.title': 'Cobrir o serviço',
-    'porcobrar.cubrir.label': 'Valor que cobre'
+    'porcobrar.cubrir.label': 'Valor que cobre',
+    'porcobrar.contrato.title': 'Atribuir preço do contrato',
+    'porcobrar.contrato.choose': 'Este cliente tem vários contratos. Qual aplicar?',
+    'porcobrar.contrato.body': 'A proposta do contrato ({precio}/visita) será vinculada a estas {n} visita(s):'
   }
 };
 
@@ -7644,6 +7650,83 @@ async function confirmCubrirServicio(ingId, svcId, cubierto) {
   } catch (e) {
     if (btn) btn.disabled = false;
     alert('No se pudo reconciliar: ' + esc(e.message || String(e)));
+  }
+}
+
+// C4 — asignarPrecioContrato: vincula la propuesta recurrente del cliente a las visitas SIN precio.
+// P4: precio POR VISITA (cada visita hereda Importe estimado de la propuesta).
+// Si hay >1 contrato recurrente → muestra selector primero (propIdSel ausente).
+// NO pisa visitas que ya tienen propuesta vinculada. Reversible/idempotente.
+function asignarPrecioContrato(clienteId, propIdSel) {
+  const D = _porCobrarData; if (!D) return;
+  const norm = s => (s || '').replace(/-/g, '');
+  // Contratos recurrentes del cliente.
+  const contratos = (D.prop.results || []).filter(p =>
+    (p.properties?.['Tipo']?.select?.name || '') === '🔄 Recurrente' &&
+    norm(p.properties?.['Contacto']?.relation?.[0]?.id || '') === norm(clienteId));
+  if (!contratos.length) { alert('Este cliente no tiene un contrato recurrente con precio.'); return; }
+  // P4: si hay >1 contrato y no se eligió, pedir cuál aplicar.
+  if (contratos.length > 1 && !propIdSel) {
+    const opts = contratos.map(p =>
+      '<option value="' + esc(p.id) + '">' +
+        esc(p.properties?.['Nombre de propuesta']?.title?.[0]?.plain_text || p.id) +
+        ' — ' + fmtMoneda(p.properties?.['Importe estimado']?.number || 0, p.properties?.['Moneda']?.select?.name || '🇺🇸 USD') + '/visita' +
+      '</option>'
+    ).join('');
+    const body =
+      '<div style="font-size:14px;margin-bottom:10px">' + t('porcobrar.contrato.choose') + '</div>' +
+      '<select id="pc-contrato-sel" style="width:100%;padding:8px;border-radius:8px;background:var(--bg);color:var(--text);border:1px solid var(--border);font-family:inherit">' + opts + '</select>';
+    openPorCobrarPlan(t('porcobrar.contrato.title'), body, () => {
+      const pid = document.getElementById('pc-contrato-sel').value;
+      closePorCobrarPlan();
+      asignarPrecioContrato(clienteId, pid);
+    });
+    return;
+  }
+  const prop = propIdSel ? contratos.find(p => p.id === propIdSel) : contratos[0];
+  if (!prop) { alert('No se encontró el contrato seleccionado.'); return; }
+  const imp = prop.properties?.['Importe estimado']?.number || 0;
+  const mon = prop.properties?.['Moneda']?.select?.name || '🇺🇸 USD';
+  // P4: solo visitas Completadas del cliente SIN propuesta vinculada (no pisar las que ya tienen una).
+  const visitas = (D.comp || []).filter(s =>
+    norm(s.properties?.['Contacto']?.relation?.[0]?.id || '') === norm(clienteId) &&
+    !(s.properties?.['Propuesta']?.relation || []).length);
+  if (!visitas.length) { alert('No hay visitas sin precio para este cliente.'); return; }
+  const lista = visitas.map(s =>
+    '<li>' + esc(s.properties?.['Nombre del servicio']?.title?.[0]?.plain_text || '(servicio)') + '</li>'
+  ).join('');
+  const bodyMsg = t('porcobrar.contrato.body')
+    .replace('{precio}', fmtMoneda(imp, mon))
+    .replace('{n}', visitas.length);
+  const body =
+    '<div style="font-size:14px;line-height:1.5;margin-bottom:10px">' + bodyMsg + '</div>' +
+    '<ul style="margin:0 0 4px 18px;font-size:13px;color:var(--text2)">' + lista + '</ul>';
+  openPorCobrarPlan(t('porcobrar.contrato.title'), body, () => confirmAsignarPrecio(clienteId, prop.id));
+}
+
+// C4 — confirmAsignarPrecio: ejecuta el vínculo Servicios.Propuesta secuencial, idempotente, reintentable.
+// Solo actúa sobre visitas que siguen sin propuesta → correr dos veces no duplica.
+async function confirmAsignarPrecio(clienteId, propId) {
+  const D = _porCobrarData; if (!D) return;
+  const norm = s => (s || '').replace(/-/g, '');
+  // Re-filtra en el momento de ejecutar (idempotente: si alguna ya se vinculó, la salta).
+  const visitas = (D.comp || []).filter(s =>
+    norm(s.properties?.['Contacto']?.relation?.[0]?.id || '') === norm(clienteId) &&
+    !(s.properties?.['Propuesta']?.relation || []).length);
+  const btn = document.getElementById('pc-plan-confirm');
+  if (btn) btn.disabled = true;
+  let ok = 0;
+  try {
+    for (const s of visitas) {
+      await callNotion('pages/' + s.id, 'PATCH', { properties: { 'Propuesta': { relation: [{ id: propId }] } } });
+      if (typeof syncAfterWrite === 'function') { try { await syncAfterWrite(s.id, 'servicios'); } catch (_) {} }
+      ok++;
+    }
+    closePorCobrarPlan();
+    if (_porCobrarCtx) await renderPorCobrar(_porCobrarCtx.containerId, _porCobrarCtx.opts);
+  } catch (e) {
+    if (btn) btn.disabled = false;
+    alert('Se asignaron ' + ok + ' de ' + visitas.length + '. Falló: ' + esc(e.message || String(e)) + '. Podés reintentar (no duplica).');
   }
 }
 
