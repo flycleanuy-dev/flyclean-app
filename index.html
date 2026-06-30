@@ -1446,6 +1446,17 @@ body::before {
     <div id="merge-plan-body" style="padding:16px 20px 24px"></div>
   </div>
 </div>
+<!-- C3: overlay "plan antes de tocar" para reconciliar moneda en 1 toque (sibling de body). -->
+<div class="edit-overlay" id="por-cobrar-plan-overlay" onclick="if(event.target.id==='por-cobrar-plan-overlay')closePorCobrarPlan()">
+  <div class="edit-sheet" id="por-cobrar-plan-sheet">
+    <button class="sheet-close-btn" type="button" aria-label="Cerrar" onclick="closePorCobrarPlan()">×</button>
+    <div class="edit-sheet-handle"></div>
+    <div class="edit-sheet-header">
+      <div class="edit-sheet-title" id="por-cobrar-plan-title">Confirmar</div>
+    </div>
+    <div id="por-cobrar-plan-body" style="padding:16px 20px 24px"></div>
+  </div>
+</div>
 <!-- Consentimiento legal — se muestra una sola vez por dispositivo (sibling de body) -->
 <div id="consent-overlay" style="display:none;position:fixed;inset:0;z-index:3000;background:rgba(4,12,9,0.92);align-items:center;justify-content:center;padding:24px">
   <div style="background:#0d1714;border:1px solid #1d2a25;border-radius:16px;max-width:380px;width:100%;padding:28px 24px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.5)">
@@ -2255,7 +2266,11 @@ const TRANSLATIONS = {
     'pdf.relev.section.fotos': 'Fotos del relevamiento',
     'pdf.jornada.field.jornadan': 'Jornada N°',
     'pdf.jornada.field.avance': '% de avance',
-    'pdf.jornada.section.orden': 'Servicio asociado'
+    'pdf.jornada.section.orden': 'Servicio asociado',
+    'porcobrar.plan.cancel': 'Cancelar',
+    'porcobrar.plan.confirm': 'Confirmar',
+    'porcobrar.cubrir.title': 'Cubrir el servicio',
+    'porcobrar.cubrir.label': 'Monto que cubre'
   },
   'pt-BR': {
     'country.tagline': 'Selecione sua região para continuar',
@@ -2840,7 +2855,11 @@ const TRANSLATIONS = {
     'pdf.relev.section.fotos': 'Fotos do levantamento',
     'pdf.jornada.field.jornadan': 'Jornada N°',
     'pdf.jornada.field.avance': '% de progresso',
-    'pdf.jornada.section.orden': 'Serviço associado'
+    'pdf.jornada.section.orden': 'Serviço associado',
+    'porcobrar.plan.cancel': 'Cancelar',
+    'porcobrar.plan.confirm': 'Confirmar',
+    'porcobrar.cubrir.title': 'Cobrir o serviço',
+    'porcobrar.cubrir.label': 'Valor que cobre'
   }
 };
 
@@ -7461,14 +7480,27 @@ async function renderPorCobrar(containerId, opts = {}) {
       }
       // Cobros sin asociar de ESTE cliente: filtrado por Cuenta relation → slot A-3 (asociarCobro ya existe).
       const cobrosCli = (!readonly) ? sinAsociar.filter(i => norm2((i.properties?.['Cuenta']?.relation || [])[0]?.id || '') === cid) : [];
+      // C3: servicios con precio de este cliente (candidatos para "✓ cubre").
+      const candCubre = arr.filter(r => r.precio);
       if (cobrosCli.length) {
         h += '<div class="ec-section-total"><span>🔗 COBROS SIN ASOCIAR (' + cobrosCli.length + ')</span><span style="color:var(--text3);font-size:11px">asociá a su visita</span></div>';
         cobrosCli.forEach(i => {
+          // C3: botón "✓ cubre" solo cuando hay exactamente 1 servicio con precio para este cliente
+          // y el cobro tiene monto en la moneda OPUESTA al precio (cruce de monedas detectado).
+          let cubreBtn = '';
+          if (candCubre.length === 1) {
+            const cand = candCubre[0];
+            const im = ingBy[norm2(i.id)] || { usd: 0, uy: 0 };
+            const tieneEnOtra = cand.esUY ? im.usd > 0 : im.uy > 0;
+            if (tieneEnOtra) {
+              cubreBtn = '<button class="fin-svc-link" style="white-space:nowrap;margin-left:4px" onclick="cubrirServicio(\'' + esc(i.id) + '\',\'' + esc(cand.id) + '\')">✓ cubre</button>';
+            }
+          }
           h += '<div class="ec-row" style="flex-direction:column;align-items:stretch;gap:6px;padding:8px 16px">' +
             '<div style="display:flex;justify-content:space-between;gap:8px"><span style="font-weight:600">' + esc(ingCli(i)) + '</span><span style="font-weight:700;white-space:nowrap">' + ingMonto(i) + ' <span style="color:var(--text3);font-weight:400;font-size:11px">' + (i.properties?.['Fecha']?.date?.start || '').slice(0, 10) + '</span></span></div>' +
-            // Slot A-3: select #assoc-<ingId> + botón asociarCobro (función ya existe).
+            // Slot A-3: select #assoc-<ingId> + botón asociarCobro + botón C3 ✓ cubre (si aplica).
             '<div style="display:flex;gap:6px"><select id="assoc-' + i.id + '" style="flex:1;min-width:0;padding:6px;border-radius:6px;background:var(--bg);color:var(--text);border:1px solid var(--border);font-size:12px;font-family:inherit">' + optsFor(i) + '</select>' +
-            '<button class="fin-svc-link" style="white-space:nowrap" onclick="asociarCobro(\'' + i.id + '\')">Asociar</button></div>' +
+            '<button class="fin-svc-link" style="white-space:nowrap" onclick="asociarCobro(\'' + i.id + '\')">Asociar</button>' + cubreBtn + '</div>' +
           '</div>';
         });
       }
@@ -7510,6 +7542,108 @@ async function asociarCobro(ingId) {
   } catch (e) {
     if (sel) sel.disabled = false;
     alert('No se pudo asociar: ' + (e.message || e));
+  }
+}
+
+// C3 — Overlay "plan antes de tocar": muestra qué va a pasar y ejecuta onConfirm solo al confirmar.
+// Patrón idéntico a report-step-overlay / merge-plan-overlay (sibling de body).
+var _porCobrarOnConfirm = null;
+function openPorCobrarPlan(title, bodyHTML, onConfirm) {
+  _porCobrarOnConfirm = onConfirm;
+  document.getElementById('por-cobrar-plan-title').textContent = title;
+  document.getElementById('por-cobrar-plan-body').innerHTML = bodyHTML +
+    '<div style="display:flex;gap:10px;margin-top:20px">' +
+      '<button type="button" onclick="closePorCobrarPlan()" style="flex:1;padding:13px;background:var(--bg);border:1px solid var(--border);border-radius:12px;color:var(--text2);font-family:inherit;font-size:14px;font-weight:600;cursor:pointer">' + t('porcobrar.plan.cancel') + '</button>' +
+      '<button type="button" id="pc-plan-confirm" onclick="if(_porCobrarOnConfirm)_porCobrarOnConfirm()" style="flex:2;padding:13px;background:#00C98D;border:none;border-radius:12px;color:#04130d;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer">' + t('porcobrar.plan.confirm') + '</button>' +
+    '</div>';
+  document.getElementById('por-cobrar-plan-overlay').classList.add('open');
+}
+function closePorCobrarPlan() {
+  document.getElementById('por-cobrar-plan-overlay').classList.remove('open');
+  _porCobrarOnConfirm = null;
+}
+
+// C3 — cubrirServicio: arma el modal de plan SIMÉTRICO mostrando qué va a escribir ANTES de hacerlo.
+// SIMÉTRICA (P3): moneda objetivo = moneda del PRECIO (si precio USD → escribe Monto USD;
+//   si precio UY$ → escribe Monto UY$ cobrado). El monto real del pago (Moneda cobro) NO se toca.
+// cubierto por defecto = saldo RESTANTE (precio − ya cobrado en la moneda del precio).
+// TC = montoOtra / cubierto, solo si cubierto > 0 y hay monto en la otra moneda (NUNCA /0).
+function cubrirServicio(ingId, svcId) {
+  const D = _porCobrarData; if (!D) return;
+  const norm = s => (s || '').replace(/-/g, '');
+  const s = (D.svc.results || []).find(x => x.id === svcId);
+  const i = (D.ing.results || []).find(x => x.id === ingId);
+  if (!s || !i) { alert('No encontré el servicio o el cobro (refrescá).'); return; }
+  const propId = s.properties?.['Propuesta']?.relation?.[0]?.id;
+  const pr = propId ? D.precioBy[norm(propId)] : null;
+  if (!pr || !pr.monto) { alert('Este servicio no tiene precio (propuesta). Asigná el precio primero.'); return; }
+  const precioEsUY = pr.moneda === '🇺🇾 UY$';
+  // Suma de cobros ya registrados en la moneda del PRECIO para este servicio.
+  let cobEnPrecio = 0;
+  (s.properties?.['Ingresos']?.relation || []).forEach(r => {
+    const v = D.ingBy[norm(r.id)];
+    if (v) cobEnPrecio += precioEsUY ? v.uy : v.usd;
+  });
+  // Monto real de ESTE cobro en la OTRA moneda (lo que se pagó de verdad en la moneda distinta al precio).
+  const im = D.ingBy[norm(ingId)] || { usd: 0, uy: 0 };
+  const montoOtra = precioEsUY ? im.usd : im.uy;
+  // Saldo restante = precio − ya cobrado en la moneda del precio (nunca negativo).
+  const saldoRest = Math.max(0, pr.monto - cobEnPrecio);
+  // Por defecto cubrir el saldo restante; si ya estaba todo cobrado, ofrecer el precio completo.
+  const cubiertoDef = saldoRest > 0 ? saldoRest : pr.monto;
+  const fP = n => fmtMoneda(n, pr.moneda);
+  const fO = n => fmtMoneda(n, precioEsUY ? '🇺🇸 USD' : '🇺🇾 UY$');
+  const monedaPrecioLabel = precioEsUY ? 'UY$' : 'USD';
+  const body =
+    '<div style="font-size:14px;line-height:1.5;margin-bottom:12px">' +
+      'Este cobro' + (montoOtra ? ' de <b>' + esc(fO(montoOtra)) + '</b>' : '') +
+      ' cubre el servicio <b>' + esc(s.properties?.['Nombre del servicio']?.title?.[0]?.plain_text || '(servicio)') + '</b>' +
+      ' (' + esc(fP(pr.monto)) + '). Saldo restante: <b>' + esc(fP(saldoRest)) + '</b>.' +
+    '</div>' +
+    '<div class="gasto-form-row"><label>' + t('porcobrar.cubrir.label') + ' (' + esc(monedaPrecioLabel) + ')</label>' +
+      '<input type="number" id="pc-cubierto" step="0.01" min="0" inputmode="decimal" value="' + cubiertoDef + '" style="width:100%;padding:10px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:inherit;font-size:15px"/></div>' +
+    '<div style="font-size:11px;color:var(--text3);margin-top:6px">Se guarda en <b>' + (precioEsUY ? 'Monto UY$ cobrado' : 'Monto USD') + '</b>. El monto real del pago (Moneda cobro) no se toca.</div>';
+  openPorCobrarPlan(t('porcobrar.cubrir.title'), body, () => {
+    const v = parseFloat(document.getElementById('pc-cubierto').value);
+    const cubierto = isFinite(v) ? v : 0;
+    confirmCubrirServicio(ingId, svcId, cubierto);
+  });
+}
+
+// C3 — confirmCubrirServicio: ejecuta el PATCH SIMÉTRICO con validación cubierto>0 antes del TC.
+// NUNCA divide por 0 ni escribe Infinity/NaN en TC aplicado.
+// Reversible: cubierto=0 escribe 0 en el campo de monto de la moneda del precio (quita la cobertura),
+// y en ese caso NO escribe TC (no hay nada que derivar).
+async function confirmCubrirServicio(ingId, svcId, cubierto) {
+  const D = _porCobrarData; if (!D) return;
+  const norm = s => (s || '').replace(/-/g, '');
+  const s = (D.svc.results || []).find(x => x.id === svcId);
+  const propId = s?.properties?.['Propuesta']?.relation?.[0]?.id;
+  const pr = propId ? D.precioBy[norm(propId)] : null;
+  if (!pr) { alert('Sin precio vinculado.'); return; }
+  const precioEsUY = pr.moneda === '🇺🇾 UY$';
+  const im = D.ingBy[norm(ingId)] || { usd: 0, uy: 0 };
+  const montoOtra = precioEsUY ? im.usd : im.uy;   // monto real en la moneda OPUESTA al precio
+  const props = {};
+  // P3 SIMÉTRICO: setea el campo en la moneda del PRECIO (NO en la moneda del pago real).
+  // Si cubierto<=0 → escribe 0 (reversible: quita la cobertura).
+  props[precioEsUY ? 'Monto UY$ cobrado' : 'Monto USD'] = { number: cubierto > 0 ? cubierto : 0 };
+  // Asegura el vínculo al servicio (por si el cobro no estaba asociado aún).
+  props['Servicio vinculado'] = { relation: [{ id: svcId }] };
+  // TC derivado SOLO si hay monto en la otra moneda Y cubierto>0 (NUNCA /0 ni Infinity/NaN).
+  if (montoOtra && cubierto > 0) {
+    props['TC aplicado'] = { number: Math.round((montoOtra / cubierto) * 100) / 100 };
+  }
+  const btn = document.getElementById('pc-plan-confirm');
+  if (btn) btn.disabled = true;
+  try {
+    await callNotion('pages/' + ingId, 'PATCH', { properties: props });
+    if (typeof syncAfterWrite === 'function') { try { await syncAfterWrite(ingId, 'ingresos'); } catch (_) {} }
+    closePorCobrarPlan();
+    if (_porCobrarCtx) await renderPorCobrar(_porCobrarCtx.containerId, _porCobrarCtx.opts);
+  } catch (e) {
+    if (btn) btn.disabled = false;
+    alert('No se pudo reconciliar: ' + esc(e.message || String(e)));
   }
 }
 
