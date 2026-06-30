@@ -6801,7 +6801,7 @@ async function setCEOTab(tab) {
   if (tab === 'metricas') { _ceoRerender = renderCEOMetricas; await renderCEOMetricas(); }
   else if (tab === 'servicios') await renderCEOServicios();
   else if (tab === 'finanzas') { _ceoRerender = renderCEOFinanzas; await renderCEOFinanzas(); }
-  else if (tab === 'porcobrar') { _ceoRerender = () => renderPorCobrar('ceo-content'); await renderPorCobrar('ceo-content'); }
+  else if (tab === 'porcobrar') { _ceoRerender = () => renderPorCobrar('ceo-content', { readonly: true }); await renderPorCobrar('ceo-content', { readonly: true }); }
   else if (tab === 'clientes') { _ceoRerender = () => renderClientesView('ceo-content'); await renderClientesView('ceo-content'); }
   else if (tab === 'equipo') await renderCEOEquipo();
 }
