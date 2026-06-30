@@ -27,6 +27,9 @@ Además, un **fix chico independiente** detectado en el camino: en el sheet del 
 | **Jornada siguiente** | El operario ve **todos** los sectores; los ya hechos aparecen **bloqueados con sus fotos**; retoma desde el que estaba en curso. |
 | **Alcance** | Sectores seleccionables en **Servicios, Pruebas y Relevamientos** (la lista reusable del cliente sirve para los tres). |
 | **Fases** | 0 (fix) · 1 (sectores cliente + selección) · 2 (operativa operario) · 3 (jornadas). Deploy fase por fase con OK de Diego. |
+| **Continuidad (jornadas)** | **Un solo servicio que continúa** (NO fichas-jornada separadas): si no se termina, el mismo servicio se reprograma hasta completar todos los sectores. |
+| **Reprogramación** | **Automática**: al cerrar incompleto, el operario confirma "termino por hoy" → el servicio se reprograma solo a **mañana** (tentativo); el coordinador ajusta la fecha. Se elimina el "crear jornada" manual. |
+| **Horas por día** | **Sí** se guarda un parte por día (fecha + horas + sectores hechos ese día) para costear servicios largos. |
 | **Riesgo / producción** | La app está en servicio real. Todo se construye en rama aparte; el sistema de sectores es **opcional y retrocompatible** (servicio sin sectores = idéntico a hoy). |
 
 ## 3. Modelo de datos
@@ -52,6 +55,7 @@ La app ya guarda datos estructurados como **JSON dentro de un `rich_text`** (pro
 |---|---|---|---|
 | **Clientes** (`250115612de74e0582366549bbe5e389`) | `Sectores` | `rich_text` (JSON) | Lista reusable: `[{"id":"sec-ab12","nombre":"Edif 1"}, ...]` |
 | **Servicios** (ds `2fbc8a03-5c4f-445c-8516-71dd9b2eea78`) | `Estado sectores` | `rich_text` (JSON) | Snapshot del trabajo: `[{"id":"sec-ab12","nombre":"Edif 1","estado":"hecho","post":"0,2,4"}, ...]` |
+| **Servicios** (ds `2fbc8a03-5c4f-445c-8516-71dd9b2eea78`) | `Registro jornadas` | `rich_text` (JSON) | Parte por día (Forma 2): `[{"fecha":"2026-06-30","ini":"09:00","fin":"17:00","hechos":["sec-ab12","sec-cd34"]}, ...]` |
 
 - `estado` ∈ `pendiente` | `en_curso` | `hecho`.
 - `post` = índices del checklist de calidad tildados, como string compacto (ej. `"0,2,4"`).
@@ -102,13 +106,21 @@ No toca el flujo del operario todavía.
 
 **Entregable Fase 2:** el operario trabaja sector por sector dentro de una jornada; el % se calcula solo.
 
-### Fase 3 — Continuidad entre jornadas
+### Fase 3 — Continuidad: un solo servicio que se reprograma (Forma 2)
 
-- **`submitCreateJornada` (:9582)** copia a la jornada nueva: (a) el `Estado sectores` con los estados actuales (los hechos siguen hechos), y (b) **las fotos de los sectores hechos** (URLs `external` de R2, baratas de copiar) en `📸 Fotos pre/post-servicio` con su prefijo. Así la jornada 2 es autocontenida.
-- Al abrir la jornada 2, el HUB muestra **todos** los sectores; los hechos aparecen **bloqueados con sus fotos** (no se re-trabajan); el operario retoma desde el `en_curso`/`pendiente`.
-- **"Completado del todo":** cuando **todos** los sectores quedan en `hecho`. `cerrarServicio` cierra esa jornada como hoy; si quedan sectores ≠ hecho, el coordinador lo ve (el sheet muestra "Sectores: 6/8 hechos") y crea la jornada siguiente. Cuando están todos hechos, % = 100 y el servicio queda completado de verdad.
+Para servicios **con sectores** se reemplaza el "crear jornada" manual (`submitCreateJornada` :9582) por un **único servicio que continúa** hasta completarse. **Servicios sin sectores siguen usando el `submitCreateJornada` actual** (retrocompatible — no se toca).
 
-**Entregable Fase 3:** servicio multi-jornada con sectores de punta a punta.
+- **Property nueva `Registro jornadas`** (rich_text JSON): el parte por día → `[{fecha, ini, fin, hechos:[ids]}]`. Da el historial diario y las horas para costos sin duplicar fichas.
+- **Cierre incompleto (operario)** — en `cerrarServicio` (:6746), si el servicio tiene sectores y **no todos están en `hecho`**:
+  1. El operario confirma "termino por hoy" (modal: "Quedan N sectores. ¿Terminás por hoy?").
+  2. Se **agrega una entrada al `Registro jornadas`**: fecha de hoy + `Hora Inicio/Fin Efectivo` de la sesión + ids de los sectores completados ese día.
+  3. El servicio se **reprograma solo**: `Estado` pasa a un estado de continuación (`🔄 Continúa`, opción nueva del select; alternativa: reusar `📋 Pendiente`), `Fecha programada` = **mañana** (tentativo), y se limpian las horas efectivas de sesión para el día siguiente. Los sectores hechos **siguen hechos** (con sus fotos).
+  4. El **coordinador** ve el servicio reprogramado con su avance (`% auto` + "Sectores: 6/8 hechos") y **ajusta la fecha** al día real cuando quiera. **No crea nada a mano** — el "crear jornada" queda pasado por arriba.
+- **Retomar (operario, otro día):** abre el **mismo** servicio → hace su **checklist PRE de llegada** (día nuevo) → el HUB muestra **todos** los sectores, los hechos **bloqueados y con sus fotos** → sigue desde el `en_curso`/`pendiente`.
+- **"Completado del todo":** cuando el operario marca el último sector `hecho` y cierra, **todos** quedan en `hecho` → `% = 100` → `Estado = ✅ Completado` final (no se reprograma). Esa última jornada también se registra en `Registro jornadas`.
+- El `Jornada N°` viejo **deja de usarse** para servicios con sectores (el `Registro jornadas` dice cuántos días llevó); se mantiene intacto para servicios sin sectores.
+
+**Entregable Fase 3:** un servicio con sectores se trabaja a lo largo de varios días, reprogramándose solo, con el parte por día registrado, hasta quedar completado del todo — sin que nadie cree jornadas a mano.
 
 ## 5. Impacto y retrocompatibilidad
 
@@ -118,7 +130,7 @@ No toca el flujo del operario todavía.
 
 ## 6. Coordinación con otros workstreams (regla post-cambio)
 
-- **Supabase (espejo):** sumar `Sectores` (clientes) y `Estado sectores` (servicios) al `db/schema.sql` + al mapeo `api/_lib/notion-map.js` (`MAP`) + al sync. El `raw` ya las captura, pero conviene la columna plana (misma deuda pendiente que las properties de las Fases A/B/C). No bloquea: el cron sigue copiando el `raw` igual.
+- **Supabase (espejo):** sumar `Sectores` (clientes), `Estado sectores` y `Registro jornadas` (servicios) al `db/schema.sql` + al mapeo `api/_lib/notion-map.js` (`MAP`) + al sync. El `raw` ya las captura, pero conviene la columna plana (misma deuda pendiente que las properties de las Fases A/B/C). No bloquea: el cron sigue copiando el `raw` igual.
 - **Cowork de Finanzas:** **no afecta** (no toca Gastos/Ingresos). No se actualiza `CONTRATO-NOTION.md`.
 - **Docs:** tras cada fase, actualizar `docs/NOTION.md` (properties nuevas), `docs/FUNCIONALIDADES.md` (feature sectores), la sección Estado en `CLAUDE.md`, la memoria, y **bump de `sw.js`**.
 
@@ -133,5 +145,6 @@ No toca el flujo del operario todavía.
 - **Descartado — tabla relacional nueva de Sectores:** overkill (más queries, CRUD y sync; latencia en obra). El JSON+files cubre el caso.
 - **Descartado — fotos dentro del JSON:** revienta el límite de 2.000.
 - **Descartado — reescribir la máquina de 10 pasos para sub-navegación:** se usa un overlay con sub-estado propio, menos riesgoso.
+- **Descartado (para servicios con sectores) — fichas-jornada separadas (Forma 1):** se eligió un solo servicio que se reprograma (Forma 2). El `submitCreateJornada` viejo queda **solo** para servicios sin sectores.
 - **Límite 2.000 chars de `Estado sectores`:** mitigado con formato compacto; chunking en 2ª property solo si un cliente supera ~22 sectores (follow-up).
 - **Fuera de alcance v1:** agrupar las fotos por sector en el **PDF de devolución** (hoy el PDF las muestra todas juntas; agruparlas es mejora futura). Reordenar/arrastrar sectores. Sectores con metadata extra (m², altura por sector).
