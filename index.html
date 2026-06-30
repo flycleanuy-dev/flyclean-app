@@ -2142,6 +2142,11 @@ const TRANSLATIONS = {
     'sheet.contact.mapa.placeholder': 'https://maps.app.goo.gl/...',
     'sheet.contact.mapa.abrir': '📍 Abrir',
     'sheet.contact.mapa.none': 'Sin URL de Maps cargada',
+    'sheet.contact.section.sectores': '🏢 Sectores del cliente',
+    'sheet.contact.sectores.hint': 'Edificios/zonas reusables de este cliente. Se ofrecen al crear un servicio.',
+    'sheet.contact.sectores.placeholder': 'Nombre del sector (ej. Edificio 1)',
+    'sheet.contact.sectores.add': '+ Agregar',
+    'sheet.contact.sectores.empty': 'Sin sectores aún.',
     'sheet.contact.section.intermediario': 'LLEGÓ POR (INTERMEDIARIO)',
     'sheet.contact.intermediario.none': '— Directo (sin intermediario) —',
     'sheet.contact.intermediario.loading': 'cargando clientes…',
@@ -2736,6 +2741,11 @@ const TRANSLATIONS = {
     'sheet.contact.mapa.placeholder': 'https://maps.app.goo.gl/...',
     'sheet.contact.mapa.abrir': '📍 Abrir',
     'sheet.contact.mapa.none': 'Sem URL de Maps carregada',
+    'sheet.contact.section.sectores': '🏢 Setores do cliente',
+    'sheet.contact.sectores.hint': 'Edifícios/zonas reutilizáveis deste cliente. Aparecem ao criar um serviço.',
+    'sheet.contact.sectores.placeholder': 'Nome do setor (ex. Edifício 1)',
+    'sheet.contact.sectores.add': '+ Adicionar',
+    'sheet.contact.sectores.empty': 'Sem setores ainda.',
     'sheet.contact.section.intermediario': 'CHEGOU POR (INTERMEDIÁRIO)',
     'sheet.contact.intermediario.none': '— Direto (sem intermediário) —',
     'sheet.contact.intermediario.loading': 'carregando clientes…',
@@ -11022,6 +11032,13 @@ function buildContactSheetBody(mode) {
       <input type="text" class="edit-date-input" placeholder="${t('sheet.contact.interlocutor.placeholder')}" value="${s.interlocutor || ''}" oninput="contactEditState.interlocutor=this.value"/></div>` +
     `<div class="edit-section"><div class="edit-section-label">${t('sheet.contact.section.notas')}</div>
       <textarea class="edit-date-input" rows="3" style="resize:none;height:80px" placeholder="${t('sheet.contact.notas.placeholder')}" oninput="contactEditState.notas=this.value">${s.notas || ''}</textarea></div>` +
+    `<div class="edit-section"><div class="edit-section-label">${t('sheet.contact.section.sectores')}</div>
+      <div class="edit-section-hint" style="font-size:11px;color:var(--text3);margin-bottom:8px">${t('sheet.contact.sectores.hint')}</div>
+      <div id="contact-sectores-list"></div>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <input type="text" id="contact-sector-input" class="edit-date-input" style="flex:1;margin-bottom:0" placeholder="${t('sheet.contact.sectores.placeholder')}" onkeydown="if(event.key==='Enter'){event.preventDefault();contactAddSector();}"/>
+        <button type="button" class="estado-btn" style="white-space:nowrap" onclick="contactAddSector()">${t('sheet.contact.sectores.add')}</button>
+      </div></div>` +
     (mode === 'edit'
       ? `<div class="edit-section" style="padding-bottom:0"><div class="edit-section-label">${t('contact.history.title')}</div>
           <div id="contact-history-container"><div class="history-loading">${t('contact.history.loading')}</div></div>
@@ -11052,12 +11069,14 @@ async function openContactSheet(pageId) {
     interlocutor: props['Interlocutor']?.rich_text?.[0]?.plain_text || '',
     notas: props['Notas']?.rich_text?.[0]?.plain_text || '',
     mapa: props['Mapa']?.url || '',
-    intermediario: props['Intermediario']?.relation?.[0]?.id || ''
+    intermediario: props['Intermediario']?.relation?.[0]?.id || '',
+    sectores: (() => { try { return JSON.parse(props['Sectores']?.rich_text?.[0]?.plain_text || '[]'); } catch (_) { return []; } })()
   };
   const nombre = props['Nombre / Empresa']?.title?.[0]?.plain_text || t('common.sinnombre');
   document.getElementById('contact-sheet-title').textContent = nombre;
   document.getElementById('contact-sheet-sub').textContent = contactEditState.tipo || t('sheet.contact.title.default');
   document.getElementById('contact-sheet-body').innerHTML = buildContactSheetBody('edit');
+  renderContactSectores();
   // Permisos: CEO = solo lectura (ve TODO, no toca). Finanzas / Coordinador / Dirección = pueden editar.
   const soloLectura = !!(currentUser?.role && currentUser.role.includes('CEO'));
   const btn = document.getElementById('contact-save-btn');
@@ -11083,10 +11102,11 @@ async function openContactSheet(pageId) {
 function openNewContactSheet() {
   contactSheetMode = 'create';
   editingContact = null;
-  contactEditState = { nombre: '', estado: '🆕 Lead', tipo: '', pais: '🇺🇾 Uruguay', canal: '', servicios: [], tel: '', email: '', ciudad: '', interlocutor: '', notas: '', mapa: '', intermediario: '' };
+  contactEditState = { nombre: '', estado: '🆕 Lead', tipo: '', pais: '🇺🇾 Uruguay', canal: '', servicios: [], tel: '', email: '', ciudad: '', interlocutor: '', notas: '', mapa: '', intermediario: '', sectores: [] };
   document.getElementById('contact-sheet-title').textContent = t('sheet.contact.title.nuevo');
   document.getElementById('contact-sheet-sub').textContent = t('sheet.contact.subtitle.nuevo');
   document.getElementById('contact-sheet-body').innerHTML = buildContactSheetBody('create');
+  renderContactSectores();
   const btn = document.getElementById('contact-save-btn');
   btn.textContent = t('btn.create.notion'); btn.disabled = false;
   document.getElementById('contact-overlay').classList.add('open');
@@ -11117,6 +11137,38 @@ function contactOpenMapa() {
   const u = (contactEditState.mapa || '').trim();
   if (!u) { alert(t('sheet.contact.mapa.none')); return; }
   window.open(u, '_blank', 'noopener');
+}
+
+function renderContactSectores() {
+  const box = document.getElementById('contact-sectores-list');
+  if (!box) return;
+  const arr = Array.isArray(contactEditState.sectores) ? contactEditState.sectores : [];
+  box.innerHTML = arr.length
+    ? arr.map(sec => `<div class="sector-row" style="display:flex;gap:6px;align-items:center;margin-bottom:6px">
+        <input type="text" class="edit-date-input" style="flex:1;margin-bottom:0" value="${escAttrEdit(sec.nombre)}" oninput="contactRenameSector('${sec.id}',this.value)"/>
+        <button type="button" class="estado-btn" style="padding:8px 10px;color:var(--danger,#e5484d)" onclick="contactRemoveSector('${sec.id}')">✕</button>
+      </div>`).join('')
+    : `<div style="font-size:12px;color:var(--text3);font-style:italic">${t('sheet.contact.sectores.empty')}</div>`;
+}
+
+function contactAddSector() {
+  const input = document.getElementById('contact-sector-input');
+  const nombre = (input?.value || '').trim();
+  if (!nombre) return;
+  if (!Array.isArray(contactEditState.sectores)) contactEditState.sectores = [];
+  contactEditState.sectores.push({ id: genSectorId(), nombre });
+  if (input) input.value = '';
+  renderContactSectores();
+}
+
+function contactRenameSector(id, value) {
+  const sec = (contactEditState.sectores || []).find(s => s.id === id);
+  if (sec) sec.nombre = value;
+}
+
+function contactRemoveSector(id) {
+  contactEditState.sectores = (contactEditState.sectores || []).filter(s => s.id !== id);
+  renderContactSectores();
 }
 
 let _contactIntermediarios = null;
@@ -11181,6 +11233,12 @@ async function saveContactEdit() {
       props['Intermediario'] = { relation: s.intermediario ? [{ id: s.intermediario }] : [] };
     props['Interlocutor'] = { rich_text: s.interlocutor ? [{ text: { content: s.interlocutor } }] : [] };
     props['Notas'] = { rich_text: s.notas ? [{ text: { content: s.notas } }] : [] };
+    {
+      const secs = (Array.isArray(s.sectores) ? s.sectores : [])
+        .map(x => ({ id: x.id, nombre: String(x.nombre || '').trim() }))
+        .filter(x => x.nombre);
+      props['Sectores'] = { rich_text: secs.length ? [{ text: { content: JSON.stringify(secs) } }] : [] };
+    }
     props['Nombre / Empresa'] = { title: [{ text: { content: nombre } }] };
 
     if (contactSheetMode === 'create') {
