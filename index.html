@@ -2274,7 +2274,8 @@ const TRANSLATIONS = {
     'porcobrar.contrato.title': 'Asignar precio del contrato',
     'porcobrar.contrato.choose': 'Este cliente tiene varios contratos. ¿Cuál aplicar?',
     'porcobrar.contrato.body': 'Se vinculará la propuesta del contrato ({precio}/visita) a estas {n} visita(s):',
-    'porcobrar.asociar.reconciliar': 'Este cobro está en otra moneda. ¿Querés marcar cuánto cubre del servicio?'
+    'porcobrar.asociar.reconciliar': 'Este cobro está en otra moneda. ¿Querés marcar cuánto cubre del servicio?',
+    'porcobrar.editsvc': 'editar'
   },
   'pt-BR': {
     'country.tagline': 'Selecione sua região para continuar',
@@ -2867,7 +2868,8 @@ const TRANSLATIONS = {
     'porcobrar.contrato.title': 'Atribuir preço do contrato',
     'porcobrar.contrato.choose': 'Este cliente tem vários contratos. Qual aplicar?',
     'porcobrar.contrato.body': 'A proposta do contrato ({precio}/visita) será vinculada a estas {n} visita(s):',
-    'porcobrar.asociar.reconciliar': 'Este cobro está em outra moeda. Quer marcar quanto cobre do serviço?'
+    'porcobrar.asociar.reconciliar': 'Este cobro está em outra moeda. Quer marcar quanto cobre do serviço?',
+    'porcobrar.editsvc': 'editar'
   }
 };
 
@@ -7430,6 +7432,7 @@ async function renderPorCobrar(containerId, opts = {}) {
           (r.fecha ? '<div style="font-size:11px;color:var(--text3);margin-bottom:2px">' + fmtVisitaFecha(r.fecha) + '</div>' : '') +
           '<div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(r.nombre) + '</div>' +
           '<div style="font-size:11px;color:var(--text3)">' + (r.precio ? 'Precio ' + fMon(r.precio, r.esUY) + ' · Cobrado ' + fMon(r.cobrado, r.esUY) + (r.cobradoOtra ? ' (+ ' + fMon(r.cobradoOtra, !r.esUY) + ' en otra moneda)' : '') : 'sin precio vinculado') + '</div>' +
+          (!readonly && r.id ? '<button type="button" class="fin-svc-link" style="margin-top:4px" onclick="openEditSheetFromFinanzas(\'' + esc(r.id) + '\')">✏️ ' + t('porcobrar.editsvc') + '</button>' : '') +
         '</div>' +
         '<div style="text-align:right;font-weight:700;white-space:nowrap;color:' + saldoColor(r) + '">' + saldoTxt(r) + '<span class="pc-cubre-slot" data-svc="' + esc(r.id) + '"></span></div>' +
       '</div>';
@@ -8986,8 +8989,34 @@ function toggleParticipante(name, btnEl) {
   if (btnEl) btnEl.classList.toggle('active');
 }
 
+// Abre el sheet de edición del servicio desde el flujo Finanzas→"Por cobrar".
+// openEditSheet() depende de _coordAllServices.find(...), que NO se puebla en Finanzas → haría return
+// silencioso. Acá poblamos editingService con el objeto del servicio directo (P5) y cableamos el contexto
+// de cliente para que renderSvcClienteUbicacion/resolveSvcUbicacion funcionen, ANTES de delegar en
+// openEditSheet por su id (que ya lo encontrará en editingService).
+let _editFromPorCobrar = false; // dónde re-renderizar al cerrar (true = Por cobrar, false = panel coord)
+async function openEditSheetFromFinanzas(svcId) {
+  if (currentUser?.role && !currentUser.role.includes('Administración')) return; // solo Finanzas opera
+  let svc = (Array.isArray(_coordAllServices) ? _coordAllServices : []).find(s => s.id === svcId);
+  if (!svc && _porCobrarData?.svc?.results) {
+    svc = _porCobrarData.svc.results.find(s => s.id === svcId);
+  }
+  if (!svc) {
+    try { svc = await callNotion('pages/' + svcId, 'GET'); } catch (e) { alert('No se pudo abrir el servicio: ' + (e.message || e)); return; }
+  }
+  if (!svc) return;
+  editingService = svc;            // P5: poblar editingService directo (openEditSheet lo reusa por id)
+  _editFromPorCobrar = true;       // B-3 redirige el post-save a renderPorCobrar
+  await openEditSheet(svcId);
+}
+
 async function openEditSheet(pageId) {
-  editingService = _coordAllServices.find(s => s.id === pageId);
+  // Si ya viene poblado desde openEditSheetFromFinanzas (flujo Finanzas→Por cobrar), lo respetamos;
+  // si no, lo buscamos en la lista del coord (flujo normal) y reseteamos el flag de contexto.
+  if (!(editingService && editingService.id === pageId)) {
+    editingService = _coordAllServices.find(s => s.id === pageId);
+    _editFromPorCobrar = false; // no venimos de Finanzas; B-3 usará el flujo coord normal
+  }
   if (!editingService) return;
   const props = editingService.properties || {};
   const nombre = props['Nombre del servicio']?.title?.[0]?.plain_text || t('common.sinnombre');
