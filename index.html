@@ -9505,7 +9505,7 @@ async function submitCreateJornada() {
 }
 
 function overlayClick(e) { if (e.target.id === 'edit-overlay') closeEditSheet(); }
-function closeEditSheet() { document.getElementById('edit-overlay').classList.remove('open'); editingService = null; if (typeof _contactHistoryCache !== 'undefined') Object.keys(_contactHistoryCache).forEach(k => delete _contactHistoryCache[k]); }
+function closeEditSheet() { document.getElementById('edit-overlay').classList.remove('open'); editingService = null; _editFromPorCobrar = false; if (typeof _contactHistoryCache !== 'undefined') Object.keys(_contactHistoryCache).forEach(k => delete _contactHistoryCache[k]); }
 function selectEditEstado(estado) {
   editState.estado = estado;
   document.querySelectorAll('.estado-btn').forEach(b => b.classList.toggle('active', b.textContent.trim() === estado));
