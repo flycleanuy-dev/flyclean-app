@@ -7367,24 +7367,45 @@ async function renderPorCobrar(containerId, opts = {}) {
                pct: precio ? Math.round(cobrado / precio * 100) : 0, estado };
     });
 
-    const grupos = { acobrar: [], parcial: [], cobrado: [], sinprecio: [] };
-    rows.forEach(r => grupos[r.estado].push(r));
+    // Agrupar visitas facturables por cliente (A-2: vista por cliente/contrato).
     const fU = n => fmtMoneda(n, '🇺🇸 USD');
     const fMon = (n, esUY) => fmtMoneda(n, esUY ? '🇺🇾 UY$' : '🇺🇸 USD');
-    // Total por cobrar SEPARADO por moneda (nunca mezcla UY$ con USD).
-    const totalSplit = arr => arr.reduce((acc, r) => { if (r.esUY) acc.uyu += r.saldo; else acc.usd += r.saldo; return acc; }, { uyu: 0, usd: 0 });
-    const totalPC = totalSplit([...grupos.acobrar, ...grupos.parcial]);
-    const splitStr = t => [t.usd ? fU(t.usd) : '', t.uyu ? fMon(t.uyu, true) : ''].filter(Boolean).join(' · ') || fU(0);
-    const rowHTML = r => '<div class="ec-row" style="align-items:flex-start;gap:10px"><div style="min-width:0"><div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(r.nombre) + '</div>' +
-      '<div style="font-size:11px;color:var(--text3)">' + (r.precio ? 'Precio ' + fMon(r.precio, r.esUY) + ' · Cobrado ' + fMon(r.cobrado, r.esUY) + (r.cobradoOtra ? ' (+ ' + fMon(r.cobradoOtra, !r.esUY) + ' en otra moneda)' : '') + (r.estado === 'parcial' ? ' · ' + r.pct + '%' : '') : 'sin precio') + '</div></div>' +
-      '<div style="text-align:right;font-weight:700;white-space:nowrap;color:' + (r.saldo > 0 && r.precio ? 'var(--red)' : 'var(--green)') + '">' + (r.precio ? (r.saldo > 0 ? 'falta ' + fMon(r.saldo, r.esUY) : '✅') : '—') + '</div></div>';
-    const sec = (titulo, arr, sumar) => arr.length ? '<div class="ec-section-total"><span>' + titulo + ' (' + arr.length + ')</span><span style="color:var(--red)">' + (sumar ? splitStr(totalSplit(arr)) : '') + '</span></div>' + arr.slice().sort((a, b) => b.saldo - a.saldo).map(rowHTML).join('') : '';
+    const byCli = {};
+    rows.forEach(r => { (byCli[r.clienteId || 'sin-cliente'] = byCli[r.clienteId || 'sin-cliente'] || []).push(r); });
+    // Propuesta recurrente por cliente (contrato): Tipo === '🔄 Recurrente'.
+    const norm2 = s => (s || '').replace(/-/g, '');
+    const contratoByCli = {};
+    (prop.results || []).forEach(p => {
+      if ((p.properties?.['Tipo']?.select?.name || '') !== '🔄 Recurrente') return;
+      const cid = norm2(p.properties?.['Contacto']?.relation?.[0]?.id || '');
+      if (!cid) return;
+      (contratoByCli[cid] = contratoByCli[cid] || []).push(p);
+    });
+    // Saldo por cliente separado por moneda (NUNCA mezcla pesos con dólares).
+    const saldoCli = arr => arr.reduce((a, r) => { if (r.precio && r.saldo > 0) { if (r.esUY) a.uyu += r.saldo; else a.usd += r.saldo; } return a; }, { uyu: 0, usd: 0 });
+    const splitStr = tt => [tt.usd ? fU(tt.usd) : '', tt.uyu ? fMon(tt.uyu, true) : ''].filter(Boolean).join(' · ');
+    // Orden: clientes con saldo (🔴) primero; dentro, mayor saldo arriba.
+    const cliIds = Object.keys(byCli).sort((a, b) => {
+      const sa = saldoCli(byCli[a]), sb = saldoCli(byCli[b]);
+      const ta = sa.usd + sa.uyu, tb = sb.usd + sb.uyu;
+      if ((tb > 0) !== (ta > 0)) return (tb > 0) - (ta > 0);
+      return tb - ta;
+    });
 
-    // Herramienta de asociación (paso 2): cobros que NO están vinculados a ningún servicio (y no son
-    // financiamiento ni internos). Permite asociarlos con un toque → el precio/cobrado se vuelve real.
+    // Helper de fila-visita con saldo coloreado (acciones se cablearán en A-3/A-4/A-5).
+    const saldoColor = r => r.estado === 'cobrado' ? 'var(--green)' : (r.estado === 'parcial' ? '#E6A700' : 'var(--red)');
+    const saldoTxt = r => !r.precio ? 'sin precio' : (r.saldo > 0 ? (r.estado === 'parcial' ? '🟡 falta ' : '🔴 falta ') + fMon(r.saldo, r.esUY) : '✅ cobrado');
+    const visitaHTML = r =>
+      '<div class="ec-row" style="align-items:flex-start;gap:10px">' +
+        '<div style="min-width:0"><div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(r.nombre) + '</div>' +
+          '<div style="font-size:11px;color:var(--text3)">' + (r.precio ? 'Precio ' + fMon(r.precio, r.esUY) + ' · Cobrado ' + fMon(r.cobrado, r.esUY) + (r.cobradoOtra ? ' (+ ' + fMon(r.cobradoOtra, !r.esUY) + ' en otra moneda)' : '') : 'sin precio vinculado') + '</div></div>' +
+        '<div style="text-align:right;font-weight:700;white-space:nowrap;color:' + saldoColor(r) + '">' + saldoTxt(r) + '</div>' +
+      '</div>';
+
+    // Herramienta de asociación: cobros sin vincular a servicio (reusados dentro de cada tarjeta de cliente).
     const sinAsociar = (ing.results || []).filter(i => finRecEnPais(i) && !((i.properties?.['Servicio vinculado']?.relation || []).length) && !((i.properties?.['Servicio']?.relation || []).length) && !esFinanciamiento(i) && !(i.properties?.['Excluir de KPIs']?.checkbox === true));
-    // Opciones de servicio para asociar un cobro: los servicios DEL CLIENTE del cobro van primero;
-    // si el cliente tiene exactamente un servicio, queda pre-seleccionado (asociar en 1 clic).
+    // Opciones de servicio para asociar un cobro: los del cliente van primero;
+    // si tiene exactamente uno, queda pre-seleccionado (asociar en 1 clic).
     const nrm = x => (x || '').replace(/-/g, '');
     const svcNombre = s => s.properties?.['Nombre del servicio']?.title?.[0]?.plain_text || '?';
     const compSorted = comp.slice().sort((a, b) => svcNombre(a).localeCompare(svcNombre(b)));
@@ -7401,15 +7422,56 @@ async function renderPorCobrar(containerId, opts = {}) {
     };
     const ingCli = i => i.properties?.['Cliente']?.rich_text?.[0]?.plain_text || i.properties?.['Servicio']?.title?.[0]?.plain_text || '(cobro)';
     const ingMonto = i => { const u = i.properties?.['Monto USD']?.number, y = i.properties?.['Monto UY$ cobrado']?.number; return u ? fU(u) : (y ? 'UY$ ' + y.toLocaleString('es-UY') : '—'); };
-    const asociarHTML = (!readonly && sinAsociar.length) ?
-      '<div class="ec-section-total"><span>🔗 COBROS SIN ASOCIAR (' + sinAsociar.length + ')</span><span style="color:var(--text3);font-size:11px">asociá a su servicio</span></div>' +
-      sinAsociar.slice().sort((a, b) => (a.properties?.['Fecha']?.date?.start || '').localeCompare(b.properties?.['Fecha']?.date?.start || '')).map(i =>
-        '<div class="ec-row" style="flex-direction:column;align-items:stretch;gap:6px;padding:8px 16px">' +
-          '<div style="display:flex;justify-content:space-between;gap:8px"><span style="font-weight:600">' + esc(ingCli(i)) + '</span><span style="font-weight:700;white-space:nowrap">' + ingMonto(i) + ' <span style="color:var(--text3);font-weight:400;font-size:11px">' + (i.properties?.['Fecha']?.date?.start || '').slice(0, 10) + '</span></span></div>' +
-          '<div style="display:flex;gap:6px"><select id="assoc-' + i.id + '" style="flex:1;min-width:0;padding:6px;border-radius:6px;background:var(--bg);color:var(--text);border:1px solid var(--border);font-size:12px;font-family:inherit">' + optsFor(i) + '</select>' +
-          '<button class="fin-svc-link" style="white-space:nowrap" onclick="asociarCobro(\'' + i.id + '\')">Asociar</button></div>' +
-        '</div>'
-      ).join('') : '';
+
+    // Tarjeta por cliente: header (nombre + país + saldo) + contrato + visitas + sin-precio + cobros sin asociar.
+    const tarjetaCliente = cid => {
+      const arr = byCli[cid];
+      const info = clientesById[cid] || { nombre: cid === 'sin-cliente' ? '(sin cliente)' : '(cliente)', pais: '' };
+      const sc = saldoCli(arr);
+      const saldoHdr = (sc.usd || sc.uyu) ? '<span style="color:var(--red);font-weight:700">' + splitStr(sc) + '</span>' : '<span style="color:var(--green);font-weight:700">al día ✅</span>';
+      // Header: tap a ficha cliente (A-3/A-4/A-5: openContactSheet ya existe, slot listo).
+      const headTap = cid !== 'sin-cliente' ? ' onclick="openContactSheet(\'' + cid + '\')" style="cursor:pointer"' : '';
+      let h = '<div class="estado-cuenta" style="margin-top:10px">' +
+        '<div class="ec-saldo"' + headTap + '><span>' + esc(info.nombre) + (info.pais ? ' <span style="font-size:11px;color:var(--text3)">' + esc(info.pais) + '</span>' : '') + '</span>' + saldoHdr + '</div>';
+      // Contrato recurrente (si hay).
+      const contratos = contratoByCli[cid] || [];
+      if (contratos.length) {
+        const c0 = contratos[0].properties || {};
+        const imp = c0['Importe estimado']?.number || 0;
+        const sa = c0['Servicios por año']?.number || 0;
+        h += '<div class="ec-row" style="font-size:12px;color:var(--text3)">📑 Contrato: ' + (imp ? fU(imp) + ' / visita' : 'sin importe') + (sa ? ' · ' + sa + '/año' : '') + (contratos.length > 1 ? ' · ' + contratos.length + ' contratos' : '') + '</div>';
+      }
+      // Visitas con precio (saldo coloreado).
+      arr.filter(r => r.precio).slice().sort((a, b) => b.saldo - a.saldo).forEach(r => { h += visitaHTML(r); });
+      // Sin precio → placeholder para A-4 (asignarPrecioContrato).
+      const sinPrecio = arr.filter(r => !r.precio);
+      if (sinPrecio.length) {
+        h += '<div class="ec-section-total"><span>⚠️ SIN PRECIO (' + sinPrecio.length + ')</span><span style="color:var(--text3);font-size:11px">¿del contrato?</span></div>';
+        sinPrecio.slice().sort((a, b) => a.nombre.localeCompare(b.nombre)).forEach(r => { h += visitaHTML(r); });
+        // Slot A-4: botón asignarPrecioContrato (función a cablear en A-4).
+        if (!readonly && contratos.length && cid !== 'sin-cliente') {
+          h += '<div style="padding:8px 16px"><button class="fin-svc-link" onclick="asignarPrecioContrato(\'' + cid + '\')">📑 Asignar el precio del contrato a estas ' + sinPrecio.length + ' visita(s)</button></div>';
+        }
+      }
+      // Cobros sin asociar de ESTE cliente: filtrado por Cuenta relation → slot A-3 (asociarCobro ya existe).
+      const cobrosCli = (!readonly) ? sinAsociar.filter(i => norm2((i.properties?.['Cuenta']?.relation || [])[0]?.id || '') === cid) : [];
+      if (cobrosCli.length) {
+        h += '<div class="ec-section-total"><span>🔗 COBROS SIN ASOCIAR (' + cobrosCli.length + ')</span><span style="color:var(--text3);font-size:11px">asociá a su visita</span></div>';
+        cobrosCli.forEach(i => {
+          h += '<div class="ec-row" style="flex-direction:column;align-items:stretch;gap:6px;padding:8px 16px">' +
+            '<div style="display:flex;justify-content:space-between;gap:8px"><span style="font-weight:600">' + esc(ingCli(i)) + '</span><span style="font-weight:700;white-space:nowrap">' + ingMonto(i) + ' <span style="color:var(--text3);font-weight:400;font-size:11px">' + (i.properties?.['Fecha']?.date?.start || '').slice(0, 10) + '</span></span></div>' +
+            // Slot A-3: select #assoc-<ingId> + botón asociarCobro (función ya existe).
+            '<div style="display:flex;gap:6px"><select id="assoc-' + i.id + '" style="flex:1;min-width:0;padding:6px;border-radius:6px;background:var(--bg);color:var(--text);border:1px solid var(--border);font-size:12px;font-family:inherit">' + optsFor(i) + '</select>' +
+            '<button class="fin-svc-link" style="white-space:nowrap" onclick="asociarCobro(\'' + i.id + '\')">Asociar</button></div>' +
+          '</div>';
+        });
+      }
+      return h + '</div>';
+    };
+
+    // Total general por moneda (suma sólo los saldos positivos).
+    const totalPC = rows.reduce((a, r) => { if (r.precio && r.saldo > 0) { if (r.esUY) a.uyu += r.saldo; else a.usd += r.saldo; } return a; }, { uyu: 0, usd: 0 });
+    const nCli = cliIds.filter(c => { const s = saldoCli(byCli[c]); return s.usd || s.uyu; }).length;
 
     _porCobrarData = { svc, prop, ing, clientesById, precioBy, ingBy, comp, readonly };
 
@@ -7418,15 +7480,11 @@ async function renderPorCobrar(containerId, opts = {}) {
       '<div class="acct">' +
         '<div class="estado-cuenta">' +
           '<div class="ec-title">💰 TOTAL POR COBRAR</div>' +
-          '<div class="ec-saldo"><span>Pendiente de cobro</span><span style="color:var(--red)">' + splitStr(totalPC) + '</span></div>' +
-          '<div class="ec-counts">' + grupos.acobrar.length + ' sin cobrar · ' + grupos.parcial.length + ' parciales · ' + grupos.cobrado.length + ' cobrados' + (grupos.sinprecio.length ? ' · ' + grupos.sinprecio.length + ' sin precio' : '') + '</div>' +
+          '<div class="ec-saldo"><span>Pendiente de cobro</span><span style="color:var(--red)">' + (splitStr(totalPC) || fU(0)) + '</span></div>' +
+          '<div class="ec-counts">' + nCli + ' cliente(s) con saldo · ' + rows.length + ' visitas</div>' +
         '</div>' +
-        sec('🔴 A COBRAR (sin pago)', grupos.acobrar, true) +
-        sec('🟡 PARCIAL', grupos.parcial, true) +
-        (grupos.sinprecio.length ? '<div class="ec-section-total"><span>⚠️ FALTA VINCULAR PROPUESTA (' + grupos.sinprecio.length + ')</span><span style="color:var(--text3);font-size:11px">no sé su precio</span></div>' + grupos.sinprecio.slice().sort((a, b) => a.nombre.localeCompare(b.nombre)).map(rowHTML).join('') : '') +
-        (grupos.cobrado.length ? '<button class="ceo-acc-head" onclick="toggleCeoAcc(this)"><span>✅ Cobrados (' + grupos.cobrado.length + ')</span><span class="fin-arrow">▾</span></button><div class="ceo-acc-body" style="display:none">' + grupos.cobrado.slice().sort((a, b) => b.precio - a.precio).map(rowHTML).join('') + '</div>' : '') +
-        asociarHTML +
-        '<div style="padding:12px 14px;font-size:11px;color:var(--text3)">El precio sale de la propuesta vinculada y lo cobrado de los cobros vinculados al servicio. Si falta vincular, aparece arriba para completarlo.</div>' +
+        cliIds.map(tarjetaCliente).join('') +
+        '<div style="padding:12px 14px;font-size:11px;color:var(--text3)">El precio sale de la propuesta vinculada; lo cobrado, de los cobros vinculados. Reconciliá monedas o asigná el precio del contrato con un toque.</div>' +
       '</div>';
   } catch (e) {
     content.innerHTML = '<div class="coord-empty">No se pudo cargar Por cobrar<br><small>' + esc(e.message) + '</small></div>';
