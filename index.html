@@ -3117,6 +3117,20 @@ const STEPS_RELEVAMIENTO = [
   { id: 'cerrar', label: 'CERRAR', icon: '🏁' }
 ];
 
+// Flujo del operario cuando el servicio tiene SECTORES: igual al normal pero SIN los pasos
+// de fotos globales (las fotos antes/después son por sector, dentro del hub). El checklist
+// PRE (al llegar) y POST (al cierre) se mantienen, 1 vez por jornada.
+const STEPS_SECTORES = [
+  { id: 'inicio', label: 'INICIAR', icon: '▶' },
+  { id: 'checklist_pre', label: 'PRE', icon: '✅' },
+  { id: 'inicio_efectivo', label: 'INICIO EF.', icon: '🕐' },
+  { id: 'ejecucion', label: 'SECTORES', icon: '🏢' },
+  { id: 'cierre_efectivo', label: 'CIERRE EF.', icon: '⏹' },
+  { id: 'checklist_post', label: 'POST', icon: '✅' },
+  { id: 'observaciones', label: 'NOTAS', icon: '📝' },
+  { id: 'cerrar', label: 'CERRAR', icon: '🏁' }
+];
+
 let STEPS = STEPS_SERVICIO;
 
 // ─────────────────────────────────────────────
@@ -3185,6 +3199,7 @@ function resetServiceState() {
       servicioSugerido: [],
       notasComercial: ''
     },
+    sectores: [],   // [{id, nombre, estado:'pendiente'|'en_curso'|'hecho'}] — solo si el servicio tiene sectores
     // Cache de URLs de mapa heredadas del cliente y la propuesta vinculada.
     // Poblado en openService() antes del primer renderStep().
     clienteMapa: '',
@@ -3344,6 +3359,10 @@ function computeStepFromState() {
     return t >= 0 ? t : 1;
   }
   return 0;
+}
+
+function servicioTieneSectores() {
+  return Array.isArray(serviceState.sectores) && serviceState.sectores.length > 0;
 }
 
 // ─────────────────────────────────────────────
@@ -6066,6 +6085,25 @@ async function openService(idx) {
   hydrateServiceStateFromNotion(currentService);
   const hadLocal = hydrateServiceStateFromLocal(currentService.id);
 
+  // Sectores: el coordinador los guardó en 'Estado sectores' como [{id,nombre,estado}].
+  // El operario hereda esa lista; el estado de cada sector lo va actualizando. Si localStorage
+  // tiene un estado más avanzado (reapertura), gana lo local (igual criterio que el checklist).
+  try {
+    const baseSec = JSON.parse(currentService.properties?.['Estado sectores']?.rich_text?.[0]?.plain_text || '[]');
+    let localSec = [];
+    try {
+      const rawLs = localStorage.getItem(storageKeyForService(currentService.id));
+      if (rawLs) localSec = JSON.parse(rawLs).state?.sectores || [];
+    } catch (_) {}
+    serviceState.sectores = (Array.isArray(baseSec) ? baseSec : []).map(s => {
+      const ls = localSec.find(x => x.id === s.id);
+      return { id: s.id, nombre: s.nombre, estado: (ls && ls.estado) || s.estado || 'pendiente' };
+    });
+  } catch (_) { serviceState.sectores = []; }
+
+  // Si tiene sectores (y no es relevamiento), usar el flujo recortado por sectores.
+  if (!tipoReg.includes('Relevamiento') && servicioTieneSectores()) STEPS = STEPS_SECTORES;
+
   // Pre-cargar m² aproximados si ya existe en el servicio (útil para relevamientos)
   const m2Existing = currentService.properties?.['m² aproximados']?.number;
   if (m2Existing != null && !serviceState.relevamiento.m2) {
@@ -6252,7 +6290,7 @@ function renderStep() {
       <div style="height:20px"></div>
     `;
     bar.innerHTML = `
-      <button class="btn-secondary" onclick="goToStep(0)">${t('btn.back')}</button>
+      <button class="btn-secondary" onclick="goToStep(currentStep - 1)">${t('btn.back')}</button>
       <button class="btn-main btn-green" onclick="nextStep()">${t('btn.continue')}</button>
     `;
   }
@@ -6267,7 +6305,7 @@ function renderStep() {
       ${renderPhotoUploader('pre', 2)}
     `;
     bar.innerHTML = `
-      <button class="btn-secondary" onclick="goToStep(1)">${t('btn.back')}</button>
+      <button class="btn-secondary" onclick="goToStep(currentStep - 1)">${t('btn.back')}</button>
       <button class="btn-main btn-green" onclick="nextStep()">${t('btn.continue')}</button>
     `;
   }
@@ -6338,7 +6376,7 @@ function renderStep() {
       <div style="text-align:center;padding:40px 0;font-size:64px">🚁</div>
     `;
     bar.innerHTML = `
-      <button class="btn-secondary" onclick="goToStep(3)">${t('btn.back')}</button>
+      <button class="btn-secondary" onclick="goToStep(currentStep - 1)">${t('btn.back')}</button>
       <button class="btn-main btn-orange" onclick="nextStep()">${t('step.ejec.continue')}</button>
     `;
   }
@@ -6377,7 +6415,7 @@ function renderStep() {
       <div style="height:20px"></div>
     `;
     bar.innerHTML = `
-      <button class="btn-secondary" onclick="goToStep(5)">${t('btn.back')}</button>
+      <button class="btn-secondary" onclick="goToStep(currentStep - 1)">${t('btn.back')}</button>
       <button class="btn-main btn-green" onclick="nextStep()">${t('btn.continue')}</button>
     `;
   }
@@ -6391,7 +6429,7 @@ function renderStep() {
       ${renderPhotoUploader('post', 2)}
     `;
     bar.innerHTML = `
-      <button class="btn-secondary" onclick="goToStep(6)">${t('btn.back')}</button>
+      <button class="btn-secondary" onclick="goToStep(currentStep - 1)">${t('btn.back')}</button>
       <button class="btn-main btn-green" onclick="nextStep()">${t('btn.continue')}</button>
     `;
   }
@@ -6434,7 +6472,7 @@ function renderStep() {
       <div style="height:20px"></div>
     `;
     bar.innerHTML = `
-      <button class="btn-secondary" onclick="goToStep(7)">${t('btn.back')}</button>
+      <button class="btn-secondary" onclick="goToStep(currentStep - 1)">${t('btn.back')}</button>
       <button class="btn-main btn-green" onclick="nextStep()">${t('btn.continue')}</button>
     `;
   }
