@@ -9560,8 +9560,9 @@ async function saveServiceEdit() {
     props['Operarios participantes'] = { multi_select: participantes.map(name => ({ name })) };
     await updateServiceProps(editingService.id, props);
     syncAfterWrite(editingService.id, 'servicios');
+    const _fromPC = _editFromPorCobrar;
     closeEditSheet();
-    if (_editFromPorCobrar && _porCobrarCtx) { _editFromPorCobrar = false; await renderPorCobrar(_porCobrarCtx.containerId, _porCobrarCtx.opts); }
+    if (_fromPC && _porCobrarCtx) { await renderPorCobrar(_porCobrarCtx.containerId, _porCobrarCtx.opts); }
     else await renderCoordServicios();
   } catch (e) {
     btn.textContent = t('btn.save.notion'); btn.disabled = false;
@@ -9587,8 +9588,9 @@ async function deleteService() {
     // Archive en Notion (in_trash=true). No es delete permanente — recuperable desde la papelera.
     await callNotion('pages/' + editingService.id, 'PATCH', { in_trash: true });
     syncAfterWrite(editingService.id, 'servicios');
+    const _fromPC = _editFromPorCobrar;
     closeEditSheet();
-    if (_editFromPorCobrar && _porCobrarCtx) { _editFromPorCobrar = false; await renderPorCobrar(_porCobrarCtx.containerId, _porCobrarCtx.opts); }
+    if (_fromPC && _porCobrarCtx) { await renderPorCobrar(_porCobrarCtx.containerId, _porCobrarCtx.opts); }
     else await renderCoordServicios();
   } catch (e) {
     if (btn) { btn.textContent = '🗑️ ' + t('sheet.edit.delete'); btn.disabled = false; }
@@ -9607,8 +9609,9 @@ async function archivarServicioFinanzas() {
   try {
     await updateServiceProps(editingService.id, { '🗄️ Archivado': { checkbox: true } });
     syncAfterWrite(editingService.id, 'servicios');
+    const _fromPC = _editFromPorCobrar;
     closeEditSheet();
-    if (_editFromPorCobrar && _porCobrarCtx) { _editFromPorCobrar = false; await renderPorCobrar(_porCobrarCtx.containerId, _porCobrarCtx.opts); }
+    if (_fromPC && _porCobrarCtx) { await renderPorCobrar(_porCobrarCtx.containerId, _porCobrarCtx.opts); }
     else await renderCoordServicios();
   } catch (e) {
     if (btn) { btn.textContent = '🗄️ Archivar servicio'; btn.disabled = false; }
