@@ -4301,7 +4301,44 @@ function renderCobroSheet() {
     `<div style="padding:0 16px 4px;font-size:11px;color:var(--text3)">El monto es lo que entró de verdad, en su moneda. (La cobertura cruzada de un servicio en otra moneda se hace con "✓ cubre este servicio".)</div>` +
     `<div style="padding:14px 16px"><button class="edit-save-btn" style="width:100%" onclick="saveCobroEdit()">💾 Guardar cambios</button></div>`;
 }
-// saveCobroEdit() se implementa en B-5.
+async function saveCobroEdit() {
+  if (!cobroState || cobroState.saving || !cobroState.form) return;
+  const f = cobroState.form;
+  if (!f.monto || f.monto <= 0) { alert('Ingresá un monto mayor a 0.'); return; }
+  if (!f.fecha) { alert('Ingresá la fecha del cobro.'); return; }
+  cobroState.saving = true; renderCobroSheet();
+  const esUY = f.moneda === '🇺🇾 UY$';
+  const props = {
+    'Fecha': { date: { start: f.fecha } },
+    'Moneda cobro': { select: { name: f.moneda } },
+  };
+  // P6: escribir el monto en el campo de la moneda real y LIMPIAR el campo de la OTRA moneda.
+  // MONTO_FIELDS.ingreso nunca limpia el otro campo; si Finanzas cambia la moneda queda
+  // un valor viejo que contamina la lectura (doble-conteo / saldo incorrecto).
+  if (esUY) {
+    props['Monto UY$ cobrado'] = { number: f.monto };
+    props['Monto USD']         = { number: null };    // limpiar la otra moneda
+  } else {
+    props['Monto USD']         = { number: f.monto };
+    props['Monto UY$ cobrado'] = { number: null };    // limpiar la otra moneda
+  }
+  // P6: el TC aplicado fue derivado para el monto anterior (reconciliación C3 previa).
+  // Al editar el monto real (C7) el TC viejo ya no aplica → limpiarlo.
+  // C3 ("✓ cubre este servicio") lo vuelve a derivar si hace falta.
+  props['TC aplicado'] = { number: null };
+  // Servicio vinculado: actualizar o desvincular.
+  props['Servicio vinculado'] = f.servicioId ? { relation: [{ id: f.servicioId }] } : { relation: [] };
+  try {
+    await callNotion('pages/' + f.id, 'PATCH', { properties: props });
+    await syncAfterWrite(f.id, 'ingresos');
+    _ingresosCache = null;
+    closeCobroSheet();
+    if (_porCobrarCtx) await renderPorCobrar(_porCobrarCtx.containerId, _porCobrarCtx.opts);
+  } catch (e) {
+    if (cobroState) { cobroState.saving = false; renderCobroSheet(); }
+    alert('No se pudo guardar el cobro: ' + esc(e.message || String(e)));
+  }
+}
 // ────────────────────────────────────────────────────────────────────────────
 
 function renderReportes() {
