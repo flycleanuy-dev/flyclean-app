@@ -79,7 +79,8 @@
 // v33: VELOCIDAD — SW vuelve a stale-while-revalidate (cache al instante + revalida en bg); proxy con timeout+reintento+429; operario auto-reintenta.
 // v5: cambiar estrategia de Notion API de stale-while-revalidate a NETWORK-FIRST con timeout.
 
-const CACHE = 'flyclean-v89';
+// v90: sectores Fase 0+1 — fix del selector "Operario manual" (botón +nuevo + piloto visible) + sectores reusables en el cliente y selección en el servicio/prueba/relevamiento.
+const CACHE = 'flyclean-v90';
 const SHELL = [
   '/',
   '/index.html',

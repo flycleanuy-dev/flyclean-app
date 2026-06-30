@@ -47,6 +47,9 @@ Clientes   ↔ Clientes  (self-relation: `Intermediario` ↔ `Clientes traídos`
 > **Properties nuevas (2026-06-29)**:
 > - `Mapa` (url) — URL de Google Maps de la ubicación habitual del cliente. Fuente única; los servicios y
 >   propuestas la **heredan** via `resolveMapsUrl()`. Override puntual disponible en cada servicio/propuesta.
+> - `Sectores` (rich_text JSON) — lista reusable de sectores/edificios del cliente `[{id,nombre}]` (CRUD en la
+>   ficha del cliente). Se ofrecen al crear servicio/prueba/relevamiento; agregar uno desde el servicio lo guarda
+>   acá para la próxima. (2026-06-30)
 
 ## Properties clave — DB Servicios
 
@@ -67,6 +70,7 @@ Clientes   ↔ Clientes  (self-relation: `Intermediario` ↔ `Clientes traídos`
 | `Método de trabajo` | select (`🚁 Dron` / `💪 Manual`) | Cómo se ejecutó el trabajo; obligatorio para registrar `Hora Inicio Efectivo` |
 | `Herramienta manual` | select (`Lanzas` / `Manguera` / `Hidrolavadora` / `Otro`) | Submétodo cuando `Método de trabajo = 💪 Manual`; queda vacío si es dron |
 | `Operario manual` | select | Persona que ejecuta el trabajo manual (columna derecha del sheet del coord); espejo de `Operario App` para el rol manual |
+| `Estado sectores` | rich_text (JSON) | Sectores seleccionados para ESE trabajo con su estado: `[{id,nombre,estado}]` (estado: `pendiente`/`en_curso`/`hecho`). Snapshot del nombre para autocontención. Vacío = servicio sin sectores → flujo idéntico al de siempre. (2026-06-30) |
 
 **Separación clave**: `Hora Inicio` (programada, dueño = coord) ≠ `Hora Inicio Efectivo`
 (real, la escribe el operario al apretar "Iniciar"). Nunca escribir `Hora Inicio` desde el flujo
