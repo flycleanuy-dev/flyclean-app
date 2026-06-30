@@ -1,10 +1,11 @@
 # Funcionalidades — FlyClean (catálogo feature → función)
 
 > **FUENTE DE VERDAD** de *qué hace la app y qué función lo implementa.* Generado leyendo el código
-> real (2026-06-25, sw v72) con 5 agentes en paralelo. **ANTES de construir/proponer algo: buscalo acá
-> + grep del código. Reusar > reconstruir** (ya duplicamos 2 veces: Clientes/Contactos y PINs).
-> Mantenerlo: actualizar este archivo tras cada feature (junto al bump de `sw.js`). Complementa a
-> `ARQUITECTURA.md` (cómo está construido), `NOTION.md` (datos) y `RUNBOOK.md` (operar/deploy).
+> real (2026-06-25, sw v72) con 5 agentes en paralelo; actualizado manualmente tras cada feature.
+> **ANTES de construir/proponer algo: buscalo acá + grep del código. Reusar > reconstruir** (ya
+> duplicamos 2 veces: Clientes/Contactos y PINs). Mantenerlo: actualizar este archivo tras cada feature
+> (junto al bump de `sw.js`). Complementa a `ARQUITECTURA.md` (cómo está construido), `NOTION.md`
+> (datos) y `RUNBOOK.md` (operar/deploy). Última actualización: 2026-06-30, sw v89.
 
 ## 🗣️ Qué puede hacer la app hoy (en criollo)
 
@@ -265,8 +266,16 @@
 
 - **Resumen de Finanzas** — Renderiza el resumen financiero del período seleccionado mostrando resultado operativo (ingresos - gastos), financiamiento con socios (Neidat), caja del período, y gastos/ingresos agrupados por categoría/tipo con cards desplegables. Filtra por moneda (UY$/USD) y período. Aísla datos por país (finRecEnPais).
   - `renderCEOFinanzas (index.html:6642)`
-- **Por cobrar** — Vista de solo lectura: cruza servicios completados con propuestas (precio) e ingresos (cobrado) para calcular saldo. Agrupa por estado (a cobrar, parcial, cobrado, sin precio). Permite asociar cobros sin servicios vinculados (optsFor ofrece dropdown de servicios del cliente; asociarCobro hace PATCH a Notion). Filtra por país (recEnPaisNotion).
-  - `renderPorCobrar (index.html:6801) + optsFor (index.html:6873) + asociarCobro (index.html:6918)`
+- **Por cobrar (por cliente/contrato)** — Vista reorganizada por cliente: una tarjeta por cliente con sus visitas adentro, saldo por moneda y contrato recurrente. Finanzas opera (reconciliar, asignar precio, asociar cobros, editar/archivar/eliminar); CEO y coordinador tienen `{readonly:true}` (solo lectura). Filtra por país (finRecEnPais / recEnPaisNotion). Carga adicionalmente los clientes para resolver id→nombre/país. Cada visita incluye su `id` y `clienteId` para las acciones contextuales. Orden: clientes con saldo 🔴 arriba.
+  - `renderPorCobrar (index.html) + optsFor + asociarCobro + cubrirServicio + asignarPrecioContrato + openCobroSheet + saveCobroEdit + openEditSheetFromFinanzas`
+- **Reconciliar monedas en 1 toque (`cubrirServicio`)** — Botón "✓ cubre este servicio" en visitas pagadas en distinta moneda. Modal de plan con TC derivado (monto_otra_moneda / cubierto). Al confirmar: setea el monto en la **moneda del precio** (`Monto USD` si precio USD, `Monto UY$ cobrado` si precio pesos) + `TC aplicado`. Mantiene el monto real y `Moneda cobro` intactos → `montoOf` sigue contando la moneda real sin doble-conteo. Simétrico (precio USD/pago pesos y precio pesos/pago USD). Monto cubierto por defecto = saldo restante (no el precio completo). Valida `cubierto > 0` antes de derivar TC (nunca divide por 0). Reversible (volver monto a 0).
+  - `cubrirServicio(ingId, svcId) → index.html`
+- **Asignar precio del contrato en bloque (`asignarPrecioContrato`)** — Si el cliente tiene propuesta recurrente y hay visitas sin precio: botón que vincula la propuesta (`Servicios.Propuesta`) a cada visita en bloque. Modal muestra el plan (N visitas + importe por visita). Si el cliente tiene más de una propuesta recurrente, permite elegir cuál. No pisa visitas que ya tengan otra propuesta vinculada. Secuencial con detención ante fallo (idempotente/reintentable). Re-render al terminar.
+  - `asignarPrecioContrato(clienteId) → index.html`
+- **Editar servicio desde Finanzas (`openEditSheetFromFinanzas`)** — Finanzas puede editar nombre, fecha y estado de un servicio desde "Por cobrar". Pasa el objeto del servicio directo (sin depender de `_coordAllServices`). Incluye botón **Archivar** (setea `🗄️ Archivado = true`, reversible) y **Eliminar** (`archived: true` en Notion = papelera, recuperable 30 días, con doble confirmación). El bloqueo de "no eliminar Completados" se relaja para el rol Finanzas.
+  - `openEditSheetFromFinanzas() → index.html (ver también openEditSheet/saveServiceEdit)`
+- **Editar cobro (Finanzas): `openCobroSheet` / `saveCobroEdit`** — Sheet para editar un cobro existente: fecha, monto + moneda, servicio vinculado, TC aplicado (opcional). Al cambiar monto/moneda, limpia el campo de la otra moneda y re-deriva (o limpia) `TC aplicado`. Guarda en Notion via callNotion PATCH. Append-only: para anular, archivar con confirmación.
+  - `openCobroSheet(ingId) + saveCobroEdit() → index.html`
 - **Clientes** — Lista todos los contactos/clientes activos filtrados por país (recEnPaisNotion). Renderiza tarjetas con nombre, estado, tipo, país, servicios de interés, teléfono, email. Permite buscar por nombre/ciudad (filterContacts) y cargar más (cargarMasContactos). Reutilizada por Coordinador (coordinador) y CEO.
   - `renderClientesView (index.html:9486) + renderContactList (index.html:9519) + coordContactCard (index.html:9560)`
 - **Gastos** — Carga y renderiza gastos del mes actual (fetchGastosForMonth). Filtra por país (finRecEnPais), categoría y clase (directo/indirecto) via select. Muestra cards con concepto, moneda, monto, proveedor, fecha, usuario que cargó. Permite cargar más con paginación. Incluye botón para agregar nuevo gasto (openNuevoGastoSheet). Sumas por moneda (sumByMoneda).
@@ -487,6 +496,20 @@
   muestra **Esperado/año** (servicios×importe), **Comisión** del intermediario y **Neto FlyClean** sobre lo
   cobrado. _En criollo: cargás "6 servicios/año, 10% de comisión" en el contrato del cliente y ves cuánto
   esperás cobrar, cuánto se lleva el intermediario y cuánto te queda neto._
+
+- **"Por cobrar" rediseñada — por cliente + Finanzas operador completo** (sw v88–v89, 2026-06-29)
+
+  **Parte A (sw v88) — Vista por cliente/contrato:**
+  - **`renderPorCobrar` reorganizada por cliente:** tarjeta por cliente con sus visitas adentro, saldo por moneda (UY$/USD por separado), contrato recurrente. Carga adicional de clientes para resolver id→nombre/país. Orden: clientes con saldo 🔴 arriba. CEO y coordinador reciben `{readonly:true}`.
+  - **`cubrirServicio(ingId, svcId)` — Reconciliar moneda en 1 toque:** modal con TC derivado; setea el monto en la moneda del precio (`Monto USD` o `Monto UY$ cobrado`) manteniendo el pago real + `Moneda cobro` intactos → sin doble-conteo en el dashboard. Simétrico (precio USD↔pesos). TC = monto_otra_moneda / cubierto; valida >0. Monto default = saldo restante.
+  - **`asignarPrecioContrato(clienteId)` — Asignar precio del contrato en bloque:** vincula la propuesta recurrente del cliente a las visitas sin precio (`Servicios.Propuesta`). Modal-plan previo. Si hay más de una propuesta recurrente, permite elegir. No pisa visitas con propuesta ya asignada. Idempotente/reintentable.
+  - **`asociarCobro` mejorado:** opciones de servicio filtradas al cliente; tras asociar ofrece reconciliar si cobro en $0 o en otra moneda.
+
+  **Parte B (sw v89) — Finanzas operador completo:**
+  - **`openEditSheetFromFinanzas` / `saveServiceEdit` para Finanzas:** editar nombre, fecha y estado desde "Por cobrar". Pasa el objeto del servicio directo (sin `_coordAllServices`). Botón **Archivar** (`🗄️ Archivado = true`, reversible) y **Eliminar** (`archived: true` en Notion, papelera, recuperable 30 días, doble confirmación). Bloqueo de "no eliminar Completados" relajado para Finanzas.
+  - **`openCobroSheet(ingId)` + `saveCobroEdit()` — Editar cobro:** sheet para fecha/monto/moneda/servicio vinculado/TC. Al cambiar monto/moneda limpia el campo de la otra moneda y re-deriva (o limpia) `TC aplicado`. Guarda en Notion vía PATCH. Append-only: anular = archivar con confirmación.
+
+  **NO se crearon properties nuevas de Notion:** todo reutiliza `Importe estimado`, `Moneda`, `Monto USD`, `Monto UY$ cobrado`, `Moneda cobro`, `TC aplicado`, `🗄️ Archivado`, etc.
 
 ---
 _Generado automáticamente del código (workflow `inventario-funcionalidades`). Si algo no coincide con el código, gana el código → regenerar._

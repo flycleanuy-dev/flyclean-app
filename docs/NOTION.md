@@ -102,3 +102,20 @@ muestra **Comisión** y **Neto FlyClean** sobre lo cobrado. El intermediario sal
 | Property | Tipo | Para qué |
 |---|---|---|
 | `Mapa` | url | Override de ubicación a nivel propuesta. Si tiene valor, sobreescribe el `Mapa` del cliente; el `Mapa` del servicio sobreescribe a este. Precedencia: servicio > propuesta > cliente. |
+
+## Ingresos / Cobros — modelo de reconciliación cross-moneda (2026-06-29)
+
+No hay properties nuevas. El modelo reutiliza los campos existentes:
+
+| Campo | Tipo | Rol |
+|---|---|---|
+| `Monto UY$ cobrado` | number | Monto **real** del pago si la moneda de cobro es pesos |
+| `Monto USD` | number | Monto **real** del pago si la moneda de cobro es dólares; **también** se usa como campo de cobertura en reconciliación cross-moneda |
+| `Moneda cobro` | select | Moneda **real** del pago (`UY$` / `USD`). `montoOf` la lee para los KPIs → determina qué campo sumar → sin doble-conteo |
+| `TC aplicado` | number | Tipo de cambio **derivado** al reconciliar (monto_otra_moneda / monto_cubierto). Se escribe solo en reconciliación; vacío si no aplica |
+
+**Flujo de reconciliación "cubre el servicio" (`cubrirServicio`):**
+Cuando un servicio está en USD pero el cobro es en pesos (o viceversa), la app NO crea un cobro nuevo ni cambia `Moneda cobro`. En cambio, escribe el equivalente en la moneda del precio en el campo correspondiente + deriva `TC aplicado`. Así:
+- El dashboard sigue contando la moneda real (`montoOf` lee `Moneda cobro` → suma en la columna correcta, sin mezclar).
+- `renderPorCobrar` lee `Monto USD` / `Monto UY$ cobrado` directo y reconoce que el servicio está cubierto.
+- La operación es reversible (volver el campo cubierto a 0 y limpiar `TC aplicado`).
