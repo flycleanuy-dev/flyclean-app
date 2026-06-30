@@ -1286,6 +1286,15 @@ body::before {
         <div class="operario-btns" id="edit-participantes-btns"></div>
       </div>
       <div class="edit-section">
+        <div class="edit-section-label" data-i18n="sheet.edit.section.sectores">🏢 SECTORES DE ESTE TRABAJO</div>
+        <div class="edit-section-hint" data-i18n="sheet.edit.section.sectores.hint" style="font-size:11px;color:var(--text3);margin-bottom:8px">Elegí los edificios/zonas del cliente que se trabajan en este servicio.</div>
+        <div class="operario-btns" id="edit-sectores-btns"></div>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <input type="text" id="edit-sector-input" class="edit-date-input" style="flex:1;margin-bottom:0" placeholder="Nuevo sector (se guarda al cliente)" onkeydown="if(event.key==='Enter'){event.preventDefault();editAddSector();}"/>
+          <button type="button" class="estado-btn" style="white-space:nowrap" onclick="editAddSector()" data-i18n="sheet.edit.sectores.add">+ Agregar</button>
+        </div>
+      </div>
+      <div class="edit-section">
         <div class="edit-section-label" data-i18n="sheet.edit.section.fecha">FECHA PROGRAMADA</div>
         <input type="date" class="edit-date-input" id="edit-fecha" onchange="editState.fecha=this.value"/>
       </div>
@@ -2079,6 +2088,10 @@ const TRANSLATIONS = {
     'sheet.edit.section.operariomanual.hint': 'Operario que hace el trabajo manual (lanzas, manguera, hidro). Opcional.',
     'sheet.edit.section.participantes': 'AYUDANTES',
     'sheet.edit.section.participantes.hint': 'Marcá a los que estuvieron en el campo además del piloto. Cada uno suma 1 jornal.',
+    'sheet.edit.section.sectores': '🏢 SECTORES DE ESTE TRABAJO',
+    'sheet.edit.section.sectores.hint': 'Elegí los edificios/zonas del cliente que se trabajan en este servicio.',
+    'sheet.edit.sectores.add': '+ Agregar',
+    'sheet.edit.sectores.none': 'Este cliente no tiene sectores cargados. Agregalos acá o en la ficha del cliente.',
     'sheet.edit.section.fecha': 'FECHA PROGRAMADA',
     'sheet.edit.section.hora': 'HORA DE INICIO PROGRAMADA',
     'sheet.edit.section.lugar': 'LUGAR',
@@ -2678,6 +2691,10 @@ const TRANSLATIONS = {
     'sheet.edit.section.operariomanual.hint': 'Operador que faz o trabalho manual (lanças, mangueira, lavadora). Opcional.',
     'sheet.edit.section.participantes': 'AJUDANTES',
     'sheet.edit.section.participantes.hint': 'Marque os que estiveram no campo além do piloto. Cada um soma 1 jornal.',
+    'sheet.edit.section.sectores': '🏢 SETORES DESTE TRABALHO',
+    'sheet.edit.section.sectores.hint': 'Escolha os edifícios/zonas do cliente que serão trabalhados neste serviço.',
+    'sheet.edit.sectores.add': '+ Adicionar',
+    'sheet.edit.sectores.none': 'Este cliente não tem setores carregados. Adicione aqui ou na ficha do cliente.',
     'sheet.edit.section.fecha': 'DATA PROGRAMADA',
     'sheet.edit.section.hora': 'HORÁRIO DE INÍCIO PROGRAMADO',
     'sheet.edit.section.lugar': 'LOCAL',
@@ -9204,7 +9221,10 @@ async function openEditSheet(pageId) {
   const mapa = props['Mapa']?.url || '';
   const contactoId = props['Contacto']?.relation?.[0]?.id || props['Contactos']?.relation?.[0]?.id || '';
   editState = { estado: estadoActual, operario: operarioActual, operarioManual: operarioManualActual, fecha, hora, lugar, mapa, participantes: participantesActuales, pais: props['País']?.select?.name || '', nombre,
-    contactoId, clienteNombre: '', clienteMapa: '', propMapa: '' };
+    contactoId, clienteNombre: '', clienteMapa: '', propMapa: '',
+    sectoresCliente: [],
+    sectores: (() => { try { return JSON.parse(props['Estado sectores']?.rich_text?.[0]?.plain_text || '[]'); } catch (_) { return []; } })(),
+    _sectoresClienteDirty: false };
   document.getElementById('edit-sheet-title').textContent = nombre;
   const dateLocale = currentLang === 'pt-BR' ? 'pt-BR' : 'es-UY';
   document.getElementById('edit-sheet-sub').textContent = fecha ? new Date(fecha + 'T00:00:00').toLocaleDateString(dateLocale, { weekday: 'long', day: 'numeric', month: 'long' }) : t('sheet.alert.fecha');
@@ -9286,6 +9306,7 @@ async function openEditSheet(pageId) {
   renderOperarioBtns(operarioActual);
   renderOperarioManualBtns(operarioManualActual);
   renderParticipantesBtns();
+  renderEditSectores();
   // Fix 2: resetear el flag data-override antes de renderizar, para que no quede
   // expandido de un servicio previo que sí tenía override.
   const _ubicBox = document.getElementById('edit-cliente-ubicacion');
@@ -9313,6 +9334,8 @@ async function resolveSvcUbicacion(svcId) {
       for (const k in cp) { const tt = cp[k]?.title; if (Array.isArray(tt) && tt.length) { nom = tt.map(x => x.plain_text).join(''); break; } }
       editState.clienteNombre = nom || '';
       editState.clienteMapa = cp['Mapa']?.url || '';
+      try { editState.sectoresCliente = JSON.parse(cp['Sectores']?.rich_text?.[0]?.plain_text || '[]'); } catch (_) { editState.sectoresCliente = []; }
+      renderEditSectores();
     } catch (_) {}
   }
   // Propuesta vinculada: su Mapa (precede al del cliente, no al del servicio).
@@ -9355,6 +9378,50 @@ function toggleSvcUbicacionOverride() {
   if (!box) return;
   box.setAttribute('data-override', box.getAttribute('data-override') === '1' ? '0' : '1');
   renderSvcClienteUbicacion();
+}
+
+// Sectores del trabajo: muestra los del cliente (toggle seleccionado) + los ya elegidos en el servicio.
+function renderEditSectores() {
+  const box = document.getElementById('edit-sectores-btns');
+  if (!box) return;
+  const delCliente = Array.isArray(editState.sectoresCliente) ? editState.sectoresCliente : [];
+  const elegidos = Array.isArray(editState.sectores) ? editState.sectores : [];
+  // Universo = sectores del cliente + los ya elegidos que (por algún motivo) no estén en la lista del cliente.
+  const universo = delCliente.slice();
+  elegidos.forEach(e => { if (!universo.some(u => u.id === e.id)) universo.push({ id: e.id, nombre: e.nombre }); });
+  box.innerHTML = universo.length
+    ? universo.map(sec => {
+        const isActive = elegidos.some(e => e.id === sec.id);
+        return `<button class="operario-btn ${isActive ? 'active' : ''}" data-id="${escAttrEdit(sec.id)}" onclick="toggleEditSector(this.dataset.id)">${esc(sec.nombre)}</button>`;
+      }).join('')
+    : `<div style="font-size:12px;color:var(--text3);font-style:italic">${t('sheet.edit.sectores.none')}</div>`;
+}
+
+function toggleEditSector(id) {
+  if (!Array.isArray(editState.sectores)) editState.sectores = [];
+  const idx = editState.sectores.findIndex(e => e.id === id);
+  if (idx >= 0) {
+    editState.sectores.splice(idx, 1);
+  } else {
+    const src = (editState.sectoresCliente || []).find(s => s.id === id);
+    if (src) editState.sectores.push({ id: src.id, nombre: src.nombre, estado: 'pendiente' });
+  }
+  renderEditSectores();
+}
+
+// Agrega un sector nuevo: lo suma a la lista del cliente (se persiste al guardar) y lo deja seleccionado.
+function editAddSector() {
+  const input = document.getElementById('edit-sector-input');
+  const nombre = (input?.value || '').trim();
+  if (!nombre) return;
+  const id = genSectorId();
+  if (!Array.isArray(editState.sectoresCliente)) editState.sectoresCliente = [];
+  if (!Array.isArray(editState.sectores)) editState.sectores = [];
+  editState.sectoresCliente.push({ id, nombre });
+  editState.sectores.push({ id, nombre, estado: 'pendiente' });
+  editState._sectoresClienteDirty = true;
+  if (input) input.value = '';
+  renderEditSectores();
 }
 
 function togglePropUbicacionOverride() {
@@ -9722,6 +9789,22 @@ async function saveServiceEdit() {
     // Notion ignora la key silenciosamente sin romper el resto del PATCH.
     const participantes = Array.isArray(editState.participantes) ? editState.participantes : [];
     props['Operarios participantes'] = { multi_select: participantes.map(name => ({ name })) };
+    {
+      const secs = (Array.isArray(editState.sectores) ? editState.sectores : [])
+        .map(x => ({ id: x.id, nombre: String(x.nombre || '').trim(), estado: x.estado || 'pendiente' }))
+        .filter(x => x.nombre);
+      props['Estado sectores'] = { rich_text: secs.length ? [{ text: { content: JSON.stringify(secs) } }] : [] };
+    }
+    // Si se agregó un sector nuevo desde el servicio, persistirlo a la lista reusable del cliente.
+    if (editState._sectoresClienteDirty && editState.contactoId) {
+      try {
+        const cli = (Array.isArray(editState.sectoresCliente) ? editState.sectoresCliente : [])
+          .map(x => ({ id: x.id, nombre: String(x.nombre || '').trim() }))
+          .filter(x => x.nombre);
+        await updateServiceProps(editState.contactoId, { 'Sectores': { rich_text: cli.length ? [{ text: { content: JSON.stringify(cli) } }] : [] } });
+        if (typeof syncAfterWrite === 'function') { try { syncAfterWrite(editState.contactoId, 'clientes'); } catch (_) {} }
+      } catch (_) { /* no bloquear el guardado del servicio si el cliente falla */ }
+    }
     await updateServiceProps(editingService.id, props);
     syncAfterWrite(editingService.id, 'servicios');
     const _fromPC = _editFromPorCobrar;
