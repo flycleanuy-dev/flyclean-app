@@ -7363,8 +7363,9 @@ async function renderPorCobrar(containerId, opts = {}) {
       else if (cobrado >= precio - 0.5) estado = 'cobrado';
       else if (cobrado > 0) estado = 'parcial';
       else estado = 'acobrar';
+      const fecha = p['Fecha programada']?.date?.start || '';
       return { id: s.id, clienteId, nombre, precio, esUY, cobrado, cobradoOtra, saldo,
-               pct: precio ? Math.round(cobrado / precio * 100) : 0, estado };
+               pct: precio ? Math.round(cobrado / precio * 100) : 0, estado, fecha };
     });
 
     // Agrupar visitas facturables por cliente (A-2: vista por cliente/contrato).
@@ -7395,11 +7396,15 @@ async function renderPorCobrar(containerId, opts = {}) {
     // Helper de fila-visita con saldo coloreado (acciones se cablearán en A-3/A-4/A-5).
     const saldoColor = r => r.estado === 'cobrado' ? 'var(--green)' : (r.estado === 'parcial' ? '#E6A700' : 'var(--red)');
     const saldoTxt = r => !r.precio ? 'sin precio' : (r.saldo > 0 ? (r.estado === 'parcial' ? '🟡 falta ' : '🔴 falta ') + fMon(r.saldo, r.esUY) : '✅ cobrado');
+    const fmtVisitaFecha = iso => { if (!iso) return ''; const pp = iso.slice(0, 10).split('-'); return pp[2] + '/' + pp[1] + '/' + pp[0].slice(2); };
     const visitaHTML = r =>
       '<div class="ec-row" style="align-items:flex-start;gap:10px">' +
-        '<div style="min-width:0"><div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(r.nombre) + '</div>' +
-          '<div style="font-size:11px;color:var(--text3)">' + (r.precio ? 'Precio ' + fMon(r.precio, r.esUY) + ' · Cobrado ' + fMon(r.cobrado, r.esUY) + (r.cobradoOtra ? ' (+ ' + fMon(r.cobradoOtra, !r.esUY) + ' en otra moneda)' : '') : 'sin precio vinculado') + '</div></div>' +
-        '<div style="text-align:right;font-weight:700;white-space:nowrap;color:' + saldoColor(r) + '">' + saldoTxt(r) + '</div>' +
+        '<div style="min-width:0">' +
+          (r.fecha ? '<div style="font-size:11px;color:var(--text3);margin-bottom:2px">' + fmtVisitaFecha(r.fecha) + '</div>' : '') +
+          '<div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(r.nombre) + '</div>' +
+          '<div style="font-size:11px;color:var(--text3)">' + (r.precio ? 'Precio ' + fMon(r.precio, r.esUY) + ' · Cobrado ' + fMon(r.cobrado, r.esUY) + (r.cobradoOtra ? ' (+ ' + fMon(r.cobradoOtra, !r.esUY) + ' en otra moneda)' : '') : 'sin precio vinculado') + '</div>' +
+        '</div>' +
+        '<div style="text-align:right;font-weight:700;white-space:nowrap;color:' + saldoColor(r) + '">' + saldoTxt(r) + '<span class="pc-cubre-slot" data-svc="' + esc(r.id) + '"></span></div>' +
       '</div>';
 
     // Herramienta de asociación: cobros sin vincular a servicio (reusados dentro de cada tarjeta de cliente).
@@ -7441,13 +7446,14 @@ async function renderPorCobrar(containerId, opts = {}) {
         const sa = c0['Servicios por año']?.number || 0;
         h += '<div class="ec-row" style="font-size:12px;color:var(--text3)">📑 Contrato: ' + (imp ? fU(imp) + ' / visita' : 'sin importe') + (sa ? ' · ' + sa + '/año' : '') + (contratos.length > 1 ? ' · ' + contratos.length + ' contratos' : '') + '</div>';
       }
-      // Visitas con precio (saldo coloreado).
-      arr.filter(r => r.precio).slice().sort((a, b) => b.saldo - a.saldo).forEach(r => { h += visitaHTML(r); });
+      // Visitas con precio — orden cronológico ascendente (más natural para visitas de contrato recurrente).
+      const sortFecha = (a, b) => (a.fecha || '9999-12-31').localeCompare(b.fecha || '9999-12-31');
+      arr.filter(r => r.precio).slice().sort(sortFecha).forEach(r => { h += visitaHTML(r); });
       // Sin precio → placeholder para A-4 (asignarPrecioContrato).
       const sinPrecio = arr.filter(r => !r.precio);
       if (sinPrecio.length) {
         h += '<div class="ec-section-total"><span>⚠️ SIN PRECIO (' + sinPrecio.length + ')</span><span style="color:var(--text3);font-size:11px">¿del contrato?</span></div>';
-        sinPrecio.slice().sort((a, b) => a.nombre.localeCompare(b.nombre)).forEach(r => { h += visitaHTML(r); });
+        sinPrecio.slice().sort(sortFecha).forEach(r => { h += visitaHTML(r); });
         // Slot A-4: botón asignarPrecioContrato (función a cablear en A-4).
         if (!readonly && contratos.length && cid !== 'sin-cliente') {
           h += '<div style="padding:8px 16px"><button class="fin-svc-link" onclick="asignarPrecioContrato(\'' + cid + '\')">📑 Asignar el precio del contrato a estas ' + sinPrecio.length + ' visita(s)</button></div>';
