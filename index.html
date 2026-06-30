@@ -9561,7 +9561,8 @@ async function saveServiceEdit() {
     await updateServiceProps(editingService.id, props);
     syncAfterWrite(editingService.id, 'servicios');
     closeEditSheet();
-    await renderCoordServicios();
+    if (_editFromPorCobrar && _porCobrarCtx) { _editFromPorCobrar = false; await renderPorCobrar(_porCobrarCtx.containerId, _porCobrarCtx.opts); }
+    else await renderCoordServicios();
   } catch (e) {
     btn.textContent = t('btn.save.notion'); btn.disabled = false;
     alert(t('sheet.alert.save.error2') + e.message);
