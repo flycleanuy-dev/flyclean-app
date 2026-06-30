@@ -6361,7 +6361,7 @@ function renderStep() {
       }
     `;
     bar.innerHTML = `
-      <button class="btn-secondary" onclick="goToStep(2)">${t('btn.back')}</button>
+      <button class="btn-secondary" onclick="goToStep(currentStep - 1)">${t('btn.back')}</button>
       <button class="btn-main btn-green" onclick="nextStep()">${t('btn.continue')}</button>
     `;
   }
@@ -6394,7 +6394,7 @@ function renderStep() {
       }
     `;
     bar.innerHTML = `
-      <button class="btn-secondary" onclick="goToStep(4)">${t('btn.back')}</button>
+      <button class="btn-secondary" onclick="goToStep(currentStep - 1)">${t('btn.back')}</button>
       <button class="btn-main btn-green" onclick="nextStep()">${t('btn.continue')}</button>
     `;
   }
