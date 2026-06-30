@@ -457,6 +457,18 @@ body::before {
 
   /* ── Photo uploader (R2 directo) ── */
   .photo-uploader { background: var(--card); border: 1px solid var(--border2); border-radius: var(--radius); padding: 14px; margin-bottom: 12px; }
+  .sectores-progress { margin: 4px 0 16px; }
+  .sectores-progress-bar { height: 8px; background: var(--bg); border-radius: 4px; overflow: hidden; border: 1px solid var(--border); }
+  .sectores-progress-fill { height: 100%; background: var(--green); transition: width .3s; }
+  .sectores-progress-label { font-size: 12px; color: var(--text3); text-align: center; margin-top: 6px; font-weight: 600; }
+  .sectores-list { display: flex; flex-direction: column; gap: 8px; }
+  .sector-row { display: flex; align-items: center; gap: 12px; padding: 14px 14px; border-radius: var(--radius-sm); border: 1px solid var(--border2); background: var(--card); cursor: pointer; font-family: inherit; text-align: left; width: 100%; }
+  .sector-row:active { transform: scale(0.99); }
+  .sector-row-icon { font-size: 18px; flex-shrink: 0; }
+  .sector-row-name { flex: 1; font-size: 14px; font-weight: 600; color: var(--text2); }
+  .sector-row-estado { font-size: 11px; color: var(--text3); }
+  .sector-row.sector-hecho { border-color: var(--green); }
+  .sector-row.sector-en_curso { border-color: var(--amber, #f59e0b); }
   .photo-add-btn { width: 100%; padding: 14px; background: var(--green-dark); border: 2px dashed var(--green); border-radius: var(--radius-sm); color: var(--green); font-size: 14px; font-weight: 700; cursor: pointer; font-family: 'Exo 2', sans-serif; transition: all 0.15s; }
   .photo-add-btn:active { background: var(--green); color: #fff; transform: scale(0.98); }
   .photo-count { font-size: 12px; color: var(--text3); text-align: center; margin: 8px 0; }
@@ -1826,6 +1838,12 @@ const TRANSLATIONS = {
     'step.ejec.hint': '✈️ Estás volando. Cuando termines la operativa efectiva, avanzá al cierre.',
     'step.ejec.tsLabel': '🕐 Inicio efectivo',
     'step.ejec.continue': 'Terminar operativa →',
+    'step.sectores.title': 'Sectores del trabajo',
+    'step.sectores.sub': 'Tocá un sector para sacar las fotos y marcarlo hecho.',
+    'step.sectores.hechos': 'sectores hechos',
+    'sector.estado.pendiente': 'Pendiente',
+    'sector.estado.en_curso': 'En curso',
+    'sector.estado.hecho': 'Hecho',
     'step.cierreef.title': '⏹ Cierre Efectivo',
     'step.cierreef.sub': 'Tocá cuando el drone aterrice',
     'step.cierreef.hint': '🟠 Registra el tiempo efectivo de trabajo. El cálculo se hace automático en Notion.',
@@ -2429,6 +2447,12 @@ const TRANSLATIONS = {
     'step.ejec.hint': '✈️ Você está voando. Ao terminar a operação efetiva, avance para o fechamento.',
     'step.ejec.tsLabel': '🕐 Início efetivo',
     'step.ejec.continue': 'Encerrar operação →',
+    'step.sectores.title': 'Setores do trabalho',
+    'step.sectores.sub': 'Toque num setor para tirar as fotos e marcá-lo como feito.',
+    'step.sectores.hechos': 'setores feitos',
+    'sector.estado.pendiente': 'Pendente',
+    'sector.estado.en_curso': 'Em andamento',
+    'sector.estado.hecho': 'Feito',
     'step.cierreef.title': '⏹ Fechamento Efetivo',
     'step.cierreef.sub': 'Toque quando o drone pousar',
     'step.cierreef.hint': '🟠 Registra o tempo efetivo de trabalho. O cálculo é automático no Notion.',
@@ -3363,6 +3387,13 @@ function computeStepFromState() {
 
 function servicioTieneSectores() {
   return Array.isArray(serviceState.sectores) && serviceState.sectores.length > 0;
+}
+
+function sectoresAvancePct() {
+  const arr = serviceState.sectores || [];
+  if (!arr.length) return 0;
+  const hechos = arr.filter(s => s.estado === 'hecho').length;
+  return Math.round((hechos / arr.length) * 100);
 }
 
 // ─────────────────────────────────────────────
@@ -6368,17 +6399,45 @@ function renderStep() {
 
   // ── STEP 4: EJECUCIÓN ──
   else if (step.id === 'ejecucion') {
-    content.innerHTML = `
-      <div class="step-title">${t('step.ejec.title')}</div>
-      <div class="step-sub">${t('step.ejec.sub')}</div>
-      <div class="hint hint-green">${t('step.ejec.hint')}</div>
-      ${serviceState.horaInicioEfectivo ? `<div class="ts-recorded"><div class="ts-label">${t('step.ejec.tsLabel')}</div><div class="ts-value">${serviceState.horaInicioEfectivo}</div></div>` : ''}
-      <div style="text-align:center;padding:40px 0;font-size:64px">🚁</div>
-    `;
-    bar.innerHTML = `
-      <button class="btn-secondary" onclick="goToStep(currentStep - 1)">${t('btn.back')}</button>
-      <button class="btn-main btn-orange" onclick="nextStep()">${t('step.ejec.continue')}</button>
-    `;
+    if (servicioTieneSectores()) {
+      const arr = serviceState.sectores || [];
+      const pct = sectoresAvancePct();
+      const hechos = arr.filter(s => s.estado === 'hecho').length;
+      const iconFor = e => e === 'hecho' ? '✅' : (e === 'en_curso' ? '🔵' : '⚪');
+      content.innerHTML = `
+        <div class="step-title">${t('step.sectores.title')}</div>
+        <div class="step-sub">${t('step.sectores.sub')}</div>
+        <div class="sectores-progress">
+          <div class="sectores-progress-bar"><div class="sectores-progress-fill" style="width:${pct}%"></div></div>
+          <div class="sectores-progress-label">${hechos} / ${arr.length} ${t('step.sectores.hechos')} · ${pct}%</div>
+        </div>
+        <div class="sectores-list">
+          ${arr.map(s => `
+            <button type="button" class="sector-row sector-${s.estado}" data-id="${escAttrEdit(s.id)}" onclick="openSectorOverlay(this.dataset.id)">
+              <span class="sector-row-icon">${iconFor(s.estado)}</span>
+              <span class="sector-row-name">${esc(s.nombre)}</span>
+              <span class="sector-row-estado">${t('sector.estado.' + s.estado)}</span>
+            </button>`).join('')}
+        </div>
+        <div style="height:20px"></div>
+      `;
+      bar.innerHTML = `
+        <button class="btn-secondary" onclick="goToStep(currentStep - 1)">${t('btn.back')}</button>
+        <button class="btn-main btn-orange" onclick="nextStep()">${t('step.ejec.continue')}</button>
+      `;
+    } else {
+      content.innerHTML = `
+        <div class="step-title">${t('step.ejec.title')}</div>
+        <div class="step-sub">${t('step.ejec.sub')}</div>
+        <div class="hint hint-green">${t('step.ejec.hint')}</div>
+        ${serviceState.horaInicioEfectivo ? `<div class="ts-recorded"><div class="ts-label">${t('step.ejec.tsLabel')}</div><div class="ts-value">${serviceState.horaInicioEfectivo}</div></div>` : ''}
+        <div style="text-align:center;padding:40px 0;font-size:64px">🚁</div>
+      `;
+      bar.innerHTML = `
+        <button class="btn-secondary" onclick="goToStep(currentStep - 1)">${t('btn.back')}</button>
+        <button class="btn-main btn-orange" onclick="nextStep()">${t('step.ejec.continue')}</button>
+      `;
+    }
   }
 
   // ── STEP 5: CIERRE EFECTIVO ──
