@@ -9383,6 +9383,11 @@ function coordServiceCard(s) {
   const esPrueba = tipoReg.includes('Prueba');
   const esRelev = tipoReg.includes('Relevamiento');
   const pctAvance = props['% de avance']?.number;
+  // Marca "fuera de fecha": si la fecha planificada original difiere de la programada actual (se inició otro día).
+  const _fPlan = (props['Fecha planificada']?.date?.start || '').split('T')[0];
+  const _fProg = (props['Fecha programada']?.date?.start || '').split('T')[0];
+  const fueraDeFecha = !!_fPlan && !!_fProg && _fPlan !== _fProg;
+  const fPlanFmt = fueraDeFecha ? `${_fPlan.slice(8, 10)}/${_fPlan.slice(5, 7)}` : '';
   // Chip de tipo: SOLO en 🏠 Inicio, donde conviven los 4 tipos en una misma lista.
   // En las otras tabs todas las cards son del mismo tipo → el chip sería ruido.
   // Para Prueba NO agregamos chip: ya lleva su badge rosa PRUEBA (evita doble distintivo).
@@ -9402,7 +9407,7 @@ function coordServiceCard(s) {
   const jobDone = jobCompleto(s, _coordAllServices);
   return `<div class="coord-service-card" style="cursor:pointer" onclick="openEditSheet('${esc(s.id)}')">
     <div class="coord-service-name">${tipoChip}${esPrueba ? `<span class="service-prueba-badge">${t('prueba.badge')}</span>` : ''}${nombreHTML}${esJornada && jornadaN != null ? ` <span style="color:var(--purple);font-size:12px">J${jornadaN}</span>` : ''}</div>
-    <div class="coord-service-meta"><span class="service-estado ${estadoClass}">${esc(estadoDisplay)}</span>${(esJornada && typeof pctAvance === 'number') ? `<span class="coord-tag">${Math.round(pctAvance)}%</span>` : ''}${jobDone ? `<span class="coord-tag" style="background:var(--green-dark,#14532d);color:var(--green,#22c55e)">${t('badge.servicio.completo')}</span>` : ''}${horaFmt ? `<span class="coord-tag">🕐 ${esc(horaFmt)}</span>` : ''}${tipo ? `<span class="coord-tag">${esc(tipo)}</span>` : ''}${(() => { const c = servicioContinua(s); return c.continua ? `<span class="coord-tag" style="background:var(--amber-dark,#7c5300);color:var(--amber,#f59e0b)">${t('badge.continua').replace('{h}', c.hechos).replace('{t}', c.total)}</span>` : ''; })()}</div>
+    <div class="coord-service-meta"><span class="service-estado ${estadoClass}">${esc(estadoDisplay)}</span>${fueraDeFecha ? `<span class="coord-tag" style="background:var(--amber-dark,#7c5300);color:var(--amber,#f59e0b)">${t('badge.fueradefecha').replace('{d}', fPlanFmt)}</span>` : ''}${(esJornada && typeof pctAvance === 'number') ? `<span class="coord-tag">${Math.round(pctAvance)}%</span>` : ''}${jobDone ? `<span class="coord-tag" style="background:var(--green-dark,#14532d);color:var(--green,#22c55e)">${t('badge.servicio.completo')}</span>` : ''}${horaFmt ? `<span class="coord-tag">🕐 ${esc(horaFmt)}</span>` : ''}${tipo ? `<span class="coord-tag">${esc(tipo)}</span>` : ''}${(() => { const c = servicioContinua(s); return c.continua ? `<span class="coord-tag" style="background:var(--amber-dark,#7c5300);color:var(--amber,#f59e0b)">${t('badge.continua').replace('{h}', c.hechos).replace('{t}', c.total)}</span>` : ''; })()}</div>
     ${lugar ? `<div class="coord-ops" style="color:var(--text3)">📍 ${esc(lugar)}</div>` : ''}
     <div class="coord-ops">👤 ${ops}</div>
     ${renderPhotoGallery(props)}
