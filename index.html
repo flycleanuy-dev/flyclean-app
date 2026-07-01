@@ -1484,6 +1484,22 @@ body::before {
       <div id="sector-overlay-body" style="padding:16px 20px 24px"></div>
     </div>
   </div>
+  <!-- Modal: al cerrar con sectores pendientes, elegir seguir otro día o cerrar así -->
+  <div class="edit-overlay" id="cierre-sectores-overlay" onclick="cierreSectoresOverlayClick(event)">
+    <div class="edit-sheet" id="cierre-sectores-sheet">
+      <button class="sheet-close-btn" type="button" aria-label="Cerrar" onclick="closeCierreSectoresModal()">×</button>
+      <div class="edit-sheet-handle"></div>
+      <div class="edit-sheet-header">
+        <div class="edit-sheet-title" data-i18n="cierre.sectores.title">Quedan sectores sin hacer</div>
+        <div class="edit-sheet-sub" id="cierre-sectores-sub"></div>
+      </div>
+      <div style="padding:16px 20px 24px;display:flex;flex-direction:column;gap:10px">
+        <button class="btn-main btn-orange" style="width:100%" onclick="cierreSectoresElegir('continuar')" data-i18n="cierre.sectores.continuar">🔄 Sigo otro día</button>
+        <button class="btn-main btn-green" style="width:100%" onclick="cierreSectoresElegir('completar')" data-i18n="cierre.sectores.completar">✅ Ya está, cerrar así</button>
+        <button class="btn-secondary" style="width:100%" onclick="closeCierreSectoresModal()" data-i18n="btn.cancel">Cancelar</button>
+      </div>
+    </div>
+  </div>
 <div class="edit-overlay" id="merge-plan-overlay" onclick="if(event.target.id==='merge-plan-overlay')closeMergePlan()">
   <div class="edit-sheet" id="merge-plan-sheet">
     <button class="sheet-close-btn" type="button" aria-label="Cerrar" onclick="closeMergePlan()">×</button>
@@ -1890,8 +1906,15 @@ const TRANSLATIONS = {
     'btn.create.notion': '✨ CREAR EN NOTION',
     'btn.saving': '⏳ Guardando...',
     'btn.saving.notion': '⏳ Guardando en Notion...',
+    'btn.cancel': 'Cancelar',
     'done.title': '¡Servicio cerrado!',
     'done.sub': 'Todos los datos se guardaron en Notion automáticamente.',
+    'done.continua.title': 'Guardado ✅',
+    'done.continua.sub': 'El servicio sigue mañana con los sectores que faltan.',
+    'cierre.sectores.title': 'Quedan sectores sin hacer',
+    'cierre.sectores.sub': 'Faltan {n} sectores. ¿Seguís otro día o ya está?',
+    'cierre.sectores.continuar': '🔄 Sigo otro día',
+    'cierre.sectores.completar': '✅ Ya está, cerrar así',
     'done.btn': 'Ver mis servicios →',
     'done.stat.inicio': 'Inicio',
     'done.stat.inicioef': 'Inicio efectivo',
@@ -2505,8 +2528,15 @@ const TRANSLATIONS = {
     'btn.create.notion': '✨ CRIAR NO NOTION',
     'btn.saving': '⏳ Salvando...',
     'btn.saving.notion': '⏳ Salvando no Notion...',
+    'btn.cancel': 'Cancelar',
     'done.title': 'Serviço fechado!',
     'done.sub': 'Todos os dados foram salvos automaticamente no Notion.',
+    'done.continua.title': 'Salvo ✅',
+    'done.continua.sub': 'O serviço continua amanhã com os setores que faltam.',
+    'cierre.sectores.title': 'Faltam setores por fazer',
+    'cierre.sectores.sub': 'Faltam {n} setores. Continua outro dia ou já está?',
+    'cierre.sectores.continuar': '🔄 Continuo outro dia',
+    'cierre.sectores.completar': '✅ Já está, encerrar assim',
     'done.btn': 'Ver meus serviços →',
     'done.stat.inicio': 'Início',
     'done.stat.inicioef': 'Início efetivo',
@@ -6973,113 +7003,114 @@ async function cerrarServicio() {
     ...(serviceState.photos?.post || []),
     ...(serviceState.photos?.relevamiento || [])
   ];
-  const stillUploading = allPhotos.filter(p => p.status === 'uploading').length;
-  if (stillUploading > 0) {
-    alert(t('photos.wait.uploading'));
+  if (allPhotos.filter(p => p.status === 'uploading').length > 0) { alert(t('photos.wait.uploading')); return; }
+
+  // Si tiene sectores y NO están todos hechos → dejar elegir (seguir otro día / cerrar así). No cerrar aún.
+  if (servicioTieneSectores() && !serviceState.sectores.every(s => s.estado === 'hecho')) {
+    const pend = serviceState.sectores.filter(s => s.estado !== 'hecho').length;
+    openCierreSectoresModal(pend);
     return;
   }
+  // Sin sectores, o todos los sectores hechos → completar (valida resultado como hoy).
+  if (!_cierreResultadoOk()) return;
+  await _ejecutarCierre('completar');
+}
 
-  // Validar resultado obligatorio. Relevamientos no tienen flow de resultado;
-  // las pruebas usan 'Resultado prueba'; el resto usa 'Resultado' estándar.
+// Validación de resultado obligatorio (Órdenes/Jornadas usan 'Resultado'; Pruebas 'Resultado prueba'; Relevamientos no).
+function _cierreResultadoOk() {
+  const tipoReg = currentService?.properties?.['Tipo de registro']?.select?.name || '';
+  if (tipoReg.includes('Relevamiento')) return true;
+  const isPrueba = tipoReg.includes('Prueba');
+  const valor = isPrueba ? serviceState.resultadoPrueba : serviceState.resultado;
+  if (!valor) { alert(t(isPrueba ? 'close.prueba.need.resultado' : 'close.need.resultado')); return false; }
+  return true;
+}
+
+// modo: 'completar' (Estado → ✅ Completado) | 'continuar' (reprograma a mañana como 🔄 Asignado).
+async function _ejecutarCierre(modo) {
   const tipoReg = currentService?.properties?.['Tipo de registro']?.select?.name || '';
   const isPrueba = tipoReg.includes('Prueba');
-  const isRelev = tipoReg.includes('Relevamiento');
-  if (!isRelev) {
-    const valor = isPrueba ? serviceState.resultadoPrueba : serviceState.resultado;
-    if (!valor) {
-      alert(t(isPrueba ? 'close.prueba.need.resultado' : 'close.need.resultado'));
-      return;
-    }
-  }
+  const jornadaN = currentService?.properties?.['Jornada N°']?.number;
+  const conSectores = servicioTieneSectores();
 
   const btn = document.querySelector('.btn-red');
   if (btn) { btn.textContent = t('btn.saving.notion'); btn.disabled = true; }
 
-  const properties = {
-    'Estado': { select: { name: '✅ Completado' } },
-    'Hora Fin': { date: { start: isoNow()} }
-  };
+  const properties = {};
 
-  if (serviceState.notasPost) {
-    properties['Notas post-servicio'] = { rich_text: [{ text: { content: serviceState.notasPost } }] };
-  }
-  const jornadaN = currentService?.properties?.['Jornada N°']?.number;
-  if (isPrueba) {
-    if (serviceState.resultadoPrueba) {
-      properties['Resultado prueba'] = { select: { name: serviceState.resultadoPrueba } };
-    }
-  } else if (serviceState.resultado) {
-    properties['Resultado'] = { select: { name: serviceState.resultado } };
-  }
-  const climaArr = Array.isArray(serviceState.clima) ? serviceState.clima : (serviceState.clima ? [serviceState.clima] : []);
-  if (climaArr.length) {
-    properties['Condición climática'] = { multi_select: climaArr.map(name => ({ name })) };
-  }
-  if (serviceState.metodoTrabajo) {
-    properties['Método de trabajo'] = { select: { name: serviceState.metodoTrabajo } };
-    if (serviceState.metodoTrabajo === '💪 Manual' && serviceState.herramientaManual) {
-      properties['Herramienta manual'] = { select: { name: serviceState.herramientaManual } };
-    }
-  }
-  if (servicioTieneSectores()) {
+  // ── Estado + fechas + parte por día ──
+  if (conSectores) {
     properties['% de avance'] = { number: sectoresAvancePct() };
     const secs = serviceState.sectores.map(x => ({ id: x.id, nombre: String(x.nombre || '').trim(), estado: x.estado || 'pendiente' })).filter(x => x.nombre);
     properties['Estado sectores'] = { rich_text: secs.length ? [{ text: { content: JSON.stringify(secs) } }] : [] };
-  } else if (((jornadaN != null) || tipoReg.includes('Jornada')) && serviceState.avance !== '') {
-    properties['% de avance'] = { number: parseFloat(serviceState.avance) };
+
+    // Parte del día: sectores que pasaron a 'hecho' HOY (vs snapshot al abrir).
+    const antes = new Map((serviceState.sectoresAlAbrir || []).map(s => [s.id, s.estado]));
+    const hechosHoy = serviceState.sectores.filter(s => s.estado === 'hecho' && antes.get(s.id) !== 'hecho').map(s => s.id);
+    const hoy = new Date().toISOString().split('T')[0];
+    const reg = Array.isArray(serviceState.registroJornadas) ? serviceState.registroJornadas.slice() : [];
+    reg.push({ fecha: hoy, ini: serviceState.horaInicioEfectivo || '', fin: serviceState.horaCierreEfectivo || '', hechos: hechosHoy });
+    properties['Registro jornadas'] = { rich_text: [{ text: { content: JSON.stringify(reg) } }] };
+
+    if (modo === 'continuar') {
+      // Reprogramar: sigue visible (Asignado), fecha mañana (tentativa, el coord ajusta), horas efectivas limpias para el día siguiente.
+      const man = new Date(); man.setDate(man.getDate() + 1);
+      properties['Estado'] = { select: { name: '🔄 Asignado' } };
+      properties['Fecha programada'] = { date: { start: man.toISOString().split('T')[0] } };
+      properties['Hora Inicio Efectivo'] = { date: null };
+      properties['Hora Fin Efectivo'] = { date: null };
+      properties['Hora Fin'] = { date: null };
+    } else {
+      properties['Estado'] = { select: { name: '✅ Completado' } };
+      properties['Hora Fin'] = { date: { start: isoNow() } };
+    }
+  } else {
+    // Sin sectores: comportamiento de siempre.
+    properties['Estado'] = { select: { name: '✅ Completado' } };
+    properties['Hora Fin'] = { date: { start: isoNow() } };
+    if (((jornadaN != null) || tipoReg.includes('Jornada')) && serviceState.avance !== '') {
+      properties['% de avance'] = { number: parseFloat(serviceState.avance) };
+    }
   }
 
+  // ── Campos comunes (igual que el cierre de siempre) ──
+  if (serviceState.notasPost) properties['Notas post-servicio'] = { rich_text: [{ text: { content: serviceState.notasPost } }] };
+  if (isPrueba) { if (serviceState.resultadoPrueba) properties['Resultado prueba'] = { select: { name: serviceState.resultadoPrueba } }; }
+  else if (serviceState.resultado) properties['Resultado'] = { select: { name: serviceState.resultado } };
+  const climaArr = Array.isArray(serviceState.clima) ? serviceState.clima : (serviceState.clima ? [serviceState.clima] : []);
+  if (climaArr.length) properties['Condición climática'] = { multi_select: climaArr.map(name => ({ name })) };
+  if (serviceState.metodoTrabajo) {
+    properties['Método de trabajo'] = { select: { name: serviceState.metodoTrabajo } };
+    if (serviceState.metodoTrabajo === '💪 Manual' && serviceState.herramientaManual) properties['Herramienta manual'] = { select: { name: serviceState.herramientaManual } };
+  }
   const preFiles = photosToNotionFiles(serviceState.photos?.pre, 'pre');
   const postFiles = photosToNotionFiles(serviceState.photos?.post, 'post');
   const relevFiles = photosToNotionFiles(serviceState.photos?.relevamiento, 'relev');
   if (preFiles.length) properties['📸 Fotos pre-servicio'] = { files: preFiles };
   if (postFiles.length) properties['📸 Fotos post-servicio'] = { files: postFiles };
   if (relevFiles.length) properties['📸 Fotos relevamiento'] = { files: relevFiles };
-
-  // Belt-and-suspenders: guardar estado final del checklist al cerrar (Punto 5b).
-  // Cubre el caso donde el último debounce de auto-save no llegó a flushear.
   const _ckClose = { pre: serviceState.checklistPre || {}, post: serviceState.checklistPost || {} };
-  if (Object.keys(_ckClose.pre).length || Object.keys(_ckClose.post).length) {
-    properties['Estado checklist'] = { rich_text: [{ text: { content: JSON.stringify(_ckClose) } }] };
-  }
-
-  // Si es relevamiento, agregar los 4 campos extra + notas para el comercial
+  if (Object.keys(_ckClose.pre).length || Object.keys(_ckClose.post).length) properties['Estado checklist'] = { rich_text: [{ text: { content: JSON.stringify(_ckClose) } }] };
   if (tipoReg.includes('Relevamiento')) {
     const r = serviceState.relevamiento || {};
-    if (r.m2 !== '' && r.m2 != null) {
-      const n = parseFloat(r.m2);
-      if (!isNaN(n)) properties['m² aproximados'] = { number: n };
-    }
-    if (r.altura !== '' && r.altura != null) {
-      const n = parseFloat(r.altura);
-      if (!isNaN(n)) properties['Altura / Pisos'] = { number: n };
-    }
-    if (Array.isArray(r.dificultades) && r.dificultades.length) {
-      properties['Dificultad de acceso'] = { multi_select: r.dificultades.map(d => ({ name: d })) };
-    }
-    if (Array.isArray(r.servicioSugerido) && r.servicioSugerido.length) {
-      properties['Servicio sugerido'] = { multi_select: r.servicioSugerido.map(s => ({ name: s })) };
-    }
-    if (r.notasComercial) {
-      properties['Notas pre-servicio'] = { rich_text: [{ text: { content: r.notasComercial } }] };
-    }
+    if (r.m2 !== '' && r.m2 != null) { const n = parseFloat(r.m2); if (!isNaN(n)) properties['m² aproximados'] = { number: n }; }
+    if (r.altura !== '' && r.altura != null) { const n = parseFloat(r.altura); if (!isNaN(n)) properties['Altura / Pisos'] = { number: n }; }
+    if (Array.isArray(r.dificultades) && r.dificultades.length) properties['Dificultad de acceso'] = { multi_select: r.dificultades.map(d => ({ name: d })) };
+    if (Array.isArray(r.servicioSugerido) && r.servicioSugerido.length) properties['Servicio sugerido'] = { multi_select: r.servicioSugerido.map(s => ({ name: s })) };
+    if (r.notasComercial) properties['Notas pre-servicio'] = { rich_text: [{ text: { content: r.notasComercial } }] };
   }
 
   try {
     const result = await queueableUpdateServiceProps(currentService.id, properties);
-    // Si quedó encolado (sin conexión), NO limpiar localStorage — el state debe
-    // sobrevivir hasta que el sync real complete.
-    if (!result?.queued) {
-      try { localStorage.removeItem(storageKeyForService(currentService.id)); } catch (_) {}
-    }
-    showDoneScreen();
+    if (!result?.queued) { try { localStorage.removeItem(storageKeyForService(currentService.id)); } catch (_) {} }
+    showDoneScreen(modo === 'continuar');
   } catch (e) {
     if (btn) { btn.textContent = t('btn.close.notion'); btn.disabled = false; }
     alert(t('sheet.alert.save.error'));
   }
 }
 
-function showDoneScreen() {
+function showDoneScreen(continua) {
   const preCount = Object.values(serviceState.checklistPre).filter(Boolean).length;
   const postCount = Object.values(serviceState.checklistPost).filter(Boolean).length;
 
@@ -7090,6 +7121,17 @@ function showDoneScreen() {
     <div class="done-stat-row"><span style="color:var(--text3)">${t('done.stat.resultado')}</span><span>${(currentService?.properties?.['Tipo de registro']?.select?.name || '').includes('Prueba') ? (serviceState.resultadoPrueba || '—') : (serviceState.resultado || '—')}</span></div>
     <div class="done-stat-row"><span style="color:var(--text3)">${t('done.stat.checklists')}</span><span>${preCount}/${CHECKLIST_PRE.length} · ${postCount}/${CHECKLIST_POST.length}</span></div>
   `;
+  if (continua) {
+    const titleEl = document.querySelector('#screen-done .done-title');
+    const subEl = document.querySelector('#screen-done .done-sub');
+    if (titleEl) titleEl.textContent = t('done.continua.title');
+    if (subEl) subEl.textContent = t('done.continua.sub');
+  } else {
+    const titleEl = document.querySelector('#screen-done .done-title');
+    const subEl = document.querySelector('#screen-done .done-sub');
+    if (titleEl) titleEl.textContent = t('done.title');
+    if (subEl) subEl.textContent = t('done.sub');
+  }
   showScreen('done');
 }
 
@@ -10239,6 +10281,22 @@ function closeSectorOverlay() {
 }
 
 function sectorOverlayClick(e) { if (e.target.id === 'sector-overlay') closeSectorOverlay(); }
+
+function openCierreSectoresModal(pendientes) {
+  const sub = document.getElementById('cierre-sectores-sub');
+  if (sub) sub.textContent = t('cierre.sectores.sub').replace('{n}', pendientes);
+  document.getElementById('cierre-sectores-overlay').classList.add('open');
+}
+function closeCierreSectoresModal() {
+  document.getElementById('cierre-sectores-overlay').classList.remove('open');
+}
+function cierreSectoresOverlayClick(e) { if (e.target.id === 'cierre-sectores-overlay') closeCierreSectoresModal(); }
+async function cierreSectoresElegir(modo) {
+  // 'completar' exige resultado (el servicio termina); 'continuar' no (sigue otro día).
+  if (modo === 'completar' && !_cierreResultadoOk()) return;
+  closeCierreSectoresModal();
+  await _ejecutarCierre(modo);
+}
 
 async function submitReportStep() {
   const s = reportStepState;
