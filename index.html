@@ -1917,7 +1917,7 @@ const TRANSLATIONS = {
     'estado.jornada.completada': '🗓️ Jornada {n} completada',
     'badge.servicio.completo': '✅ Servicio completo',
     'badge.fueradefecha': '⚠️ Iniciado fuera de fecha · planif. {d}',
-    'sheet.edit.delete.confirm.completed': 'Este servicio está COMPLETADO (registro histórico). ¿Eliminarlo igual? Va a la papelera de Notion (recuperable 30 días).',
+    'sheet.edit.delete.confirm.completed': 'El servicio "{name}" está COMPLETADO (registro histórico). ¿Eliminarlo igual? Va a la papelera de Notion (recuperable 30 días).',
     'btn.save.notion': '💾 Guardar',
     'btn.create.notion': '✨ Crear',
     'btn.saving': '⏳ Guardando...',
@@ -2556,7 +2556,7 @@ const TRANSLATIONS = {
     'estado.jornada.completada': '🗓️ Jornada {n} concluída',
     'badge.servicio.completo': '✅ Serviço completo',
     'badge.fueradefecha': '⚠️ Iniciado fora da data · planej. {d}',
-    'sheet.edit.delete.confirm.completed': 'Este serviço está CONCLUÍDO (registro histórico). Excluir mesmo assim? Vai para a lixeira do Notion (recuperável 30 dias).',
+    'sheet.edit.delete.confirm.completed': 'O serviço "{name}" está CONCLUÍDO (registro histórico). Excluir mesmo assim? Vai para a lixeira do Notion (recuperável 30 dias).',
     'btn.save.notion': '💾 Salvar',
     'btn.create.notion': '✨ Criar',
     'btn.saving': '⏳ Salvando...',
@@ -6922,7 +6922,10 @@ async function iniciarServicio() {
 
   // Si el servicio se inicia en un día DISTINTO al programado, la Fecha programada pasa a HOY (para que
   // aparezca en el mes actual del coordinador). `Fecha programada` es property existente → seguro escribirla.
-  const hoyISO = new Date().toISOString().split('T')[0];
+  // HOY en hora LOCAL (no UTC): evita que un inicio nocturno (después de ~21h en UY/BR, la ventana en que
+  // UTC ya rodó al día siguiente) se marque erróneamente como "fuera de fecha" y mute la Fecha programada.
+  const _hoy = new Date();
+  const hoyISO = `${_hoy.getFullYear()}-${String(_hoy.getMonth() + 1).padStart(2, '0')}-${String(_hoy.getDate()).padStart(2, '0')}`;
   const fProgOrig = (currentService?.properties?.['Fecha programada']?.date?.start || '').split('T')[0];
   const desvioFecha = !!fProgOrig && fProgOrig !== hoyISO;
   if (desvioFecha) props['Fecha programada'] = { date: { start: hoyISO } };
