@@ -3407,7 +3407,11 @@ function computeStepFromState() {
   const idxOf = id => STEPS.findIndex(s => s.id === id);
   if (serviceState.horaCierreEfectivo) {
     const t = idxOf('fotos_despues');
-    return t >= 0 ? t : Math.max(0, STEPS.length - 2);
+    if (t >= 0) return t;
+    // STEPS_SECTORES no tiene 'fotos_despues' (las fotos son por sector): tras el cierre efectivo
+    // el paso natural es el checklist post, no saltar hasta Notas.
+    const cp = idxOf('checklist_post');
+    return cp >= 0 ? cp : Math.max(0, STEPS.length - 2);
   }
   if (serviceState.horaInicioEfectivo) {
     const t = idxOf('inicio_efectivo');
