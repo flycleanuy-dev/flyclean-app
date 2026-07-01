@@ -3287,6 +3287,7 @@ function resetServiceState() {
     checklistPost: {},
     notasPost: '',
     avance: '',
+    finalizacion: '',                            // '' | 'termino' | 'continua' — ¿terminaste? (servicios de trabajo sin sectores)
     resultado: '',
     resultadoPrueba: '',
     clima: [],
@@ -6674,15 +6675,26 @@ function renderStep() {
       <div style="font-size:24px;font-weight:800;text-align:center;color:var(--green)">${sectoresAvancePct()}%</div>
       <div style="font-size:12px;color:var(--text3);text-align:center;margin-top:4px">${serviceState.sectores.filter(s=>s.estado==='hecho').length} / ${serviceState.sectores.length} ${t('step.sectores.hechos')}</div>
     </div>
-    ` : (isJornada ? `
-    <div class="field-group">
-      <div class="form-label">${t('step.obs.avance.label')}</div>
-      <div class="hint hint-blue" style="margin-bottom:10px">${t('step.obs.avance.hint')}</div>
-      <input type="number" min="0" max="100" placeholder="${t('step.obs.avance.placeholder')}" id="avance-input" value="${serviceState.avance}" oninput="serviceState.avance=this.value; persistServiceStateToLocal();" style="font-size:18px;text-align:center;font-weight:700"/>
-      <div style="font-size:12px;color:var(--text3);text-align:center;margin-top:6px">${t('step.obs.avance.note')}</div>
-    </div>
-    ` : '')}
+    ` : ''}
 
+      ${(!conSectores && !isPrueba && !tipoReg.includes('Relevamiento')) ? `
+    <div class="field-group">
+      <div class="form-label">${t('close.termino.label')}</div>
+      <div class="radio-group">
+        <div class="radio-opt ${serviceState.finalizacion === 'termino' ? 'selected' : ''}" onclick="selectFinalizacion('termino')">${t('close.termino.si')}</div>
+        <div class="radio-opt ${serviceState.finalizacion === 'continua' ? 'selected' : ''}" onclick="selectFinalizacion('continua')">${t('close.termino.no')}</div>
+      </div>
+    </div>
+    ${serviceState.finalizacion === 'continua' ? `
+    <div class="field-group">
+      <div class="form-label">${t('close.jornada.pct.label')}</div>
+      <div class="hint hint-blue" style="margin-bottom:10px">${t('close.jornada.pct.hint')}</div>
+      <input type="number" min="1" max="99" placeholder="${t('close.jornada.pct.placeholder')}" id="avance-input" value="${serviceState.avance}" oninput="serviceState.avance=this.value; persistServiceStateToLocal();" style="font-size:18px;text-align:center;font-weight:700"/>
+    </div>
+    ` : ''}
+    ` : ''}
+
+      ${(!conSectores && !isPrueba && !tipoReg.includes('Relevamiento') && serviceState.finalizacion !== 'termino') ? '' : `
       <div class="field-group">
         <div class="form-label">${isPrueba ? t('step.obs.resultado.prueba.label') : t('step.obs.resultado.label')}</div>
         <div class="radio-group">
@@ -6694,6 +6706,7 @@ function renderStep() {
           `).join('')}
         </div>
       </div>
+      `}
       <div style="height:20px"></div>
     `;
     bar.innerHTML = `
@@ -6973,6 +6986,13 @@ function toggleCheck(list, idx) {
 function selectResultadoPrueba(val) {
   serviceState.resultadoPrueba = val;
   persistServiceState();
+  renderStep();
+}
+
+function selectFinalizacion(val) {
+  serviceState.finalizacion = val;
+  if (val === 'termino') { serviceState.avance = ''; }   // si terminó, el % no aplica
+  persistServiceStateToLocal();
   renderStep();
 }
 
