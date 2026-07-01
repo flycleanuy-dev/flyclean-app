@@ -545,5 +545,12 @@ Extiende la continuidad multi-día (que ya existía para servicios **con sectore
 - **Eliminar completados:** el coordinador puede eliminar servicios `✅ Completado` con una confirmación extra (registro histórico) → papelera de Notion, recuperable 30 días (`deleteService` + `openEditSheet`, botón siempre visible). Finanzas sin cambios.
 - **Property Notion nueva:** `Fecha planificada` (date) en Servicios (creada vía MCP).
 
+## Jornadas — Fase B (sw v100)
+
+- **Desplegable de jornadas en el historial del cliente:** un trabajo multi-día (fichas `📅 Jornada` con el mismo `Orden madre`) se muestra como UNA línea desplegable "🛠️ {trabajo} · N jornadas — {estado}" (en curso o completo); al abrirla, cada jornada (J1, J2… con fecha y %) y tocarla abre esa ficha. Carga las jornadas del cliente (cualquier estado) en `loadContactHistory` (extraídas del mismo `svcRes`, sin query extra); agrupa en `renderContactHistory` (`renderJornadaGroup` + `toggleJornadas`, reusa el patrón de "Ver fotos" y el helper `jobRootId`). Servicios de un día quedan sueltos como antes.
+- **Badge "✅ Servicio completo" en el panel CEO** (`renderCEOServicios`, reusa `jobCompleto` sobre `_ceoServiciosCache`).
+- **Vista agrupada en Notion:** vista "🗂️ Jornadas por trabajo" en la DB Servicios (filtro `Tipo de registro = 📅 Jornada`, agrupada por `Orden madre`, orden por `Jornada N°`) — creada vía MCP.
+- Fuera de alcance: sectores (Forma 2 = una ficha), servicios de un día en curso, confiabilidad del agrupado entre meses en CEO.
+
 ---
 _Generado automáticamente del código (workflow `inventario-funcionalidades`). Si algo no coincide con el código, gana el código → regenerar._
