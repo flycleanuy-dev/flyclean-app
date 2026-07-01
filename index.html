@@ -9635,13 +9635,10 @@ async function openEditSheet(pageId) {
       reportBtn.disabled = false;
     }
   }
-  // Mostrar CTA de "Crear jornada" si NO es relevamiento
+  // Sistema viejo de "Crear jornada" manual: OCULTO. Lo reemplaza el flujo automático (el operario
+  // cierra "sigo otro día" y la jornada del día siguiente se crea sola). Funciones quedan muertas.
   const jornadaCTA = document.getElementById('edit-jornada-cta');
-  if (jornadaCTA) {
-    const tipoReg = props['Tipo de registro']?.select?.name || '';
-    const isRelev = tipoReg.includes('Relevamiento');
-    jornadaCTA.style.display = isRelev ? 'none' : '';
-  }
+  if (jornadaCTA) jornadaCTA.style.display = 'none';
   // Mostrar sección Equipos si NO es relevamiento (no se llevan equipos a relevar).
   const equiposSection = document.getElementById('edit-equipos-section');
   if (equiposSection) {

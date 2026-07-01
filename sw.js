@@ -87,7 +87,8 @@
 // v95: FIX SISTÉMICO de caché — el SW invalida NOTION_CACHE tras cada write (pages POST/PATCH), así lo creado/editado aparece al instante en la app (resuelve el patrón "en Notion sí, en la app no"). + refreshCEO borra la caché activa (no la v2 obsoleta).
 // v96: fix editar servicio recién creado (update optimista en saveServiceEdit — Notion tarda en indexarlo) + botones "Guardar" (sin "en Notion") + al reprogramar (Sigo otro día) el checklist se limpia para la jornada nueva.
 // v97: jornadas para servicios SIN sectores — el operario cierra con "¿Terminaste?"; si sigue otro día pone el % (acumulado) y se crea sola la ficha del día siguiente (J1/J2/…, checklist en 0, fotos por día).
-const CACHE = 'flyclean-v97';
+// v98: jornadas Fase A — botón "Cerrar servicio" + doble confirmación al cerrar sectores incompleto + la jornada siguiente hereda las fotos "antes" + etiqueta "Jornada N completada"/badge "Servicio completo" (agrupa por Orden madre) + se oculta el botón viejo de jornada manual.
+const CACHE = 'flyclean-v98';
 const SHELL = [
   '/',
   '/index.html',

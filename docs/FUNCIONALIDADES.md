@@ -529,5 +529,14 @@ Extiende la continuidad multi-día (que ya existía para servicios **con sectore
 - **Contabilidad:** cada ficha guarda horas efectivas (Inicio/Fin) + `%` + fotos + operarios (jornales) → sumable después. El reporte de totales queda para un paso futuro.
 - **No toca:** el flujo de servicios **con sectores**, ni el botón "Crear jornada" manual del coordinador (`submitCreateJornada`), ni Prueba/Relevamiento. **Sin properties Notion nuevas** (reutiliza `% de avance`, `Jornada N°`, `Tipo de registro`, `Orden madre`, `📸 Fotos pre/post-servicio`, etc.).
 
+## Jornadas — Mejoras Fase A (sw v98)
+
+- **Botón "Cerrar servicio"** (antes "Cerrar") en el paso final del operario (`btn.close.notion`).
+- **Doble confirmación** al elegir "Ya está, cerrar así" en un servicio con sectores sin terminar (`cierreSectoresElegir`).
+- **La jornada siguiente hereda las fotos "antes"** del día anterior (`crearJornadaSiguiente` copia `📸 Fotos pre-servicio`); el checklist arranca en 0 y las fotos "después" no se heredan.
+- **Etiqueta "🗓️ Jornada N completada · X%"** por día + badge **"✅ Servicio completo"** cuando el trabajo (grupo de jornadas) llega al 100%. Helpers nuevos `jobRootId`/`jobGroup`/`jobCompleto` que LEEN `Orden madre` sobre `_coordAllServices` (cero datos nuevos). (Un servicio con sectores ya completado al 100% también muestra el badge.)
+- **Botón viejo "Crear jornada para otro día"** del coordinador: **oculto** (lo reemplaza el flujo automático).
+- Pendiente (Fase B): desplegable de jornadas en el historial del cliente + vista Notion agrupada + badge en CEO.
+
 ---
 _Generado automáticamente del código (workflow `inventario-funcionalidades`). Si algo no coincide con el código, gana el código → regenerar._
