@@ -10139,6 +10139,16 @@ async function crearJornadaSiguiente(parentService, numero, fecha) {
   const rootId = p['Orden madre']?.relation?.[0]?.id || parentService.id;
   properties['Orden madre'] = { relation: [{ id: rootId }] };
 
+  // Heredar las fotos "ANTES" del día 1 (el estado inicial del edificio ya está fotografiado; el
+  // operario suma las que falten). Las fotos "DESPUÉS" NO se heredan (son el resultado de cada día).
+  const prePhotos = p['📸 Fotos pre-servicio']?.files;
+  if (Array.isArray(prePhotos) && prePhotos.length) {
+    const preFiles = prePhotos
+      .map(f => ({ type: 'external', name: f.name || 'foto.jpg', external: { url: f.external?.url || f.file?.url || null } }))
+      .filter(f => f.external.url);
+    if (preFiles.length) properties['📸 Fotos pre-servicio'] = { files: preFiles };
+  }
+
   await callNotion('pages', 'POST', {
     parent: { type: 'data_source_id', data_source_id: SERVICIOS_DS_ID },
     properties
