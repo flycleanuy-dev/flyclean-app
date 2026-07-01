@@ -1869,6 +1869,7 @@ const TRANSLATIONS = {
     'step.obs.avance.hint': '¿Qué porcentaje del trabajo total se completó en esta jornada?',
     'step.obs.avance.placeholder': 'Ej: 40',
     'step.obs.avance.note': '0% = sin avance · 100% = trabajo completado',
+    'step.obs.avance.auto': 'Se calcula solo según los sectores marcados como hechos.',
     'step.obs.resultado.label': '🏁 RESULTADO',
     'step.cerrar.title': '🏁 Cerrar servicio',
     'step.cerrar.sub': 'Revisá todo antes de confirmar',
@@ -2483,6 +2484,7 @@ const TRANSLATIONS = {
     'step.obs.avance.hint': 'Que porcentagem do trabalho total foi concluída nesta jornada?',
     'step.obs.avance.placeholder': 'Ex: 40',
     'step.obs.avance.note': '0% = sem avanço · 100% = trabalho concluído',
+    'step.obs.avance.auto': 'É calculado automaticamente pelos setores marcados como feitos.',
     'step.obs.resultado.label': '🏁 RESULTADO',
     'step.cerrar.title': '🏁 Fechar serviço',
     'step.cerrar.sub': 'Revise tudo antes de confirmar',
@@ -3300,6 +3302,12 @@ function buildIncrementalProps(s) {
     if (s.metodoTrabajo === '💪 Manual' && s.herramientaManual) {
       properties['Herramienta manual'] = { select: { name: s.herramientaManual } };
     }
+  }
+  // Sectores: el operario actualiza el estado de cada sector (en_curso/hecho). Preserva id+nombre
+  // (los puso el coordinador), solo cambia 'estado'. Se escribe la lista completa que se hidrató al abrir.
+  if (Array.isArray(s.sectores) && s.sectores.length) {
+    const secs = s.sectores.map(x => ({ id: x.id, nombre: String(x.nombre || '').trim(), estado: x.estado || 'pendiente' })).filter(x => x.nombre);
+    properties['Estado sectores'] = { rich_text: secs.length ? [{ text: { content: JSON.stringify(secs) } }] : [] };
   }
   return properties;
 }
@@ -6568,6 +6576,7 @@ function renderStep() {
     const jornadaN = currentService?.properties?.['Jornada N°']?.number;
     const tipoReg = currentService?.properties?.['Tipo de registro']?.select?.name || '';
     const isJornada = (jornadaN != null) || tipoReg.includes('Jornada');
+    const conSectores = servicioTieneSectores();
     const isPrueba = tipoReg.includes('Prueba');
     content.innerHTML = `
       <div class="step-title">${t('step.obs.title')}</div>
@@ -6578,14 +6587,21 @@ function renderStep() {
         <textarea rows="3" placeholder="${t('step.obs.notas.placeholder')}" id="notas-input" oninput="serviceState.notasPost=this.value; persistServiceStateToLocal();">${serviceState.notasPost}</textarea>
       </div>
 
-      ${isJornada ? `
-      <div class="field-group">
-        <div class="form-label">${t('step.obs.avance.label')}</div>
-        <div class="hint hint-blue" style="margin-bottom:10px">${t('step.obs.avance.hint')}</div>
-        <input type="number" min="0" max="100" placeholder="${t('step.obs.avance.placeholder')}" id="avance-input" value="${serviceState.avance}" oninput="serviceState.avance=this.value; persistServiceStateToLocal();" style="font-size:18px;text-align:center;font-weight:700"/>
-        <div style="font-size:12px;color:var(--text3);text-align:center;margin-top:6px">${t('step.obs.avance.note')}</div>
-      </div>
-      ` : ''}
+      ${conSectores ? `
+    <div class="field-group">
+      <div class="form-label">${t('step.obs.avance.label')}</div>
+      <div class="hint hint-blue" style="margin-bottom:6px">${t('step.obs.avance.auto')}</div>
+      <div style="font-size:24px;font-weight:800;text-align:center;color:var(--green)">${sectoresAvancePct()}%</div>
+      <div style="font-size:12px;color:var(--text3);text-align:center;margin-top:4px">${serviceState.sectores.filter(s=>s.estado==='hecho').length} / ${serviceState.sectores.length} ${t('step.sectores.hechos')}</div>
+    </div>
+    ` : (isJornada ? `
+    <div class="field-group">
+      <div class="form-label">${t('step.obs.avance.label')}</div>
+      <div class="hint hint-blue" style="margin-bottom:10px">${t('step.obs.avance.hint')}</div>
+      <input type="number" min="0" max="100" placeholder="${t('step.obs.avance.placeholder')}" id="avance-input" value="${serviceState.avance}" oninput="serviceState.avance=this.value; persistServiceStateToLocal();" style="font-size:18px;text-align:center;font-weight:700"/>
+      <div style="font-size:12px;color:var(--text3);text-align:center;margin-top:6px">${t('step.obs.avance.note')}</div>
+    </div>
+    ` : '')}
 
       <div class="field-group">
         <div class="form-label">${isPrueba ? t('step.obs.resultado.prueba.label') : t('step.obs.resultado.label')}</div>
@@ -6992,7 +7008,11 @@ async function cerrarServicio() {
       properties['Herramienta manual'] = { select: { name: serviceState.herramientaManual } };
     }
   }
-  if (((jornadaN != null) || tipoReg.includes('Jornada')) && serviceState.avance !== '') {
+  if (servicioTieneSectores()) {
+    properties['% de avance'] = { number: sectoresAvancePct() };
+    const secs = serviceState.sectores.map(x => ({ id: x.id, nombre: String(x.nombre || '').trim(), estado: x.estado || 'pendiente' })).filter(x => x.nombre);
+    properties['Estado sectores'] = { rich_text: secs.length ? [{ text: { content: JSON.stringify(secs) } }] : [] };
+  } else if (((jornadaN != null) || tipoReg.includes('Jornada')) && serviceState.avance !== '') {
     properties['% de avance'] = { number: parseFloat(serviceState.avance) };
   }
 
