@@ -84,7 +84,8 @@
 // v92: fix — un cliente recién creado desde el CRM ahora aparece en el selector de cliente al crear una Propuesta (se invalida/refresca la caché _propContactos).
 // v93: Fase 3 sectores — jornadas Forma 2: un servicio con sectores sin terminar se reprograma solo (elige seguir otro día o cerrar así); parte por día en Registro jornadas; badge "🔄 Continúa".
 // v94: fix — el servicio creado desde una propuesta ahora aparece al instante en la lista (update optimista; el SW devolvía la lista cacheada sin el nuevo por un instante).
-const CACHE = 'flyclean-v94';
+// v95: FIX SISTÉMICO de caché — el SW invalida NOTION_CACHE tras cada write (pages POST/PATCH), así lo creado/editado aparece al instante en la app (resuelve el patrón "en Notion sí, en la app no"). + refreshCEO borra la caché activa (no la v2 obsoleta).
+const CACHE = 'flyclean-v95';
 const SHELL = [
   '/',
   '/index.html',
@@ -129,6 +130,20 @@ function isCacheableNotionRead(request, bodyText) {
   } catch (_) { return false; }
 }
 
+// ¿Es un WRITE de Notion vía el proxy? (crear página = POST pages; editar / mover a papelera =
+// PATCH pages/{id}). Tras uno, la caché de lecturas (listas) queda vieja → hay que invalidarla.
+function isNotionWrite(bodyText) {
+  if (!bodyText) return false;
+  try {
+    const b = JSON.parse(bodyText);
+    const ep = b.endpoint || '';
+    const m = (b.method || 'GET').toUpperCase();
+    if (m === 'POST' && /^pages$/.test(ep)) return true;
+    if (m === 'PATCH' && /^pages\/[a-f0-9-]{32,36}$/.test(ep)) return true;
+    return false;
+  } catch (_) { return false; }
+}
+
 // Estrategia STALE-WHILE-REVALIDATE para las lecturas de Notion:
 // 1. Si hay copia en cache → la devuelve AL INSTANTE (cero espera) y revalida en segundo plano
 //    (actualiza el cache para la próxima vez). Esto mata el "esperar 5s mirando la pantalla en
@@ -142,7 +157,18 @@ async function handleNotionApi(event) {
   let bodyText = '';
   try { bodyText = await event.request.clone().text(); } catch (_) {}
   const cacheable = isCacheableNotionRead(event.request, bodyText);
-  if (!cacheable) return fetch(event.request);
+  if (!cacheable) {
+    // Los writes (pages POST/PATCH) van a la red. TRAS un write exitoso, invalidamos la caché de
+    // lecturas (NOTION_CACHE) para que la próxima consulta de una lista traiga los datos frescos
+    // → mata el bug "lo creé/edité pero no aparece en la app". La app siempre hace await del write
+    // ANTES de re-pedir la lista, así que la caché queda limpia justo a tiempo (sin race). Solo se
+    // paga red en la PRIMERA lectura después de un cambio; la navegación normal sigue instantánea.
+    const res = await fetch(event.request);
+    if (res && res.ok && isNotionWrite(bodyText)) {
+      try { await caches.delete(NOTION_CACHE); } catch (_) {}
+    }
+    return res;
+  }
 
   // Clave por CUERPO COMPLETO en el QUERY STRING (?k=...), NO en un fragmento (#...): el navegador
   // descarta el fragmento de los Request, así que con '#' TODAS las consultas compartían la misma

@@ -7480,7 +7480,14 @@ function ceoFreshHTML() {
 }
 async function refreshCEO(btn) {
   if (btn) btn.classList.add('ceo-spin');
-  try { if (window.caches) await caches.delete('flyclean-notion-cache-v2'); } catch (_) {}
+  // Borrar la(s) caché(s) de lecturas de Notion (la activa es flyclean-notion-cache-v4; NO hardcodear
+  // la versión → borrar todas las que empiecen con ese prefijo) para forzar datos frescos al refrescar.
+  try {
+    if (window.caches) {
+      const _ks = await caches.keys();
+      await Promise.all(_ks.filter(k => k.startsWith('flyclean-notion-cache')).map(k => caches.delete(k)));
+    }
+  } catch (_) {}
   _ceoServiciosAll = null;
   await rerenderCEOActive();
 }
