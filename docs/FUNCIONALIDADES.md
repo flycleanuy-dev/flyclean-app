@@ -538,5 +538,12 @@ Extiende la continuidad multi-día (que ya existía para servicios **con sectore
 - **Botón viejo "Crear jornada para otro día"** del coordinador: **oculto** (lo reemplaza el flujo automático).
 - Pendiente (Fase B): desplegable de jornadas en el historial del cliente + vista Notion agrupada + badge en CEO.
 
+## Fixes Coordinador (sw v99)
+
+- **"En curso" siempre visible:** el panel del coordinador trae SIEMPRE los servicios `✈️ En curso`, aunque su `Fecha programada` caiga en otro mes (`filtrarServicios` opción `incluirEnCurso`, usada por `fetchCoordItemsForMonth`; el filtro real es cliente-side porque el proxy descarta el filtro server-side multi-data-source).
+- **Fecha real al iniciar:** si el operario inicia un servicio en un día distinto al programado, la `Fecha programada` pasa a HOY (`iniciarServicio`) y se guarda la original en la property nueva `Fecha planificada` (write SEPARADO best-effort → si falla, el inicio NO se rompe). La tarjeta del coordinador muestra **"⚠️ Iniciado fuera de fecha · planif. DD/MM"** (`coordServiceCard`, helper `fueraDeFecha`).
+- **Eliminar completados:** el coordinador puede eliminar servicios `✅ Completado` con una confirmación extra (registro histórico) → papelera de Notion, recuperable 30 días (`deleteService` + `openEditSheet`, botón siempre visible). Finanzas sin cambios.
+- **Property Notion nueva:** `Fecha planificada` (date) en Servicios (creada vía MCP).
+
 ---
 _Generado automáticamente del código (workflow `inventario-funcionalidades`). Si algo no coincide con el código, gana el código → regenerar._

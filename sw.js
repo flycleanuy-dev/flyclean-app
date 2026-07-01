@@ -88,7 +88,8 @@
 // v96: fix editar servicio recién creado (update optimista en saveServiceEdit — Notion tarda en indexarlo) + botones "Guardar" (sin "en Notion") + al reprogramar (Sigo otro día) el checklist se limpia para la jornada nueva.
 // v97: jornadas para servicios SIN sectores — el operario cierra con "¿Terminaste?"; si sigue otro día pone el % (acumulado) y se crea sola la ficha del día siguiente (J1/J2/…, checklist en 0, fotos por día).
 // v98: jornadas Fase A — botón "Cerrar servicio" + doble confirmación al cerrar sectores incompleto + la jornada siguiente hereda las fotos "antes" + etiqueta "Jornada N completada"/badge "Servicio completo" (agrupa por Orden madre) + se oculta el botón viejo de jornada manual.
-const CACHE = 'flyclean-v98';
+// v99: fixes coordinador — el panel siempre trae los "En curso" (aunque su fecha sea de otro mes) + al iniciar fuera de fecha la Fecha programada pasa a hoy y se guarda la planificada original (marca "Iniciado fuera de fecha" en la tarjeta) + el coordinador puede eliminar servicios completados con confirmación extra.
+const CACHE = 'flyclean-v99';
 const SHELL = [
   '/',
   '/index.html',
