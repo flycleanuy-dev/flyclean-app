@@ -9299,9 +9299,13 @@ function renderCoordList(keepLimit) {
   const isPruebasTab = activeCoordTab === 'pruebas';
   const emptyMonthKey = isPruebasTab ? 'coord.empty.month.pruebas' : isRelevTab ? 'coord.empty.month.relev' : 'coord.empty.month';
 
+  const nuevoTrabajoBtn = activeCoordTab === 'servicios'
+    ? `<div style="padding:12px 16px 0"><button class="nueva-prop-btn" onclick="openNewServiceSheet()">${t('coord.new.servicio')}</button></div>`
+    : '';
+
   const filteredAll = applyCoordFilters(_coordAllServices, { isProps: false });
   if (!filteredAll.length) {
-    content.innerHTML = `<div class="coord-empty">${getActiveFilterCount() ? '🔎 Sin resultados para los filtros actuales' : t(emptyMonthKey)}</div>`;
+    content.innerHTML = nuevoTrabajoBtn + `<div class="coord-empty">${getActiveFilterCount() ? '🔎 Sin resultados para los filtros actuales' : t(emptyMonthKey)}</div>`;
     return;
   }
   const total = filteredAll.length;
@@ -9312,7 +9316,7 @@ function renderCoordList(keepLimit) {
   // semánticos. Para sort alfabético mostramos una lista plana — los headers no aportan.
   const isChronological = coordFilters.sort === 'date-asc' || coordFilters.sort === 'date-desc';
   if (!isChronological) {
-    content.innerHTML = '<div class="day-group">' + filtered.map(coordServiceCard).join('') + '</div>' + renderCargarMasButton(remaining);
+    content.innerHTML = nuevoTrabajoBtn + '<div class="day-group">' + filtered.map(coordServiceCard).join('') + '</div>' + renderCargarMasButton(remaining);
     return;
   }
 
@@ -9357,7 +9361,7 @@ function renderCoordList(keepLimit) {
     const isHoy = b === 'hoy';
     return `<div class="day-group"><div class="day-label ${isHoy ? 'today' : ''}">${bucketLabels[b]} (${items.length})</div>${items.map(coordServiceCard).join('')}</div>`;
   }).filter(Boolean).join('');
-  content.innerHTML = (html || `<div class="coord-empty">${t(emptyMonthKey)}</div>`) + renderCargarMasButton(remaining);
+  content.innerHTML = nuevoTrabajoBtn + (html || `<div class="coord-empty">${t(emptyMonthKey)}</div>`) + renderCargarMasButton(remaining);
 }
 
 function extractServiceFiles(props) {
@@ -11378,6 +11382,11 @@ function openNewServiceSheet(prefillContactId = null) {
   loadNewSvcContactos();
 }
 
+function openNewServiceSheetForContact(contactId) {
+  closeContactSheet();
+  setTimeout(() => openNewServiceSheet(contactId || null), 250);
+}
+
 function newSvcSetTipoReg(el, val) {
   newSvcState.tipoRegistro = val;
   document.querySelectorAll('#newsvc-tiporeg-btns .estado-btn').forEach(b => b.classList.remove('active'));
@@ -11908,7 +11917,8 @@ function buildContactSheetBody(mode) {
         <button type="button" class="estado-btn" style="white-space:nowrap" onclick="contactAddSector()">${t('sheet.contact.sectores.add')}</button>
       </div></div>` +
     (mode === 'edit'
-      ? `<div class="edit-section" style="padding-bottom:0"><div class="edit-section-label">${t('contact.history.title')}</div>
+      ? `<div class="edit-section"><button class="nueva-prop-btn" style="width:100%" onclick="openNewServiceSheetForContact(editingContact && editingContact.id)">${t('sheet.contact.new.servicio')}</button></div>` +
+        `<div class="edit-section" style="padding-bottom:0"><div class="edit-section-label">${t('contact.history.title')}</div>
           <div id="contact-history-container"><div class="history-loading">${t('contact.history.loading')}</div></div>
          </div>`
       : '');
