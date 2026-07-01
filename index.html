@@ -12065,6 +12065,12 @@ function renderContactHistory(items) {
     (nServ ? `<div class="ec-row" style="font-size:12px;margin-bottom:8px"><span>🛠️ Servicios completados</span><span>${nServ}</span></div>` : '') +
     contratoHTML;
 
+  // Fase B: agrupar las jornadas (📅 Jornada) de un mismo trabajo por Orden madre → un desplegable.
+  const esJornadaItem = (it) => it.type === 'servicio' && (it.data.properties?.['Tipo de registro']?.select?.name || '').includes('Jornada');
+  const _jornadaGroups = {};
+  items.forEach(it => { if (esJornadaItem(it)) { const root = jobRootId(it.data); (_jornadaGroups[root] = _jornadaGroups[root] || []).push(it); } });
+  const _renderedJobRoots = new Set();
+
   container.innerHTML = summaryHTML + items.map(item => {
     const p = item.data.properties || {};
     const id = item.data.id;
@@ -12093,6 +12099,12 @@ function renderContactHistory(items) {
         </div>
       </div>`;
     }
+    if (esJornadaItem(item)) {
+      const root = jobRootId(item.data);
+      if (_renderedJobRoots.has(root)) return '';   // el grupo ya se dibujó en su fecha más reciente
+      _renderedJobRoots.add(root);
+      return renderJornadaGroup(_jornadaGroups[root] || [item], fmtDate);
+    }
     if (item.type === 'servicio') {
       const nombre = p['Nombre del servicio']?.title?.[0]?.plain_text || '—';
       const tipo = p['Tipo de servicio']?.select?.name || '';
@@ -12117,6 +12129,48 @@ function renderContactHistory(items) {
     }
     return '';
   }).join('');
+}
+
+// Fase B: dibuja un trabajo multi-día (grupo de jornadas) como una línea desplegable en el historial.
+function renderJornadaGroup(group, fmtDate) {
+  const sorted = group.slice().sort((a, b) => {
+    const na = a.data.properties?.['Jornada N°']?.number, nb = b.data.properties?.['Jornada N°']?.number;
+    if (typeof na === 'number' && typeof nb === 'number') return na - nb;
+    return (a.date || '').localeCompare(b.date || '');
+  });
+  const pages = sorted.map(g => g.data);
+  const p0 = pages[0]?.properties || {};
+  const nombreBase = (p0['Nombre del servicio']?.title?.[0]?.plain_text || '—').replace(/—\s*Jornada\s*\d+\s*$/, '').trim();
+  const n = sorted.length;
+  const completo = pages.some(p => (p.properties?.['Estado']?.select?.name || '').includes('Completado') && p.properties?.['% de avance']?.number === 100);
+  const maxPct = Math.max(0, ...pages.map(p => (typeof p.properties?.['% de avance']?.number === 'number' ? p.properties['% de avance'].number : 0)));
+  const estadoStr = completo
+    ? t('contact.history.trabajo.completo').replace('{p}', 100)
+    : t('contact.history.trabajo.encurso').replace('{p}', Math.round(maxPct));
+  const rows = sorted.map(g => {
+    const pp = g.data.properties || {};
+    const jn = pp['Jornada N°']?.number;
+    const pct = pp['% de avance']?.number;
+    const done = (pp['Estado']?.select?.name || '').includes('Completado');
+    return `<div class="jornada-row" onclick="openHistoryItem('servicio','${esc(g.data.id)}')">J${jn != null ? jn : '?'} · ${fmtDate(g.date)}${typeof pct === 'number' ? ' · ' + Math.round(pct) + '%' : ''}${done ? ' ✅' : ''}</div>`;
+  }).join('');
+  return `<div class="jornada-group">
+    <button type="button" class="photo-toggle" onclick="toggleJornadas(this, event)">
+      <span>🛠️ ${esc(nombreBase)} · ${t('contact.history.trabajo.jornadas').replace('{n}', n)} — ${estadoStr}</span>
+      <span class="photo-arrow">▾</span>
+    </button>
+    <div class="jornada-detail" style="display:none">${rows}</div>
+  </div>`;
+}
+
+function toggleJornadas(btn, ev) {
+  ev.stopPropagation(); ev.preventDefault();
+  const d = btn.nextElementSibling;
+  if (!d) return;
+  const open = d.style.display === 'none';
+  d.style.display = open ? 'block' : 'none';
+  const ar = btn.querySelector('.photo-arrow');
+  if (ar) ar.textContent = open ? '▴' : '▾';
 }
 
 async function openHistoryItem(type, id) {
