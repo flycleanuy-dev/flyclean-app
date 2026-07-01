@@ -7533,6 +7533,7 @@ async function renderCEOServicios() {
         <div class="ceo-service-name">${nombre} ${paiFlag[pais] || ''}</div>
         <div class="ceo-service-meta">
           <span class="service-estado ${ESTADO_CLASS[estado] || 'estado-pendiente'}">${estado}</span>
+          ${jobCompleto(s, _ceoServiciosCache) ? `<span class="coord-tag" style="background:var(--green-dark,#14532d);color:var(--green,#22c55e)">${t('badge.servicio.completo')}</span>` : ''}
           ${tipo ? `<span class="coord-tag">${tipo}</span>` : ''}
           ${fechaFmt ? `<span class="coord-tag">📅 ${fechaFmt}</span>` : ''}
           ${operario ? `<span class="coord-tag">👤 ${operario}</span>` : ''}
