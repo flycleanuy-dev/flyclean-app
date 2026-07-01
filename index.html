@@ -503,6 +503,12 @@ body::before {
   .history-loading, .history-empty { font-size: 12px; color: var(--text3); padding: 12px; text-align: center; background: var(--bg); border-radius: 8px; }
   .history-item { display: flex; gap: 10px; padding: 10px 12px; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 6px; cursor: pointer; transition: all 0.15s; }
   .history-item:active { background: var(--card); transform: scale(0.99); }
+  .jornada-group { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 6px; overflow: hidden; }
+  .jornada-group .photo-toggle { width: 100%; justify-content: space-between; border: none; border-radius: 0; background: none; padding: 10px 12px; }
+  .jornada-detail { border-top: 1px solid var(--border); }
+  .jornada-row { padding: 8px 12px; font-size: 12px; color: var(--text2); cursor: pointer; }
+  .jornada-row + .jornada-row { border-top: 1px solid var(--border); }
+  .jornada-row:active { background: var(--card); }
   .history-item-ingreso { cursor: default; }
   .history-item-ingreso:active { transform: none; }
   .history-icon { font-size: 18px; flex-shrink: 0; line-height: 1; padding-top: 2px; }
@@ -2018,6 +2024,9 @@ const TRANSLATIONS = {
     'contact.history.relevamiento': 'Relevamiento',
     'contact.history.servicio': 'Servicio',
     'contact.history.ingreso': 'Ingreso',
+    'contact.history.trabajo.jornadas': '{n} jornadas',
+    'contact.history.trabajo.completo': '✅ Servicio completo · {p}%',
+    'contact.history.trabajo.encurso': '🔄 En curso · {p}%',
     'coord.empty.search': 'Sin resultados.',
     'coord.error.load': 'Error al cargar.',
     'coord.error.contactos': 'Error al cargar contactos.',
@@ -2657,6 +2666,9 @@ const TRANSLATIONS = {
     'contact.history.relevamiento': 'Levantamento',
     'contact.history.servicio': 'Serviço',
     'contact.history.ingreso': 'Receita',
+    'contact.history.trabajo.jornadas': '{n} jornadas',
+    'contact.history.trabajo.completo': '✅ Serviço completo · {p}%',
+    'contact.history.trabajo.encurso': '🔄 Em curso · {p}%',
     'coord.empty.search': 'Sem resultados.',
     'coord.error.load': 'Erro ao carregar.',
     'coord.error.contactos': 'Erro ao carregar contatos.',
