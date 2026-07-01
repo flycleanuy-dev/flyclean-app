@@ -6654,9 +6654,7 @@ function renderStep() {
 
   // ── STEP 8: OBSERVACIONES ──
   else if (step.id === 'observaciones') {
-    const jornadaN = currentService?.properties?.['Jornada N°']?.number;
     const tipoReg = currentService?.properties?.['Tipo de registro']?.select?.name || '';
-    const isJornada = (jornadaN != null) || tipoReg.includes('Jornada');
     const conSectores = servicioTieneSectores();
     const isPrueba = tipoReg.includes('Prueba');
     content.innerHTML = `
@@ -6992,7 +6990,7 @@ function selectResultadoPrueba(val) {
 function selectFinalizacion(val) {
   serviceState.finalizacion = val;
   if (val === 'termino') { serviceState.avance = ''; }   // si terminó, el % no aplica
-  persistServiceStateToLocal();
+  persistServiceStateToLocal();   // local only — cerrarServicio lo lee al cerrar; no escribir a Notion acá
   renderStep();
 }
 
@@ -7150,8 +7148,9 @@ async function _ejecutarCierre(modo) {
       properties['Tipo de registro'] = { select: { name: '📅 Jornada' } };
       const curN = currentService?.properties?.['Jornada N°']?.number;
       properties['Jornada N°'] = { number: (typeof curN === 'number' ? curN : 1) };
-    } else if (((jornadaN != null) || tipoReg.includes('Jornada')) && serviceState.avance !== '') {
-      properties['% de avance'] = { number: parseFloat(serviceState.avance) };
+    } else if ((jornadaN != null) || tipoReg.includes('Jornada')) {
+      // Jornada que termina: si el operario dejó un %, usarlo; si eligió "terminado", es 100%.
+      properties['% de avance'] = { number: serviceState.avance !== '' ? parseFloat(serviceState.avance) : 100 };
     }
   }
 
@@ -9356,7 +9355,7 @@ function coordServiceCard(s) {
   const estadoClass = estado.includes('Completado') ? 'estado-completado' : estado.includes('En curso') ? 'estado-en-curso' : estado.includes('Asignado') ? 'estado-asignado' : 'estado-pendiente';
   return `<div class="coord-service-card" style="cursor:pointer" onclick="openEditSheet('${esc(s.id)}')">
     <div class="coord-service-name">${tipoChip}${esPrueba ? `<span class="service-prueba-badge">${t('prueba.badge')}</span>` : ''}${nombreHTML}${esJornada && jornadaN != null ? ` <span style="color:var(--purple);font-size:12px">J${jornadaN}</span>` : ''}</div>
-    <div class="coord-service-meta"><span class="service-estado ${estadoClass}">${esc(estado)}</span>${(esJornada && typeof pctAvance === 'number') ? `<span class="coord-tag">${pctAvance}%</span>` : ''}${horaFmt ? `<span class="coord-tag">🕐 ${esc(horaFmt)}</span>` : ''}${tipo ? `<span class="coord-tag">${esc(tipo)}</span>` : ''}${(() => { const c = servicioContinua(s); return c.continua ? `<span class="coord-tag" style="background:var(--amber-dark,#7c5300);color:var(--amber,#f59e0b)">${t('badge.continua').replace('{h}', c.hechos).replace('{t}', c.total)}</span>` : ''; })()}</div>
+    <div class="coord-service-meta"><span class="service-estado ${estadoClass}">${esc(estado)}</span>${(esJornada && typeof pctAvance === 'number') ? `<span class="coord-tag">${Math.round(pctAvance)}%</span>` : ''}${horaFmt ? `<span class="coord-tag">🕐 ${esc(horaFmt)}</span>` : ''}${tipo ? `<span class="coord-tag">${esc(tipo)}</span>` : ''}${(() => { const c = servicioContinua(s); return c.continua ? `<span class="coord-tag" style="background:var(--amber-dark,#7c5300);color:var(--amber,#f59e0b)">${t('badge.continua').replace('{h}', c.hechos).replace('{t}', c.total)}</span>` : ''; })()}</div>
     ${lugar ? `<div class="coord-ops" style="color:var(--text3)">📍 ${esc(lugar)}</div>` : ''}
     <div class="coord-ops">👤 ${ops}</div>
     ${renderPhotoGallery(props)}
