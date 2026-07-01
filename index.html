@@ -9320,6 +9320,22 @@ function togglePhotos(btn, ev) {
   if (open) g.querySelectorAll('img[data-src]').forEach(im => { im.src = im.dataset.src; im.removeAttribute('data-src'); });
 }
 
+// ── Agrupación de jornadas por "trabajo madre" (LEE la relación Orden madre) ──
+// Un trabajo multi-día = varias fichas que comparten la misma raíz (Orden madre, o la ficha misma si es J1).
+function jobRootId(svc) {
+  const p = svc?.properties || {};
+  return p['Orden madre']?.relation?.[0]?.id || svc?.id;
+}
+function jobGroup(svc, pool) {
+  const root = jobRootId(svc);
+  if (!root) return svc ? [svc] : [];
+  return (pool || []).filter(f => f.id === root || (f.properties?.['Orden madre']?.relation?.[0]?.id === root));
+}
+// El trabajo está "completo" si alguna ficha del grupo quedó Completada al 100% (la jornada final).
+function jobCompleto(svc, pool) {
+  return jobGroup(svc, pool).some(f => (f.properties?.['Estado']?.select?.name || '').includes('Completado') && f.properties?.['% de avance']?.number === 100);
+}
+
 function coordServiceCard(s) {
   const props = s.properties || {};
   const nombreRaw = props['Nombre del servicio']?.title?.[0]?.plain_text;
@@ -9359,9 +9375,13 @@ function coordServiceCard(s) {
   const horaFmt = (horaInicio && horaInicio.includes('T')) ? new Date(horaInicio).toTimeString().slice(0, 5) : '';
   const lugar = props['Lugar']?.rich_text?.[0]?.plain_text || '';
   const estadoClass = estado.includes('Completado') ? 'estado-completado' : estado.includes('En curso') ? 'estado-en-curso' : estado.includes('Asignado') ? 'estado-asignado' : 'estado-pendiente';
+  // Etiqueta por día: una jornada completada se lee "🗓️ Jornada N completada" (conserva el color verde).
+  const estadoDisplay = (esJornada && jornadaN != null && estado.includes('Completado')) ? t('estado.jornada.completada').replace('{n}', jornadaN) : estado;
+  // Badge "Servicio completo": el trabajo entero (grupo de jornadas) llegó al 100% (calculado agrupando).
+  const jobDone = jobCompleto(s, _coordAllServices);
   return `<div class="coord-service-card" style="cursor:pointer" onclick="openEditSheet('${esc(s.id)}')">
     <div class="coord-service-name">${tipoChip}${esPrueba ? `<span class="service-prueba-badge">${t('prueba.badge')}</span>` : ''}${nombreHTML}${esJornada && jornadaN != null ? ` <span style="color:var(--purple);font-size:12px">J${jornadaN}</span>` : ''}</div>
-    <div class="coord-service-meta"><span class="service-estado ${estadoClass}">${esc(estado)}</span>${(esJornada && typeof pctAvance === 'number') ? `<span class="coord-tag">${Math.round(pctAvance)}%</span>` : ''}${horaFmt ? `<span class="coord-tag">🕐 ${esc(horaFmt)}</span>` : ''}${tipo ? `<span class="coord-tag">${esc(tipo)}</span>` : ''}${(() => { const c = servicioContinua(s); return c.continua ? `<span class="coord-tag" style="background:var(--amber-dark,#7c5300);color:var(--amber,#f59e0b)">${t('badge.continua').replace('{h}', c.hechos).replace('{t}', c.total)}</span>` : ''; })()}</div>
+    <div class="coord-service-meta"><span class="service-estado ${estadoClass}">${esc(estadoDisplay)}</span>${(esJornada && typeof pctAvance === 'number') ? `<span class="coord-tag">${Math.round(pctAvance)}%</span>` : ''}${jobDone ? `<span class="coord-tag" style="background:var(--green-dark,#14532d);color:var(--green,#22c55e)">${t('badge.servicio.completo')}</span>` : ''}${horaFmt ? `<span class="coord-tag">🕐 ${esc(horaFmt)}</span>` : ''}${tipo ? `<span class="coord-tag">${esc(tipo)}</span>` : ''}${(() => { const c = servicioContinua(s); return c.continua ? `<span class="coord-tag" style="background:var(--amber-dark,#7c5300);color:var(--amber,#f59e0b)">${t('badge.continua').replace('{h}', c.hechos).replace('{t}', c.total)}</span>` : ''; })()}</div>
     ${lugar ? `<div class="coord-ops" style="color:var(--text3)">📍 ${esc(lugar)}</div>` : ''}
     <div class="coord-ops">👤 ${ops}</div>
     ${renderPhotoGallery(props)}
