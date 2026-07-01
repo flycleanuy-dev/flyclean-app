@@ -10729,8 +10729,15 @@ function propClienteChanged(val) {
 async function loadPropContactos() {
   try {
     if (!_propContactos) {
-      const d = await callNotion(`databases/${CONTACTOS_DB_ID}/query`, 'POST', { sorts: [{ property: 'Nombre / Empresa', direction: 'ascending' }] });
-      _propContactos = d.results || [];
+      // Preferir la lista fresca en memoria (refreshContactsView la mantiene al día e incluye clientes
+      // recién creados desde el CRM). Fallback al query si todavía no se cargó la vista de clientes.
+      // Mismo patrón que loadContactIntermediarios — así un cliente nuevo aparece sin recargar la app.
+      if (Array.isArray(_coordAllContacts) && _coordAllContacts.length) {
+        _propContactos = _coordAllContacts;
+      } else {
+        const d = await callNotion(`databases/${CONTACTOS_DB_ID}/query`, 'POST', { sorts: [{ property: 'Nombre / Empresa', direction: 'ascending' }] });
+        _propContactos = d.results || [];
+      }
     }
     const sel = document.getElementById('prop-cliente-select');
     if (!sel) return;
@@ -11598,6 +11605,7 @@ async function saveContactEdit() {
       syncAfterWrite(editingContact.id, 'clientes');
     }
     _contactIntermediarios = null; // forzar recarga: cambió la lista/relaciones
+    _propContactos = null;         // idem para el selector de cliente en Propuestas (un cliente nuevo debe aparecer ahí)
     closeContactSheet();
     await refreshContactsView();
   } catch (e) {
