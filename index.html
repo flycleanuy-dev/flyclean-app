@@ -3248,6 +3248,8 @@ function resetServiceState() {
       notasComercial: ''
     },
     sectores: [],   // [{id, nombre, estado:'pendiente'|'en_curso'|'hecho'}] — solo si el servicio tiene sectores
+    sectoresAlAbrir: [],   // snapshot [{id,estado}] al abrir — para saber qué sectores se hicieron HOY (parte por día)
+    registroJornadas: [],  // parte por día [{fecha,ini,fin,hechos:[ids]}] — read-append-write en el cierre
     // Cache de URLs de mapa heredadas del cliente y la propuesta vinculada.
     // Poblado en openService() antes del primer renderStep().
     clienteMapa: '',
@@ -6213,6 +6215,13 @@ async function openService(idx) {
       return { id: s.id, nombre: s.nombre, estado: (ls && ls.estado) || s.estado || 'pendiente' };
     });
   } catch (_) { serviceState.sectores = []; }
+  // Snapshot de los sectores al abrir (para el parte por día: qué se completó HOY vs jornadas anteriores).
+  serviceState.sectoresAlAbrir = (serviceState.sectores || []).map(s => ({ id: s.id, estado: s.estado }));
+  // Parte por día acumulado (jornadas anteriores).
+  try {
+    serviceState.registroJornadas = JSON.parse(currentService.properties?.['Registro jornadas']?.rich_text?.[0]?.plain_text || '[]');
+    if (!Array.isArray(serviceState.registroJornadas)) serviceState.registroJornadas = [];
+  } catch (_) { serviceState.registroJornadas = []; }
 
   // Si tiene sectores (y no es relevamiento), usar el flujo recortado por sectores.
   if (!tipoReg.includes('Relevamiento') && servicioTieneSectores()) STEPS = STEPS_SECTORES;
