@@ -82,7 +82,8 @@
 // v90: sectores Fase 0+1 — fix del selector "Operario manual" (botón +nuevo + piloto visible) + sectores reusables en el cliente y selección en el servicio/prueba/relevamiento.
 // v91: Fase 2 sectores — el operario trabaja por sector (hub en el paso Trabajo + fotos antes/después por sector + marcar hecho + % automático).
 // v92: fix — un cliente recién creado desde el CRM ahora aparece en el selector de cliente al crear una Propuesta (se invalida/refresca la caché _propContactos).
-const CACHE = 'flyclean-v92';
+// v93: Fase 3 sectores — jornadas Forma 2: un servicio con sectores sin terminar se reprograma solo (elige seguir otro día o cerrar así); parte por día en Registro jornadas; badge "🔄 Continúa".
+const CACHE = 'flyclean-v93';
 const SHELL = [
   '/',
   '/index.html',
