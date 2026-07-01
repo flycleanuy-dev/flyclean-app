@@ -1404,6 +1404,18 @@ body::before {
       <button class="delete-svc-btn" id="delete-prop-btn" onclick="deletePropuesta()" style="display:none">🗑️ Eliminar propuesta</button>
     </div>
   </div>
+    <div class="edit-overlay" id="new-service-overlay" onclick="newServiceOverlayClick(event)">
+      <div class="edit-sheet" id="new-service-sheet">
+        <button class="sheet-close-btn" type="button" aria-label="Cerrar" onclick="closeNewServiceSheet()">×</button>
+        <div class="edit-sheet-handle"></div>
+        <div class="edit-sheet-header">
+          <div class="edit-sheet-title" id="new-service-sheet-title" data-i18n="sheet.newsvc.title">Nuevo trabajo</div>
+          <div class="edit-sheet-sub" id="new-service-sheet-sub" data-i18n="sheet.newsvc.sub"></div>
+        </div>
+        <div id="new-service-sheet-body"></div>
+        <button class="edit-save-btn" id="new-service-save-btn" data-i18n="btn.create.notion" onclick="submitNewService()">✨ Crear</button>
+      </div>
+    </div>
   <div class="edit-overlay" id="contact-overlay" onclick="contactOverlayClick(event)">
     <div class="edit-sheet" id="contact-sheet">
       <button class="sheet-close-btn" type="button" aria-label="Cerrar" onclick="closeContactSheet()">×</button>
@@ -11244,6 +11256,170 @@ async function deletePropuesta() {
   } catch (e) {
     if (btn) { btn.textContent = '🗑️ ' + t('sheet.prop.delete'); btn.disabled = false; }
     alert(t('sheet.prop.delete.error') + ' ' + e.message);
+  }
+}
+
+// ── Alta de TRABAJO suelto (servicio/relevamiento/prueba) SIN propuesta ──
+let newSvcState = null;
+
+function newSvcClienteInputsHTML() {
+  const s = newSvcState;
+  const esNuevo = !s.clienteSel || s.clienteSel === '__new__';
+  const inp = (ph, key, type) => `<input type="${type}" class="edit-date-input" style="margin-top:6px" placeholder="${ph}" value="${esc(s[key] || '')}" oninput="newSvcState.${key}=this.value"/>`;
+  return (esNuevo ? inp('Nombre del cliente', 'nombreCliente', 'text') : '') +
+    inp('📞 Teléfono / WhatsApp', 'tel', 'tel') +
+    inp('✉️ Email', 'email', 'email');
+}
+
+function newSvcClienteSectionHTML() {
+  return `<div class="edit-section"><div class="edit-section-label">👤 Cliente</div>
+    <select id="newsvc-cliente-select" class="edit-date-input" onchange="newSvcClienteChanged(this.value)">
+      <option value="__new__">➕ Nuevo cliente</option>
+      <option value="" disabled>cargando clientes…</option>
+    </select>
+    <div id="newsvc-cliente-fields">${newSvcClienteInputsHTML()}</div></div>`;
+}
+
+function newSvcClienteChanged(val) {
+  newSvcState.clienteSel = val || '__new__';
+  if (val && val !== '__new__') {
+    const c = (_propContactos || _coordAllContacts || []).find(x => x.id === val);
+    if (c) {
+      newSvcState.nombreCliente = c.properties?.['Nombre / Empresa']?.title?.[0]?.plain_text || '';
+      newSvcState.tel = c.properties?.['Teléfono / WhatsApp']?.phone_number || '';
+      newSvcState.email = c.properties?.['Email']?.email || '';
+      newSvcState.pais = c.properties?.['País']?.select?.name || newSvcState.pais;
+    }
+  } else {
+    newSvcState.nombreCliente = ''; newSvcState.tel = ''; newSvcState.email = '';
+  }
+  const w = document.getElementById('newsvc-cliente-fields');
+  if (w) w.innerHTML = newSvcClienteInputsHTML();
+}
+
+async function loadNewSvcContactos() {
+  try {
+    if (!_propContactos) {
+      if (Array.isArray(_coordAllContacts) && _coordAllContacts.length) _propContactos = _coordAllContacts;
+      else { const d = await callNotion(`databases/${CONTACTOS_DB_ID}/query`, 'POST', { sorts: [{ property: 'Nombre / Empresa', direction: 'ascending' }] }); _propContactos = d.results || []; }
+    }
+    const sel = document.getElementById('newsvc-cliente-select');
+    if (!sel) return;
+    const cur = newSvcState.clienteSel || '__new__';
+    const tit = c => c.properties?.['Nombre / Empresa']?.title?.[0]?.plain_text || '(sin nombre)';
+    sel.innerHTML = '<option value="__new__">➕ Nuevo cliente</option>' +
+      _propContactos.slice().sort((a, b) => tit(a).localeCompare(tit(b))).map(c => `<option value="${esc(c.id)}">${esc(tit(c))}</option>`).join('');
+    sel.value = cur;
+    if (cur !== '__new__') newSvcClienteChanged(cur);
+  } catch (e) { /* el form sirve igual (queda "Nuevo cliente") */ }
+}
+
+// Resuelve el cliente elegido, o dedup/crea uno nuevo. Devuelve su id (o null si no hay datos).
+async function resolveOrCreateClienteId(s) {
+  if (s.clienteSel && s.clienteSel !== '__new__') {
+    const upd = {};
+    if (s.tel) upd['Teléfono / WhatsApp'] = { phone_number: s.tel };
+    if (s.email) upd['Email'] = { email: s.email };
+    if (Object.keys(upd).length) { try { await updateServiceProps(s.clienteSel, upd); } catch (_) {} }
+    return s.clienteSel;
+  }
+  const nombreCli = (s.nombreCliente || '').trim();
+  if (!nombreCli && !s.tel && !s.email) return null;
+  // Dedup por tel/email
+  const orf = [];
+  if (s.tel) orf.push({ property: 'Teléfono / WhatsApp', phone_number: { equals: s.tel } });
+  if (s.email) orf.push({ property: 'Email', email: { equals: s.email } });
+  if (orf.length) {
+    const dup = await callNotion(`databases/${CONTACTOS_DB_ID}/query`, 'POST', { filter: orf.length === 1 ? orf[0] : { or: orf }, page_size: 1 }).catch(() => ({ results: [] }));
+    if (dup.results && dup.results.length) return dup.results[0].id;
+  }
+  const cprops = {
+    'Nombre / Empresa': { title: [{ text: { content: nombreCli || 'Cliente s/n' } }] },
+    'Estado': { select: { name: '🆕 Lead' } },
+  };
+  if (s.pais) cprops['País'] = { select: { name: s.pais } };
+  if (s.tel) cprops['Teléfono / WhatsApp'] = { phone_number: s.tel };
+  if (s.email) cprops['Email'] = { email: s.email };
+  const nc = await callNotion('pages', 'POST', { parent: { database_id: CONTACTOS_DB_ID }, properties: cprops });
+  _propContactos = null;
+  return nc && nc.id;
+}
+
+function newServiceOverlayClick(e) { if (e.target.id === 'new-service-overlay') closeNewServiceSheet(); }
+function closeNewServiceSheet() { document.getElementById('new-service-overlay').classList.remove('open'); }
+
+function openNewServiceSheet(prefillContactId = null) {
+  const today = new Date();
+  const hoyISO = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  const paisCoord = COUNTRY_NOTION_MAP[selectedCountry] || '';
+  newSvcState = { tipoRegistro: '📋 Orden de trabajo', clienteSel: prefillContactId || '__new__', nombreCliente: '', tel: '', email: '', nombre: '', tipoServicio: '', fecha: hoyISO, pais: paisCoord };
+
+  const TIPOS_REG = [
+    { label: '🏢 Servicio', val: '📋 Orden de trabajo' },
+    { label: '🔍 Relevamiento', val: '🔍 Relevamiento' },
+    { label: '🧪 Prueba', val: '🧪 Prueba' },
+  ];
+  const TIPOS_SVC = ['🏢 Fachada', '🪟 Vidrios', '☀️ Paneles solares'];
+  const tipoRegBtns = TIPOS_REG.map(o => `<button class="estado-btn ${newSvcState.tipoRegistro === o.val ? 'active' : ''}" onclick="newSvcSetTipoReg(this,'${o.val.replace(/'/g,"\\'")}')">${o.label}</button>`).join('');
+  const tipoSvcBtns = TIPOS_SVC.map(o => `<button class="estado-btn ${newSvcState.tipoServicio === o ? 'active' : ''}" onclick="newSvcSetTipoSvc(this,'${o.replace(/'/g,"\\'")}')">${o}</button>`).join('');
+
+  document.getElementById('new-service-sheet-body').innerHTML =
+    `<div class="edit-section"><div class="edit-section-label">${t('sheet.newsvc.section.tipo')}</div><div class="estado-btns" id="newsvc-tiporeg-btns">${tipoRegBtns}</div></div>` +
+    newSvcClienteSectionHTML() +
+    `<div class="edit-section"><div class="edit-section-label">${t('sheet.newsvc.section.nombre')}</div>
+      <input type="text" class="edit-date-input" placeholder="${t('sheet.newsvc.nombre.placeholder')}" oninput="newSvcState.nombre=this.value" style="font-size:14px"/></div>` +
+    `<div class="edit-section"><div class="edit-section-label">${t('sheet.newsvc.section.tiposervicio')}</div><div class="estado-btns" id="newsvc-tiposvc-btns">${tipoSvcBtns}</div></div>` +
+    `<div class="edit-section"><div class="edit-section-label">${t('sheet.newsvc.section.fecha')}</div>
+      <input type="date" class="edit-date-input" value="${newSvcState.fecha}" onchange="newSvcState.fecha=this.value"/></div>`;
+
+  const btn = document.getElementById('new-service-save-btn');
+  btn.textContent = t('btn.create.notion'); btn.disabled = false;
+  document.getElementById('new-service-overlay').classList.add('open');
+  loadNewSvcContactos();
+}
+
+function newSvcSetTipoReg(el, val) {
+  newSvcState.tipoRegistro = val;
+  document.querySelectorAll('#newsvc-tiporeg-btns .estado-btn').forEach(b => b.classList.remove('active'));
+  if (el) el.classList.add('active');
+}
+function newSvcSetTipoSvc(el, val) {
+  newSvcState.tipoServicio = val;
+  document.querySelectorAll('#newsvc-tiposvc-btns .estado-btn').forEach(b => b.classList.remove('active'));
+  if (el) el.classList.add('active');
+}
+
+async function submitNewService() {
+  const btn = document.getElementById('new-service-save-btn');
+  const s = newSvcState;
+  if (!(s.nombre || '').trim()) { alert(t('sheet.newsvc.error.nombre')); return; }
+  const clienteNuevoSinDatos = (s.clienteSel === '__new__') && !(s.nombreCliente || '').trim() && !s.tel && !s.email;
+  if (clienteNuevoSinDatos) { alert(t('sheet.newsvc.error.cliente')); return; }
+  btn.textContent = t('btn.saving.notion'); btn.disabled = true;
+  try {
+    const clienteId = await resolveOrCreateClienteId(s);
+    const properties = {
+      'Nombre del servicio': { title: [{ text: { content: s.nombre.trim() } }] },
+      'Estado': { select: { name: '📋 Pendiente' } },
+      'Tipo de registro': { select: { name: s.tipoRegistro } },
+      'Fecha programada': { date: { start: s.fecha } },
+    };
+    if (s.tipoServicio) properties['Tipo de servicio'] = { select: { name: s.tipoServicio } };
+    if (s.pais) properties['País'] = { select: { name: s.pais } };
+    if (clienteId) properties['Contacto'] = { relation: [{ id: clienteId }] };
+    const created = await callNotion('pages', 'POST', { parent: { type: 'data_source_id', data_source_id: SERVICIOS_DS_ID }, properties });
+    closeNewServiceSheet();
+    const tab = s.tipoRegistro.includes('Relevamiento') ? 'relevamientos' : (s.tipoRegistro.includes('Prueba') ? 'pruebas' : 'servicios');
+    if (typeof setCoordTab === 'function') setCoordTab(tab);
+    await renderCoordServicios();
+    if (Array.isArray(_coordAllServices) && !_coordAllServices.some(x => x.id === created.id)) {
+      _coordAllServices.unshift(created);
+      if (typeof renderCoordList === 'function') renderCoordList();
+    }
+    setTimeout(() => { if (typeof openEditSheet === 'function') openEditSheet(created.id); }, 400);
+  } catch (e) {
+    btn.textContent = t('btn.create.notion'); btn.disabled = false;
+    alert(t('sheet.prop.create.error') + ' ' + (e.message || ''));
   }
 }
 
