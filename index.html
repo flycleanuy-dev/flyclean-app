@@ -10463,6 +10463,12 @@ function cierreSectoresOverlayClick(e) { if (e.target.id === 'cierre-sectores-ov
 async function cierreSectoresElegir(modo) {
   // 'completar' exige resultado (el servicio termina); 'continuar' no (sigue otro día).
   if (modo === 'completar' && !_cierreResultadoOk()) return;
+  // Cerrar un servicio con sectores SIN terminar es excepcional → doble confirmación (algo pasó;
+  // lo normal sería "seguir otro día"). Recuento de sectores pendientes para el mensaje.
+  if (modo === 'completar') {
+    const pend = (serviceState.sectores || []).filter(s => s.estado !== 'hecho').length;
+    if (!confirm(t('cierre.sectores.confirm.cerrar').replace('{n}', pend))) return;
+  }
   closeCierreSectoresModal();
   await _ejecutarCierre(modo);
 }
