@@ -6920,8 +6920,22 @@ async function iniciarServicio() {
     serviceState.gpsInicio = `${gps.lat.toFixed(6)},${gps.lng.toFixed(6)}`;
   }
 
+  // Si el servicio se inicia en un día DISTINTO al programado, la Fecha programada pasa a HOY (para que
+  // aparezca en el mes actual del coordinador). `Fecha programada` es property existente → seguro escribirla.
+  const hoyISO = new Date().toISOString().split('T')[0];
+  const fProgOrig = (currentService?.properties?.['Fecha programada']?.date?.start || '').split('T')[0];
+  const desvioFecha = !!fProgOrig && fProgOrig !== hoyISO;
+  if (desvioFecha) props['Fecha programada'] = { date: { start: hoyISO } };
+
   try {
     await queueableUpdateServiceProps(currentService.id, props);
+    // Guardar la fecha planificada ORIGINAL en la property nueva `Fecha planificada`, en un write SEPARADO
+    // best-effort: si la property no existiera o falla, el inicio NO se rompe (solo no se muestra la marca).
+    if (desvioFecha && !currentService?.properties?.['Fecha planificada']?.date?.start) {
+      try {
+        await updateServiceProps(currentService.id, { 'Fecha planificada': { date: { start: fProgOrig } } });
+      } catch (_) { /* property inexistente / red: se ignora, no bloquea el inicio */ }
+    }
     showSaving();
     persistServiceStateToLocal();
   } catch (e) { console.warn('Error al guardar inicio:', e); }
