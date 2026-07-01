@@ -80,7 +80,8 @@
 // v5: cambiar estrategia de Notion API de stale-while-revalidate a NETWORK-FIRST con timeout.
 
 // v90: sectores Fase 0+1 — fix del selector "Operario manual" (botón +nuevo + piloto visible) + sectores reusables en el cliente y selección en el servicio/prueba/relevamiento.
-const CACHE = 'flyclean-v90';
+// v91: Fase 2 sectores — el operario trabaja por sector (hub en el paso Trabajo + fotos antes/después por sector + marcar hecho + % automático).
+const CACHE = 'flyclean-v91';
 const SHELL = [
   '/',
   '/index.html',

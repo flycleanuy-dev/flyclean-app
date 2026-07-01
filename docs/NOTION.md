@@ -70,7 +70,7 @@ Clientes   ↔ Clientes  (self-relation: `Intermediario` ↔ `Clientes traídos`
 | `Método de trabajo` | select (`🚁 Dron` / `💪 Manual`) | Cómo se ejecutó el trabajo; obligatorio para registrar `Hora Inicio Efectivo` |
 | `Herramienta manual` | select (`Lanzas` / `Manguera` / `Hidrolavadora` / `Otro`) | Submétodo cuando `Método de trabajo = 💪 Manual`; queda vacío si es dron |
 | `Operario manual` | select | Persona que ejecuta el trabajo manual (columna derecha del sheet del coord); espejo de `Operario App` para el rol manual |
-| `Estado sectores` | rich_text (JSON) | Sectores seleccionados para ESE trabajo con su estado: `[{id,nombre,estado}]` (estado: `pendiente`/`en_curso`/`hecho`). Snapshot del nombre para autocontención. Vacío = servicio sin sectores → flujo idéntico al de siempre. (2026-06-30) |
+| `Estado sectores` | rich_text (JSON) | Sectores seleccionados para ESE trabajo con su estado: `[{id,nombre,estado}]` (estado: `pendiente`/`en_curso`/`hecho`). Snapshot del nombre para autocontención. Vacío = servicio sin sectores → flujo idéntico al de siempre. El **coordinador** los selecciona; el **operario** actualiza el `estado` de cada sector (Fase 2, preserva id+nombre). Las fotos por sector van en `📸 Fotos pre/post-servicio` con el `name` prefijado `sectorId__` (ej. `sec-ab12__pre-1.jpg`). (2026-06-30) |
 
 **Separación clave**: `Hora Inicio` (programada, dueño = coord) ≠ `Hora Inicio Efectivo`
 (real, la escribe el operario al apretar "Iniciar"). Nunca escribir `Hora Inicio` desde el flujo

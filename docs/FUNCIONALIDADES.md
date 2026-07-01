@@ -5,10 +5,12 @@
 > **ANTES de construir/proponer algo: buscalo acá + grep del código. Reusar > reconstruir** (ya
 > duplicamos 2 veces: Clientes/Contactos y PINs). Mantenerlo: actualizar este archivo tras cada feature
 > (junto al bump de `sw.js`). Complementa a `ARQUITECTURA.md` (cómo está construido), `NOTION.md`
-> (datos) y `RUNBOOK.md` (operar/deploy). Última actualización: 2026-06-30, sw v90 — **sectores Fase 0+1**:
+> (datos) y `RUNBOOK.md` (operar/deploy). Última actualización: 2026-06-30, sw v91 — **sectores Fase 0+1+2**:
 > fix del selector "Operario manual" (botón +nuevo + el piloto aparece) + lista reusable de **sectores** en la
-> ficha del cliente (CRUD) y **selección de sectores** en el servicio/prueba/relevamiento. (La operativa del
-> operario sobre los sectores y las jornadas Forma 2 = Fases 2 y 3, plan aparte.)
+> ficha del cliente (CRUD) y **selección de sectores** en el servicio/prueba/relevamiento. **Fase 2**: el operario
+> trabaja el servicio por sector — hub en el paso "Trabajo" (lista de sectores + %), overlay por sector con fotos
+> antes/después + "marcar hecho" (mínimo 1+1), y **% de avance automático** (hechos ÷ total). Las jornadas Forma 2
+> (un solo servicio que se reprograma) = Fase 3, plan aparte.
 
 ## 🗣️ Qué puede hacer la app hoy (en criollo)
 
