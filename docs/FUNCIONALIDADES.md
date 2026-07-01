@@ -518,5 +518,16 @@
 
   **NO se crearon properties nuevas de Notion:** todo reutiliza `Importe estimado`, `Moneda`, `Monto USD`, `Monto UY$ cobrado`, `Moneda cobro`, `TC aplicado`, `🗄️ Archivado`, etc.
 
+## Jornadas automáticas para servicios SIN sectores (sw v97)
+
+Extiende la continuidad multi-día (que ya existía para servicios **con sectores**) a los servicios normales de un solo edificio, usando un **% manual acumulado**. Modelo: **una ficha por día** (J1, J2, J3…), la del día siguiente se crea sola.
+
+- **Cierre del operario (`observaciones` + `cerrarServicio`):** para servicios de trabajo (Orden/Jornada) **sin sectores**, antes del resultado aparece **"¿Terminaste el trabajo?"** (`selectFinalizacion` → `serviceState.finalizacion` = `''|'termino'|'continua'`). Si **"Sí, quedó terminado"** → cierre normal (100% + resultado). Si **"No, sigo otro día"** → aparece el `%` (acumulado, entero 0<%<100; reutiliza `avance-input`); NO pide resultado. Prueba/Relevamiento/servicios con sectores no ven la pregunta (retrocompat).
+- **Cierre-como-jornada (`_ejecutarCierre('continuar')`, rama sin sectores):** requiere conexión; la ficha actual queda `✅ Completado` con `% de avance` = lo puesto, marcada `📅 Jornada` + `Jornada N°`=(actual||1); conserva sus fotos/horas/checklist del día.
+- **`crearJornadaSiguiente(parentService, numero, fecha)`:** crea sola la ficha del día siguiente (fecha = mañana, editable por el coord). Hereda cliente/propuesta/país/tipo/piloto/**ayudantes/lugar/mapa**, arranca `🔄 Asignado` (si hay piloto), checklist en 0, **sin** fotos; vincula `Orden madre` a la raíz. Nombre con sufijo "— Jornada N".
+- **Vista coord (`coordServiceCard`):** cada jornada es su tarjeta en su día con chip `🗓️ Jornada · Jn`; se muestra el `%` en las jornadas completadas (`✅ Completado · 50%`).
+- **Contabilidad:** cada ficha guarda horas efectivas (Inicio/Fin) + `%` + fotos + operarios (jornales) → sumable después. El reporte de totales queda para un paso futuro.
+- **No toca:** el flujo de servicios **con sectores**, ni el botón "Crear jornada" manual del coordinador (`submitCreateJornada`), ni Prueba/Relevamiento. **Sin properties Notion nuevas** (reutiliza `% de avance`, `Jornada N°`, `Tipo de registro`, `Orden madre`, `📸 Fotos pre/post-servicio`, etc.).
+
 ---
 _Generado automáticamente del código (workflow `inventario-funcionalidades`). Si algo no coincide con el código, gana el código → regenerar._
