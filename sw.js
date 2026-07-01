@@ -83,7 +83,8 @@
 // v91: Fase 2 sectores — el operario trabaja por sector (hub en el paso Trabajo + fotos antes/después por sector + marcar hecho + % automático).
 // v92: fix — un cliente recién creado desde el CRM ahora aparece en el selector de cliente al crear una Propuesta (se invalida/refresca la caché _propContactos).
 // v93: Fase 3 sectores — jornadas Forma 2: un servicio con sectores sin terminar se reprograma solo (elige seguir otro día o cerrar así); parte por día en Registro jornadas; badge "🔄 Continúa".
-const CACHE = 'flyclean-v93';
+// v94: fix — el servicio creado desde una propuesta ahora aparece al instante en la lista (update optimista; el SW devolvía la lista cacheada sin el nuevo por un instante).
+const CACHE = 'flyclean-v94';
 const SHELL = [
   '/',
   '/index.html',

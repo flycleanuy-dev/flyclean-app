@@ -11026,6 +11026,14 @@ async function createServicioFromPropuesta(propPageId) {
     // Cambiar a tab Servicios y refrescar
     if (typeof setCoordTab === 'function') setCoordTab('servicios');
     await renderCoordServicios();
+    // Update optimista: el SW (stale-while-revalidate) puede devolver la lista de servicios cacheada SIN el
+    // recién creado por un instante (la revalidación en background lo corrige, pero la pantalla ya se pintó).
+    // Lo agregamos a la lista en memoria y re-renderizamos → aparece al toque. Bonus: así openEditSheet lo
+    // encuentra en _coordAllServices para abrir su sheet.
+    if (Array.isArray(_coordAllServices) && !_coordAllServices.some(s => s.id === created.id)) {
+      _coordAllServices.unshift(created);
+      if (typeof renderCoordList === 'function') renderCoordList();
+    }
     // Abrir el edit sheet del servicio recién creado para asignar operario
     setTimeout(() => {
       if (typeof openEditSheet === 'function') openEditSheet(created.id);
