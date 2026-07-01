@@ -9340,6 +9340,7 @@ function coordServiceCard(s) {
   const esJornada = jornadaN != null || tipoReg.includes('Jornada');
   const esPrueba = tipoReg.includes('Prueba');
   const esRelev = tipoReg.includes('Relevamiento');
+  const pctAvance = props['% de avance']?.number;
   // Chip de tipo: SOLO en 🏠 Inicio, donde conviven los 4 tipos en una misma lista.
   // En las otras tabs todas las cards son del mismo tipo → el chip sería ruido.
   // Para Prueba NO agregamos chip: ya lleva su badge rosa PRUEBA (evita doble distintivo).
@@ -9355,7 +9356,7 @@ function coordServiceCard(s) {
   const estadoClass = estado.includes('Completado') ? 'estado-completado' : estado.includes('En curso') ? 'estado-en-curso' : estado.includes('Asignado') ? 'estado-asignado' : 'estado-pendiente';
   return `<div class="coord-service-card" style="cursor:pointer" onclick="openEditSheet('${esc(s.id)}')">
     <div class="coord-service-name">${tipoChip}${esPrueba ? `<span class="service-prueba-badge">${t('prueba.badge')}</span>` : ''}${nombreHTML}${esJornada && jornadaN != null ? ` <span style="color:var(--purple);font-size:12px">J${jornadaN}</span>` : ''}</div>
-    <div class="coord-service-meta"><span class="service-estado ${estadoClass}">${esc(estado)}</span>${horaFmt ? `<span class="coord-tag">🕐 ${esc(horaFmt)}</span>` : ''}${tipo ? `<span class="coord-tag">${esc(tipo)}</span>` : ''}${(() => { const c = servicioContinua(s); return c.continua ? `<span class="coord-tag" style="background:var(--amber-dark,#7c5300);color:var(--amber,#f59e0b)">${t('badge.continua').replace('{h}', c.hechos).replace('{t}', c.total)}</span>` : ''; })()}</div>
+    <div class="coord-service-meta"><span class="service-estado ${estadoClass}">${esc(estado)}</span>${(esJornada && typeof pctAvance === 'number') ? `<span class="coord-tag">${pctAvance}%</span>` : ''}${horaFmt ? `<span class="coord-tag">🕐 ${esc(horaFmt)}</span>` : ''}${tipo ? `<span class="coord-tag">${esc(tipo)}</span>` : ''}${(() => { const c = servicioContinua(s); return c.continua ? `<span class="coord-tag" style="background:var(--amber-dark,#7c5300);color:var(--amber,#f59e0b)">${t('badge.continua').replace('{h}', c.hechos).replace('{t}', c.total)}</span>` : ''; })()}</div>
     ${lugar ? `<div class="coord-ops" style="color:var(--text3)">📍 ${esc(lugar)}</div>` : ''}
     <div class="coord-ops">👤 ${ops}</div>
     ${renderPhotoGallery(props)}
