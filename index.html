@@ -7068,7 +7068,26 @@ async function cerrarServicio() {
     openCierreSectoresModal(pend);
     return;
   }
-  // Sin sectores, o todos los sectores hechos → completar (valida resultado como hoy).
+
+  // Servicio de trabajo SIN sectores: decidir según la pregunta "¿Terminaste?".
+  const tipoReg = currentService?.properties?.['Tipo de registro']?.select?.name || '';
+  const esTrabajo = !tipoReg.includes('Prueba') && !tipoReg.includes('Relevamiento');
+  if (esTrabajo && !servicioTieneSectores()) {
+    if (serviceState.finalizacion === 'continua') {
+      if (!navigator.onLine) { alert(t('close.jornada.need.online')); return; }
+      const pct = parseInt(serviceState.avance, 10);
+      if (isNaN(pct) || pct <= 0 || pct >= 100) {
+        alert(pct >= 100 ? t('close.jornada.pct.is100') : t('close.jornada.need.pct'));
+        return;
+      }
+      await _ejecutarCierre('continuar');
+      return;
+    }
+    if (serviceState.finalizacion !== 'termino') { alert(t('close.jornada.need.choice')); return; }
+    // 'termino' → cae al flujo normal de completar (valida resultado).
+  }
+
+  // Sin sectores + terminó (o Prueba/Relevamiento) → completar (valida resultado como hoy).
   if (!_cierreResultadoOk()) return;
   await _ejecutarCierre('completar');
 }
@@ -7122,10 +7141,16 @@ async function _ejecutarCierre(modo) {
       properties['Hora Fin'] = { date: { start: isoNow() } };
     }
   } else {
-    // Sin sectores: comportamiento de siempre.
+    // Sin sectores.
     properties['Estado'] = { select: { name: '✅ Completado' } };
     properties['Hora Fin'] = { date: { start: isoNow() } };
-    if (((jornadaN != null) || tipoReg.includes('Jornada')) && serviceState.avance !== '') {
+    if (modo === 'continuar') {
+      // Sigo otro día: guardar % acumulado + marcar esta ficha como jornada (la ficha del día siguiente se crea abajo).
+      properties['% de avance'] = { number: parseInt(serviceState.avance, 10) };
+      properties['Tipo de registro'] = { select: { name: '📅 Jornada' } };
+      const curN = currentService?.properties?.['Jornada N°']?.number;
+      properties['Jornada N°'] = { number: (typeof curN === 'number' ? curN : 1) };
+    } else if (((jornadaN != null) || tipoReg.includes('Jornada')) && serviceState.avance !== '') {
       properties['% de avance'] = { number: parseFloat(serviceState.avance) };
     }
   }
@@ -7159,11 +7184,23 @@ async function _ejecutarCierre(modo) {
 
   // Al reprogramar (otro día = jornada nueva), el checklist se rehace: limpiamos el guardado para que el
   // operario NO lo encuentre marcado del día anterior (el checklist PRE de llegada y POST de cierre son por jornada).
-  if (modo === 'continuar') properties['Estado checklist'] = { rich_text: [] };
+  if (modo === 'continuar' && conSectores) properties['Estado checklist'] = { rich_text: [] };
 
   try {
     const result = await queueableUpdateServiceProps(currentService.id, properties);
     if (!result?.queued) { try { localStorage.removeItem(storageKeyForService(currentService.id)); } catch (_) {} }
+    // Servicio sin sectores que sigue otro día → crear la ficha del día siguiente (J+1).
+    if (!conSectores && modo === 'continuar') {
+      const man = new Date(); man.setDate(man.getDate() + 1);
+      const fecha = man.toISOString().split('T')[0];
+      const curN = currentService?.properties?.['Jornada N°']?.number;
+      const siguienteN = (typeof curN === 'number' ? curN : 1) + 1;
+      try {
+        await crearJornadaSiguiente(currentService, siguienteN, fecha);
+      } catch (e) {
+        alert(t('close.jornada.next.error'));
+      }
+    }
     showDoneScreen(modo === 'continuar');
   } catch (e) {
     if (btn) { btn.textContent = t('btn.close.notion'); btn.disabled = false; }
