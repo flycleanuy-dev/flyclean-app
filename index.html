@@ -10055,6 +10055,53 @@ async function submitCreateJornada() {
   }
 }
 
+// Crea programáticamente la ficha del día siguiente (jornada N) heredando datos del padre.
+// La usa el cierre del operario cuando un servicio de trabajo SIN sectores "sigue otro día".
+// A diferencia de submitCreateJornada (manual, del coord), no lee del DOM y hereda además
+// ayudantes/lugar/mapa, arranca 🔄 Asignado si hay piloto, y vincula la Orden madre (raíz).
+async function crearJornadaSiguiente(parentService, numero, fecha) {
+  const p = parentService.properties || {};
+  const nombreOriginal = p['Nombre del servicio']?.title?.[0]?.plain_text || 'Servicio';
+  const nombreLimpio = nombreOriginal.replace(/—\s*Jornada\s*\d+\s*$/, '').trim();
+  const nombreNueva = `${nombreLimpio} — Jornada ${numero}`;
+  const operarioApp = p['Operario App']?.select?.name || null;
+
+  const properties = {
+    'Nombre del servicio': { title: [{ text: { content: nombreNueva } }] },
+    'Estado': { select: { name: operarioApp ? '🔄 Asignado' : '📋 Pendiente' } },
+    'Tipo de registro': { select: { name: '📅 Jornada' } },
+    'Jornada N°': { number: numero },
+    'Fecha programada': { date: { start: fecha } }
+  };
+  const pais = p['País']?.select?.name;
+  if (pais) properties['País'] = { select: { name: pais } };
+  const tipoSvc = p['Tipo de servicio']?.select?.name;
+  if (tipoSvc) properties['Tipo de servicio'] = { select: { name: tipoSvc } };
+  const propuestaRel = p['Propuesta']?.relation?.[0]?.id;
+  if (propuestaRel) properties['Propuesta'] = { relation: [{ id: propuestaRel }] };
+  const contactoRel = p['Contacto']?.relation?.[0]?.id;
+  if (contactoRel) properties['Contacto'] = { relation: [{ id: contactoRel }] };
+  if (operarioApp) {
+    properties['Operario App'] = { select: { name: operarioApp } };
+    const userForOp = USERS.find(u => u.name === operarioApp);
+    if (userForOp?.notionId) properties['Operario(s)'] = { people: [{ object: 'user', id: userForOp.notionId }] };
+  }
+  const ayudantes = (p['Operarios participantes']?.multi_select || []).map(o => o.name);
+  if (ayudantes.length) properties['Operarios participantes'] = { multi_select: ayudantes.map(name => ({ name })) };
+  const lugar = p['Lugar']?.rich_text?.[0]?.plain_text;
+  if (lugar) properties['Lugar'] = { rich_text: [{ text: { content: lugar } }] };
+  const mapa = p['Mapa']?.url;
+  if (mapa) properties['Mapa'] = { url: mapa };
+  // Vínculo padre↔jornadas: la raíz es la Orden madre del padre, o el padre mismo si es la J1.
+  const rootId = p['Orden madre']?.relation?.[0]?.id || parentService.id;
+  properties['Orden madre'] = { relation: [{ id: rootId }] };
+
+  await callNotion('pages', 'POST', {
+    parent: { type: 'data_source_id', data_source_id: SERVICIOS_DS_ID },
+    properties
+  });
+}
+
 function overlayClick(e) { if (e.target.id === 'edit-overlay') closeEditSheet(); }
 function closeEditSheet() { document.getElementById('edit-overlay').classList.remove('open'); editingService = null; _editFromPorCobrar = false; if (typeof _contactHistoryCache !== 'undefined') Object.keys(_contactHistoryCache).forEach(k => delete _contactHistoryCache[k]); }
 function selectEditEstado(estado) {
