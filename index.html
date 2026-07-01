@@ -11986,11 +11986,19 @@ async function loadContactHistory(contactId) {
       const contactos = s.properties?.['Contacto']?.relation || [];
       return tipoReg.includes('Orden de trabajo') && estado.includes('Completado') && contactos.some(r => r.id === contactId) && recEnPaisNotion(s);
     });
+    // Fase B: las jornadas (📅 Jornada) del cliente, en CUALQUIER estado. El render (renderContactHistory)
+    // las agrupa por "trabajo madre" (Orden madre) en un desplegable. Salen del mismo svcRes (search-fallback).
+    const jornadas = (svcRes.results || []).filter(s => {
+      const tipoReg = s.properties?.['Tipo de registro']?.select?.name || '';
+      const contactos = s.properties?.['Contacto']?.relation || [];
+      return tipoReg.includes('Jornada') && contactos.some(r => r.id === contactId) && recEnPaisNotion(s);
+    });
 
     const items = [
       ...(propRes.results || []).map(r => ({ type: 'propuesta', data: r, date: r.properties?.['Fecha de creación']?.created_time || r.created_time || '' })),
       ...relevs.map(r => ({ type: 'relevamiento', data: r, date: r.properties?.['Fecha programada']?.date?.start || r.created_time || '' })),
       ...svcs.map(r => ({ type: 'servicio', data: r, date: r.properties?.['Fecha programada']?.date?.start || r.created_time || '' })),
+      ...jornadas.map(r => ({ type: 'servicio', data: r, date: r.properties?.['Fecha programada']?.date?.start || r.created_time || '' })),
       ...(ingRes.results || []).map(r => ({ type: 'ingreso', data: r, date: r.properties?.['Fecha']?.date?.start || r.created_time || '' }))
     ];
 
