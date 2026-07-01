@@ -1902,10 +1902,10 @@ const TRANSLATIONS = {
     'btn.back': '← Atrás',
     'btn.continue': 'Continuar →',
     'btn.close.notion': '🏁 CERRAR EN NOTION',
-    'btn.save.notion': '💾 GUARDAR EN NOTION',
-    'btn.create.notion': '✨ CREAR EN NOTION',
+    'btn.save.notion': '💾 Guardar',
+    'btn.create.notion': '✨ Crear',
     'btn.saving': '⏳ Guardando...',
-    'btn.saving.notion': '⏳ Guardando en Notion...',
+    'btn.saving.notion': '⏳ Guardando...',
     'btn.cancel': 'Cancelar',
     'done.title': '¡Servicio cerrado!',
     'done.sub': 'Todos los datos se guardaron en Notion automáticamente.',
@@ -2525,10 +2525,10 @@ const TRANSLATIONS = {
     'btn.back': '← Voltar',
     'btn.continue': 'Continuar →',
     'btn.close.notion': '🏁 FECHAR NO NOTION',
-    'btn.save.notion': '💾 SALVAR NO NOTION',
-    'btn.create.notion': '✨ CRIAR NO NOTION',
+    'btn.save.notion': '💾 Salvar',
+    'btn.create.notion': '✨ Criar',
     'btn.saving': '⏳ Salvando...',
-    'btn.saving.notion': '⏳ Salvando no Notion...',
+    'btn.saving.notion': '⏳ Salvando...',
     'btn.cancel': 'Cancelar',
     'done.title': 'Serviço fechado!',
     'done.sub': 'Todos os dados foram salvos automaticamente no Notion.',
@@ -7115,6 +7115,10 @@ async function _ejecutarCierre(modo) {
     if (r.notasComercial) properties['Notas pre-servicio'] = { rich_text: [{ text: { content: r.notasComercial } }] };
   }
 
+  // Al reprogramar (otro día = jornada nueva), el checklist se rehace: limpiamos el guardado para que el
+  // operario NO lo encuentre marcado del día anterior (el checklist PRE de llegada y POST de cierre son por jornada).
+  if (modo === 'continuar') properties['Estado checklist'] = { rich_text: [] };
+
   try {
     const result = await queueableUpdateServiceProps(currentService.id, properties);
     if (!result?.queued) { try { localStorage.removeItem(storageKeyForService(currentService.id)); } catch (_) {} }
@@ -10075,12 +10079,23 @@ async function saveServiceEdit() {
         if (typeof syncAfterWrite === 'function') { try { syncAfterWrite(editState.contactoId, 'clientes'); } catch (_) {} }
       } catch (_) { /* no bloquear el guardado del servicio si el cliente falla */ }
     }
-    await updateServiceProps(editingService.id, props);
+    const updated = await updateServiceProps(editingService.id, props);
     syncAfterWrite(editingService.id, 'servicios');
+    // Update optimista: garantizar que el servicio recién editado quede visible en la lista tras el
+    // re-render. Notion puede tardar en indexar un servicio recién CREADO en los queries de lista, así
+    // que el re-fetch podría no traerlo → sin esto, editarlo (ej. asignar piloto) lo hace desaparecer.
+    // Usamos la página que devuelve el PATCH (formato completo, con los cambios); fallback al objeto en memoria.
+    const _saved = (updated && updated.properties) ? updated : editingService;
     const _fromPC = _editFromPorCobrar;
     closeEditSheet();
     if (_fromPC && _porCobrarCtx) { await renderPorCobrar(_porCobrarCtx.containerId, _porCobrarCtx.opts); }
-    else await renderCoordServicios();
+    else {
+      await renderCoordServicios();
+      if (Array.isArray(_coordAllServices) && _saved?.id && !_coordAllServices.some(s => s.id === _saved.id)) {
+        _coordAllServices.unshift(_saved);
+        if (typeof renderCoordList === 'function') renderCoordList();
+      }
+    }
   } catch (e) {
     btn.textContent = t('btn.save.notion'); btn.disabled = false;
     alert(t('sheet.alert.save.error2') + e.message);

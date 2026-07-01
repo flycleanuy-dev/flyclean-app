@@ -85,7 +85,8 @@
 // v93: Fase 3 sectores — jornadas Forma 2: un servicio con sectores sin terminar se reprograma solo (elige seguir otro día o cerrar así); parte por día en Registro jornadas; badge "🔄 Continúa".
 // v94: fix — el servicio creado desde una propuesta ahora aparece al instante en la lista (update optimista; el SW devolvía la lista cacheada sin el nuevo por un instante).
 // v95: FIX SISTÉMICO de caché — el SW invalida NOTION_CACHE tras cada write (pages POST/PATCH), así lo creado/editado aparece al instante en la app (resuelve el patrón "en Notion sí, en la app no"). + refreshCEO borra la caché activa (no la v2 obsoleta).
-const CACHE = 'flyclean-v95';
+// v96: fix editar servicio recién creado (update optimista en saveServiceEdit — Notion tarda en indexarlo) + botones "Guardar" (sin "en Notion") + al reprogramar (Sigo otro día) el checklist se limpia para la jornada nueva.
+const CACHE = 'flyclean-v96';
 const SHELL = [
   '/',
   '/index.html',
