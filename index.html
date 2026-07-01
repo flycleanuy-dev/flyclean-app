@@ -9641,8 +9641,8 @@ async function openEditSheet(pageId) {
   const isCompletado = estadoActual.includes('Completado');
   const delBtn = document.getElementById('delete-svc-btn');
   if (delBtn) {
-    // Coord/Dirección: NO eliminar completados (histórico). Finanzas: SÍ puede (papelera + doble confirm).
-    delBtn.style.display = (isCompletado && !esFin) ? 'none' : '';
+    // Todos (Coord/Dirección/Finanzas) pueden eliminar; los completados piden confirmación extra en deleteService.
+    delBtn.style.display = '';
     delBtn.textContent = '🗑️ ' + t('sheet.edit.delete');
     delBtn.disabled = false;
   }
@@ -10293,10 +10293,10 @@ async function deleteService() {
   const props = editingService.properties || {};
   const estado = props['Estado']?.select?.name || '';
   const esFin = !!(currentUser?.role && currentUser.role.includes('Administración'));
-  // Coord/Dirección: NO eliminar completados (histórico inmutable). Finanzas: SÍ (papelera Notion, recuperable 30 días).
-  if (estado.includes('Completado') && !esFin) { alert(t('sheet.edit.delete.blocked.completed')); return; }
   const nombre = props['Nombre del servicio']?.title?.[0]?.plain_text || t('common.sinnombre');
   if (!confirm(t('sheet.edit.delete.confirm').replace('{name}', nombre))) return;
+  // Coord/Dirección + Completado: registro histórico → confirmación EXTRA (antes estaba bloqueado).
+  if (estado.includes('Completado') && !esFin && !confirm(t('sheet.edit.delete.confirm.completed').replace('{name}', nombre))) return;
   // Doble confirmación para Finanzas (papelera de Notion).
   if (esFin && !confirm('Confirmá de nuevo: "' + nombre + '" se va a la PAPELERA de Notion (recuperable 30 días). ¿Eliminar?')) return;
 
