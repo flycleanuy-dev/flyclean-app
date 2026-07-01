@@ -1983,6 +1983,7 @@ const TRANSLATIONS = {
     'services.tab.relevamientos': '🔍 Relevamientos',
     'coord.tab.pruebas': '🧪 Pruebas',
     'prueba.badge': 'PRUEBA',
+    'badge.continua': '🔄 Continúa · {h}/{t}',
     'sheet.prop.pedir.prueba': 'Hacer prueba demo',
     'sheet.prop.creating.prueba': 'Creando prueba…',
     'coord.empty.day.pruebas': 'No hay pruebas para este día.',
@@ -2605,6 +2606,7 @@ const TRANSLATIONS = {
     'services.tab.relevamientos': '🔍 Levantamentos',
     'coord.tab.pruebas': '🧪 Testes',
     'prueba.badge': 'TESTE',
+    'badge.continua': '🔄 Continua · {h}/{t}',
     'sheet.prop.pedir.prueba': 'Fazer teste demo',
     'sheet.prop.creating.prueba': 'Criando teste…',
     'coord.empty.day.pruebas': 'Não há testes para este dia.',
@@ -3458,6 +3460,18 @@ function computeStepFromState() {
 
 function servicioTieneSectores() {
   return Array.isArray(serviceState.sectores) && serviceState.sectores.length > 0;
+}
+
+// Un servicio "continúa" en otra jornada si tiene sectores, no están todos hechos, y ya se registró al menos una jornada.
+function servicioContinua(svc) {
+  const p = svc?.properties || {};
+  let sectores = []; let reg = [];
+  try { sectores = JSON.parse(p['Estado sectores']?.rich_text?.[0]?.plain_text || '[]'); } catch (_) {}
+  try { reg = JSON.parse(p['Registro jornadas']?.rich_text?.[0]?.plain_text || '[]'); } catch (_) {}
+  const total = Array.isArray(sectores) ? sectores.length : 0;
+  const hechos = Array.isArray(sectores) ? sectores.filter(s => s.estado === 'hecho').length : 0;
+  const continua = total > 0 && hechos < total && Array.isArray(reg) && reg.length > 0;
+  return { continua, hechos, total };
 }
 
 function sectoresAvancePct() {
@@ -6206,6 +6220,7 @@ function renderServices(services) {
           ${pais ? `<span class="service-tag">${pais}</span>` : ''}
         </div>
         ${isJornada && jornadaN ? `<div class="service-jornada-badge">📅 ${t('jornada.badge')} ${jornadaN}</div>` : ''}
+        ${(() => { const c = servicioContinua(s); return c.continua ? `<span class="coord-tag" style="background:var(--amber-dark,#7c5300);color:var(--amber,#f59e0b)">${t('badge.continua').replace('{h}', c.hechos).replace('{t}', c.total)}</span>` : ''; })()}
       </div>`;
   }).join('');
 
@@ -9250,7 +9265,7 @@ function coordServiceCard(s) {
   const estadoClass = estado.includes('Completado') ? 'estado-completado' : estado.includes('En curso') ? 'estado-en-curso' : estado.includes('Asignado') ? 'estado-asignado' : 'estado-pendiente';
   return `<div class="coord-service-card" style="cursor:pointer" onclick="openEditSheet('${esc(s.id)}')">
     <div class="coord-service-name">${tipoChip}${esPrueba ? `<span class="service-prueba-badge">${t('prueba.badge')}</span>` : ''}${nombreHTML}${esJornada && jornadaN != null ? ` <span style="color:var(--purple);font-size:12px">J${jornadaN}</span>` : ''}</div>
-    <div class="coord-service-meta"><span class="service-estado ${estadoClass}">${esc(estado)}</span>${horaFmt ? `<span class="coord-tag">🕐 ${esc(horaFmt)}</span>` : ''}${tipo ? `<span class="coord-tag">${esc(tipo)}</span>` : ''}</div>
+    <div class="coord-service-meta"><span class="service-estado ${estadoClass}">${esc(estado)}</span>${horaFmt ? `<span class="coord-tag">🕐 ${esc(horaFmt)}</span>` : ''}${tipo ? `<span class="coord-tag">${esc(tipo)}</span>` : ''}${(() => { const c = servicioContinua(s); return c.continua ? `<span class="coord-tag" style="background:var(--amber-dark,#7c5300);color:var(--amber,#f59e0b)">${t('badge.continua').replace('{h}', c.hechos).replace('{t}', c.total)}</span>` : ''; })()}</div>
     ${lugar ? `<div class="coord-ops" style="color:var(--text3)">📍 ${esc(lugar)}</div>` : ''}
     <div class="coord-ops">👤 ${ops}</div>
     ${renderPhotoGallery(props)}
