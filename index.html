@@ -10156,8 +10156,9 @@ async function crearJornadaSiguiente(parentService, numero, fecha) {
   const rootId = p['Orden madre']?.relation?.[0]?.id || parentService.id;
   properties['Orden madre'] = { relation: [{ id: rootId }] };
 
-  // Heredar las fotos "ANTES" del día 1 (el estado inicial del edificio ya está fotografiado; el
-  // operario suma las que falten). Las fotos "DESPUÉS" NO se heredan (son el resultado de cada día).
+  // Heredar las fotos "ANTES" del día anterior (que ya las heredó de la Orden madre; el estado inicial
+  // del edificio ya está fotografiado; el operario suma las que falten). Las fotos "DESPUÉS" NO se
+  // heredan (son el resultado de cada día).
   const prePhotos = p['📸 Fotos pre-servicio']?.files;
   if (Array.isArray(prePhotos) && prePhotos.length) {
     const preFiles = prePhotos
