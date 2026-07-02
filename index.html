@@ -2204,6 +2204,19 @@ const TRANSLATIONS = {
     'ceo.renta.cliente.generico': 'Cliente',
     'ceo.renta.empty': 'Sin movimientos en el período.',
     'ceo.renta.evolucion': 'EVOLUCIÓN MENSUAL (año)',
+    'ceo.com.title': 'Comercial',
+    'ceo.com.sinestado': '⚠️ Sin estado',
+    'ceo.com.embudo.title': 'EMBUDO POR ETAPA',
+    'ceo.com.embudo.empty': '— sin propuestas —',
+    'ceo.com.conversion.title': 'CONVERSIÓN',
+    'ceo.com.conversion.label': 'de las cerradas',
+    'ceo.com.conversion.sub': '{n} aceptadas de {t} totales',
+    'ceo.com.pipeline.title': 'VALOR DEL PIPELINE',
+    'ceo.com.pipeline.empty': '— sin propuestas abiertas con importe cargado —',
+    'ceo.com.cierre.title': 'TIEMPO DE CIERRE (APROX)',
+    'ceo.com.cierre.label': 'envío → cierre (aprox)',
+    'ceo.com.cierre.dias': 'días',
+    'ceo.com.empty': 'Sin datos comerciales.',
     'chart.ingresos': 'Ingresos',
     'chart.gastos': 'Gastos',
     'sheet.edit.title.default': 'Editar servicio',
@@ -2326,6 +2339,8 @@ const TRANSLATIONS = {
     'coord.prop.lastint.prefix': 'Última interacción: ',
     'coord.prop.days.suffix': ' días sin respuesta',
     'coord.prop.tap.edit': 'Tap para editar →',
+    'coord.prop.contactar.title': '📞 A contactar hoy',
+    'coord.prop.contactar.btn': '📞 Contactado',
     'alerts.alerta': 'alerta',
     'alerts.alertas': 'alertas',
     'alerts.activa': 'activa',
@@ -2872,6 +2887,19 @@ const TRANSLATIONS = {
     'ceo.renta.cliente.generico': 'Cliente',
     'ceo.renta.empty': 'Sem movimentações no período.',
     'ceo.renta.evolucion': 'EVOLUÇÃO MENSAL (ano)',
+    'ceo.com.title': 'Comercial',
+    'ceo.com.sinestado': '⚠️ Sem status',
+    'ceo.com.embudo.title': 'FUNIL POR ETAPA',
+    'ceo.com.embudo.empty': '— sem propostas —',
+    'ceo.com.conversion.title': 'CONVERSÃO',
+    'ceo.com.conversion.label': 'das fechadas',
+    'ceo.com.conversion.sub': '{n} aceitas de {t} totais',
+    'ceo.com.pipeline.title': 'VALOR DO PIPELINE',
+    'ceo.com.pipeline.empty': '— sem propostas abertas com valor informado —',
+    'ceo.com.cierre.title': 'TEMPO DE FECHAMENTO (APROX)',
+    'ceo.com.cierre.label': 'envio → fechamento (aprox)',
+    'ceo.com.cierre.dias': 'dias',
+    'ceo.com.empty': 'Sem dados comerciais.',
     'chart.ingresos': 'Receita',
     'chart.gastos': 'Despesas',
     'sheet.edit.title.default': 'Editar serviço',
@@ -2993,6 +3021,8 @@ const TRANSLATIONS = {
     'coord.new.prop': '+ Nova Proposta',
     'coord.prop.lastint.prefix': 'Última interação: ',
     'coord.prop.days.suffix': ' dias sem resposta',
+    'coord.prop.contactar.title': '📞 Para contatar hoje',
+    'coord.prop.contactar.btn': '📞 Contatado',
     'coord.prop.tap.edit': 'Toque para editar →',
     'alerts.alerta': 'alerta',
     'alerts.alertas': 'alertas',
@@ -3364,6 +3394,10 @@ let _ceoServiciosCache = []; // servicios del CEO (para generar PDF por id)
 // re-renderice el contenedor #ceo-renta-body — nunca vuelve a llamar renderCEOMetricas ni refetchea.
 let _ceoRentaData = null;
 let _ceoRentaView = 'cliente'; // 'cliente' | 'servicio' | 'paismes'
+// CRM comercial (CEO→Métricas, desplegable "📊 Comercial"): embudo/conversión/valor de pipeline/tiempo
+// de cierre, calculados por renderCEOMetricas sobre TODAS las propuestas (no solo las abiertas del
+// propFilter de arriba). Guardado acá — no dispara refetch al reabrir el desplegable.
+let _ceoComData = null;
 let currentService = null;
 let currentStep = 0;
 let serviceState = {};
@@ -7497,6 +7531,12 @@ async function renderCEOMetricas() {
     // Nombres de cliente para el Tablero de Rentabilidad: dispara en paralelo con lo demás (no agrega
     // latencia secuencial); guardado — si el espejo Supabase no responde, se cae a contactData (activos).
     const clientesPromise = callDb('clientes').catch(() => null);
+    // CRM comercial (📊, ver más abajo): TODAS las propuestas (no solo las abiertas del propFilter de
+    // abajo) — dispara en paralelo, nunca rompe Métricas si falla (try/catch propio + fallback a Notion).
+    const propAllPromise = (async () => {
+      try { return await callDb('propuestas'); }
+      catch (e) { try { return await callNotionAll(`databases/${PROPUESTAS_DB_ID}/query`, {}); } catch (e2) { return null; } }
+    })();
     // Finanzas paginadas + propuestas + contactos en paralelo.
     const [ingData, gasData, ingYearData, gasYearData, propData, contactData] = await Promise.all([
       callNotionAll(`databases/${INGRESOS_DB_ID}/query`, { filter: dFilter(start, end) }),
@@ -7578,6 +7618,18 @@ async function renderCEOMetricas() {
     (cliData?.results || []).forEach(c => { const nm = c.properties?.['Nombre / Empresa']?.title?.[0]?.plain_text; if (nm) clienteNombreById[normId(c.id)] = nm; });
     _ceoRentaData = computeRentabilidad({ svcAll: svcAllData.results, ingResults: ingData.results, gasResults: gasData.results, ms, clienteNombreById });
 
+    // CRM comercial (📊, desplegable debajo de Rentabilidad): defensivo — un fallo acá NUNCA debe
+    // tirar abajo Métricas ya calculada arriba (render "—" en vez de romper el panel).
+    try {
+      const propAllData = await propAllPromise;
+      let allPropsCom = (propAllData?.results || []).slice();
+      if (cf && ceoViewCountry !== 'all') {
+        const notionVal = COUNTRY_NOTION_MAP[ceoViewCountry];
+        if (notionVal) allPropsCom = allPropsCom.filter(p => p.properties?.['País']?.select?.name === notionVal);
+      }
+      _ceoComData = computeComercial(allPropsCom);
+    } catch (e) { _ceoComData = null; }
+
     // valor monetario tipo HÉROE (2 líneas UY$ / USD), con delta opcional.
     const heroLines = (split, opts = {}) => {
       const rows = [];
@@ -7619,10 +7671,13 @@ async function renderCEOMetricas() {
         '<div class="ceo-acc-body" style="display:none">' + tipoHTML + '</div>' +
         '<button class="ceo-acc-head" onclick="toggleCeoAcc(this)"><span>📈 ' + t('ceo.renta.title') + '</span><span class="fin-arrow">▾</span></button>' +
         '<div class="ceo-acc-body" style="display:none"><div id="ceo-renta-body"></div></div>' +
+        '<button class="ceo-acc-head" onclick="toggleCeoAcc(this)"><span>📊 ' + t('ceo.com.title') + '</span><span class="fin-arrow">▾</span></button>' +
+        '<div class="ceo-acc-body" style="display:none"><div id="ceo-com-body"></div></div>' +
         (aRevisar.length ? '<button class="ceo-acc-head warn" onclick="toggleCeoAcc(this)"><span>⚠️ A revisar (' + aRevisar.length + ')</span><span class="fin-arrow">▾</span></button><div class="ceo-acc-body" style="display:none">' + aRevisar.map(x => '<div class="fin-detail-row"><div class="fin-detail-main"><div class="fin-detail-title">• ' + esc(x) + '</div></div></div>').join('') + '<div class="kpi-sub" style="padding:8px 16px 4px">Completalos desde el proyecto FlyClean-Finanzas para KPIs exactos por período y por cliente.</div></div>' : '') +
       '</div>';
     // Defensivo: un fallo pintando Rentabilidad no debe tirar abajo el panel de Métricas ya renderizado.
     try { renderCeoRentaBody(); } catch (_) {}
+    try { renderCeoComBody(); } catch (_) {}
   } catch (e) {
     content.innerHTML = '<div class="coord-empty">' + t('ceo.error.metricas') + '<br><small>' + esc(e.message) + '</small></div>';
   }
@@ -7793,6 +7848,94 @@ function renderCeoRentaBody() {
   }
   if (!body.trim()) body = '<div class="coord-empty" style="padding:12px 16px">' + t('ceo.renta.empty') + '</div>';
   el.innerHTML = ceoRentaChipsHTML() + body;
+}
+
+// ── CRM comercial v1 (📊, desplegable debajo de "📈 Rentabilidad") ─────────────────────────────────
+// Sobre TODAS las propuestas (no solo las abiertas — ver propAllPromise en renderCEOMetricas):
+//   1) Embudo por etapa: conteo por 'Estado pipeline', ordenado por el pipeline real (estados
+//      desconocidos/legacy van al final — nunca se descartan, solo pierden orden).
+//   2) Conversión: % Aceptadas / (Aceptadas + Rechazadas + Sin respuesta) ("de las cerradas") +
+//      "N aceptadas de M totales" (M = TODAS las propuestas, no solo las cerradas).
+//   3) Valor del pipeline: suma de 'Importe estimado' por estado, SOLO estados abiertos (excluye
+//      Aceptada/Rechazada/Sin respuesta), separado por 'Moneda' — UY$ y USD NUNCA se mezclan.
+//   4) Tiempo de cierre (aprox): promedio de días entre 'Fecha de envío' y 'Última interacción' para
+//      las Aceptadas que tengan ambas fechas (se saltean las que falten alguna).
+const PIPELINE_ESTADOS = ['🆕 Nuevo lead', '📞 Contactado', '🔍 Relevamiento', '⏳ En preparación', '✅ Aprobada internamente', '📤 Enviada al cliente', '🤝 Negociando', '✅ Aceptada', '❌ Rechazada', '😶 Sin respuesta', '🔄 Reactivo'];
+function computeComercial(allProps) {
+  const orderIdx = e => { const i = PIPELINE_ESTADOS.indexOf(e); return i === -1 ? PIPELINE_ESTADOS.length : i; };
+  const estadoDeProp = p => p.properties?.['Estado pipeline']?.select?.name || t('ceo.com.sinestado');
+  const isAceptada  = est => est.includes('Aceptada');
+  const isRechazada = est => est.includes('Rechazada');
+  const isSinResp   = est => est.includes('Sin respuesta');
+
+  const estCount = {};
+  (allProps || []).forEach(p => { const est = estadoDeProp(p); estCount[est] = (estCount[est] || 0) + 1; });
+  const embudo = Object.entries(estCount).sort((a, b) => orderIdx(a[0]) - orderIdx(b[0]));
+
+  const total = (allProps || []).length;
+  let nAcept = 0, nCerradas = 0;
+  (allProps || []).forEach(p => {
+    const est = estadoDeProp(p);
+    if (isAceptada(est)) { nAcept++; nCerradas++; }
+    else if (isRechazada(est) || isSinResp(est)) nCerradas++;
+  });
+  const conv = nCerradas > 0 ? Math.round(nAcept / nCerradas * 100) : null;
+
+  const valueByEstado = {};
+  (allProps || []).forEach(p => {
+    const est = estadoDeProp(p);
+    if (isAceptada(est) || isRechazada(est) || isSinResp(est)) return; // solo estados abiertos
+    const importe = p.properties?.['Importe estimado']?.number;
+    if (!importe) return;
+    const moneda = p.properties?.['Moneda']?.select?.name || '🇺🇸 USD';
+    const esUY = moneda === '🇺🇾 UY$';
+    const b = (valueByEstado[est] = valueByEstado[est] || { uyu: 0, usd: 0 });
+    if (esUY) b.uyu += importe; else b.usd += importe;
+  });
+  const valueEntries = Object.entries(valueByEstado).sort((a, b) => orderIdx(a[0]) - orderIdx(b[0]));
+
+  const diffs = [];
+  (allProps || []).forEach(p => {
+    if (!isAceptada(estadoDeProp(p))) return;
+    const fe = (p.properties?.['Fecha de envío']?.date?.start || '').split('T')[0];
+    const ui = (p.properties?.['Última interacción']?.date?.start || '').split('T')[0];
+    if (!fe || !ui) return;
+    const days = Math.round((new Date(ui + 'T00:00:00') - new Date(fe + 'T00:00:00')) / 86400000);
+    if (!isNaN(days)) diffs.push(days);
+  });
+  const avgDays = diffs.length ? Math.round(diffs.reduce((a, b) => a + b, 0) / diffs.length) : null;
+
+  return { embudo, total, nAcept, conv, valueEntries, avgDays };
+}
+// Re-renderiza SOLO el contenedor de Comercial (usa _ceoComData ya calculado — sin refetch).
+function renderCeoComBody() {
+  const el = document.getElementById('ceo-com-body');
+  if (!el) return;
+  const d = _ceoComData;
+  if (!d) { el.innerHTML = '<div class="coord-empty" style="padding:12px 16px">' + t('ceo.com.empty') + '</div>'; return; }
+
+  const maxEmbudo = Math.max(1, ...d.embudo.map(([, v]) => v));
+  const embudoHTML = d.embudo.length
+    ? d.embudo.map(([k, v]) => '<div class="tipo-row"><span class="tipo-name">' + esc(k) + '</span><span class="tipo-bar"><span style="width:' + Math.round(v / maxEmbudo * 100) + '%"></span></span><span class="tipo-val">' + v + '</span></div>').join('')
+    : '<div class="kpi-sub" style="padding:8px 16px">' + t('ceo.com.embudo.empty') + '</div>';
+
+  const convHTML = d.conv != null
+    ? '<div class="ec-row"><span>' + d.conv + '% ' + t('ceo.com.conversion.label') + '</span></div><div class="kpi-sub">' + t('ceo.com.conversion.sub').replace('{n}', d.nAcept).replace('{t}', d.total) + '</div>'
+    : '<div class="kpi-sub">—</div>';
+
+  const pipelineHTML = d.valueEntries.length
+    ? d.valueEntries.map(([k, v]) => '<div class="ec-row"><span>' + esc(k) + '</span><span>' + fmtTotalSplit(v) + '</span></div>').join('')
+    : '<div class="kpi-sub" style="padding:8px 0">' + t('ceo.com.pipeline.empty') + '</div>';
+
+  const cierreHTML = d.avgDays != null
+    ? '<div class="ec-row"><span>' + t('ceo.com.cierre.label') + '</span><span>' + d.avgDays + ' ' + t('ceo.com.cierre.dias') + '</span></div>'
+    : '<div class="kpi-sub">—</div>';
+
+  el.innerHTML =
+    '<div class="ec-title" style="padding:10px 16px 2px">' + t('ceo.com.embudo.title') + '</div>' + embudoHTML +
+    '<div class="ec-title" style="padding:14px 16px 2px">' + t('ceo.com.conversion.title') + '</div><div style="padding:0 16px 8px">' + convHTML + '</div>' +
+    '<div class="ec-title" style="padding:6px 16px 2px">' + t('ceo.com.pipeline.title') + '</div><div style="padding:0 16px 8px">' + pipelineHTML + '</div>' +
+    '<div class="ec-title" style="padding:6px 16px 2px">' + t('ceo.com.cierre.title') + '</div><div style="padding:0 16px 10px">' + cierreHTML + '</div>';
 }
 
 async function renderCEOServicios() {
@@ -12767,15 +12910,18 @@ async function renderCoordPropuestas() {
 function renderCoordPropuestasList(keepLimit) {
   if (!keepLimit) _coordVisibleLimit = COORD_PAGE_SIZE;
   const content = document.getElementById('coord-content');
+  // "📞 A contactar hoy" — se computa desde _coordAllProps (país-scoped, YA fetcheado) sin importar
+  // los filtros de búsqueda/estado activos: es una lista de pendientes, no un resultado filtrado.
+  const contactarHoyHTML = renderContactarHoyHTML();
   if (!_coordAllProps.length) {
-    content.innerHTML =
+    content.innerHTML = contactarHoyHTML +
       `<div style="padding:12px 16px 0"><button class="nueva-prop-btn" onclick="openNewPropSheet()">${t('coord.new.prop')}</button></div>` +
       `<div class="coord-empty">${t('coord.empty.props')}</div>`;
     return;
   }
   const filteredAll = applyCoordFilters(_coordAllProps, { isProps: true });
   if (!filteredAll.length) {
-    content.innerHTML =
+    content.innerHTML = contactarHoyHTML +
       `<div style="padding:12px 16px 0"><button class="nueva-prop-btn" onclick="openNewPropSheet()">${t('coord.new.prop')}</button></div>` +
       `<div class="coord-empty">${getActiveFilterCount() ? '🔎 Sin propuestas para los filtros actuales' : t('coord.empty.props')}</div>`;
     return;
@@ -12818,9 +12964,68 @@ function renderCoordPropuestasList(keepLimit) {
       <div style="font-size:11px;color:var(--text3);margin-top:4px">${t('coord.prop.tap.edit')}</div>
     </div>`;
   }).join('');
-  content.innerHTML =
+  content.innerHTML = contactarHoyHTML +
     `<div style="padding:12px 16px 0"><button class="nueva-prop-btn" onclick="openNewPropSheet()">${t('coord.new.prop')}</button></div>` +
     '<div style="height:8px"></div>' + cards + renderCargarMasButton(remaining);
+}
+
+// Bloque "📞 A contactar hoy" (arriba de la lista de Propuestas del coord): propuestas esperando
+// respuesta del cliente hace 15+ días — mismo criterio que loadAlerts()/el cron diario
+// (api/cron-pipeline.js): estado en ESPERANDO + 'Días sin respuesta' (fórmula) >= 15.
+// Devuelve '' si no hay ninguna (no se renderiza bloque vacío).
+function renderContactarHoyHTML() {
+  const ESPERANDO = ['📞 Contactado', '📤 Enviada al cliente', '🤝 Negociando'];
+  const items = (_coordAllProps || []).filter(p => {
+    const props = p.properties || {};
+    const estado = props['Estado pipeline']?.select?.name || '';
+    const dias = props['Días sin respuesta']?.formula?.number;
+    return ESPERANDO.includes(estado) && dias != null && dias >= 15;
+  }).sort((a, b) => (b.properties?.['Días sin respuesta']?.formula?.number || 0) - (a.properties?.['Días sin respuesta']?.formula?.number || 0));
+  if (!items.length) return '';
+  const rows = items.map(p => {
+    const props = p.properties || {};
+    const nombre = props['Nombre de propuesta']?.title?.[0]?.plain_text || t('common.sinnombre');
+    const estado = props['Estado pipeline']?.select?.name || '';
+    const dias = props['Días sin respuesta']?.formula?.number;
+    const estadoClass = estado.includes('Negociando') ? 'negociando' : estado.toLowerCase().includes('enviada') ? 'enviada' : '';
+    const idAttr = esc(p.id);
+    return `<div class="prop-card">
+      <div class="prop-nombre">${esc(nombre)}</div>
+      <div class="prop-meta"><span class="prop-estado ${estadoClass}">${esc(estado)}</span></div>
+      <div class="prop-dias alert">${dias}${t('coord.prop.days.suffix')}</div>
+      <button class="estado-btn active" style="width:100%;margin-top:8px" id="contactar-btn-${idAttr}" onclick="marcarPropContactada('${idAttr}')">${t('coord.prop.contactar.btn')}</button>
+    </div>`;
+  }).join('');
+  return `<div style="padding:12px 16px 0"><div class="ec-title" style="margin-bottom:6px">${t('coord.prop.contactar.title')}</div></div>` + rows + '<div style="height:4px"></div>';
+}
+
+// Botón «📞 Contactado» del bloque "A contactar hoy": registra el contacto de HOY escribiendo
+// 'Última interacción' (mismo patrón hoyISO que openNewServiceSheet) — 1 tap, sin abrir el sheet.
+async function marcarPropContactada(id) {
+  const btn = document.getElementById('contactar-btn-' + id);
+  if (!btn || btn.disabled) return;
+  btn.disabled = true;
+  const prevText = btn.textContent;
+  btn.textContent = '⏳';
+  try {
+    const today = new Date();
+    const hoyISO = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    await callNotion('pages/' + id, 'PATCH', { properties: { 'Última interacción': { date: { start: hoyISO } } } });
+    if (typeof syncAfterWrite === 'function') { try { syncAfterWrite(id, 'propuestas'); } catch (_) {} }
+    // Optimista: actualiza el registro en memoria para que la propuesta desaparezca del bloque al
+    // re-renderizar (sin esperar a que Notion recalcule la fórmula 'Días sin respuesta').
+    const p = (_coordAllProps || []).find(x => x.id === id);
+    if (p) {
+      p.properties = p.properties || {};
+      p.properties['Última interacción'] = { date: { start: hoyISO } };
+      p.properties['Días sin respuesta'] = { formula: { number: 0 } };
+    }
+    renderCoordPropuestasList(true);
+  } catch (e) {
+    btn.disabled = false;
+    btn.textContent = prevText;
+    alert(t('sheet.alert.save.error2') + e.message);
+  }
 }
 
 // ─────────────────────────────────────────────

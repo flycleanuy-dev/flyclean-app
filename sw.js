@@ -103,7 +103,8 @@
 //       + fix 'Invalid Date' en cards de propuestas (Última interacción con datetime) + teclado de PIN
 //       espera 1200ms antes de auto-enviar a los 4 dígitos (PINs de 6 sin falsos 'PIN incorrecto').
 //       Este deploy además activa SUPABASE_JWT_SECRET (RLS por usuario en /api/db).
-const CACHE = 'flyclean-v108';
+// v109: CRM comercial — sección "📊 Comercial" en CEO→Métricas (embudo, conversión, valor del pipeline por moneda, tiempo de cierre aprox) + "📞 A contactar hoy" en Propuestas del coord con botón que registra el contacto (escribe Última interacción).
+const CACHE = 'flyclean-v109';
 const SHELL = [
   '/',
   '/index.html',
