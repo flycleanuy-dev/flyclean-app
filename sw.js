@@ -97,7 +97,8 @@
 //       ambas rutas; preserva el offline del operario en la ruta nueva).
 // v104: tablero de Rentabilidad en CEO→Métricas (por cliente / por servicio / país-mes; margen = ingresos vinculados − gastos vinculados, split UY$/USD sin mezclar).
 // v105: historial del cliente cuenta servicios sin 'Tipo de registro' (datos viejos) + 'Sin tipo cargado' visible en Servicios por tipo + purga de fantasmas del espejo (backend).
-const CACHE = 'flyclean-v105';
+// v106: EMERGENCIA — lecturas Supabase APAGADAS (espejo vaciado en prod, causa en investigación); la app vuelve a leer Notion. writesync queda ON (inofensivo).
+const CACHE = 'flyclean-v106';
 const SHELL = [
   '/',
   '/index.html',
