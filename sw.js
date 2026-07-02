@@ -98,7 +98,12 @@
 // v104: tablero de Rentabilidad en CEO→Métricas (por cliente / por servicio / país-mes; margen = ingresos vinculados − gastos vinculados, split UY$/USD sin mezclar).
 // v105: historial del cliente cuenta servicios sin 'Tipo de registro' (datos viejos) + 'Sin tipo cargado' visible en Servicios por tipo + purga de fantasmas del espejo (backend).
 // v106: EMERGENCIA — lecturas Supabase APAGADAS (espejo vaciado en prod, causa en investigación); la app vuelve a leer Notion. writesync queda ON (inofensivo).
-const CACHE = 'flyclean-v106';
+// v107/v108: lecturas Supabase RE-ENCENDIDAS con blindaje anti-vacío en callDb (espejo vacío → fallback
+//       automático a Notion; la ventana transitoria al aplicar RLS ya no puede dejar la app en blanco)
+//       + fix 'Invalid Date' en cards de propuestas (Última interacción con datetime) + teclado de PIN
+//       espera 1200ms antes de auto-enviar a los 4 dígitos (PINs de 6 sin falsos 'PIN incorrecto').
+//       Este deploy además activa SUPABASE_JWT_SECRET (RLS por usuario en /api/db).
+const CACHE = 'flyclean-v108';
 const SHELL = [
   '/',
   '/index.html',
