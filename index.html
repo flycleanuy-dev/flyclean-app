@@ -12239,7 +12239,10 @@ async function fetchPropsYSvcsParaSecciones() {
 function computeClienteSecciones(contacts, propuestas, servicios) {
   if (!Array.isArray(propuestas) || !Array.isArray(servicios) || !Array.isArray(contacts)) return null;
   const norm = id => (id || '').replace(/-/g, '');
-  const contactoIdsDe = rec => (rec.properties?.['Contacto']?.relation || []).map(r => norm(r.id));
+  const contactoIdsDe = rec => [
+    ...(rec.properties?.['Contacto']?.relation || []),
+    ...(rec.properties?.['Contactos']?.relation || []),   // fallback legacy (igual que otros matchers del archivo)
+  ].map(r => norm(r.id));
   const svcFecha = s => s.properties?.['Fecha programada']?.date?.start || s.created_time || '';
   const propEstado = p => p.properties?.['Estado pipeline']?.select?.name || '';
   const svcsVivos = servicios.filter(s => !esArchivado(s));
@@ -12265,8 +12268,9 @@ function computeClienteSecciones(contacts, propuestas, servicios) {
       return;
     }
 
-    // Sin servicios: ¿su única historia comercial son propuestas negativas (Sin respuesta/Rechazada)?
-    if (propsCliente.length) {
+    // SOLO clientes SIN ningún servicio (ni en curso ni asignado — un servicio vivo = cliente activo
+    // SIEMPRE, aunque sus propuestas hayan muerto): ¿su única historia son propuestas negativas?
+    if (!svcsCliente.length && propsCliente.length) {
       const estados = propsCliente.map(propEstado);
       const soloNegativas = estados.every(e => e === '😶 Sin respuesta' || e === '❌ Rechazada');
       if (soloNegativas) {
