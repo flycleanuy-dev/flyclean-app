@@ -91,7 +91,8 @@
 // v99: fixes coordinador — el panel siempre trae los "En curso" (aunque su fecha sea de otro mes) + al iniciar fuera de fecha la Fecha programada pasa a hoy y se guarda la planificada original (marca "Iniciado fuera de fecha" en la tarjeta) + el coordinador puede eliminar servicios completados con confirmación extra.
 // v100: jornadas Fase B — desplegable de jornadas agrupadas en el historial del cliente (por Orden madre, en curso y terminadas) + badge "Servicio completo" en el panel CEO + vista agrupada en Notion.
 // v101: coordinador autónomo — botón "＋ Nuevo trabajo" (Servicios + ficha del cliente) crea servicio/relevamiento/prueba SUELTO sin propuesta (elige cliente existente o nuevo) + editar Tipo de servicio, Notas pre-servicio (que el operario ahora ve en su step 0) y Observación cliente desde el sheet de edición. Objetivo: el coordinador hace todo desde la app; Notion queda de respaldo.
-const CACHE = 'flyclean-v101';
+// v102: interruptor central de lecturas Supabase (DB_FLAGS) — piloto: Clientes desde el espejo + sync tras guardar (writesync). Servicios/Propuestas siguen en Notion hasta verificar offline/SW.
+const CACHE = 'flyclean-v102';
 const SHELL = [
   '/',
   '/index.html',

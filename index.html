@@ -3812,10 +3812,21 @@ function _migResource(endpoint) {
   return null;
 }
 
+// Interruptor CENTRAL de lecturas/sync Supabase: se cambia acá y se deploya (todos los
+// dispositivos lo toman al actualizar el sw). localStorage fc_db_<x> = '1' fuerza ON y
+// '0' fuerza OFF por dispositivo (override para testing/rollback); sin valor → default central.
+const DB_FLAGS = { clientes: true, servicios: false, propuestas: false, writesync: true };
+function dbFlag(name) {
+  const ls = localStorage.getItem('fc_db_' + name);
+  if (ls === '1') return true;
+  if (ls === '0') return false;
+  return !!DB_FLAGS[name];
+}
+
 async function callNotion(endpoint, method = 'GET', body = null) {
   if (method === 'POST') {
     const resource = _migResource(endpoint);
-    if (resource && localStorage.getItem('fc_db_' + resource) === '1' && (resource === 'servicios' || !body || !body.filter)) {
+    if (resource && dbFlag(resource) && (resource === 'servicios' || !body || !body.filter)) {
       try { return await callDb(resource); } catch (e) { /* fallback a Notion abajo */ }
     }
   }
@@ -3845,7 +3856,7 @@ async function callDb(resource) {
 // Detrás del flag localStorage.fc_db_writesync (OFF por defecto). resource ∈ {clientes,servicios,propuestas,gastos,ingresos}.
 function syncAfterWrite(notionId, resource) {
   try {
-    if (localStorage.getItem('fc_db_writesync') !== '1') return;
+    if (!dbFlag('writesync')) return;
     if (!notionId || !resource) return;
     fetch('/api/db-sync', {
       method: 'POST',
@@ -10977,7 +10988,7 @@ async function fetchCoordItemsForMonth() {
   // multi-source de Notion); si falla → fallback a Notion. El re-filtro cliente (filtrarServicios) es el mismo.
   const notionFetch = () => callNotion(`databases/${DB_ID}/query`, 'POST', { filter, sorts: [{ property: 'Fecha programada', direction: 'ascending' }] });
   let data;
-  if (localStorage.getItem('fc_db_servicios') === '1') {
+  if (dbFlag('servicios')) {
     try { data = await callDb('servicios'); } catch (e) { data = await notionFetch(); }
   } else {
     data = await notionFetch();
@@ -11815,7 +11826,7 @@ async function renderClientesView(containerId) {
     // Fase 2 (piloto): si el flag está prendido, leer de la base nueva (Supabase); si falla → fallback a Notion.
     const notionQuery = () => callNotion(`databases/${CONTACTOS_DB_ID}/query`, 'POST', { sorts: [{ property: 'Nombre / Empresa', direction: 'ascending' }] });
     let data;
-    if (localStorage.getItem('fc_db_clientes') === '1') {
+    if (dbFlag('clientes')) {
       try { data = await callDb('clientes'); } catch (e) { data = await notionQuery(); }
     } else {
       data = await notionQuery();
@@ -12499,7 +12510,7 @@ async function renderCoordPropuestas() {
     // Fase 2: si el flag está prendido, leer propuestas de Supabase; si falla → fallback a Notion. Como /api/db trae
     // las propuestas país-filtradas pero sin el filtro de estado/orden, lo replicamos en cliente (igual que el query de Notion).
     let data;
-    if (localStorage.getItem('fc_db_propuestas') === '1') {
+    if (dbFlag('propuestas')) {
       try {
         const all = await callDb('propuestas');
         const excl = ['❌ Rechazada', '😶 Sin respuesta'];
