@@ -91,13 +91,24 @@ export default async function handler(req, res) {
     let rows, authPath;
     if (JWT_SECRET && ANON_KEY && !esGlobal(u)) {
       // Camino RLS pura: la base filtra por país según los claims del JWT.
-      authPath = 'jwt-rls';
-      const jwt = mintUserJWT(u, session.id);
-      rows = await fetchPaged(`${SUPABASE_URL}/rest/v1/${table}?select=notion_id,raw`, {
-        apikey: ANON_KEY, Authorization: 'Bearer ' + jwt,
-      });
+      // Si el JWT no verifica (secreto mal cargado, proyecto con signing keys nuevas, etc.),
+      // NO matamos la lectura del espejo: caemos al camino service (filtro país server-side,
+      // el único camino que existió hasta hoy) y lo marcamos en _auth para diagnóstico.
+      try {
+        authPath = 'jwt-rls';
+        const jwt = mintUserJWT(u, session.id);
+        rows = await fetchPaged(`${SUPABASE_URL}/rest/v1/${table}?select=notion_id,raw`, {
+          apikey: ANON_KEY, Authorization: 'Bearer ' + jwt,
+        });
+      } catch (e) {
+        console.error('[db] jwt-rls falló (' + String(e.message || e).slice(0, 60) + ') → service fallback');
+        authPath = 'service-fallback';
+        rows = await fetchPaged(`${SUPABASE_URL}/rest/v1/${table}?select=notion_id,raw${paisQuery(u)}`, {
+          apikey: SERVICE_KEY, Authorization: 'Bearer ' + SERVICE_KEY,
+        });
+      }
     } else {
-      // Fallback (o usuario global): service_role + filtro por país server-side.
+      // Usuario global: service_role + filtro por país server-side.
       authPath = 'service';
       rows = await fetchPaged(`${SUPABASE_URL}/rest/v1/${table}?select=notion_id,raw${paisQuery(u)}`, {
         apikey: SERVICE_KEY, Authorization: 'Bearer ' + SERVICE_KEY,
