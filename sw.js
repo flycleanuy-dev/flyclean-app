@@ -92,7 +92,10 @@
 // v100: jornadas Fase B — desplegable de jornadas agrupadas en el historial del cliente (por Orden madre, en curso y terminadas) + badge "Servicio completo" en el panel CEO + vista agrupada en Notion.
 // v101: coordinador autónomo — botón "＋ Nuevo trabajo" (Servicios + ficha del cliente) crea servicio/relevamiento/prueba SUELTO sin propuesta (elige cliente existente o nuevo) + editar Tipo de servicio, Notas pre-servicio (que el operario ahora ve en su step 0) y Observación cliente desde el sheet de edición. Objetivo: el coordinador hace todo desde la app; Notion queda de respaldo.
 // v102: interruptor central de lecturas Supabase (DB_FLAGS) — piloto: Clientes desde el espejo + sync tras guardar (writesync). Servicios/Propuestas siguen en Notion hasta verificar offline/SW.
-const CACHE = 'flyclean-v102';
+// v103: lecturas Supabase COMPLETAS — servicios y propuestas ON (DB_FLAGS) + el SW cachea /api/db
+//       con stale-while-revalidate en NOTION_CACHE (mismo bucket → la purga tras writes invalida
+//       ambas rutas; preserva el offline del operario en la ruta nueva).
+const CACHE = 'flyclean-v103';
 const SHELL = [
   '/',
   '/index.html',
@@ -214,11 +217,49 @@ async function handleNotionApi(event) {
   });
 }
 
+// Lecturas de la base nueva (/api/db, solo GET): misma estrategia stale-while-revalidate que
+// /api/notion y MISMO bucket (NOTION_CACHE) → la purga tras cada write invalida ambas rutas a
+// la vez. Sin esto, con las lecturas Supabase prendidas la ruta nueva era network-only y el
+// operario perdía el offline (la caché Notion de respaldo se vacía tras cada write y ya no se
+// re-puebla al no usarse esa ruta). La clave es la URL (GET sin body). Nota: igual que con
+// /api/notion, la respuesta cacheada se comparte entre usuarios del mismo dispositivo; el
+// re-filtro por país/rol del cliente aplica al renderizar (mismo modelo que la ruta Notion).
+async function handleDbApi(event) {
+  const cache = await caches.open(NOTION_CACHE);
+  const cached = await cache.match(event.request.url);
+  const revalidate = fetch(event.request).then(res => {
+    if (res && res.ok) cache.put(event.request.url, res.clone()).catch(() => {});
+    return res;
+  });
+  if (cached) {
+    event.waitUntil(revalidate.catch(() => {}));
+    return cached;
+  }
+  const timeoutPromise = new Promise((_, reject) =>
+    setTimeout(() => reject(new Error('network timeout')), NETWORK_TIMEOUT_MS)
+  );
+  try {
+    const res = await Promise.race([revalidate, timeoutPromise]);
+    if (res) return res;
+  } catch (e) {
+    // sin red y sin copia → 503 (el caller callDb hace fallback a la ruta Notion)
+  }
+  return new Response(JSON.stringify({ error: 'offline', message: 'No hay conexión y no hay copia cacheada de esta consulta.' }), {
+    status: 503,
+    headers: { 'Content-Type': 'application/json' }
+  });
+}
+
 self.addEventListener('fetch', e => {
   const url = e.request.url;
 
   if (url.includes('/api/notion')) {
     e.respondWith(handleNotionApi(e));
+    return;
+  }
+  // /api/db (lecturas Supabase, GET). OJO: /api/db-sync NO entra acá (pathname exacto).
+  if (e.request.method === 'GET' && new URL(url).pathname === '/api/db') {
+    e.respondWith(handleDbApi(e));
     return;
   }
   if (url.includes('/api/')) return;

@@ -3815,7 +3815,7 @@ function _migResource(endpoint) {
 // Interruptor CENTRAL de lecturas/sync Supabase: se cambia acá y se deploya (todos los
 // dispositivos lo toman al actualizar el sw). localStorage fc_db_<x> = '1' fuerza ON y
 // '0' fuerza OFF por dispositivo (override para testing/rollback); sin valor → default central.
-const DB_FLAGS = { clientes: true, servicios: false, propuestas: false, writesync: true };
+const DB_FLAGS = { clientes: true, servicios: true, propuestas: true, writesync: true };
 function dbFlag(name) {
   const ls = localStorage.getItem('fc_db_' + name);
   if (ls === '1') return true;
