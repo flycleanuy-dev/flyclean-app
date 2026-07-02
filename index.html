@@ -2193,6 +2193,7 @@ const TRANSLATIONS = {
     'ceo.fin.empty.gastos': 'Sin gastos registrados',
     'ceo.error.finanzas': 'Error al cargar finanzas.',
     'ceo.equipo.empty': 'Sin usuarios.',
+    'ceo.tipos.sintipo': '⚠️ Sin tipo cargado',
     'ceo.renta.title': 'Rentabilidad',
     'ceo.renta.chip.cliente': 'Por cliente',
     'ceo.renta.chip.servicio': 'Por servicio',
@@ -2860,6 +2861,7 @@ const TRANSLATIONS = {
     'ceo.fin.empty.gastos': 'Sem despesas registradas',
     'ceo.error.finanzas': 'Erro ao carregar finanças.',
     'ceo.equipo.empty': 'Sem usuários.',
+    'ceo.tipos.sintipo': '⚠️ Sem tipo informado',
     'ceo.renta.title': 'Rentabilidade',
     'ceo.renta.chip.cliente': 'Por cliente',
     'ceo.renta.chip.servicio': 'Por serviço',
@@ -7555,7 +7557,7 @@ async function renderCEOMetricas() {
     if (svcSinFecha) aRevisar.push(svcSinFecha + ' servicios completados sin fecha programada');
 
     const tipoCount = {};
-    svcComp.forEach(s => { const tp = s.properties?.['Tipo de servicio']?.select?.name || 'Otros'; tipoCount[tp] = (tipoCount[tp] || 0) + 1; });
+    svcComp.forEach(s => { const tp = s.properties?.['Tipo de servicio']?.select?.name || t('ceo.tipos.sintipo'); tipoCount[tp] = (tipoCount[tp] || 0) + 1; });
     const maxTipo = Math.max(1, ...Object.values(tipoCount));
     const tipoHTML = Object.entries(tipoCount).sort((a, b) => b[1] - a[1]).map(([k, v]) => '<div class="tipo-row"><span class="tipo-name">' + esc(k) + '</span><span class="tipo-bar"><span style="width:' + Math.round(v / maxTipo * 100) + '%"></span></span><span class="tipo-val">' + v + '</span></div>').join('') || '<div class="kpi-sub" style="padding:8px 16px">— sin servicios completados en este período —</div>';
 
@@ -12483,7 +12485,10 @@ async function loadContactHistory(contactId) {
       const tipoReg = s.properties?.['Tipo de registro']?.select?.name || '';
       const estado = s.properties?.['Estado']?.select?.name || '';
       const contactos = s.properties?.['Contacto']?.relation || [];
-      return tipoReg.includes('Orden de trabajo') && estado.includes('Completado') && contactos.some(r => r.id === contactId) && recEnPaisNotion(s);
+      // Datos viejos: registros sin Tipo de registro cargado cuentan como Orden de trabajo normal
+      // (nunca como Jornada/Relevamiento/Prueba, que exigen su propio tipo explícito más abajo).
+      const esOrdenOSinTipo = !tipoReg || tipoReg.includes('Orden de trabajo');
+      return esOrdenOSinTipo && estado.includes('Completado') && contactos.some(r => r.id === contactId) && recEnPaisNotion(s);
     });
     // Fase B: las jornadas (📅 Jornada) del cliente, en CUALQUIER estado. El render (renderContactHistory)
     // las agrupa por "trabajo madre" (Orden madre) en un desplegable. Salen del mismo svcRes (search-fallback).

@@ -96,7 +96,8 @@
 //       con stale-while-revalidate en NOTION_CACHE (mismo bucket → la purga tras writes invalida
 //       ambas rutas; preserva el offline del operario en la ruta nueva).
 // v104: tablero de Rentabilidad en CEO→Métricas (por cliente / por servicio / país-mes; margen = ingresos vinculados − gastos vinculados, split UY$/USD sin mezclar).
-const CACHE = 'flyclean-v104';
+// v105: historial del cliente cuenta servicios sin 'Tipo de registro' (datos viejos) + 'Sin tipo cargado' visible en Servicios por tipo + purga de fantasmas del espejo (backend).
+const CACHE = 'flyclean-v105';
 const SHELL = [
   '/',
   '/index.html',
