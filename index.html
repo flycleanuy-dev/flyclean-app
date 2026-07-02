@@ -3842,7 +3842,7 @@ function _migResource(endpoint) {
 // Interruptor CENTRAL de lecturas/sync Supabase: se cambia acá y se deploya (todos los
 // dispositivos lo toman al actualizar el sw). localStorage fc_db_<x> = '1' fuerza ON y
 // '0' fuerza OFF por dispositivo (override para testing/rollback); sin valor → default central.
-const DB_FLAGS = { clientes: false, servicios: false, propuestas: false, writesync: true }; // APAGADO 02/07: espejo vaciado en prod (incidente) — la app vuelve a Notion mientras se investiga
+const DB_FLAGS = { clientes: true, servicios: true, propuestas: true, writesync: true };
 function dbFlag(name) {
   const ls = localStorage.getItem('fc_db_' + name);
   if (ls === '1') return true;
@@ -3874,7 +3874,12 @@ async function callDb(resource) {
   });
   if (response.status === 401) { forceRelogin(); throw new Error('Sesión expirada'); }
   if (!response.ok) throw new Error('DB error ' + response.status);
-  return response.json();
+  const j = await response.json();
+  // Blindaje (incidente 02/07): un espejo VACÍO (RLS mal aplicada, tabla recreada, wipe) devolvía
+  // 200 + [] y la app mostraba todo en blanco sin caer a Notion. Estas listas nunca son legítimamente
+  // vacías (clientes/servicios/propuestas siempre tienen filas); si vuelve vacío => throw => fallback.
+  if (!j || !Array.isArray(j.results) || j.results.length === 0) throw new Error('DB espejo vacío — fallback a Notion');
+  return j;
 }
 
 // Fase 3 ("sync tras guardar"): después de un guardado EXITOSO en Notion (la fuente), refleja ESE
