@@ -88,23 +88,26 @@ export default async function handler(req, res) {
   if (!SUPABASE_URL || !SERVICE_KEY) return res.status(500).json({ error: 'db no configurada' });
 
   try {
-    let rows;
+    let rows, authPath;
     if (JWT_SECRET && ANON_KEY && !esGlobal(u)) {
       // Camino RLS pura: la base filtra por país según los claims del JWT.
+      authPath = 'jwt-rls';
       const jwt = mintUserJWT(u, session.id);
       rows = await fetchPaged(`${SUPABASE_URL}/rest/v1/${table}?select=notion_id,raw`, {
         apikey: ANON_KEY, Authorization: 'Bearer ' + jwt,
       });
     } else {
       // Fallback (o usuario global): service_role + filtro por país server-side.
+      authPath = 'service';
       rows = await fetchPaged(`${SUPABASE_URL}/rest/v1/${table}?select=notion_id,raw${paisQuery(u)}`, {
         apikey: SERVICE_KEY, Authorization: 'Bearer ' + SERVICE_KEY,
       });
     }
-    // Formato Notion → el render de la app no cambia.
+    // Formato Notion → el render de la app no cambia. _auth = diagnóstico de qué camino se tomó
+    // (jwt-rls = la base filtra por claims; service = filtro server-side) — no expone datos.
     const results = (rows || []).map(x => ({ object: 'page', id: x.notion_id, properties: x.raw || {} }));
     res.setHeader('Cache-Control', 'no-store');
-    return res.status(200).json({ object: 'list', results, _source: 'supabase' });
+    return res.status(200).json({ object: 'list', results, _source: 'supabase', _auth: authPath });
   } catch (e) {
     return res.status(502).json({ error: 'db read failed', detail: String(e.message || e).slice(0, 120) });
   }
