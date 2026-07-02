@@ -1857,6 +1857,7 @@ const TRANSLATIONS = {
     'step.info.pais': '🌎 País',
     'step.info.m2': '📐 m² aprox.',
     'step.info.tiporeg': '📋 Tipo de registro',
+    'step.info.notaspre': '📝 Instrucciones del coordinador',
     'step.info.nofecha': 'Sin fecha',
     'step.pre.title': '✅ Checklist PRE-vuelo',
     'step.pre.sub': 'Completá cada ítem ANTES de despegar',
@@ -2513,6 +2514,7 @@ const TRANSLATIONS = {
     'step.info.pais': '🌎 País',
     'step.info.m2': '📐 m² aprox.',
     'step.info.tiporeg': '📋 Tipo de registro',
+    'step.info.notaspre': '📝 Instruções do coordenador',
     'step.info.nofecha': 'Sem data',
     'step.pre.title': '✅ Checklist PRÉ-voo',
     'step.pre.sub': 'Marque cada item ANTES de decolar',
@@ -6489,6 +6491,7 @@ function renderStep() {
   const tipo = props['Tipo de servicio']?.select?.name || '';
   const pais = props['País']?.select?.name || '';
   const tipoReg = props['Tipo de registro']?.select?.name || '';
+  const notasPre = props['Notas pre-servicio']?.rich_text?.[0]?.plain_text || '';
   const m2 = props['m² aproximados']?.number || '';
   const dateLocale = currentLang === 'pt-BR' ? 'pt-BR' : 'es-UY';
   const fechaFmt = fecha ? new Date(fecha + 'T00:00:00').toLocaleDateString(dateLocale, { weekday: 'long', day: 'numeric', month: 'long' }) : t('step.info.nofecha');
@@ -6511,6 +6514,7 @@ function renderStep() {
         ${m2 ? `<div class="info-row"><span class="info-label">${t('step.info.m2')}</span><span class="info-val">${m2} m²</span></div>` : ''}
         <div class="info-row"><span class="info-label">${t('step.info.tiporeg')}</span><span class="info-val">${tipoReg}</span></div>
       </div>
+      ${notasPre ? `<div class="hint hint-amber" style="white-space:pre-wrap;margin-top:10px"><strong>${t('step.info.notaspre')}</strong><br>${esc(notasPre)}</div>` : ''}
       ${mapa ? `<a href="${mapa}" target="_blank" rel="noopener" class="btn-main btn-blue" style="display:block;text-align:center;text-decoration:none;margin:12px 0">🗺️ ${t('step.info.abrirmapa')}</a>` : ''}
       ${serviceState.horaInicio ? `<div class="ts-recorded"><div class="ts-label">${t('step.inicio.recorded')}</div><div class="ts-value">${serviceState.horaInicio}</div></div>` : ''}
       <div id="op-equipos-section" style="margin-top:14px"></div>
@@ -10283,7 +10287,7 @@ function overlayClick(e) { if (e.target.id === 'edit-overlay') closeEditSheet();
 function closeEditSheet() { document.getElementById('edit-overlay').classList.remove('open'); editingService = null; _editFromPorCobrar = false; if (typeof _contactHistoryCache !== 'undefined') Object.keys(_contactHistoryCache).forEach(k => delete _contactHistoryCache[k]); }
 function selectEditEstado(estado) {
   editState.estado = estado;
-  document.querySelectorAll('.estado-btn').forEach(b => b.classList.toggle('active', b.textContent.trim() === estado));
+  document.querySelectorAll('#edit-estado-btns .estado-btn').forEach(b => b.classList.toggle('active', b.textContent.trim() === estado));
 }
 function selectEditTipoServicio(val) {
   editState.tipoServicio = val;
