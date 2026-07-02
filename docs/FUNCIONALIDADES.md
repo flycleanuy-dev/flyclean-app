@@ -578,5 +578,11 @@ Objetivo: el coordinador hace TODO desde la app (Notion queda de respaldo). Tapa
 - **Reconciliación garantizada**: mismas fuentes/filtros (`ingData`/`gasData` + `kpiIncluido`) que la card Balance; cada registro cae en exactamente un bucket + línea **"Sin vincular"** visible → las sumas siempre cierran contra el Balance. Evolución mensual usa los datos del año (rotulada aparte).
 - Nombres de clientes vía `callDb('clientes')` (espejo, guarded — si falla usa contactData y nunca rompe el panel).
 
+## Pipeline top: dos relojes + secciones de clientes + Prospección/rol Ventas (sw v111-v112)
+
+- **Dos relojes de propuestas (v111)**: seguimiento (15d desde `Última interacción` → "📞 A contactar hoy", cada contacto lo esconde 15 días) ≠ **vida** (45d desde `Fecha de envío`, fallback creación → el cron mueve a "😶 Sin respuesta"; **🤝 Negociando exento**). `Fecha de envío` se estampa sola al pasar a Enviada (`savePropEdit`). Card muestra "Xd sin respuesta · ☠️ quedan Nd"; rojo = ≤5d de vida. Backfill 28 propuestas hecho (02/07). Script `scripts/backfill-fecha-envio.mjs`.
+- **Secciones del tab Clientes (v111)**: 🔁 Mantenimiento (último trabajo ≥270d, sin nada más nuevo — arriba, con alerta tocable) · Cartera activa · 😶 Sin respuesta / ❌ Rechazados (colapsadas al fondo; solo clientes SIN ningún servicio vivo). `computeClienteSecciones` + `MANTENIMIENTO_DIAS=270`. Buscador = plano sobre todos.
+- **Prospección + rol 🧲 Ventas (v112)**: tab 🎯 (coord/Dirección/Ventas) con alta rápida de prospectos (overlay sibling de body), estados 🎯 Prospecto → 📵 Contactado → 🤝 Interesado → ❌ Descartado (en el select Estado de Clientes), campos `Origen del lead`/`Interés`/`Contacto (persona)`/`Próximo contacto`/`Notas prospección`, orden por urgencia, acciones de un toque, "→ Crear propuesta" solo coord/Dirección. Rol Ventas (asiento `ventas-uy`) encerrado en 4 capas + fix pass adversarial: 💸📦 ocultos y guardeados, ficha de contacto read-only SIN 360 financiero, prospectos/descartados fuera de Cartera activa y de los selectores de cliente ('❌ Descartado'). Sub-bloque prospección en CEO→Comercial.
+
 ---
 _Generado automáticamente del código (workflow `inventario-funcionalidades`). Si algo no coincide con el código, gana el código → regenerar._
