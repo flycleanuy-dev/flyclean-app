@@ -1243,6 +1243,7 @@ body::before {
     <div class="coord-tab" id="ctab-relevamientos" data-i18n="coord.tab.relevamientos" onclick="setCoordTab('relevamientos')">🔍 Relevamientos</div>
     <div class="coord-tab" id="ctab-propuestas" data-i18n="coord.tab.propuestas" onclick="setCoordTab('propuestas')">💼 Propuestas</div>
     <div class="coord-tab" id="ctab-contactos" data-i18n="coord.tab.contactos" onclick="setCoordTab('contactos')">👥 Clientes</div>
+    <div class="coord-tab" id="ctab-prospeccion" data-i18n="coord.tab.prospeccion" onclick="setCoordTab('prospeccion')">🎯 Prospección</div>
     <div class="coord-tab" id="ctab-pedidos" data-i18n="coord.tab.pedidos" onclick="setCoordTab('pedidos')">📦 Pedidos</div>
     <div class="coord-tab" id="ctab-limpieza" style="display:none" onclick="setCoordTab('limpieza')">🧹 Limpieza</div>
     <div class="coord-tab" id="ctab-comunicaciones" data-i18n="coord.tab.mensajes" onclick="setCoordTab('comunicaciones')">💬 Mensajes</div>
@@ -1434,6 +1435,23 @@ body::before {
     </div>
     <div id="contact-sheet-body"></div>
     <button class="edit-save-btn" id="contact-save-btn" data-i18n="btn.save.notion" onclick="saveContactEdit()">💾 Guardar</button>
+  </div>
+</div>
+
+<!-- Modal: Alta rápida de prospecto (tab 🎯 Prospección, spec 2026-07-02 B2) — sibling de body:
+     se abre desde la tab Prospección del coordinador/Dirección/rol Ventas; misma regla que el
+     resto de los overlays de esta sección (position:fixed no funciona dentro de una .screen
+     con display:none). -->
+<div class="edit-overlay" id="prospecto-overlay" onclick="prospectoOverlayClick(event)">
+  <div class="edit-sheet" id="prospecto-sheet">
+    <button class="sheet-close-btn" type="button" aria-label="Cerrar" onclick="closeProspectoSheet()">×</button>
+    <div class="edit-sheet-handle"></div>
+    <div class="edit-sheet-header">
+      <div class="edit-sheet-title" data-i18n="prosp.sheet.title">🎯 Nuevo prospecto</div>
+      <div class="edit-sheet-sub" data-i18n="prosp.sheet.subtitle"></div>
+    </div>
+    <div id="prospecto-sheet-body"></div>
+    <button class="edit-save-btn" id="prospecto-save-btn" data-i18n="btn.create.notion" onclick="saveProspecto()">✨ Crear</button>
   </div>
 </div>
 
@@ -1772,7 +1790,10 @@ const USERS = [
   { id: 'finanzas-brasil',    name: 'Finanzas Brasil',    role: '📊 Administración', emoji: '💼', notionId: null, country: 'Brasil' },
   { id: 'finanzas-panama',    name: 'Finanzas Panamá',    role: '📊 Administración', emoji: '💼', notionId: null, country: 'Panamá' },
   { id: 'finanzas-guatemala', name: 'Finanzas Guatemala', role: '📊 Administración', emoji: '💼', notionId: null, country: 'Guatemala' },
-  { id: 'finanzas-mexico',    name: 'Finanzas México',    role: '📊 Administración', emoji: '💼', notionId: null, country: 'México' }
+  { id: 'finanzas-mexico',    name: 'Finanzas México',    role: '📊 Administración', emoji: '💼', notionId: null, country: 'México' },
+  // Rol 🧲 Ventas (spec 2026-07-02 B2): entra al panel coordinador pero SOLO ve la tab 🎯 Prospección
+  // (gating en loadCoordinator/setCoordTab). Nombre placeholder hasta contratar; PIN vía CEO→Equipo→🔑.
+  { id: 'ventas-uy',        name: 'Ventas UY',          role: '🧲 Ventas',         emoji: '🧲', notionId: null, country: 'Uruguay' }
 ];
 
 const COUNTRY_NOTION_MAP = {
@@ -1982,6 +2003,7 @@ const TRANSLATIONS = {
     'done.stat.checklists': 'Checklists',
     'coord.brand.coord': 'Coordinador',
     'coord.brand.direccion': 'Dirección',
+    'coord.brand.ventas': 'Ventas',
     'coord.tab.inicio': '🏠 Inicio',
     'coord.tab.resumen': '📊 Resumen',
     'coord.resumen.diastrab': 'Días trabajados',
@@ -2008,6 +2030,7 @@ const TRANSLATIONS = {
     'coord.tab.servicios': '📋 Servicios',
     'coord.tab.propuestas': '💼 Propuestas',
     'coord.tab.contactos': '👥 Clientes',
+    'coord.tab.prospeccion': '🎯 Prospección',
     'coord.tab.pedidos': '📦 Pedidos',
     'coord.tab.mensajes': '💬 Mensajes',
     'pedido.title': '📦 Pedir insumo',
@@ -2073,10 +2096,12 @@ const TRANSLATIONS = {
     'coord.unassigned': '— sin asignar',
     'coord.search.contacts.placeholder': '🔍  Buscar contacto...',
     'coord.new.contact': '+ Nuevo Contacto',
+    'coord.new.prospecto': '＋ Prospecto',
     'role.direccion': '🎯 Dirección',
     'role.coordinador': '🔧 Coordinador',
     'role.operario': '🛠️ Operario',
     'role.ceo': '👔 CEO',
+    'role.ventas': '🧲 Ventas',
     'role.finanzas': '📊 Administración',
     'finanzas.tab.gastos': '💸 Gastos',
     'finanzas.tab.ingresos': '💵 Ingresos',
@@ -2219,6 +2244,8 @@ const TRANSLATIONS = {
     'ceo.com.cierre.label': 'envío → cierre (aprox)',
     'ceo.com.cierre.dias': 'días',
     'ceo.com.empty': 'Sin datos comerciales.',
+    'ceo.com.prosp.title': '🎯 Prospección',
+    'ceo.com.prosp.nuevos': 'nuevos esta semana',
     'chart.ingresos': 'Ingresos',
     'chart.gastos': 'Gastos',
     'sheet.edit.title.default': 'Editar servicio',
@@ -2348,6 +2375,32 @@ const TRANSLATIONS = {
     'coord.cli.seccion.mantenimiento': '🔁 Mantenimiento',
     'coord.cli.seccion.sinrespuesta': '😶 Sin respuesta',
     'coord.cli.seccion.rechazados': '❌ Rechazados',
+    'prosp.empty': 'Sin prospectos en este momento.',
+    'prosp.error': 'Error al cargar prospección.',
+    'prosp.section.descartados': '❌ Descartados',
+    'prosp.list.vencido': 'vencido',
+    'prosp.list.hoy': 'hoy',
+    'prosp.list.sinfecha': 'Sin fecha planificada',
+    'prosp.action.contactado': '📞 Contactado hoy',
+    'prosp.action.interesado': '🤝 Interesado',
+    'prosp.action.descartar': '❌ Descartar',
+    'prosp.action.crearpropuesta': '→ Crear propuesta',
+    'prosp.confirm.descartar': '¿Descartar este prospecto? Podés revisarlo igual en la sección Descartados.',
+    'prosp.error.accion': 'No se pudo guardar el cambio: ',
+    'prosp.sheet.title': '🎯 Nuevo prospecto',
+    'prosp.sheet.subtitle': 'Alta rápida — 20 segundos',
+    'prosp.sheet.section.empresa': 'EMPRESA / EDIFICIO',
+    'prosp.sheet.empresa.placeholder': 'Nombre de la empresa o edificio',
+    'prosp.sheet.section.contacto': 'PERSONA DE CONTACTO',
+    'prosp.sheet.contacto.placeholder': 'Nombre y cargo',
+    'prosp.sheet.section.mapa': 'LINK MAPA (OPCIONAL)',
+    'prosp.sheet.mapa.placeholder': 'https://maps.google.com/...',
+    'prosp.sheet.section.origen': 'ORIGEN DEL LEAD',
+    'prosp.sheet.section.interes': 'INTERÉS',
+    'prosp.sheet.section.proximo': 'PRÓXIMO CONTACTO',
+    'prosp.sheet.section.nota': 'NOTA',
+    'prosp.sheet.nota.placeholder': 'Qué dijo, con quién hablar, horarios...',
+    'prosp.sheet.error.empresa': 'El nombre de la empresa/edificio es obligatorio.',
     'alerts.alerta': 'alerta',
     'alerts.alertas': 'alertas',
     'alerts.activa': 'activa',
@@ -2670,6 +2723,7 @@ const TRANSLATIONS = {
     'done.stat.checklists': 'Checklists',
     'coord.brand.coord': 'Coordenador',
     'coord.brand.direccion': 'Direção',
+    'coord.brand.ventas': 'Vendas',
     'coord.tab.inicio': '🏠 Início',
     'coord.tab.resumen': '📊 Resumo',
     'coord.resumen.diastrab': 'Dias trabalhados',
@@ -2696,6 +2750,7 @@ const TRANSLATIONS = {
     'coord.tab.servicios': '📋 Serviços',
     'coord.tab.propuestas': '💼 Propostas',
     'coord.tab.contactos': '👥 Clientes',
+    'coord.tab.prospeccion': '🎯 Prospecção',
     'coord.tab.pedidos': '📦 Pedidos',
     'coord.tab.mensajes': '💬 Mensagens',
     'pedido.title': '📦 Pedir insumo',
@@ -2761,10 +2816,12 @@ const TRANSLATIONS = {
     'coord.unassigned': '— sem atribuir',
     'coord.search.contacts.placeholder': '🔍  Buscar contato...',
     'coord.new.contact': '+ Novo Contato',
+    'coord.new.prospecto': '＋ Prospecto',
     'role.direccion': '🎯 Direção',
     'role.coordinador': '🔧 Coordenador',
     'role.operario': '🛠️ Operário',
     'role.ceo': '👔 CEO',
+    'role.ventas': '🧲 Vendas',
     'role.finanzas': '📊 Administração',
     'finanzas.tab.gastos': '💸 Despesas',
     'finanzas.tab.ingresos': '💵 Receitas',
@@ -2907,6 +2964,8 @@ const TRANSLATIONS = {
     'ceo.com.cierre.label': 'envio → fechamento (aprox)',
     'ceo.com.cierre.dias': 'dias',
     'ceo.com.empty': 'Sem dados comerciais.',
+    'ceo.com.prosp.title': '🎯 Prospecção',
+    'ceo.com.prosp.nuevos': 'novos nesta semana',
     'chart.ingresos': 'Receita',
     'chart.gastos': 'Despesas',
     'sheet.edit.title.default': 'Editar serviço',
@@ -3035,6 +3094,32 @@ const TRANSLATIONS = {
     'coord.cli.seccion.mantenimiento': '🔁 Manutenção',
     'coord.cli.seccion.sinrespuesta': '😶 Sem resposta',
     'coord.cli.seccion.rechazados': '❌ Recusados',
+    'prosp.empty': 'Nenhum prospecto no momento.',
+    'prosp.error': 'Erro ao carregar prospecção.',
+    'prosp.section.descartados': '❌ Descartados',
+    'prosp.list.vencido': 'vencido',
+    'prosp.list.hoy': 'hoje',
+    'prosp.list.sinfecha': 'Sem data planejada',
+    'prosp.action.contactado': '📞 Contatado hoje',
+    'prosp.action.interesado': '🤝 Interessado',
+    'prosp.action.descartar': '❌ Descartar',
+    'prosp.action.crearpropuesta': '→ Criar proposta',
+    'prosp.confirm.descartar': 'Descartar este prospecto? Você pode revisá-lo na seção Descartados.',
+    'prosp.error.accion': 'Não foi possível salvar a alteração: ',
+    'prosp.sheet.title': '🎯 Novo prospecto',
+    'prosp.sheet.subtitle': 'Cadastro rápido — 20 segundos',
+    'prosp.sheet.section.empresa': 'EMPRESA / EDIFÍCIO',
+    'prosp.sheet.empresa.placeholder': 'Nome da empresa ou edifício',
+    'prosp.sheet.section.contacto': 'PESSOA DE CONTATO',
+    'prosp.sheet.contacto.placeholder': 'Nome e cargo',
+    'prosp.sheet.section.mapa': 'LINK DO MAPA (OPCIONAL)',
+    'prosp.sheet.mapa.placeholder': 'https://maps.google.com/...',
+    'prosp.sheet.section.origen': 'ORIGEM DO LEAD',
+    'prosp.sheet.section.interes': 'INTERESSE',
+    'prosp.sheet.section.proximo': 'PRÓXIMO CONTATO',
+    'prosp.sheet.section.nota': 'NOTA',
+    'prosp.sheet.nota.placeholder': 'O que disse, com quem falar, horários...',
+    'prosp.sheet.error.empresa': 'O nome da empresa/edifício é obrigatório.',
     'coord.prop.tap.edit': 'Toque para editar →',
     'alerts.alerta': 'alerta',
     'alerts.alertas': 'alertas',
@@ -3238,6 +3323,7 @@ function rerenderActiveContent() {
       else if (activeCoordTab === 'relevamientos') renderCoordRelevamientos();
       else if (activeCoordTab === 'propuestas' && typeof renderCoordPropuestas === 'function') renderCoordPropuestas();
       else if (activeCoordTab === 'contactos') renderCoordContactos();
+      else if (activeCoordTab === 'prospeccion') renderCoordProspeccion();
     } else if (id === 'screen-ceo' && currentUser) {
       renderCEOCountryTabs();
       if (activeCEOTab === 'metricas') renderCEOMetricas();
@@ -3253,7 +3339,8 @@ function translateRole(role) {
     '🎯 Dirección': 'role.direccion',
     '🔧 Coordinador': 'role.coordinador',
     '🛠️ Operario': 'role.operario',
-    '👔 CEO': 'role.ceo'
+    '👔 CEO': 'role.ceo',
+    '🧲 Ventas': 'role.ventas'
   };
   return map[role] ? t(map[role]) : role;
 }
@@ -3410,6 +3497,10 @@ let _ceoRentaView = 'cliente'; // 'cliente' | 'servicio' | 'paismes'
 // de cierre, calculados por renderCEOMetricas sobre TODAS las propuestas (no solo las abiertas del
 // propFilter de arriba). Guardado acá — no dispara refetch al reabrir el desplegable.
 let _ceoComData = null;
+// Sub-bloque 🎯 Prospección (spec 2026-07-02 B2), pintado al final de renderCeoComBody: conteos por
+// estado de prospección + "nuevos esta semana" (best-effort). Guardado acá por el mismo motivo que
+// _ceoComData — null si el fetch falló, y renderCeoComBody simplemente no pinta el sub-bloque.
+let _ceoProspData = null;
 let currentService = null;
 let currentStep = 0;
 let serviceState = {};
@@ -4321,6 +4412,9 @@ function isSessionFresh() {
 }
 async function routeByRole(role) {
   if (role === '🔧 Coordinador' || role === '🎯 Dirección') return loadCoordinator();
+  // 🧲 Ventas (spec 2026-07-02 B2): comparte la screen del coordinador, pero loadCoordinator()
+  // le oculta todas las tabs salvo 🎯 Prospección (ver gating ahí + en setCoordTab).
+  if (role === '🧲 Ventas') return loadCoordinator();
   if (role === '👔 CEO') return loadCEO();
   if (role === '📊 Administración') return loadFinanzas();
   return loadServices();
@@ -5837,6 +5931,7 @@ async function savePedido() {
 
 // ── Coordinador: tab 📦 Pedidos ──────────────────
 async function renderCoordPedidos() {
+  if (esVentas()) return; // blindaje: Ventas no ve Pedidos, ni por un llamado directo
   const content = document.getElementById('coord-content');
   if (!content) return;
   content.innerHTML = '<div style="text-align:center;padding:40px 0"><div class="spinner" style="margin:0 auto"></div></div>';
@@ -5998,12 +6093,18 @@ function setTab(tab) {
 
 function esDireccion(u = currentUser) { return !!(u?.role && u.role.includes('Dirección')); }
 function puedeEditarNombre(u = currentUser) { return !!(u?.role && (u.role.includes('Coordinador') || u.role.includes('CEO') || u.role.includes('Dirección'))); }
+// Rol 🧲 Ventas (spec 2026-07-02 B2): junta y madura prospectos, NUNCA ve cartera/servicios/finanzas
+// ni crea propuestas (decisión explícita del dueño del producto — el coord es quien cotiza).
+function esVentas(u = currentUser) { return !!(u?.role && u.role.includes('Ventas')); }
 
 function setCoordTab(tab, skipRender) {
   if (tab === 'limpieza' && !esDireccion()) return;
+  // Blindaje: Ventas solo puede tener activa la tab Prospección, aunque se invoque setCoordTab a mano
+  // (consola/otro código) con cualquier otro valor — nunca debe llegar a ver cartera/servicios/finanzas.
+  if (tab !== 'prospeccion' && esVentas()) return;
   activeCoordTab = tab;
   markUserActive();
-  ['inicio', 'resumen', 'servicios', 'pruebas', 'relevamientos', 'propuestas', 'contactos', 'pedidos', 'comunicaciones', 'limpieza'].forEach(t => {
+  ['inicio', 'resumen', 'servicios', 'pruebas', 'relevamientos', 'propuestas', 'contactos', 'pedidos', 'comunicaciones', 'limpieza', 'prospeccion'].forEach(t => {
     const el = document.getElementById('ctab-' + t);
     if (el) el.classList.toggle('active', t === tab);
   });
@@ -6037,6 +6138,7 @@ function setCoordTab(tab, skipRender) {
   else if (tab === 'propuestas') renderCoordPropuestas();
   else if (tab === 'contactos') renderCoordContactos();
   else if (tab === 'pedidos') renderCoordPedidos();
+  else if (tab === 'prospeccion') renderCoordProspeccion();
   else if (tab === 'limpieza') renderLimpieza();
   else renderComunicaciones();
 }
@@ -6284,6 +6386,7 @@ function logout() {
   _coordAllServices = [];
   _coordAllProps = [];
   _coordAllContacts = [];
+  _coordAllProspectos = []; // spec 2026-07-02 B2 — mismo criterio M8: no dejar data residual entre sesiones
   _allServices = [];
   editingService = null;
   editingProp = null;
@@ -7549,6 +7652,18 @@ async function renderCEOMetricas() {
       try { return await callDb('propuestas'); }
       catch (e) { try { return await callNotionAll(`databases/${PROPUESTAS_DB_ID}/query`, {}); } catch (e2) { return null; } }
     })();
+    // Sub-bloque 🎯 Prospección (📊 Comercial, ver más abajo): clientes en estados de prospección,
+    // scopeados al país que se está viendo (getCEOFilter). Dispara en paralelo — null si falla,
+    // nunca rompe Métricas/Comercial (guard en el try/catch de _ceoComData más abajo).
+    const prospClientesPromise = (async () => {
+      try {
+        const cfp = getCEOFilter();
+        const estadoOr = { or: PROSPECCION_ESTADOS.map(e => ({ property: 'Estado', select: { equals: e } })) };
+        const filter = cfp ? { and: [cfp, estadoOr] } : estadoOr;
+        const data = await callNotion(`databases/${CONTACTOS_DB_ID}/query`, 'POST', { filter });
+        return (data.results || []).filter(c => !esArchivado(c));
+      } catch (e) { return null; }
+    })();
     // Finanzas paginadas + propuestas + contactos en paralelo.
     const [ingData, gasData, ingYearData, gasYearData, propData, contactData] = await Promise.all([
       callNotionAll(`databases/${INGRESOS_DB_ID}/query`, { filter: dFilter(start, end) }),
@@ -7641,6 +7756,13 @@ async function renderCEOMetricas() {
       }
       _ceoComData = computeComercial(allPropsCom);
     } catch (e) { _ceoComData = null; }
+
+    // Sub-bloque 🎯 Prospección (spec 2026-07-02 B2): mismo criterio defensivo — un fallo acá
+    // nunca debe tirar abajo Métricas ni Comercial ya calculados arriba.
+    try {
+      const prospClientes = await prospClientesPromise;
+      _ceoProspData = prospClientes ? computeProspeccionMetrics(prospClientes) : null;
+    } catch (e) { _ceoProspData = null; }
 
     // valor monetario tipo HÉROE (2 líneas UY$ / USD), con delta opcional.
     const heroLines = (split, opts = {}) => {
@@ -7920,35 +8042,69 @@ function computeComercial(allProps) {
 
   return { embudo, total, nAcept, conv, valueEntries, avgDays };
 }
-// Re-renderiza SOLO el contenedor de Comercial (usa _ceoComData ya calculado — sin refetch).
+
+// Sub-bloque 🎯 Prospección (spec 2026-07-02 B2): SOLO conteos por estado + "nuevos esta semana"
+// best-effort (created_time no siempre disponible — degrada mostrando solo los conteos, nunca rompe).
+function computeProspeccionMetrics(clientes) {
+  const estadoDe = c => c.properties?.['Estado']?.select?.name || '';
+  const porEstado = {};
+  PROSPECCION_ESTADOS.forEach(e => { porEstado[e] = 0; });
+  (clientes || []).forEach(c => { const e = estadoDe(c); if (PROSPECCION_ESTADOS.includes(e)) porEstado[e]++; });
+  const total = (clientes || []).length;
+  // "Nuevos esta semana": requiere created_time (el path Notion lo trae; un espejo/mirror podría no
+  // traerlo) — si ningún registro lo tiene, degradamos a null y el render omite esa línea.
+  const haceUnaSemana = Date.now() - 7 * 86400000;
+  const conCreatedTime = (clientes || []).filter(c => !!c.created_time);
+  const nuevosSemana = conCreatedTime.length
+    ? conCreatedTime.filter(c => new Date(c.created_time).getTime() >= haceUnaSemana).length
+    : null;
+  return { porEstado, total, nuevosSemana };
+}
+
+// HTML del sub-bloque Prospección — independiente del resto de Comercial (se pinta aunque
+// _ceoComData sea null, y viceversa: guardado en ambos sentidos, spec "nunca rompe").
+function prospeccionSubBlockHTML() {
+  const pd = _ceoProspData;
+  if (!pd) return '';
+  const filas = PROSPECCION_ESTADOS.map(e => '<div class="ec-row"><span>' + esc(e) + '</span><span>' + (pd.porEstado[e] || 0) + '</span></div>').join('');
+  const nuevosHTML = pd.nuevosSemana != null ? '<div class="kpi-sub" style="padding-top:4px">' + pd.nuevosSemana + ' ' + t('ceo.com.prosp.nuevos') + '</div>' : '';
+  return '<div class="ec-title" style="padding:14px 16px 2px">' + t('ceo.com.prosp.title') + '</div><div style="padding:0 16px 8px">' + filas + nuevosHTML + '</div>';
+}
+
+// Re-renderiza SOLO el contenedor de Comercial (usa _ceoComData/_ceoProspData ya calculados — sin refetch).
 function renderCeoComBody() {
   const el = document.getElementById('ceo-com-body');
   if (!el) return;
   const d = _ceoComData;
-  if (!d) { el.innerHTML = '<div class="coord-empty" style="padding:12px 16px">' + t('ceo.com.empty') + '</div>'; return; }
+  let html;
+  if (!d) {
+    html = '<div class="coord-empty" style="padding:12px 16px">' + t('ceo.com.empty') + '</div>';
+  } else {
+    const maxEmbudo = Math.max(1, ...d.embudo.map(([, v]) => v));
+    const embudoHTML = d.embudo.length
+      ? d.embudo.map(([k, v]) => '<div class="tipo-row"><span class="tipo-name">' + esc(k) + '</span><span class="tipo-bar"><span style="width:' + Math.round(v / maxEmbudo * 100) + '%"></span></span><span class="tipo-val">' + v + '</span></div>').join('')
+      : '<div class="kpi-sub" style="padding:8px 16px">' + t('ceo.com.embudo.empty') + '</div>';
 
-  const maxEmbudo = Math.max(1, ...d.embudo.map(([, v]) => v));
-  const embudoHTML = d.embudo.length
-    ? d.embudo.map(([k, v]) => '<div class="tipo-row"><span class="tipo-name">' + esc(k) + '</span><span class="tipo-bar"><span style="width:' + Math.round(v / maxEmbudo * 100) + '%"></span></span><span class="tipo-val">' + v + '</span></div>').join('')
-    : '<div class="kpi-sub" style="padding:8px 16px">' + t('ceo.com.embudo.empty') + '</div>';
+    const convHTML = d.conv != null
+      ? '<div class="ec-row"><span>' + d.conv + '% ' + t('ceo.com.conversion.label') + '</span></div><div class="kpi-sub">' + t('ceo.com.conversion.sub').replace('{n}', d.nAcept).replace('{t}', d.total) + '</div>'
+      : '<div class="kpi-sub">—</div>';
 
-  const convHTML = d.conv != null
-    ? '<div class="ec-row"><span>' + d.conv + '% ' + t('ceo.com.conversion.label') + '</span></div><div class="kpi-sub">' + t('ceo.com.conversion.sub').replace('{n}', d.nAcept).replace('{t}', d.total) + '</div>'
-    : '<div class="kpi-sub">—</div>';
+    const pipelineHTML = d.valueEntries.length
+      ? d.valueEntries.map(([k, v]) => '<div class="ec-row"><span>' + esc(k) + '</span><span>' + fmtTotalSplit(v) + '</span></div>').join('')
+      : '<div class="kpi-sub" style="padding:8px 0">' + t('ceo.com.pipeline.empty') + '</div>';
 
-  const pipelineHTML = d.valueEntries.length
-    ? d.valueEntries.map(([k, v]) => '<div class="ec-row"><span>' + esc(k) + '</span><span>' + fmtTotalSplit(v) + '</span></div>').join('')
-    : '<div class="kpi-sub" style="padding:8px 0">' + t('ceo.com.pipeline.empty') + '</div>';
+    const cierreHTML = d.avgDays != null
+      ? '<div class="ec-row"><span>' + t('ceo.com.cierre.label') + '</span><span>' + d.avgDays + ' ' + t('ceo.com.cierre.dias') + '</span></div>'
+      : '<div class="kpi-sub">—</div>';
 
-  const cierreHTML = d.avgDays != null
-    ? '<div class="ec-row"><span>' + t('ceo.com.cierre.label') + '</span><span>' + d.avgDays + ' ' + t('ceo.com.cierre.dias') + '</span></div>'
-    : '<div class="kpi-sub">—</div>';
-
-  el.innerHTML =
-    '<div class="ec-title" style="padding:10px 16px 2px">' + t('ceo.com.embudo.title') + '</div>' + embudoHTML +
-    '<div class="ec-title" style="padding:14px 16px 2px">' + t('ceo.com.conversion.title') + '</div><div style="padding:0 16px 8px">' + convHTML + '</div>' +
-    '<div class="ec-title" style="padding:6px 16px 2px">' + t('ceo.com.pipeline.title') + '</div><div style="padding:0 16px 8px">' + pipelineHTML + '</div>' +
-    '<div class="ec-title" style="padding:6px 16px 2px">' + t('ceo.com.cierre.title') + '</div><div style="padding:0 16px 10px">' + cierreHTML + '</div>';
+    html =
+      '<div class="ec-title" style="padding:10px 16px 2px">' + t('ceo.com.embudo.title') + '</div>' + embudoHTML +
+      '<div class="ec-title" style="padding:14px 16px 2px">' + t('ceo.com.conversion.title') + '</div><div style="padding:0 16px 8px">' + convHTML + '</div>' +
+      '<div class="ec-title" style="padding:6px 16px 2px">' + t('ceo.com.pipeline.title') + '</div><div style="padding:0 16px 8px">' + pipelineHTML + '</div>' +
+      '<div class="ec-title" style="padding:6px 16px 2px">' + t('ceo.com.cierre.title') + '</div><div style="padding:0 16px 10px">' + cierreHTML + '</div>';
+  }
+  // Sub-bloque Prospección al final (spec): independiente de si Comercial arriba tuvo datos o no.
+  el.innerHTML = html + prospeccionSubBlockHTML();
 }
 
 async function renderCEOServicios() {
@@ -9141,7 +9297,7 @@ async function loadCoordinator() {
   document.getElementById('coord-user-name').textContent = currentUser.emoji + ' ' + currentUser.name.split(' ')[0];
   const flagMap = { 'Uruguay': '🇺🇾', 'Brasil': '🇧🇷', 'Panamá': '🇵🇦', 'Guatemala': '🇬🇹', 'México': '🇲🇽' };
   const flag = flagMap[selectedCountry] || '';
-  const rolLabel = currentUser.role.includes('Dirección') ? t('coord.brand.direccion') : t('coord.brand.coord');
+  const rolLabel = currentUser.role.includes('Dirección') ? t('coord.brand.direccion') : (esVentas() ? t('coord.brand.ventas') : t('coord.brand.coord'));
   document.getElementById('coord-logo-title').innerHTML = '<svg class="fly-mark" style="color:#00C98D"><use href="#fc-mark"/></svg>FlyClean ' + flag + ' — ' + rolLabel;
   const ceoBtnEl = document.getElementById('coord-ceo-btn');
   if (ceoBtnEl) ceoBtnEl.style.display = currentUser.role.includes('Dirección') ? 'block' : 'none';
@@ -9151,7 +9307,14 @@ async function loadCoordinator() {
   // consistente: tab activo, toolbar, month-nav, view-toggle visible y el render.
   const limpiezaTab = document.getElementById('ctab-limpieza');
   if (limpiezaTab) limpiezaTab.style.display = esDireccion() ? '' : 'none';
-  setCoordTab('inicio');
+  // Rol 🧲 Ventas (spec 2026-07-02 B2): oculta TODA la tab bar salvo 🎯 Prospección y arranca ahí
+  // directo — nunca ve Servicios/Propuestas/Clientes de cartera/Pedidos/Mensajes. Para Coordinador/
+  // Dirección esto es un no-op (queda todo visible igual que antes).
+  ['inicio', 'resumen', 'servicios', 'pruebas', 'relevamientos', 'propuestas', 'contactos', 'pedidos', 'comunicaciones'].forEach(tb => {
+    const el = document.getElementById('ctab-' + tb);
+    if (el) el.style.display = esVentas() ? 'none' : '';
+  });
+  setCoordTab(esVentas() ? 'prospeccion' : 'inicio');
 }
 
 function getCoordMonthRange() {
@@ -11228,6 +11391,7 @@ async function fetchAllPropuestas() {
 }
 
 async function renderCoordResumen() {
+  if (esVentas()) return; // blindaje: Ventas no ve Resumen, ni por un llamado directo
   const content = document.getElementById('coord-content');
   if (!content) return;
   content.innerHTML = '<div style="text-align:center;padding:40px 0"><div class="spinner" style="margin:0 auto"></div></div>';
@@ -11379,6 +11543,7 @@ async function fetchCoordItemsForMonth() {
 // acá _coordAllServices queda con todos los items del mes. El chip de tipo en la card
 // (coordServiceCard) solo aparece en esta tab para distinguirlos.
 async function renderCoordInicio() {
+  if (esVentas()) return; // blindaje: Ventas no ve Inicio, ni por un llamado directo
   const content = document.getElementById('coord-content');
   content.innerHTML = '<div style="text-align:center;padding:40px 0"><div class="spinner" style="margin:0 auto"></div></div>';
   document.getElementById('coord-week-strip').style.display = 'flex';
@@ -11401,6 +11566,7 @@ async function renderCoordInicio() {
 }
 
 async function renderCoordServicios() {
+  if (esVentas()) return; // blindaje: Ventas no ve Servicios, ni por un llamado directo
   const content = document.getElementById('coord-content');
   content.innerHTML = '<div style="text-align:center;padding:40px 0"><div class="spinner" style="margin:0 auto"></div></div>';
   document.getElementById('coord-week-strip').style.display = 'flex';
@@ -11428,6 +11594,7 @@ async function renderCoordServicios() {
 }
 
 async function renderCoordPruebas() {
+  if (esVentas()) return; // blindaje: Ventas no ve Pruebas, ni por un llamado directo
   const content = document.getElementById('coord-content');
   content.innerHTML = '<div style="text-align:center;padding:40px 0"><div class="spinner" style="margin:0 auto"></div></div>';
   document.getElementById('coord-week-strip').style.display = 'flex';
@@ -11452,6 +11619,7 @@ async function renderCoordPruebas() {
 }
 
 async function renderCoordRelevamientos() {
+  if (esVentas()) return; // blindaje: Ventas no ve Relevamientos, ni por un llamado directo
   const content = document.getElementById('coord-content');
   content.innerHTML = '<div style="text-align:center;padding:40px 0"><div class="spinner" style="margin:0 auto"></div></div>';
   document.getElementById('coord-week-strip').style.display = 'flex';
@@ -11535,10 +11703,13 @@ async function loadPropContactos() {
   } catch (e) { /* el form sirve igual (queda solo "Nuevo cliente") */ }
 }
 
-function openNewPropSheet() {
+// prefillContactId (spec 2026-07-02 B2): abrir la propuesta con un cliente YA elegido — lo usa el
+// botón "→ Crear propuesta" de un prospecto 🤝 Interesado (solo Coordinador/Dirección; Ventas no
+// crea propuestas). Sin argumento se comporta exactamente igual que antes ("➕ Nuevo cliente").
+function openNewPropSheet(prefillContactId = null) {
   propSheetMode = 'create';
   editingProp = null;
-  propEditState = { nombre: '', estado: '🆕 Nuevo lead', pais: '🇺🇾 Uruguay', tipo: '', aprobacion: '⏳ Pendiente', importe: '', fechaEnvio: '', ultimaInt: new Date().toISOString().split('T')[0], obs: '', serviciosAnio: '', comision: '', clienteSel: '__new__', nombreCliente: '', tel: '', email: '' };
+  propEditState = { nombre: '', estado: '🆕 Nuevo lead', pais: '🇺🇾 Uruguay', tipo: '', aprobacion: '⏳ Pendiente', importe: '', fechaEnvio: '', ultimaInt: new Date().toISOString().split('T')[0], obs: '', serviciosAnio: '', comision: '', clienteSel: prefillContactId || '__new__', nombreCliente: '', tel: '', email: '' };
 
   document.getElementById('prop-sheet-title').textContent = t('sheet.prop.title.nueva');
   document.getElementById('prop-sheet-sub').textContent = t('sheet.prop.subtitle.nueva');
@@ -12296,6 +12467,270 @@ async function loadClienteSecciones() {
   } catch (e) { _coordCliSecciones = null; }
 }
 
+// ── 🎯 Prospección (spec 2026-07-02 B2) ─────────────────────────────────────────────────────
+// Reusa la DB Clientes (nada de bases nuevas): el prospecto ES un cliente en uno de estos 4
+// estados nuevos del select "Estado" (las opciones "de cartera" — 🆕 Lead / ✅ Cliente activo /
+// ⏸️ Inactivo — ya existían y no se tocan). Notion crea las opciones nuevas solo con escribirlas.
+// Nota conocida (documentada, no se resuelve en esta fase): computeClienteSecciones no conoce estos
+// estados → un prospecto recién creado también cae en "Cartera activa" dentro de la tab 👥 Clientes
+// (no tiene servicios/propuestas negativas, así que no matchea ninguna otra sección). Aceptado: la
+// tab Clientes queda BYTE-IDÉNTICA (no se le tocó una línea) y el prospecto de todos modos vive y
+// se opera desde su propia tab. Se resuelve si hiciera falta en una fase futura.
+const PROSPECCION_ESTADOS = ['🎯 Prospecto', '📵 Prospecto contactado', '🤝 Interesado', '❌ Descartado'];
+const ORIGEN_LEAD_OPTIONS = ['🧲 Vendedor', '🤝 Referido', '🌐 Web/Redes', '📞 Entrante', '🚶 Puerta fría'];
+const INTERES_OPTIONS = ['🏢 Fachada', '🪟 Vidrios', '☀️ Paneles solares'];
+// Heurística fija v1 (sin configuración por usuario/base): días que suma "📞 Contactado hoy" al
+// campo "Próximo contacto". Mismo espíritu que MANTENIMIENTO_DIAS más arriba.
+const PROSPECTO_SIGUIENTE_CONTACTO_DIAS = 7;
+let _coordAllProspectos = [];
+
+async function renderCoordProspeccion() {
+  const content = document.getElementById('coord-content');
+  if (!content) return;
+  content.innerHTML = '<div style="text-align:center;padding:40px 0"><div class="spinner" style="margin:0 auto"></div></div>';
+  const myTab = 'prospeccion';
+  try {
+    // Reusa _coordAllContacts si la tab Clientes ya cargó esta sesión (evita un fetch de más);
+    // si no, trae la lista igual que renderCoordContactos (mismo filtro de país server-side).
+    let contacts;
+    if (Array.isArray(_coordAllContacts) && _coordAllContacts.length) {
+      contacts = _coordAllContacts;
+    } else {
+      const cf = getCountryFilter();
+      const queryBody = { sorts: [{ property: 'Nombre / Empresa', direction: 'ascending' }] };
+      if (cf) queryBody.filter = cf;
+      const data = await callNotion(`databases/${CONTACTOS_DB_ID}/query`, 'POST', queryBody);
+      contacts = (data.results || []).filter(c => !esArchivado(c));
+    }
+    if (activeCoordTab !== myTab) return; // tab cambió mientras cargaba → abortar
+    _coordAllProspectos = contacts.filter(c => PROSPECCION_ESTADOS.includes(c.properties?.['Estado']?.select?.name || ''));
+    renderProspeccionList();
+  } catch (e) {
+    if (activeCoordTab !== myTab) return;
+    content.innerHTML = `<div class="coord-empty">${t('prosp.error')}<br><small>${esc(e.message)}</small></div>`;
+  }
+}
+
+function renderProspeccionList() {
+  const content = document.getElementById('coord-content');
+  if (!content) return;
+  const newBtn = `<div style="padding:10px 16px 0"><button class="nueva-prop-btn" onclick="openProspectoSheet()">${t('coord.new.prospecto')}</button></div>`;
+  if (!_coordAllProspectos.length) {
+    content.innerHTML = newBtn + `<div class="coord-empty">${t('prosp.empty')}</div>`;
+    return;
+  }
+  const activos = _coordAllProspectos.filter(c => (c.properties?.['Estado']?.select?.name || '') !== '❌ Descartado');
+  const descartados = _coordAllProspectos.filter(c => (c.properties?.['Estado']?.select?.name || '') === '❌ Descartado');
+
+  // Orden de urgencia (spec): 1º Próximo contacto vencido/hoy, 2º por estado (Interesado > Contactado
+  // > Prospecto), 3º sin fecha al final de su grupo de urgencia.
+  const estadoRank = { '🤝 Interesado': 0, '📵 Prospecto contactado': 1, '🎯 Prospecto': 2 };
+  const hoyISO = new Date().toISOString().split('T')[0];
+  const urgenciaDe = c => {
+    const prox = c.properties?.['Próximo contacto']?.date?.start || '';
+    if (!prox) return 2; // sin fecha planificada: al final
+    return prox <= hoyISO ? 0 : 1; // vencido/hoy primero, agendado a futuro después
+  };
+  const sorted = activos.slice().sort((a, b) => {
+    const ua = urgenciaDe(a), ub = urgenciaDe(b);
+    if (ua !== ub) return ua - ub;
+    const ea = estadoRank[a.properties?.['Estado']?.select?.name || ''] ?? 3;
+    const eb = estadoRank[b.properties?.['Estado']?.select?.name || ''] ?? 3;
+    if (ea !== eb) return ea - eb;
+    const pa = a.properties?.['Próximo contacto']?.date?.start || '9999';
+    const pb = b.properties?.['Próximo contacto']?.date?.start || '9999';
+    return pa.localeCompare(pb);
+  });
+
+  // Descartados: colapsados al fondo (mismo patrón acordeón que 😶 Sin respuesta / ❌ Rechazados
+  // en la tab Clientes — toggleCeoAcc + .ceo-acc-head/.ceo-acc-body).
+  const descartadosHTML = descartados.length
+    ? `<div id="prosp-descartados-block">` +
+        `<button class="ceo-acc-head" onclick="toggleCeoAcc(this)"><span>${t('prosp.section.descartados')} (${descartados.length})</span><span class="fin-arrow">▾</span></button>` +
+        `<div class="ceo-acc-body" style="display:none">${descartados.map(c => prospectoCard(c)).join('')}</div>` +
+      `</div>`
+    : '';
+
+  content.innerHTML = newBtn + `<div style="height:4px"></div>` +
+    sorted.map(c => prospectoCard(c)).join('') +
+    descartadosHTML;
+}
+
+function prospectoCard(c) {
+  const props = c.properties || {};
+  const id = c.id;
+  const nombreRaw = props['Nombre / Empresa']?.title?.[0]?.plain_text;
+  const nombreHTML = nombreRaw ? esc(nombreRaw) : `<span style="color:#c67e25">⚠️ ${t('common.sinnombre')}</span>`;
+  const estado = props['Estado']?.select?.name || '';
+  const persona = props['Contacto (persona)']?.rich_text?.[0]?.plain_text || '';
+  const origen = props['Origen del lead']?.select?.name || '';
+  const interes = (props['Interés']?.multi_select || []).map(s => s.name);
+  const proximo = props['Próximo contacto']?.date?.start || '';
+  const nota = props['Notas prospección']?.rich_text?.[0]?.plain_text || '';
+  const notaTrunc = nota.length > 90 ? nota.slice(0, 90) + '…' : nota;
+
+  const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
+  const proxDate = proximo ? new Date(proximo + 'T00:00:00') : null;
+  const vencido = !!(proxDate && proxDate.getTime() < hoy.getTime());
+  const esHoy = !!(proxDate && proxDate.getTime() === hoy.getTime());
+  const proxStyle = vencido ? 'color:var(--red,#e5484d);font-weight:700' : (esHoy ? 'color:#F5A623;font-weight:700' : '');
+  const dateLocale = currentLang === 'pt-BR' ? 'pt-BR' : 'es-UY';
+  const proxLabel = proximo
+    ? new Date(proximo + 'T00:00:00').toLocaleDateString(dateLocale, { day: 'numeric', month: 'short' }) + (vencido ? ' · ' + t('prosp.list.vencido') : (esHoy ? ' · ' + t('prosp.list.hoy') : ''))
+    : t('prosp.list.sinfecha');
+
+  const esDescartado = estado === '❌ Descartado';
+  // "→ Crear propuesta" solo Coordinador/Dirección (decisión del dueño del producto: Ventas junta y
+  // madura, el coord cotiza — Ventas nunca ve/crea propuestas, ver esVentas() + renderCoordPropuestas).
+  const puedeCrearProp = !esVentas() && (esDireccion() || (currentUser?.role || '').includes('Coordinador'));
+
+  const acciones = esDescartado ? '' : `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">
+      <button class="estado-btn" onclick="event.stopPropagation();prospAccion('${esc(id)}','contactado')">${t('prosp.action.contactado')}</button>
+      <button class="estado-btn" onclick="event.stopPropagation();prospAccion('${esc(id)}','interesado')">${t('prosp.action.interesado')}</button>
+      <button class="estado-btn" style="color:var(--red,#e5484d)" onclick="event.stopPropagation();prospAccion('${esc(id)}','descartar')">${t('prosp.action.descartar')}</button>
+      ${(estado === '🤝 Interesado' && puedeCrearProp) ? `<button class="estado-btn active" onclick="event.stopPropagation();openNewPropSheet('${esc(id)}')">${t('prosp.action.crearpropuesta')}</button>` : ''}
+    </div>`;
+
+  return `<div class="contact-card" onclick="openContactSheet('${esc(id)}')">
+    <div class="contact-name">${nombreHTML}</div>
+    <div class="contact-badges">
+      ${estado ? `<span class="contact-estado">${esc(estado)}</span>` : ''}
+      ${origen ? `<span class="coord-tag">${esc(origen)}</span>` : ''}
+      ${interes.map(i => `<span class="coord-tag">${esc(i)}</span>`).join('')}
+    </div>
+    ${persona ? `<div class="contact-detail">👤 ${esc(persona)}</div>` : ''}
+    <div class="contact-detail" style="${proxStyle}">🗓 ${esc(proxLabel)}</div>
+    ${notaTrunc ? `<div class="contact-detail">📝 ${esc(notaTrunc)}</div>` : ''}
+    ${acciones}
+  </div>`;
+}
+
+// Acciones de un toque (spec): 'contactado' | 'interesado' | 'descartar'. Optimista (mismo patrón que
+// cambiarEstadoServicio): muta en memoria + re-pinta al instante; revierte + avisa si el write falla.
+async function prospAccion(id, tipo) {
+  const c = (_coordAllProspectos || []).find(x => x.id === id);
+  if (!c) return;
+  if (tipo === 'descartar' && !confirm(t('prosp.confirm.descartar'))) return;
+  if (!c.properties) c.properties = {};
+  const estadoAnterior = c.properties['Estado']?.select?.name || '';
+  const proxAnterior = c.properties['Próximo contacto']?.date?.start || null;
+
+  const props = {};
+  if (tipo === 'contactado') {
+    // SIEMPRE reprograma el próximo contacto (+7 días, PROSPECTO_SIGUIENTE_CONTACTO_DIAS); el estado
+    // solo AVANZA si estaba recién creado (🎯 Prospecto) — si ya estaba contactado/interesado no retrocede.
+    const proxima = new Date(Date.now() + PROSPECTO_SIGUIENTE_CONTACTO_DIAS * 86400000).toISOString().split('T')[0];
+    props['Próximo contacto'] = { date: { start: proxima } };
+    if (estadoAnterior === '🎯 Prospecto') props['Estado'] = { select: { name: '📵 Prospecto contactado' } };
+  } else if (tipo === 'interesado') {
+    props['Estado'] = { select: { name: '🤝 Interesado' } };
+  } else if (tipo === 'descartar') {
+    props['Estado'] = { select: { name: '❌ Descartado' } };
+  } else {
+    return;
+  }
+
+  Object.entries(props).forEach(([k, v]) => { c.properties[k] = v; });
+  renderProspeccionList();
+  markUserActive();
+
+  try {
+    await updateServiceProps(id, props);
+    syncAfterWrite(id, 'clientes');
+  } catch (e) {
+    // Revertir el optimista en error duro + avisar (mismo criterio que cambiarEstadoServicio).
+    if (estadoAnterior) c.properties['Estado'] = { select: { name: estadoAnterior } }; else delete c.properties['Estado'];
+    if (proxAnterior) c.properties['Próximo contacto'] = { date: { start: proxAnterior } }; else delete c.properties['Próximo contacto'];
+    renderProspeccionList();
+    alert(t('prosp.error.accion') + e.message);
+  }
+}
+
+// ── Alta rápida de prospecto (sheet, overlay sibling de body: ver comentario junto a
+// #prospecto-overlay) — 20 segundos por prospecto, spec 2026-07-02 B2. ──────────────────────
+let prospectoState = {};
+function prospectoOverlayClick(e) { if (e.target.id === 'prospecto-overlay') closeProspectoSheet(); }
+function closeProspectoSheet() { document.getElementById('prospecto-overlay').classList.remove('open'); }
+
+function openProspectoSheet() {
+  const en3dias = new Date(Date.now() + 3 * 86400000).toISOString().split('T')[0];
+  prospectoState = { nombre: '', persona: '', tel: '', email: '', mapa: '', origen: '', interes: [], proximo: en3dias, nota: '' };
+  document.getElementById('prospecto-sheet-body').innerHTML = buildProspectoSheetBody();
+  const btn = document.getElementById('prospecto-save-btn');
+  btn.textContent = t('btn.create.notion'); btn.disabled = false;
+  document.getElementById('prospecto-overlay').classList.add('open');
+}
+
+function buildProspectoSheetBody() {
+  const s = prospectoState;
+  const origenBtns = ORIGEN_LEAD_OPTIONS.map(o => `<button class="estado-btn ${s.origen === o ? 'active' : ''}" onclick="prospectoSetOrigen(this,'${o.replace(/'/g, "\\'")}')">${o}</button>`).join('');
+  const interesBtns = INTERES_OPTIONS.map(o => `<button class="multi-toggle-btn ${s.interes.includes(o) ? 'active' : ''}" onclick="prospectoToggleInteres(this,'${o.replace(/'/g, "\\'")}')">${o}</button>`).join('');
+  return `<div class="edit-section"><div class="edit-section-label">${t('prosp.sheet.section.empresa')}</div>
+      <input type="text" class="edit-date-input" placeholder="${t('prosp.sheet.empresa.placeholder')}" oninput="prospectoState.nombre=this.value" style="font-size:14px"/></div>` +
+    `<div class="edit-section"><div class="edit-section-label">${t('prosp.sheet.section.contacto')}</div>
+      <input type="text" class="edit-date-input" placeholder="${t('prosp.sheet.contacto.placeholder')}" oninput="prospectoState.persona=this.value"/></div>` +
+    `<div class="edit-section"><div class="edit-section-label">${t('sheet.contact.section.tel')}</div>
+      <input type="tel" class="edit-date-input" placeholder="${t('sheet.contact.tel.placeholder')}" oninput="prospectoState.tel=this.value"/></div>` +
+    `<div class="edit-section"><div class="edit-section-label">${t('sheet.contact.section.email')}</div>
+      <input type="email" class="edit-date-input" placeholder="${t('sheet.contact.email.placeholder')}" oninput="prospectoState.email=this.value"/></div>` +
+    `<div class="edit-section"><div class="edit-section-label">${t('prosp.sheet.section.mapa')}</div>
+      <input type="url" class="edit-date-input" placeholder="${t('prosp.sheet.mapa.placeholder')}" oninput="prospectoState.mapa=this.value"/></div>` +
+    `<div class="edit-section"><div class="edit-section-label">${t('prosp.sheet.section.origen')}</div><div class="estado-btns">${origenBtns}</div></div>` +
+    `<div class="edit-section"><div class="edit-section-label">${t('prosp.sheet.section.interes')}</div><div class="multi-toggle-grid">${interesBtns}</div></div>` +
+    `<div class="edit-section"><div class="edit-section-label">${t('prosp.sheet.section.proximo')}</div>
+      <input type="date" class="edit-date-input" value="${esc(s.proximo)}" onchange="prospectoState.proximo=this.value"/></div>` +
+    `<div class="edit-section" style="padding-bottom:0"><div class="edit-section-label">${t('prosp.sheet.section.nota')}</div>
+      <textarea class="edit-date-input" rows="3" style="resize:none;height:80px" placeholder="${t('prosp.sheet.nota.placeholder')}" oninput="prospectoState.nota=this.value"></textarea></div>`;
+}
+
+function prospectoSetOrigen(el, val) {
+  if (el.classList.contains('active')) { prospectoState.origen = ''; el.classList.remove('active'); return; }
+  prospectoState.origen = val;
+  el.closest('.estado-btns').querySelectorAll('.estado-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+}
+function prospectoToggleInteres(el, val) {
+  const arr = prospectoState.interes;
+  const idx = arr.indexOf(val);
+  if (idx === -1) arr.push(val); else arr.splice(idx, 1);
+  el.classList.toggle('active', arr.includes(val));
+}
+
+async function saveProspecto() {
+  const s = prospectoState;
+  const nombre = String(s.nombre || '').trim();
+  if (!nombre) { alert(t('prosp.sheet.error.empresa')); return; }
+  const btn = document.getElementById('prospecto-save-btn');
+  btn.textContent = t('btn.saving'); btn.disabled = true;
+  try {
+    // País del prospecto: el del usuario que lo carga (Ventas/Coordinador son país-aware desde el login).
+    const paisNotion = COUNTRY_NOTION_MAP[currentUser?.country] || COUNTRY_NOTION_MAP[selectedCountry] || '🇺🇾 Uruguay';
+    const props = {
+      'Nombre / Empresa': { title: [{ text: { content: nombre } }] },
+      'Estado': { select: { name: '🎯 Prospecto' } },
+      'País': { select: { name: paisNotion } },
+      'Contacto (persona)': { rich_text: s.persona ? [{ text: { content: s.persona } }] : [] },
+      'Teléfono / WhatsApp': { phone_number: s.tel || null },
+      'Email': { email: s.email || null },
+      'Mapa': { url: s.mapa && s.mapa.trim() ? s.mapa.trim() : null },
+      'Origen del lead': { select: s.origen ? { name: s.origen } : null },
+      'Interés': { multi_select: s.interes.map(n => ({ name: n })) },
+      'Próximo contacto': { date: s.proximo ? { start: s.proximo } : null },
+      'Notas prospección': { rich_text: s.nota ? [{ text: { content: s.nota } }] : [] },
+    };
+    const created = await callNotion('pages', 'POST', { parent: { database_id: CONTACTOS_DB_ID }, properties: props });
+    syncAfterWrite(created?.id, 'clientes');
+    // Update optimista: el prospecto recién creado aparece al toque en su lista, sin esperar un refetch.
+    if (created?.id) _coordAllProspectos = [created, ..._coordAllProspectos];
+    _propContactos = null; // idem selector de cliente en Propuestas: un cliente nuevo debe verse ahí
+    closeProspectoSheet();
+    renderProspeccionList();
+  } catch (e) {
+    btn.textContent = t('btn.create.notion'); btn.disabled = false;
+    alert(t('sheet.alert.save.error2') + e.message);
+  }
+}
+
 function cargarMasContactos() {
   _coordVisibleLimit += COORD_PAGE_SIZE;
   renderContactList(_coordAllContacts, true);
@@ -12329,6 +12764,7 @@ async function renderClientesView(containerId) {
 }
 
 async function renderCoordContactos() {
+  if (esVentas()) return; // blindaje: Ventas no ve la cartera activa de Clientes, solo Prospección
   _contactsContainerId = 'coord-content';
   const content = document.getElementById('coord-content');
   content.innerHTML = '<div style="text-align:center;padding:40px 0"><div class="spinner" style="margin:0 auto"></div></div>';
@@ -13011,6 +13447,7 @@ async function openHistoryItem(type, id) {
 }
 
 async function renderCoordPropuestas() {
+  if (esVentas()) return; // blindaje: Ventas no crea/ve propuestas (decisión del dueño del producto)
   const content = document.getElementById('coord-content');
   content.innerHTML = '<div style="text-align:center;padding:40px 0"><div class="spinner" style="margin:0 auto"></div></div>';
   const myTab = 'propuestas';
@@ -13419,6 +13856,7 @@ async function loadAlerts(role, bannerId) {
 // COMUNICACIONES (placeholder)
 // ─────────────────────────────────────────────
 function renderComunicaciones() {
+  if (esVentas()) return; // blindaje: Ventas no ve Mensajes, ni por un llamado directo
   const isCEO = currentUser?.role === '👔 CEO' || currentUser?.role === '🎯 Dirección';
   const content = document.getElementById(isCEO ? 'ceo-content' : 'coord-content');
   if (!content) return;
