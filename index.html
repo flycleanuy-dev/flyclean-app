@@ -1416,18 +1416,6 @@ body::before {
       <button class="delete-svc-btn" id="delete-prop-btn" onclick="deletePropuesta()" style="display:none">🗑️ Eliminar propuesta</button>
     </div>
   </div>
-    <div class="edit-overlay" id="new-service-overlay" onclick="newServiceOverlayClick(event)">
-      <div class="edit-sheet" id="new-service-sheet">
-        <button class="sheet-close-btn" type="button" aria-label="Cerrar" onclick="closeNewServiceSheet()">×</button>
-        <div class="edit-sheet-handle"></div>
-        <div class="edit-sheet-header">
-          <div class="edit-sheet-title" id="new-service-sheet-title" data-i18n="sheet.newsvc.title">Nuevo trabajo</div>
-          <div class="edit-sheet-sub" id="new-service-sheet-sub" data-i18n="sheet.newsvc.sub"></div>
-        </div>
-        <div id="new-service-sheet-body"></div>
-        <button class="edit-save-btn" id="new-service-save-btn" data-i18n="btn.create.notion" onclick="submitNewService()">✨ Crear</button>
-      </div>
-    </div>
   <div class="edit-overlay" id="contact-overlay" onclick="contactOverlayClick(event)">
     <div class="edit-sheet" id="contact-sheet">
       <button class="sheet-close-btn" type="button" aria-label="Cerrar" onclick="closeContactSheet()">×</button>
@@ -1439,6 +1427,23 @@ body::before {
       <div id="contact-sheet-body"></div>
       <button class="edit-save-btn" id="contact-save-btn" data-i18n="btn.save.notion" onclick="saveContactEdit()">💾 Guardar</button>
     </div>
+  </div>
+</div>
+
+<!-- Modal: Nuevo trabajo suelto (crear servicio/relevamiento/prueba sin propuesta) —
+     sibling de body: se dispara desde la tab Servicios del coord Y desde la ficha del
+     cliente (que también se abre desde Por cobrar en Finanzas/CEO). Dentro de una .screen
+     con display:none quedaría invisible aunque sea position:fixed. -->
+<div class="edit-overlay" id="new-service-overlay" onclick="newServiceOverlayClick(event)">
+  <div class="edit-sheet" id="new-service-sheet">
+    <button class="sheet-close-btn" type="button" aria-label="Cerrar" onclick="closeNewServiceSheet()">×</button>
+    <div class="edit-sheet-handle"></div>
+    <div class="edit-sheet-header">
+      <div class="edit-sheet-title" id="new-service-sheet-title" data-i18n="sheet.newsvc.title">Nuevo trabajo</div>
+      <div class="edit-sheet-sub" id="new-service-sheet-sub" data-i18n="sheet.newsvc.sub"></div>
+    </div>
+    <div id="new-service-sheet-body"></div>
+    <button class="edit-save-btn" id="new-service-save-btn" data-i18n="btn.create.notion" onclick="submitNewService()">✨ Crear</button>
   </div>
 </div>
 
@@ -5898,7 +5903,7 @@ function setTab(tab) {
 function esDireccion(u = currentUser) { return !!(u?.role && u.role.includes('Dirección')); }
 function puedeEditarNombre(u = currentUser) { return !!(u?.role && (u.role.includes('Coordinador') || u.role.includes('CEO') || u.role.includes('Dirección'))); }
 
-function setCoordTab(tab) {
+function setCoordTab(tab, skipRender) {
   if (tab === 'limpieza' && !esDireccion()) return;
   activeCoordTab = tab;
   markUserActive();
@@ -5925,6 +5930,9 @@ function setCoordTab(tab) {
   const viewToggle = document.getElementById('coord-view-toggle');
   if (viewToggle) viewToggle.style.display = tab === 'inicio' ? 'flex' : 'none';
 
+  // skipRender: el caller hará su propio render (evita un 2º fetch concurrente que pisaría la lista;
+  // ej. submitNewService fija la tab y luego awaitea UN solo render + update optimista).
+  if (skipRender) return;
   if (tab === 'inicio') renderCoordInicio();
   else if (tab === 'resumen') renderCoordResumen();
   else if (tab === 'servicios') renderCoordServicios();
@@ -6506,15 +6514,15 @@ function renderStep() {
       <div class="step-sub">${t('step.inicio.sub')}</div>
       <div class="hint hint-blue">${t('step.inicio.hint')}</div>
       <div class="info-block">
-        <div class="info-row"><span class="info-label">${t('step.info.nombre')}</span><span class="info-val">${nombre}</span></div>
+        <div class="info-row"><span class="info-label">${t('step.info.nombre')}</span><span class="info-val">${esc(nombre)}</span></div>
         <div class="info-row"><span class="info-label">${t('step.info.fecha')}</span><span class="info-val">${fechaFmt}${horaFmt ? ' · ' + horaFmt : ''}</span></div>
-        ${lugar ? `<div class="info-row"><span class="info-label">${t('step.info.lugar')}</span><span class="info-val">${lugar}</span></div>` : ''}
-        <div class="info-row"><span class="info-label">${t('step.info.tipo')}</span><span class="info-val">${tipo}</span></div>
-        <div class="info-row"><span class="info-label">${t('step.info.pais')}</span><span class="info-val">${pais}</span></div>
+        ${lugar ? `<div class="info-row"><span class="info-label">${t('step.info.lugar')}</span><span class="info-val">${esc(lugar)}</span></div>` : ''}
+        <div class="info-row"><span class="info-label">${t('step.info.tipo')}</span><span class="info-val">${esc(tipo)}</span></div>
+        <div class="info-row"><span class="info-label">${t('step.info.pais')}</span><span class="info-val">${esc(pais)}</span></div>
         ${m2 ? `<div class="info-row"><span class="info-label">${t('step.info.m2')}</span><span class="info-val">${m2} m²</span></div>` : ''}
-        <div class="info-row"><span class="info-label">${t('step.info.tiporeg')}</span><span class="info-val">${tipoReg}</span></div>
+        <div class="info-row"><span class="info-label">${t('step.info.tiporeg')}</span><span class="info-val">${esc(tipoReg)}</span></div>
       </div>
-      ${notasPre ? `<div class="hint hint-amber" style="white-space:pre-wrap;margin-top:10px"><strong>${t('step.info.notaspre')}</strong><br>${esc(notasPre)}</div>` : ''}
+      ${(notasPre && !tipoReg.includes('Relevamiento')) ? `<div class="hint hint-amber" style="white-space:pre-wrap;margin-top:10px"><strong>${t('step.info.notaspre')}</strong><br>${esc(notasPre)}</div>` : ''}
       ${mapa ? `<a href="${mapa}" target="_blank" rel="noopener" class="btn-main btn-blue" style="display:block;text-align:center;text-decoration:none;margin:12px 0">🗺️ ${t('step.info.abrirmapa')}</a>` : ''}
       ${serviceState.horaInicio ? `<div class="ts-recorded"><div class="ts-label">${t('step.inicio.recorded')}</div><div class="ts-value">${serviceState.horaInicio}</div></div>` : ''}
       <div id="op-equipos-section" style="margin-top:14px"></div>
@@ -11351,19 +11359,23 @@ async function loadNewSvcContactos() {
 
 // Resuelve el cliente elegido, o dedup/crea uno nuevo. Devuelve su id (o null si no hay datos).
 async function resolveOrCreateClienteId(s) {
+  // Normalizamos tel/email antes de dedupear y crear: ' 099…' no debe fallar el match contra '099…'
+  // y generar un duplicado. Email a minúsculas para consistencia del equals.
+  const tel = (s.tel || '').trim();
+  const email = (s.email || '').trim().toLowerCase();
   if (s.clienteSel && s.clienteSel !== '__new__') {
     const upd = {};
-    if (s.tel) upd['Teléfono / WhatsApp'] = { phone_number: s.tel };
-    if (s.email) upd['Email'] = { email: s.email };
+    if (tel) upd['Teléfono / WhatsApp'] = { phone_number: tel };
+    if (email) upd['Email'] = { email };
     if (Object.keys(upd).length) { try { await updateServiceProps(s.clienteSel, upd); } catch (_) {} }
     return s.clienteSel;
   }
   const nombreCli = (s.nombreCliente || '').trim();
-  if (!nombreCli && !s.tel && !s.email) return null;
+  if (!nombreCli && !tel && !email) return null;
   // Dedup por tel/email
   const orf = [];
-  if (s.tel) orf.push({ property: 'Teléfono / WhatsApp', phone_number: { equals: s.tel } });
-  if (s.email) orf.push({ property: 'Email', email: { equals: s.email } });
+  if (tel) orf.push({ property: 'Teléfono / WhatsApp', phone_number: { equals: tel } });
+  if (email) orf.push({ property: 'Email', email: { equals: email } });
   if (orf.length) {
     const dup = await callNotion(`databases/${CONTACTOS_DB_ID}/query`, 'POST', { filter: orf.length === 1 ? orf[0] : { or: orf }, page_size: 1 }).catch(() => ({ results: [] }));
     if (dup.results && dup.results.length) return dup.results[0].id;
@@ -11373,8 +11385,8 @@ async function resolveOrCreateClienteId(s) {
     'Estado': { select: { name: '🆕 Lead' } },
   };
   if (s.pais) cprops['País'] = { select: { name: s.pais } };
-  if (s.tel) cprops['Teléfono / WhatsApp'] = { phone_number: s.tel };
-  if (s.email) cprops['Email'] = { email: s.email };
+  if (tel) cprops['Teléfono / WhatsApp'] = { phone_number: tel };
+  if (email) cprops['Email'] = { email };
   const nc = await callNotion('pages', 'POST', { parent: { database_id: CONTACTOS_DB_ID }, properties: cprops });
   _propContactos = null;
   return nc && nc.id;
@@ -11450,11 +11462,10 @@ async function submitNewService() {
     const created = await callNotion('pages', 'POST', { parent: { type: 'data_source_id', data_source_id: SERVICIOS_DS_ID }, properties });
     closeNewServiceSheet();
     const tab = s.tipoRegistro.includes('Relevamiento') ? 'relevamientos' : (s.tipoRegistro.includes('Prueba') ? 'pruebas' : 'servicios');
-    if (typeof setCoordTab === 'function') setCoordTab(tab);
-    // Awaitear el render de LA tab correcta (no siempre renderCoordServicios): si el nuevo es
-    // Relevamiento/Prueba, renderCoordServicios los filtra afuera y su guard aborta → el ítem solo
-    // aparecería por el unshift. Con el render correcto, la lista de esa tab queda poblada y el
-    // update optimista lo agrega arriba aunque Notion aún no lo indexe (mismo patrón que el twin).
+    // setCoordTab con skipRender=true: fija la tab SIN disparar su render, así hacemos UN solo
+    // render (no dos fetches concurrentes que se pisan y dropean el ítem optimista). Awaiteamos el
+    // render de LA tab correcta (renderCoordServicios filtra afuera Relevamiento/Prueba).
+    if (typeof setCoordTab === 'function') setCoordTab(tab, true);
     const renderFn = tab === 'relevamientos' ? renderCoordRelevamientos
                    : tab === 'pruebas' ? renderCoordPruebas
                    : renderCoordServicios;
@@ -11463,6 +11474,11 @@ async function submitNewService() {
       _coordAllServices.unshift(created);
       if (typeof renderCoordList === 'function') renderCoordList();
     }
+    // Poblar editingService con el objeto recién creado: openEditSheet lo respeta por id y así NO
+    // depende de que el ítem siga en _coordAllServices (una revalidación del SW podría rebarrer la
+    // lista antes del setTimeout). _editFromPorCobrar=false = flujo coord normal (no Por cobrar).
+    editingService = created;
+    _editFromPorCobrar = false;
     setTimeout(() => { if (typeof openEditSheet === 'function') openEditSheet(created.id); }, 400);
   } catch (e) {
     btn.textContent = t('btn.create.notion'); btn.disabled = false;
