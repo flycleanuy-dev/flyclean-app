@@ -11404,6 +11404,9 @@ async function resolveOrCreateClienteId(s) {
   if (tel) cprops['Teléfono / WhatsApp'] = { phone_number: tel };
   if (email) cprops['Email'] = { email };
   const nc = await callNotion('pages', 'POST', { parent: { database_id: CONTACTOS_DB_ID }, properties: cprops });
+  // Espejo al toque: con lecturas de clientes desde Supabase, sin esto el cliente nuevo
+  // tardaría hasta 10 min (cron) en aparecer en los selectores que leen del espejo.
+  if (nc?.id && typeof syncAfterWrite === 'function') { try { syncAfterWrite(nc.id, 'clientes'); } catch (_) {} }
   _propContactos = null;
   return nc && nc.id;
 }
@@ -11758,6 +11761,8 @@ async function savePropEdit() {
         if (propEditState.email) cprops['Email'] = { email: propEditState.email };
         const nc = await callNotion('pages', 'POST', { parent: { database_id: CONTACTOS_DB_ID }, properties: cprops });
         clienteId = nc && nc.id;
+        // Espejo al toque (ver resolveOrCreateClienteId): que el cliente nuevo no tarde 10 min en las listas.
+        if (clienteId && typeof syncAfterWrite === 'function') { try { syncAfterWrite(clienteId, 'clientes'); } catch (_) {} }
       }
       _propContactos = null;
     }
