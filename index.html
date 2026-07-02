@@ -7612,7 +7612,8 @@ async function renderCEOMetricas() {
         '<div class="ceo-acc-body" style="display:none"><div id="ceo-renta-body"></div></div>' +
         (aRevisar.length ? '<button class="ceo-acc-head warn" onclick="toggleCeoAcc(this)"><span>⚠️ A revisar (' + aRevisar.length + ')</span><span class="fin-arrow">▾</span></button><div class="ceo-acc-body" style="display:none">' + aRevisar.map(x => '<div class="fin-detail-row"><div class="fin-detail-main"><div class="fin-detail-title">• ' + esc(x) + '</div></div></div>').join('') + '<div class="kpi-sub" style="padding:8px 16px 4px">Completalos desde el proyecto FlyClean-Finanzas para KPIs exactos por período y por cliente.</div></div>' : '') +
       '</div>';
-    renderCeoRentaBody();
+    // Defensivo: un fallo pintando Rentabilidad no debe tirar abajo el panel de Métricas ya renderizado.
+    try { renderCeoRentaBody(); } catch (_) {}
   } catch (e) {
     content.innerHTML = '<div class="coord-empty">' + t('ceo.error.metricas') + '<br><small>' + esc(e.message) + '</small></div>';
   }
