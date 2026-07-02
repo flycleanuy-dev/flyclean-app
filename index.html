@@ -11451,7 +11451,14 @@ async function submitNewService() {
     closeNewServiceSheet();
     const tab = s.tipoRegistro.includes('Relevamiento') ? 'relevamientos' : (s.tipoRegistro.includes('Prueba') ? 'pruebas' : 'servicios');
     if (typeof setCoordTab === 'function') setCoordTab(tab);
-    await renderCoordServicios();
+    // Awaitear el render de LA tab correcta (no siempre renderCoordServicios): si el nuevo es
+    // Relevamiento/Prueba, renderCoordServicios los filtra afuera y su guard aborta → el ítem solo
+    // aparecería por el unshift. Con el render correcto, la lista de esa tab queda poblada y el
+    // update optimista lo agrega arriba aunque Notion aún no lo indexe (mismo patrón que el twin).
+    const renderFn = tab === 'relevamientos' ? renderCoordRelevamientos
+                   : tab === 'pruebas' ? renderCoordPruebas
+                   : renderCoordServicios;
+    await renderFn();
     if (Array.isArray(_coordAllServices) && !_coordAllServices.some(x => x.id === created.id)) {
       _coordAllServices.unshift(created);
       if (typeof renderCoordList === 'function') renderCoordList();
