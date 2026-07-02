@@ -55,6 +55,7 @@ create table if not exists propuestas (
   fecha_envio        date,
   ultima_interaccion date,
   aviso_recontacto   boolean default false,
+  mapa               text,                       -- url "Mapa" (link de Google Maps, heredable a servicios)
   cliente_notion_id  text,                       -- relation "Contacto"/"Cliente"
   raw                jsonb,
   created_at         timestamptz default now(),
@@ -68,11 +69,14 @@ create table if not exists servicios (
   notion_id            text unique not null,
   nombre_servicio      text,                     -- title
   tipo_registro        text,                     -- Orden / Jornada / Relevamiento / Prueba
+  tipo_servicio        text,                     -- 'Tipo de servicio': Fachada / Vidrios / Paneles solares / Combinado
   estado               text,                     -- ej. '✅ Completado'
   pais                 text,
   operario_app         text,                     -- piloto asignado (clave para RLS de operario)
   operarios_participantes text[] default '{}',
+  operario_manual      text,                     -- 'Operario manual': piloto cargado a mano (sin cuenta en la app)
   fecha_programada     date,
+  fecha_planificada    date,                     -- fecha ORIGINAL antes de un inicio fuera de fecha (coord)
   hora_inicio          timestamptz,              -- programada (coord)
   hora_inicio_efectivo timestamptz,              -- real (operario)
   hora_fin_efectivo    timestamptz,
@@ -83,10 +87,16 @@ create table if not exists servicios (
   resultado_prueba     text,
   ubicacion_gps        text,
   observacion_cliente  text,
+  notas_pre_servicio   text,                     -- 'Notas pre-servicio': notas comerciales heredadas de la propuesta
+  metodo_trabajo       text,                     -- 'Método de trabajo': dron / manual
+  herramienta_manual   text,                     -- 'Herramienta manual': solo si método = manual
+  jornada_n            integer,                  -- 'Jornada N°': número de jornada dentro de un trabajo multi-día
+  avance_pct           numeric,                  -- '% de avance': 0-100, sectores o carga manual del operario
   excluir_kpis         boolean default false,
   tipo_interno         text,
   cliente_notion_id    text,                     -- relation "Contacto"
   propuesta_notion_id  text,                     -- relation "Propuesta"
+  orden_madre_notion_id text,                    -- relation "Orden madre": raíz del trabajo multi-jornada
   raw                  jsonb,
   created_at           timestamptz default now(),
   updated_at           timestamptz default now()
