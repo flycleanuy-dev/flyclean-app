@@ -2344,6 +2344,7 @@ const TRANSLATIONS = {
     'coord.prop.contactar.title': '📞 A contactar hoy',
     'coord.prop.contactar.btn': '📞 Contactado',
     'coord.prop.contactar.vencer': 'por vencer',
+    'coord.prop.contactar.vida': 'quedan {n} días',
     'alerts.alerta': 'alerta',
     'alerts.alertas': 'alertas',
     'alerts.activa': 'activa',
@@ -3027,6 +3028,7 @@ const TRANSLATIONS = {
     'coord.prop.contactar.title': '📞 Para contatar hoje',
     'coord.prop.contactar.btn': '📞 Contatado',
     'coord.prop.contactar.vencer': 'prestes a vencer',
+    'coord.prop.contactar.vida': 'restam {n} dias',
     'coord.prop.tap.edit': 'Toque para editar →',
     'alerts.alerta': 'alerta',
     'alerts.alertas': 'alertas',
@@ -12144,6 +12146,13 @@ async function savePropEdit() {
       props['Servicios por año'] = { number: parseFloat(propEditState.serviciosAnio) || null };
       props['Comisión %'] = { number: parseFloat(propEditState.comision) || null };
       if (propEditState.fechaEnvio) props['Fecha de envío'] = { date: { start: propEditState.fechaEnvio } };
+      else if (propEditState.estado === '📤 Enviada al cliente') {
+        // Reloj de vida (spec dos-relojes 2026-07-02): al nacer ya en "Enviada" sin fecha propia,
+        // se estampa hoy — mismo patrón hoyISO que openNewServiceSheet (fecha LOCAL, no UTC).
+        const _hoy = new Date();
+        const hoyISO = `${_hoy.getFullYear()}-${String(_hoy.getMonth() + 1).padStart(2, '0')}-${String(_hoy.getDate()).padStart(2, '0')}`;
+        props['Fecha de envío'] = { date: { start: hoyISO } };
+      }
       if (propEditState.ultimaInt) props['Última interacción'] = { date: { start: propEditState.ultimaInt } };
       if (propEditState.obs) props['Observaciones'] = { rich_text: [{ text: { content: propEditState.obs } }] };
       if (clienteId) props['Contacto'] = { relation: [{ id: clienteId }] };
@@ -12158,6 +12167,14 @@ async function savePropEdit() {
       props['Servicios por año'] = { number: parseFloat(propEditState.serviciosAnio) || null };
       props['Comisión %'] = { number: parseFloat(propEditState.comision) || null };
       if (propEditState.fechaEnvio) props['Fecha de envío'] = { date: { start: propEditState.fechaEnvio } };
+      else if (propEditState.estado === '📤 Enviada al cliente') {
+        // Reloj de vida (spec dos-relojes 2026-07-02): al pasar a "Enviada" sin Fecha de envío previa
+        // y sin que el usuario haya cargado una en el form, se estampa hoy automáticamente — mismo
+        // patrón hoyISO que openNewServiceSheet (fecha LOCAL, no UTC). Si ya tenía una, no se toca.
+        const _hoy = new Date();
+        const hoyISO = `${_hoy.getFullYear()}-${String(_hoy.getMonth() + 1).padStart(2, '0')}-${String(_hoy.getDate()).padStart(2, '0')}`;
+        props['Fecha de envío'] = { date: { start: hoyISO } };
+      }
       if (propEditState.ultimaInt) props['Última interacción'] = { date: { start: propEditState.ultimaInt } };
       props['Observaciones'] = { rich_text: propEditState.obs ? [{ text: { content: propEditState.obs } }] : [] };
       props['Mapa'] = { url: (propEditState.mapa && propEditState.mapa.trim()) ? propEditState.mapa.trim() : null };
@@ -12987,21 +13004,43 @@ function renderContactarHoyHTML() {
     return ESPERANDO.includes(estado) && dias != null && dias >= 15;
   }).sort((a, b) => (b.properties?.['Días sin respuesta']?.formula?.number || 0) - (a.properties?.['Días sin respuesta']?.formula?.number || 0));
   if (!items.length) return '';
-  // Tier de urgencia: 40+ días sin respuesta ("por vencer" — a los 45 el cron diario las mueve
-  // solo a 😶 Sin respuesta). Se marca con acento rojo + tag ⚠️ y suma al contador del header.
-  const vencerCount = items.filter(p => (p.properties?.['Días sin respuesta']?.formula?.number || 0) >= 40).length;
+  // Reloj de VIDA (spec dos-relojes 2026-07-02): días restantes antes de que el cron diario
+  // (api/cron-pipeline.js) la mueva sola a 😶 Sin respuesta a los 45, contados desde 'Fecha de envío'
+  // (fallback: fecha de creación de la página). NO aplica a Negociando — esa no muere por envío.
+  const vidaRestante = (p) => {
+    const fechaEnvio = p.properties?.['Fecha de envío']?.date?.start || p.created_time;
+    if (!fechaEnvio) return null;
+    const diasDesdeEnvio = Math.floor((Date.now() - new Date(fechaEnvio).getTime()) / 86400000);
+    return Math.max(0, 45 - diasDesdeEnvio);
+  };
+  // Tier de urgencia ("por vencer", rojo): Contactado/Enviada se re-ancla a la VIDA restante (≤5d);
+  // Negociando (sin reloj de vida) mantiene el criterio de siempre — 40+ días sin respuesta.
+  const esVencer = (p) => {
+    const estado = p.properties?.['Estado pipeline']?.select?.name || '';
+    if (estado.includes('Negociando')) return (p.properties?.['Días sin respuesta']?.formula?.number || 0) >= 40;
+    const vida = vidaRestante(p);
+    return vida != null && vida <= 5;
+  };
+  const vencerCount = items.filter(esVencer).length;
   const rows = items.map(p => {
     const props = p.properties || {};
     const nombre = props['Nombre de propuesta']?.title?.[0]?.plain_text || t('common.sinnombre');
     const estado = props['Estado pipeline']?.select?.name || '';
     const dias = props['Días sin respuesta']?.formula?.number;
-    const esVencer = dias != null && dias >= 40;
-    const estadoClass = estado.includes('Negociando') ? 'negociando' : estado.toLowerCase().includes('enviada') ? 'enviada' : '';
+    const negociando = estado.includes('Negociando');
+    const vencido = esVencer(p);
+    // Negociando: sin reloj de vida — muestra solo la línea de seguimiento, igual que siempre.
+    // Contactado/Enviada: suma "☠️ quedan Nd" (vida restante), siempre visible en estos estados.
+    const vida = negociando ? null : vidaRestante(p);
+    const extraLinea = negociando
+      ? (vencido ? ' · ⚠️ ' + t('coord.prop.contactar.vencer') : '')
+      : (vida != null ? ' · ☠️ ' + t('coord.prop.contactar.vida').replace('{n}', vida) : '');
+    const estadoClass = negociando ? 'negociando' : estado.toLowerCase().includes('enviada') ? 'enviada' : '';
     const idAttr = esc(p.id);
-    return `<div class="prop-card${esVencer ? ' vencer' : ''}">
+    return `<div class="prop-card${vencido ? ' vencer' : ''}">
       <div class="prop-nombre">${esc(nombre)}</div>
       <div class="prop-meta"><span class="prop-estado ${estadoClass}">${esc(estado)}</span></div>
-      <div class="prop-dias alert${esVencer ? ' vencer' : ''}">${dias}${t('coord.prop.days.suffix')}${esVencer ? ' · ⚠️ ' + t('coord.prop.contactar.vencer') : ''}</div>
+      <div class="prop-dias alert${vencido ? ' vencer' : ''}">${dias}${t('coord.prop.days.suffix')}${extraLinea}</div>
       <button class="estado-btn active" style="width:100%;margin-top:8px" id="contactar-btn-${idAttr}" onclick="marcarPropContactada('${idAttr}')">${t('coord.prop.contactar.btn')}</button>
     </div>`;
   }).join('');

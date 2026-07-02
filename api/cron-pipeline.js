@@ -1,7 +1,14 @@
 // Cron DIARIO de pipeline de propuestas (Vercel Cron, 11:00 UTC = 8:00 UY).
-// 1) A los 45 días sin respuesta → mueve la propuesta sola a "Sin respuesta".
-// 2) A los 15 días → la marca como "para re-contactar" (1 sola vez, vía property
-//    "Aviso re-contacto"); si vuelve a estar fresca, limpia el marcador.
+// DOS RELOJES (spec dos-relojes 2026-07-02, decisión de Diego): "contactar" nuestro no debe poder
+// mantener viva una propuesta para siempre si el cliente nunca responde.
+// 1) Reloj de VIDA — 45 días SIN RESPUESTA DEL CLIENTE → mueve la propuesta sola a "Sin respuesta":
+//    - 📞 Contactado / 📤 Enviada al cliente: cuenta desde 'Fecha de envío' (fallback: created_time
+//      de la página). Un contacto nuestro (marcarPropContactada) YA NO resetea este reloj.
+//    - 🤝 Negociando: NO muere por envío (hay diálogo real) — sigue con la regla de siempre, 45 días
+//      de 'Días sin respuesta' (fórmula desde 'Última interacción').
+// 2) Reloj de SEGUIMIENTO — a los 15 días de 'Días sin respuesta' (Última interacción) la marca como
+//    "para re-contactar" (1 sola vez, vía property "Aviso re-contacto"); si vuelve a estar fresca,
+//    limpia el marcador. Sin cambios respecto a antes.
 // 3) Email a Federico (+ Diego en copia) SOLO si hay novedades.
 import { queryAll, updatePage } from './_lib/notion.js';
 import { sendEmail, emailLayout } from './_lib/email.js';
@@ -17,8 +24,19 @@ const SIN_RESPUESTA = '😶 Sin respuesta';
 const DIAS_ALERTA = 15;
 const DIAS_AUTOMOVE = 45;
 
+const NEGOCIANDO = '🤝 Negociando';
+const MS_DIA = 86400000;
+
 const titleOf = (p) => p?.['Nombre de propuesta']?.title?.[0]?.plain_text || '(sin nombre)';
-const diasOf = (p) => p?.['Días sin respuesta']?.formula?.number ?? null; // misma fórmula que usa el in-app
+const diasOf = (p) => p?.['Días sin respuesta']?.formula?.number ?? null; // misma fórmula que usa el in-app (reloj de SEGUIMIENTO)
+
+// Reloj de VIDA: días desde 'Fecha de envío' (fallback: created_time de la página). Solo se usa para
+// el auto-move de Contactado/Enviada — Negociando sigue con diasOf() de siempre.
+function diasDeVida(page, props) {
+  const fechaEnvio = props?.['Fecha de envío']?.date?.start || page.created_time;
+  if (!fechaEnvio) return null;
+  return Math.floor((Date.now() - new Date(fechaEnvio).getTime()) / MS_DIA);
+}
 
 export default async function handler(req, res) {
   // Seguridad: Vercel Cron manda Authorization: Bearer $CRON_SECRET.
@@ -39,15 +57,24 @@ export default async function handler(req, res) {
 
     for (const p of propuestas) {
       const pr = p.properties || {};
-      const dias = diasOf(pr);
-      if (dias == null) continue;
+      const estado = pr['Estado pipeline']?.select?.name || '';
+      const esNegociando = estado === NEGOCIANDO;
+      const dias = diasOf(pr); // reloj de SEGUIMIENTO (Última interacción) — igual que siempre.
       const nombre = titleOf(pr);
       const yaAvisado = !!pr['Aviso re-contacto']?.date?.start;
 
-      if (dias >= DIAS_AUTOMOVE) {
+      // Reloj de VIDA: Negociando usa 'dias' (regla actual, sin cambios); Contactado/Enviada usan
+      // días desde 'Fecha de envío' (fallback created_time) — un contacto nuestro ya no la revive.
+      const diasVida = esNegociando ? dias : diasDeVida(p, pr);
+
+      if (diasVida != null && diasVida >= DIAS_AUTOMOVE) {
         if (!dryRun) await updatePage(p.id, { 'Estado pipeline': { select: { name: SIN_RESPUESTA } } });
-        movidas.push({ nombre, dias });
-      } else if (dias >= DIAS_ALERTA) {
+        movidas.push({ nombre, dias: diasVida });
+        continue; // ya se movió — no evaluar el reloj de seguimiento sobre esta.
+      }
+
+      if (dias == null) continue; // sin 'Última interacción' no hay nada más que evaluar (alerta 15d).
+      if (dias >= DIAS_ALERTA) {
         if (!yaAvisado) {
           if (!dryRun) await updatePage(p.id, { 'Aviso re-contacto': { date: { start: today } } });
           nuevasRecontacto.push({ nombre, dias });

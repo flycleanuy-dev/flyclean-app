@@ -105,7 +105,8 @@
 //       Este deploy además activa SUPABASE_JWT_SECRET (RLS por usuario en /api/db).
 // v109: CRM comercial — sección "📊 Comercial" en CEO→Métricas (embudo, conversión, valor del pipeline por moneda, tiempo de cierre aprox) + "📞 A contactar hoy" en Propuestas del coord con botón que registra el contacto (escribe Última interacción).
 // v110: la alerta "propuestas para re-contactar" del coord es tocable (lleva directo a "📞 A contactar hoy") + urgencia "⚠️ por vencer" (40+ días, rojo) en el bloque — a los 45 el cron las mueve solo a Sin respuesta.
-const CACHE = 'flyclean-v110';
+// v111: reloj de vida de propuestas desde FECHA DE ENVÍO (45d → Sin respuesta; Negociando exento) + Fecha de envío se estampa sola al pasar a Enviada + "☠️ quedan Nd" en A contactar hoy (rojo = ≤5d de vida) + secciones de clientes (ver v111b).
+const CACHE = 'flyclean-v111';
 const SHELL = [
   '/',
   '/index.html',
