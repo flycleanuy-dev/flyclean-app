@@ -44,6 +44,25 @@ function paisQuery(u) {
   return '&pais=eq.' + encodeURIComponent(u.pais);
 }
 
+// PostgREST cappea las respuestas sin Range explícito (típicamente 1000 filas) → truncado silencioso
+// a medida que las tablas crecen. Pagina de a 1000 con Range/Range-Unit hasta que una página vuelve
+// corta, concatenando. Misma URL y headers en cada página; solo cambia el Range.
+async function fetchPaged(url, headers) {
+  const PAGE = 1000;
+  let rows = [], offset = 0;
+  for (;;) {
+    const r = await fetch(url, {
+      headers: { ...headers, 'Range-Unit': 'items', Range: `${offset}-${offset + PAGE - 1}` },
+    });
+    if (!r.ok) throw new Error('supabase ' + r.status);
+    const page = await r.json();
+    rows.push(...page);
+    if (page.length < PAGE) break;
+    offset += PAGE;
+  }
+  return rows;
+}
+
 export default async function handler(req, res) {
   const origin = req.headers.origin || '';
   res.setHeader('Access-Control-Allow-Origin', originAllowed(origin) ? origin : 'https://flyclean.app');
@@ -73,18 +92,14 @@ export default async function handler(req, res) {
     if (JWT_SECRET && ANON_KEY && !esGlobal(u)) {
       // Camino RLS pura: la base filtra por país según los claims del JWT.
       const jwt = mintUserJWT(u, session.id);
-      const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}?select=notion_id,raw`, {
-        headers: { apikey: ANON_KEY, Authorization: 'Bearer ' + jwt },
+      rows = await fetchPaged(`${SUPABASE_URL}/rest/v1/${table}?select=notion_id,raw`, {
+        apikey: ANON_KEY, Authorization: 'Bearer ' + jwt,
       });
-      if (!r.ok) throw new Error('supabase ' + r.status);
-      rows = await r.json();
     } else {
       // Fallback (o usuario global): service_role + filtro por país server-side.
-      const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}?select=notion_id,raw${paisQuery(u)}`, {
-        headers: { apikey: SERVICE_KEY, Authorization: 'Bearer ' + SERVICE_KEY },
+      rows = await fetchPaged(`${SUPABASE_URL}/rest/v1/${table}?select=notion_id,raw${paisQuery(u)}`, {
+        apikey: SERVICE_KEY, Authorization: 'Bearer ' + SERVICE_KEY,
       });
-      if (!r.ok) throw new Error('supabase ' + r.status);
-      rows = await r.json();
     }
     // Formato Notion → el render de la app no cambia.
     const results = (rows || []).map(x => ({ object: 'page', id: x.notion_id, properties: x.raw || {} }));
