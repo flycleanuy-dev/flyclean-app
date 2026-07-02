@@ -1324,6 +1324,18 @@ body::before {
         <div class="edit-section-label" data-i18n="sheet.edit.section.lugar">LUGAR</div>
         <input type="text" class="edit-date-input" id="edit-lugar" placeholder="Ej. Edificio Trento, Carrasco" oninput="editState.lugar=this.value"/>
       </div>
+      <div class="edit-section">
+        <div class="edit-section-label" data-i18n="sheet.edit.section.tiposervicio">TIPO DE SERVICIO</div>
+        <div class="estado-btns" id="edit-tiposervicio-btns"></div>
+      </div>
+      <div class="edit-section">
+        <div class="edit-section-label" data-i18n="sheet.edit.section.notaspre">📝 NOTAS PARA EL OPERARIO (antes del trabajo)</div>
+        <textarea class="edit-date-input" id="edit-notaspre" rows="3" style="resize:none;height:70px" oninput="editState.notasPreServicio=this.value"></textarea>
+      </div>
+      <div class="edit-section">
+        <div class="edit-section-label" data-i18n="sheet.edit.section.obscliente">🗒️ OBSERVACIÓN PARA EL CLIENTE (va en el PDF)</div>
+        <textarea class="edit-date-input" id="edit-obscliente" rows="3" style="resize:none;height:70px" oninput="editState.observacionCliente=this.value"></textarea>
+      </div>
       <div class="edit-section" id="edit-cliente-ubicacion"></div>
       <button class="edit-save-btn" id="edit-save-btn" data-i18n="btn.save.notion" onclick="saveServiceEdit()">💾 Guardar</button>
       <button class="report-pdf-btn" id="report-pdf-btn" onclick="openReportStep(editingService)" style="display:none">📄 Generar reporte</button>
@@ -9683,7 +9695,10 @@ async function openEditSheet(pageId) {
     contactoId, clienteNombre: '', clienteMapa: '', propMapa: '',
     sectoresCliente: [],
     sectores: (() => { try { return JSON.parse(props['Estado sectores']?.rich_text?.[0]?.plain_text || '[]'); } catch (_) { return []; } })(),
-    _sectoresClienteDirty: false, _sectoresClienteLoaded: false };
+    _sectoresClienteDirty: false, _sectoresClienteLoaded: false,
+    tipoServicio: props['Tipo de servicio']?.select?.name || '',
+    notasPreServicio: props['Notas pre-servicio']?.rich_text?.[0]?.plain_text || '',
+    observacionCliente: props['Observación cliente']?.rich_text?.[0]?.plain_text || '' };
   document.getElementById('edit-sheet-title').textContent = nombre;
   const dateLocale = currentLang === 'pt-BR' ? 'pt-BR' : 'es-UY';
   document.getElementById('edit-sheet-sub').textContent = fecha ? new Date(fecha + 'T00:00:00').toLocaleDateString(dateLocale, { weekday: 'long', day: 'numeric', month: 'long' }) : t('sheet.alert.fecha');
@@ -9694,6 +9709,11 @@ async function openEditSheet(pageId) {
   document.getElementById('edit-fecha').value = fecha;
   document.getElementById('edit-hora').value = hora;
   document.getElementById('edit-lugar').value = lugar;
+  const TIPOS_SVC_EDIT = ['🏢 Fachada', '🪟 Vidrios', '☀️ Paneles solares'];
+  const tsEl = document.getElementById('edit-tiposervicio-btns');
+  if (tsEl) tsEl.innerHTML = TIPOS_SVC_EDIT.map(o => `<button class="estado-btn ${editState.tipoServicio === o ? 'active' : ''}" onclick="selectEditTipoServicio('${o.replace(/'/g,"\\'")}')">${o}</button>`).join('');
+  const npEl = document.getElementById('edit-notaspre'); if (npEl) npEl.value = editState.notasPreServicio || '';
+  const ocEl = document.getElementById('edit-obscliente'); if (ocEl) ocEl.value = editState.observacionCliente || '';
   const nombreInput = document.getElementById('edit-nombre'); if (nombreInput) nombreInput.value = nombre;
   document.getElementById('edit-save-btn').textContent = t('btn.save.notion');
   document.getElementById('edit-save-btn').disabled = false;
@@ -10265,6 +10285,10 @@ function selectEditEstado(estado) {
   editState.estado = estado;
   document.querySelectorAll('.estado-btn').forEach(b => b.classList.toggle('active', b.textContent.trim() === estado));
 }
+function selectEditTipoServicio(val) {
+  editState.tipoServicio = val;
+  document.querySelectorAll('#edit-tiposervicio-btns .estado-btn').forEach(b => b.classList.toggle('active', b.textContent.trim() === val));
+}
 function selectEditOperario(name, el) {
   editState.operario = name;
   document.querySelectorAll('#edit-operario-btns .operario-btn').forEach(b => b.classList.remove('active'));
@@ -10325,6 +10349,9 @@ async function saveServiceEdit() {
         if (typeof syncAfterWrite === 'function') { try { syncAfterWrite(editState.contactoId, 'clientes'); } catch (_) {} }
       } catch (_) { /* no bloquear el guardado del servicio si el cliente falla */ }
     }
+    if (editState.tipoServicio) props['Tipo de servicio'] = { select: { name: editState.tipoServicio } };
+    props['Notas pre-servicio'] = editState.notasPreServicio ? { rich_text: [{ text: { content: editState.notasPreServicio } }] } : { rich_text: [] };
+    props['Observación cliente'] = editState.observacionCliente ? { rich_text: [{ text: { content: editState.observacionCliente } }] } : { rich_text: [] };
     const updated = await updateServiceProps(editingService.id, props);
     syncAfterWrite(editingService.id, 'servicios');
     // Update optimista: garantizar que el servicio recién editado quede visible en la lista tras el
