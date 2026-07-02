@@ -650,6 +650,8 @@ body::before {
   .prop-estado.enviada { background: rgba(167,139,250,0.15); color: var(--purple); }
   .prop-dias { font-size: 12px; color: var(--text3); margin-top: 2px; }
   .prop-dias.alert { color: var(--amber); font-weight: 600; }
+  .prop-dias.vencer { color: var(--red); }
+  .prop-card.vencer { border-color: var(--red); }
   .prop-importe { font-size: 13px; font-weight: 600; color: var(--green); }
   .coord-empty { padding: 40px 24px; text-align: center; color: var(--text3); font-size: 14px; }
   .nueva-prop-btn { width: 100%; padding: 13px; background: var(--green-dark); border: 1px solid var(--green); border-radius: var(--radius-sm); color: var(--green); font-size: 14px; font-weight: 700; cursor: pointer; font-family: 'Exo 2', sans-serif; transition: all 0.15s; }
@@ -2341,6 +2343,7 @@ const TRANSLATIONS = {
     'coord.prop.tap.edit': 'Tap para editar →',
     'coord.prop.contactar.title': '📞 A contactar hoy',
     'coord.prop.contactar.btn': '📞 Contactado',
+    'coord.prop.contactar.vencer': 'por vencer',
     'alerts.alerta': 'alerta',
     'alerts.alertas': 'alertas',
     'alerts.activa': 'activa',
@@ -3023,6 +3026,7 @@ const TRANSLATIONS = {
     'coord.prop.days.suffix': ' dias sem resposta',
     'coord.prop.contactar.title': '📞 Para contatar hoje',
     'coord.prop.contactar.btn': '📞 Contatado',
+    'coord.prop.contactar.vencer': 'prestes a vencer',
     'coord.prop.tap.edit': 'Toque para editar →',
     'alerts.alerta': 'alerta',
     'alerts.alertas': 'alertas',
@@ -12983,21 +12987,26 @@ function renderContactarHoyHTML() {
     return ESPERANDO.includes(estado) && dias != null && dias >= 15;
   }).sort((a, b) => (b.properties?.['Días sin respuesta']?.formula?.number || 0) - (a.properties?.['Días sin respuesta']?.formula?.number || 0));
   if (!items.length) return '';
+  // Tier de urgencia: 40+ días sin respuesta ("por vencer" — a los 45 el cron diario las mueve
+  // solo a 😶 Sin respuesta). Se marca con acento rojo + tag ⚠️ y suma al contador del header.
+  const vencerCount = items.filter(p => (p.properties?.['Días sin respuesta']?.formula?.number || 0) >= 40).length;
   const rows = items.map(p => {
     const props = p.properties || {};
     const nombre = props['Nombre de propuesta']?.title?.[0]?.plain_text || t('common.sinnombre');
     const estado = props['Estado pipeline']?.select?.name || '';
     const dias = props['Días sin respuesta']?.formula?.number;
+    const esVencer = dias != null && dias >= 40;
     const estadoClass = estado.includes('Negociando') ? 'negociando' : estado.toLowerCase().includes('enviada') ? 'enviada' : '';
     const idAttr = esc(p.id);
-    return `<div class="prop-card">
+    return `<div class="prop-card${esVencer ? ' vencer' : ''}">
       <div class="prop-nombre">${esc(nombre)}</div>
       <div class="prop-meta"><span class="prop-estado ${estadoClass}">${esc(estado)}</span></div>
-      <div class="prop-dias alert">${dias}${t('coord.prop.days.suffix')}</div>
+      <div class="prop-dias alert${esVencer ? ' vencer' : ''}">${dias}${t('coord.prop.days.suffix')}${esVencer ? ' · ⚠️ ' + t('coord.prop.contactar.vencer') : ''}</div>
       <button class="estado-btn active" style="width:100%;margin-top:8px" id="contactar-btn-${idAttr}" onclick="marcarPropContactada('${idAttr}')">${t('coord.prop.contactar.btn')}</button>
     </div>`;
   }).join('');
-  return `<div style="padding:12px 16px 0"><div class="ec-title" style="margin-bottom:6px">${t('coord.prop.contactar.title')}</div></div>` + rows + '<div style="height:4px"></div>';
+  const countSuffix = ' (' + items.length + ')' + (vencerCount ? ' · ' + vencerCount + ' ⚠️' : '');
+  return `<div id="coord-contactar-block"><div style="padding:12px 16px 0"><div class="ec-title" style="margin-bottom:6px">${t('coord.prop.contactar.title')}${countSuffix}</div></div>` + rows + '<div style="height:4px"></div></div>';
 }
 
 // Botón «📞 Contactado» del bloque "A contactar hoy": registra el contacto de HOY escribiendo
@@ -13147,7 +13156,13 @@ async function loadAlerts(role, bannerId) {
       });
       if (vencidas.length) {
         const max = Math.max(...vencidas.map(r => r.properties?.['Días sin respuesta']?.formula?.number || 0));
-        alerts.push({ level: max >= 45 ? 'critical' : 'warn', icon: '📞', message: vencidas.length + ' propuesta' + (vencidas.length > 1 ? 's' : '') + ' para re-contactar (máx ' + max + ' días sin respuesta)' });
+        const propAlert = { level: max >= 45 ? 'critical' : 'warn', icon: '📞', message: vencidas.length + ' propuesta' + (vencidas.length > 1 ? 's' : '') + ' para re-contactar (máx ' + max + ' días sin respuesta)' };
+        // Tocable SOLO en el banner del coord: lleva a la tab Propuestas y scrollea al bloque
+        // "📞 A contactar hoy" (id coord-contactar-block). En CEO/operario queda informativa (sin acción).
+        if (bannerId === 'alerts-banner-coord') {
+          propAlert.onclick = "setCoordTab('propuestas'); setTimeout(function(){ var el = document.getElementById('coord-contactar-block'); if (el) el.scrollIntoView({behavior:'smooth'}); }, 600)";
+        }
+        alerts.push(propAlert);
       }
     }
 

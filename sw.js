@@ -104,7 +104,8 @@
 //       espera 1200ms antes de auto-enviar a los 4 dígitos (PINs de 6 sin falsos 'PIN incorrecto').
 //       Este deploy además activa SUPABASE_JWT_SECRET (RLS por usuario en /api/db).
 // v109: CRM comercial — sección "📊 Comercial" en CEO→Métricas (embudo, conversión, valor del pipeline por moneda, tiempo de cierre aprox) + "📞 A contactar hoy" en Propuestas del coord con botón que registra el contacto (escribe Última interacción).
-const CACHE = 'flyclean-v109';
+// v110: la alerta "propuestas para re-contactar" del coord es tocable (lleva directo a "📞 A contactar hoy") + urgencia "⚠️ por vencer" (40+ días, rojo) en el bloque — a los 45 el cron las mueve solo a Sin respuesta.
+const CACHE = 'flyclean-v110';
 const SHELL = [
   '/',
   '/index.html',
