@@ -1229,8 +1229,8 @@ body::before {
     <div class="coord-logo" id="coord-logo-title"><svg class="fly-mark" style="color:#00C98D"><use href="#fc-mark"/></svg>FlyClean — Coordinador</div>
     <div style="display:flex;align-items:center;gap:8px">
       <button id="coord-ceo-btn" onclick="goToCEOFromCoord()" style="display:none;background:none;border:1px solid var(--border2);border-radius:8px;color:var(--text2);font-size:11px;font-weight:600;padding:5px 10px;cursor:pointer;font-family:'Exo 2',sans-serif">📊 CEO</button>
-      <button onclick="openNuevoPedidoSheet()" title="Pedir insumo" style="background:none;border:1px solid var(--border2);border-radius:8px;color:var(--text3);font-size:11px;padding:5px 10px;cursor:pointer;font-family:'Exo 2',sans-serif">📦</button>
-      <button onclick="openGastos()" title="Gastos" style="background:none;border:1px solid var(--border2);border-radius:8px;color:var(--text3);font-size:11px;padding:5px 10px;cursor:pointer;font-family:'Exo 2',sans-serif">💸</button>
+      <button id="coord-btn-pedidos" onclick="openNuevoPedidoSheet()" title="Pedir insumo" style="background:none;border:1px solid var(--border2);border-radius:8px;color:var(--text3);font-size:11px;padding:5px 10px;cursor:pointer;font-family:'Exo 2',sans-serif">📦</button>
+      <button id="coord-btn-gastos" onclick="openGastos()" title="Gastos" style="background:none;border:1px solid var(--border2);border-radius:8px;color:var(--text3);font-size:11px;padding:5px 10px;cursor:pointer;font-family:'Exo 2',sans-serif">💸</button>
       <button onclick="openPinChange()" style="background:none;border:1px solid var(--border2);border-radius:8px;color:var(--text3);font-size:11px;padding:5px 10px;cursor:pointer;font-family:'Exo 2',sans-serif">🔑</button>
       <div class="coord-user" id="coord-user-name" onclick="logout()">Salir ↩</div>
     </div>
@@ -5149,6 +5149,7 @@ let _gastosScreenTab = 'todos';
 let _gastosScreenCache = null;
 
 function openGastos() {
+  if (esVentas()) return; // blindaje: Ventas no ve Gastos, ni por un llamado directo
   if (document.getElementById('screen-coordinator')?.classList.contains('active')) _gastosScreenPrevScreen = 'coordinator';
   else if (document.getElementById('screen-services')?.classList.contains('active')) _gastosScreenPrevScreen = 'services';
   else if (document.getElementById('screen-ceo')?.classList.contains('active')) _gastosScreenPrevScreen = 'ceo';
@@ -5220,6 +5221,11 @@ async function renderGastosScreen(skipFetch) {
   const isOperario = role.includes('Operario');
   const isCoord = role.includes('Coordinador');
   const isCEO = role.includes('CEO') || role.includes('Dirección');
+
+  // Blindaje: Ventas no matchea isOperario/isCoord/isCEO y caería en el fallback de
+  // "lista plana sin agrupación" (TODOS los gastos, sin filtrar) — cortamos acá antes
+  // de cualquier fetch/render y lo mandamos de vuelta al panel coordinador.
+  if (esVentas()) { content.innerHTML = ''; showScreen('coordinator'); return; }
 
   // Tabs solo para CEO/Dirección. Coord muestra 2 secciones inline.
   if (isCEO) {
@@ -5781,6 +5787,7 @@ function pedidoFmtFecha(iso) {
 }
 
 function openNuevoPedidoSheet() {
+  if (esVentas()) return; // blindaje: Ventas no ve Pedidos, ni por un llamado directo
   pedidoState = { producto: '', prioridad: '🟡 Normal', cantidad: '', nota: '', saving: false, mine: null, loadingMine: true };
   document.getElementById('pedido-overlay').classList.add('open');
   renderPedidoSheet();
@@ -9314,6 +9321,12 @@ async function loadCoordinator() {
     const el = document.getElementById('ctab-' + tb);
     if (el) el.style.display = esVentas() ? 'none' : '';
   });
+  // Mismo blindaje para los botones 💸 Gastos y 📦 Pedidos del header: Ventas no debe
+  // poder llegar a ellos ni con un tap directo (además del guard en cada función).
+  const gastosBtnEl = document.getElementById('coord-btn-gastos');
+  if (gastosBtnEl) gastosBtnEl.style.display = esVentas() ? 'none' : '';
+  const pedidosBtnEl = document.getElementById('coord-btn-pedidos');
+  if (pedidosBtnEl) pedidosBtnEl.style.display = esVentas() ? 'none' : '';
   setCoordTab(esVentas() ? 'prospeccion' : 'inicio');
 }
 
@@ -11696,8 +11709,15 @@ async function loadPropContactos() {
     if (!sel) return;
     const cur = propEditState.clienteSel || '__new__';
     const tit = c => c.properties?.['Nombre / Empresa']?.title?.[0]?.plain_text || '(sin nombre)';
+    const estadoC = c => c.properties?.['Estado']?.select?.name || '';
+    // '❌ Descartado' no se ofrece como cliente cotizable (salvo que ya venga prefillado, ej. un
+    // deep-link viejo) — el resto de los estados de prospección (🎯/📵/🤝) sí quedan disponibles,
+    // el coord legítimamente cotiza un 🤝 Interesado vía "→ Crear propuesta".
     sel.innerHTML = '<option value="__new__">➕ Nuevo cliente</option>' +
-      _propContactos.slice().sort((a, b) => tit(a).localeCompare(tit(b))).map(c => `<option value="${esc(c.id)}">${esc(tit(c))}</option>`).join('');
+      _propContactos.slice()
+        .filter(c => estadoC(c) !== '❌ Descartado' || c.id === cur)
+        .sort((a, b) => tit(a).localeCompare(tit(b)))
+        .map(c => `<option value="${esc(c.id)}">${esc(tit(c))}</option>`).join('');
     sel.value = cur;
     if (cur !== '__new__') propClienteChanged(cur); // prefill tel/email del cliente ya linkeado
   } catch (e) { /* el form sirve igual (queda solo "Nuevo cliente") */ }
@@ -11913,8 +11933,13 @@ async function loadNewSvcContactos() {
     if (!sel) return;
     const cur = newSvcState.clienteSel || '__new__';
     const tit = c => c.properties?.['Nombre / Empresa']?.title?.[0]?.plain_text || '(sin nombre)';
+    const estadoC = c => c.properties?.['Estado']?.select?.name || '';
+    // '❌ Descartado' no se ofrece como cliente para un trabajo suelto (salvo prefill ya elegido).
     sel.innerHTML = '<option value="__new__">➕ Nuevo cliente</option>' +
-      _propContactos.slice().sort((a, b) => tit(a).localeCompare(tit(b))).map(c => `<option value="${esc(c.id)}">${esc(tit(c))}</option>`).join('');
+      _propContactos.slice()
+        .filter(c => estadoC(c) !== '❌ Descartado' || c.id === cur)
+        .sort((a, b) => tit(a).localeCompare(tit(b)))
+        .map(c => `<option value="${esc(c.id)}">${esc(tit(c))}</option>`).join('');
     sel.value = cur;
     if (cur !== '__new__') newSvcClienteChanged(cur);
   } catch (e) { /* el form sirve igual (queda "Nuevo cliente") */ }
@@ -12422,6 +12447,10 @@ function computeClienteSecciones(contacts, propuestas, servicios) {
 
   const mantenimiento = [], sinRespuesta = [], rechazados = [], activa = [];
   contacts.forEach(c => {
+    // Los clientes en estado de prospección (🎯/📵/🤝/❌) viven en su propia tab 🎯 Prospección,
+    // nunca en "Cartera activa" ni en ninguna otra sección de la tab 👥 Clientes.
+    const _est = c.properties?.['Estado']?.select?.name || '';
+    if (PROSPECCION_ESTADOS.includes(_est)) return;
     const cid = norm(c.id);
     const svcsCliente = svcsVivos.filter(s => contactoIdsDe(s).includes(cid));
     const propsCliente = propsVivas.filter(p => contactoIdsDe(p).includes(cid));
@@ -12471,11 +12500,9 @@ async function loadClienteSecciones() {
 // Reusa la DB Clientes (nada de bases nuevas): el prospecto ES un cliente en uno de estos 4
 // estados nuevos del select "Estado" (las opciones "de cartera" — 🆕 Lead / ✅ Cliente activo /
 // ⏸️ Inactivo — ya existían y no se tocan). Notion crea las opciones nuevas solo con escribirlas.
-// Nota conocida (documentada, no se resuelve en esta fase): computeClienteSecciones no conoce estos
-// estados → un prospecto recién creado también cae en "Cartera activa" dentro de la tab 👥 Clientes
-// (no tiene servicios/propuestas negativas, así que no matchea ninguna otra sección). Aceptado: la
-// tab Clientes queda BYTE-IDÉNTICA (no se le tocó una línea) y el prospecto de todos modos vive y
-// se opera desde su propia tab. Se resuelve si hiciera falta en una fase futura.
+// Fix pass (revisión adversarial, ver task-prospeccion-report.md): computeClienteSecciones ahora
+// excluye estos estados al toque (return temprano en el forEach) → un prospecto NUNCA contamina
+// "Cartera activa" ni ninguna otra sección de la tab 👥 Clientes; vive y se opera solo desde 🎯.
 const PROSPECCION_ESTADOS = ['🎯 Prospecto', '📵 Prospecto contactado', '🤝 Interesado', '❌ Descartado'];
 const ORIGEN_LEAD_OPTIONS = ['🧲 Vendedor', '🤝 Referido', '🌐 Web/Redes', '📞 Entrante', '🚶 Puerta fría'];
 const INTERES_OPTIONS = ['🏢 Fachada', '🪟 Vidrios', '☀️ Paneles solares'];
@@ -12976,25 +13003,39 @@ async function openContactSheet(pageId) {
   document.getElementById('contact-sheet-sub').textContent = contactEditState.tipo || t('sheet.contact.title.default');
   document.getElementById('contact-sheet-body').innerHTML = buildContactSheetBody('edit');
   renderContactSectores();
-  // Permisos: CEO = solo lectura (ve TODO, no toca). Finanzas / Coordinador / Dirección = pueden editar.
-  const soloLectura = !!(currentUser?.role && currentUser.role.includes('CEO'));
+  // Permisos: CEO = solo lectura (ve TODO, no toca, salvo el nombre). Finanzas / Coordinador /
+  // Dirección = pueden editar. Ventas también solo lectura, pero SIN la excepción de CEO: la
+  // ficha de un prospecto queda 100% no-editable (junta/madura prospectos, no edita el 360).
+  const esCEOSoloLectura = (currentUser?.role || '').includes('CEO');
+  const soloLectura = esCEOSoloLectura || esVentas();
   const btn = document.getElementById('contact-save-btn');
   const body = document.getElementById('contact-sheet-body');
   if (soloLectura) {
     if (btn) btn.style.display = 'none';
     body.querySelectorAll('input, select, textarea').forEach(el => { el.disabled = true; });
     body.querySelectorAll('.estado-btn').forEach(el => { el.style.pointerEvents = 'none'; el.style.opacity = '0.6'; });
-    // El CEO puede editar SOLO el nombre (no el resto).
-    const nombreInput = document.getElementById('contact-nombre-input');
-    if (nombreInput) nombreInput.disabled = false;
-    if (btn) { btn.style.display = ''; btn.textContent = t('btn.save.notion'); btn.disabled = false; }
+    if (esCEOSoloLectura) {
+      // El CEO puede editar SOLO el nombre (no el resto). Ventas no entra acá: para Ventas
+      // la ficha queda completamente bloqueada, botón Guardar incluido.
+      const nombreInput = document.getElementById('contact-nombre-input');
+      if (nombreInput) nombreInput.disabled = false;
+      if (btn) { btn.style.display = ''; btn.textContent = t('btn.save.notion'); btn.disabled = false; }
+    }
   } else if (btn) {
     btn.style.display = ''; btn.textContent = t('btn.save.notion'); btn.disabled = false;
   }
   document.getElementById('contact-overlay').classList.add('open');
 
   // Cargar historial e intermediarios async (no bloquean apertura del sheet)
-  loadContactHistory(pageId);
+  // Ventas nunca ve el historial financiero (propuestas/servicios/ingresos) del cliente:
+  // ni se lanza el fetch ni queda el spinner de "Cargando..." colgado en la ficha.
+  if (esVentas()) {
+    const historyContainer = document.getElementById('contact-history-container');
+    const historySection = historyContainer?.closest('.edit-section');
+    if (historySection) historySection.style.display = 'none';
+  } else {
+    loadContactHistory(pageId);
+  }
   loadContactIntermediarios(pageId);
 }
 
