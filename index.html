@@ -7901,7 +7901,8 @@ function computeComercial(allProps) {
     const ui = (p.properties?.['Última interacción']?.date?.start || '').split('T')[0];
     if (!fe || !ui) return;
     const days = Math.round((new Date(ui + 'T00:00:00') - new Date(fe + 'T00:00:00')) / 86400000);
-    if (!isNaN(days)) diffs.push(days);
+    // days<0 = fechas cargadas al revés (mala carga): se excluye para no ensuciar el promedio.
+    if (!isNaN(days) && days >= 0) diffs.push(days);
   });
   const avgDays = diffs.length ? Math.round(diffs.reduce((a, b) => a + b, 0) / diffs.length) : null;
 
