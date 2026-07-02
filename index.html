@@ -2345,6 +2345,9 @@ const TRANSLATIONS = {
     'coord.prop.contactar.btn': '📞 Contactado',
     'coord.prop.contactar.vencer': 'por vencer',
     'coord.prop.contactar.vida': 'quedan {n} días',
+    'coord.cli.seccion.mantenimiento': '🔁 Mantenimiento',
+    'coord.cli.seccion.sinrespuesta': '😶 Sin respuesta',
+    'coord.cli.seccion.rechazados': '❌ Rechazados',
     'alerts.alerta': 'alerta',
     'alerts.alertas': 'alertas',
     'alerts.activa': 'activa',
@@ -3029,6 +3032,9 @@ const TRANSLATIONS = {
     'coord.prop.contactar.btn': '📞 Contatado',
     'coord.prop.contactar.vencer': 'prestes a vencer',
     'coord.prop.contactar.vida': 'restam {n} dias',
+    'coord.cli.seccion.mantenimiento': '🔁 Manutenção',
+    'coord.cli.seccion.sinrespuesta': '😶 Sem resposta',
+    'coord.cli.seccion.rechazados': '❌ Recusados',
     'coord.prop.tap.edit': 'Toque para editar →',
     'alerts.alerta': 'alerta',
     'alerts.alertas': 'alertas',
@@ -12197,6 +12203,95 @@ async function savePropEdit() {
 // Finanzas/CEO la reusan vía renderClientesView con su propio contenedor. filterContacts/cargarMasContactos
 // leen esta variable → la misma lista funciona en cualquier pantalla.
 let _contactsContainerId = 'coord-content';
+
+// ── Secciones especiales de la vista Clientes (spec 2026-07-02) ────────────────────────────
+// 9 meses sin trabajo. Constante fija en v1 (sin configuración por cliente todavía).
+const MANTENIMIENTO_DIAS = 270;
+// Estados terminales del pipeline de Propuestas — cualquier otro estado se considera "abierto"
+// (en curso), mismo criterio que usa el cron diario (api/cron-pipeline.js) y loadAlerts().
+const PROP_ESTADOS_TERMINALES = ['✅ Aceptada', '❌ Rechazada', '😶 Sin respuesta'];
+
+// Clasificación cacheada de _coordAllContacts en las 3 secciones especiales + cartera activa.
+// null = no se pudo calcular (faltan propuestas/servicios) → renderContactList cae a la lista
+// plana de siempre (grouping es un plus, nunca un bloqueo). La recalcula loadClienteSecciones()
+// cada vez que se (re)carga la tab Clientes; renderContactList (search/paginado) la reusa tal cual.
+let _coordCliSecciones = null;
+
+// Trae TODAS las propuestas + servicios (fuente para clasificar clientes en secciones). callDb
+// primero (mirror Supabase, más liviano); si falla, cae al fallback de Notion (callNotionAll,
+// mismo patrón que ya usa 'Limpieza' para traer TODO y cruzar cliente-side). Devuelve null en el
+// campo que no se pudo traer — nunca tira: el caller decide qué hacer con lo que falte.
+async function fetchPropsYSvcsParaSecciones() {
+  const safe = async (dbName, endpoint) => {
+    try { return (await callDb(dbName)).results || []; }
+    catch (e) { try { return (await callNotionAll(`databases/${endpoint}/query`, {})).results || []; } catch (e2) { return null; } }
+  };
+  const [propuestas, servicios] = await Promise.all([
+    safe('propuestas', PROPUESTAS_DB_ID),
+    safe('servicios', DB_ID),
+  ]);
+  return { propuestas, servicios };
+}
+
+// Cruza clientes × propuestas × servicios (relation 'Contacto' en ambas, ids normalizados sin
+// guiones) y arma las 3 secciones especiales + la cartera activa (residual). Un cliente cae en
+// UNA sola sección. Devuelve null si falta alguna fuente (propuestas/servicios == null).
+function computeClienteSecciones(contacts, propuestas, servicios) {
+  if (!Array.isArray(propuestas) || !Array.isArray(servicios) || !Array.isArray(contacts)) return null;
+  const norm = id => (id || '').replace(/-/g, '');
+  const contactoIdsDe = rec => (rec.properties?.['Contacto']?.relation || []).map(r => norm(r.id));
+  const svcFecha = s => s.properties?.['Fecha programada']?.date?.start || s.created_time || '';
+  const propEstado = p => p.properties?.['Estado pipeline']?.select?.name || '';
+  const svcsVivos = servicios.filter(s => !esArchivado(s));
+  const propsVivas = propuestas.filter(p => !esArchivado(p));
+  const hoy = Date.now();
+
+  const mantenimiento = [], sinRespuesta = [], rechazados = [], activa = [];
+  contacts.forEach(c => {
+    const cid = norm(c.id);
+    const svcsCliente = svcsVivos.filter(s => contactoIdsDe(s).includes(cid));
+    const propsCliente = propsVivas.filter(p => contactoIdsDe(p).includes(cid));
+    const completados = svcsCliente.filter(s => (s.properties?.['Estado']?.select?.name || '').includes('Completado'));
+
+    if (completados.length) {
+      // Candidato a Mantenimiento: el ÚLTIMO completado hace 9+ meses, sin nada más nuevo
+      // agendado (completado o no) ni propuesta abierta.
+      const ultimaFecha = completados.reduce((max, s) => { const f = svcFecha(s); return f > max ? f : max; }, '');
+      const diasDesde = ultimaFecha ? Math.floor((hoy - new Date(ultimaFecha).getTime()) / 86400000) : null;
+      const hayMasNuevo = svcsCliente.some(s => svcFecha(s) > ultimaFecha);
+      const propAbierta = propsCliente.some(p => !PROP_ESTADOS_TERMINALES.includes(propEstado(p)));
+      if (diasDesde != null && diasDesde >= MANTENIMIENTO_DIAS && !hayMasNuevo && !propAbierta) { mantenimiento.push(c); return; }
+      activa.push(c);
+      return;
+    }
+
+    // Sin servicios: ¿su única historia comercial son propuestas negativas (Sin respuesta/Rechazada)?
+    if (propsCliente.length) {
+      const estados = propsCliente.map(propEstado);
+      const soloNegativas = estados.every(e => e === '😶 Sin respuesta' || e === '❌ Rechazada');
+      if (soloNegativas) {
+        // Si tiene AMBAS (rechazada + sin respuesta) y nada más: Rechazados gana (elección explícita).
+        if (estados.includes('❌ Rechazada')) { rechazados.push(c); return; }
+        if (estados.includes('😶 Sin respuesta')) { sinRespuesta.push(c); return; }
+      }
+    }
+    activa.push(c);
+  });
+
+  return { mantenimiento, sinRespuesta, rechazados, activa };
+}
+
+// Trae propuestas+servicios y reclasifica _coordAllContacts en las secciones especiales. Se llama
+// tras cada (re)carga de la tab Clientes (renderClientesView / renderCoordContactos), ANTES de
+// renderContactList. Best-effort: si falla, _coordCliSecciones queda null (fallback a lista plana).
+async function loadClienteSecciones() {
+  _coordCliSecciones = null;
+  try {
+    const { propuestas, servicios } = await fetchPropsYSvcsParaSecciones();
+    _coordCliSecciones = computeClienteSecciones(_coordAllContacts, propuestas, servicios);
+  } catch (e) { _coordCliSecciones = null; }
+}
+
 function cargarMasContactos() {
   _coordVisibleLimit += COORD_PAGE_SIZE;
   renderContactList(_coordAllContacts, true);
@@ -12222,6 +12317,7 @@ async function renderClientesView(containerId) {
       data = await notionQuery();
     }
     _coordAllContacts = (data.results || []).filter(c => !esArchivado(c)).filter(recEnPaisNotion); // aislar clientes por país (socios)
+    await loadClienteSecciones(); // best-effort: si falla, renderContactList cae a la lista plana
     renderContactList(_coordAllContacts);
   } catch (e) {
     content.innerHTML = `<div class="coord-empty">No se pudieron cargar los clientes<br><small>${esc(e.message)}</small></div>`;
@@ -12240,6 +12336,8 @@ async function renderCoordContactos() {
     const data = await callNotion(`databases/${CONTACTOS_DB_ID}/query`, 'POST', queryBody);
     if (activeCoordTab !== myTab) return;
     _coordAllContacts = (data.results || []).filter(c => !esArchivado(c));
+    await loadClienteSecciones(); // best-effort: si falla, renderContactList cae a la lista plana
+    if (activeCoordTab !== myTab) return; // el tab pudo cambiar durante el await de arriba
     renderContactList(_coordAllContacts);
   } catch (e) {
     if (activeCoordTab !== myTab) return;
@@ -12252,28 +12350,51 @@ function renderContactList(contacts, keepLimit) {
   const content = document.getElementById(_contactsContainerId);
   if (!content) return;
   const searchVal = document.getElementById('contact-search-input')?.value?.toLowerCase() || '';
-  const filteredAll = searchVal
-    ? contacts.filter(c => {
-        const nombre = (c.properties?.['Nombre / Empresa']?.title?.[0]?.plain_text || '').toLowerCase();
-        const ciudad = (c.properties?.['Ciudad / Zona']?.rich_text?.[0]?.plain_text || '').toLowerCase();
-        return nombre.includes(searchVal) || ciudad.includes(searchVal);
-      })
-    : contacts;
-  const total = filteredAll.length;
-  const filtered = filteredAll.slice(0, _coordVisibleLimit);
-  const remaining = total - filtered.length;
+  const matchesSearch = c => {
+    const nombre = (c.properties?.['Nombre / Empresa']?.title?.[0]?.plain_text || '').toLowerCase();
+    const ciudad = (c.properties?.['Ciudad / Zona']?.rich_text?.[0]?.plain_text || '').toLowerCase();
+    return nombre.includes(searchVal) || ciudad.includes(searchVal);
+  };
+  const searchWrap = `<div class="contact-search-wrap"><input class="contact-search" id="contact-search-input" type="text" placeholder="${t('coord.search.contacts.placeholder')}" oninput="filterContacts(this.value)" value="${searchVal}"/></div>`;
+  const newBtn = `<div style="padding:10px 16px 0"><button class="nueva-prop-btn" onclick="openNewContactSheet()">${t('coord.new.contact')}</button></div>`;
+  const cargarMasBtn = remaining => `<div class="cargar-mas-wrap"><button class="cargar-mas-btn" onclick="cargarMasContactos()">↓ ${t('coord.cargar.mas').replace('{n}', Math.min(COORD_PAGE_SIZE, remaining))} · ${t('coord.restantes').replace('{n}', remaining)}</button></div>`;
 
-  const cargarMas = remaining > 0
-    ? `<div class="cargar-mas-wrap"><button class="cargar-mas-btn" onclick="cargarMasContactos()">↓ ${t('coord.cargar.mas').replace('{n}', Math.min(COORD_PAGE_SIZE, remaining))} · ${t('coord.restantes').replace('{n}', remaining)}</button></div>`
-    : '';
-  const listHTML = filtered.length
-    ? filtered.map(c => coordContactCard(c)).join('') + cargarMas
-    : `<div class="coord-empty" style="margin-top:0">${t('coord.empty.search')}</div>`;
+  // Buscando (o sin datos para clasificar en secciones): lista plana de siempre, sin agrupar —
+  // el buscador sigue mirando TODOS los clientes, no solo la cartera activa (spec 2026-07-02).
+  if (searchVal || !_coordCliSecciones) {
+    const filteredAll = searchVal ? contacts.filter(matchesSearch) : contacts;
+    const total = filteredAll.length;
+    const filtered = filteredAll.slice(0, _coordVisibleLimit);
+    const remaining = total - filtered.length;
+    const listHTML = filtered.length
+      ? filtered.map(c => coordContactCard(c)).join('') + (remaining > 0 ? cargarMasBtn(remaining) : '')
+      : `<div class="coord-empty" style="margin-top:0">${t('coord.empty.search')}</div>`;
+    content.innerHTML = searchWrap + newBtn + `<div style="height:4px"></div>` + listHTML;
+  } else {
+    // Vista por defecto con secciones: 🔁 Mantenimiento (arriba, expandida) → Cartera activa (look
+    // de siempre, con su paginación) → 😶 Sin respuesta / ❌ Rechazados (colapsadas, al fondo).
+    // Un cliente cae en UNA sola sección (computeClienteSecciones). Reusa el acordeón genérico
+    // (toggleCeoAcc + .ceo-acc-head/.ceo-acc-body) que ya usa el panel financiero.
+    const seccionHTML = (id, key, items, expandedDefault) => {
+      if (!items.length) return '';
+      return `<div id="${id}">` +
+        `<button class="ceo-acc-head" onclick="toggleCeoAcc(this)"><span>${t(key)} (${items.length})</span><span class="fin-arrow">${expandedDefault ? '▴' : '▾'}</span></button>` +
+        `<div class="ceo-acc-body" style="display:${expandedDefault ? 'block' : 'none'}">${items.map(c => coordContactCard(c)).join('')}</div>` +
+        `</div>`;
+    };
+    const totalActiva = _coordCliSecciones.activa.length;
+    const activaVisible = _coordCliSecciones.activa.slice(0, _coordVisibleLimit);
+    const remaining = totalActiva - activaVisible.length;
+    const carteraHTML = activaVisible.length ? activaVisible.map(c => coordContactCard(c)).join('') + (remaining > 0 ? cargarMasBtn(remaining) : '') : '';
+    const todoVacio = !_coordCliSecciones.mantenimiento.length && !totalActiva && !_coordCliSecciones.sinRespuesta.length && !_coordCliSecciones.rechazados.length;
 
-  content.innerHTML =
-    `<div class="contact-search-wrap"><input class="contact-search" id="contact-search-input" type="text" placeholder="${t('coord.search.contacts.placeholder')}" oninput="filterContacts(this.value)" value="${searchVal}"/></div>` +
-    `<div style="padding:10px 16px 0"><button class="nueva-prop-btn" onclick="openNewContactSheet()">${t('coord.new.contact')}</button></div>` +
-    `<div style="height:4px"></div>` + listHTML;
+    content.innerHTML = searchWrap + newBtn + `<div style="height:4px"></div>` + (todoVacio
+      ? `<div class="coord-empty" style="margin-top:0">${t('coord.empty.search')}</div>`
+      : seccionHTML('clientes-mantenimiento-block', 'coord.cli.seccion.mantenimiento', _coordCliSecciones.mantenimiento, true) +
+        carteraHTML +
+        seccionHTML('clientes-sinrespuesta-block', 'coord.cli.seccion.sinrespuesta', _coordCliSecciones.sinRespuesta, false) +
+        seccionHTML('clientes-rechazados-block', 'coord.cli.seccion.rechazados', _coordCliSecciones.rechazados, false));
+  }
   // Re-foco al input para no perder cursor durante search
   const inp = document.getElementById('contact-search-input');
   if (inp && document.activeElement !== inp && searchVal) {
@@ -13203,6 +13324,38 @@ async function loadAlerts(role, bannerId) {
         }
         alerts.push(propAlert);
       }
+    }
+
+    // Clientes para ofrecer mantenimiento (9+ meses sin trabajo, spec 2026-07-02) — coord + CEO.
+    // Reusa el mismo cruce clientes×propuestas×servicios de la tab Clientes (computeClienteSecciones);
+    // fetch propio (no depende de que la tab Clientes ya haya cargado _coordAllContacts).
+    if (isCoord || isCEO) {
+      // Try/catch propio: es una alerta informativa, nunca debe tumbar las que vienen después
+      // (Solicitud de compras, Documentos) si algo de este cruce falla.
+      try {
+        const { propuestas, servicios } = await fetchPropsYSvcsParaSecciones();
+        if (propuestas && servicios) {
+          const notionQuery = () => callNotion(`databases/${CONTACTOS_DB_ID}/query`, 'POST', {});
+          let contactos;
+          try { contactos = (await callDb('clientes')).results || []; } catch (e) { contactos = (await notionQuery()).results || []; }
+          contactos = (contactos || []).filter(c => !esArchivado(c));
+          const secciones = computeClienteSecciones(contactos, propuestas, servicios);
+          if (secciones && secciones.mantenimiento.length) {
+            const cf = isCoord ? getCountryFilter() : getCEOFilter();
+            const notionVal = cf?.select?.equals || null;
+            const mant = notionVal ? secciones.mantenimiento.filter(c => (c.properties?.['País']?.select?.name || '') === notionVal) : secciones.mantenimiento;
+            if (mant.length) {
+              const mantAlert = { level: 'warn', icon: '🔁', message: mant.length + ' cliente' + (mant.length > 1 ? 's' : '') + ' para ofrecer mantenimiento (9+ meses del último trabajo)' };
+              // Tocable SOLO en el banner del coord: lleva a la tab Clientes y scrollea al bloque
+              // "🔁 Mantenimiento" (id clientes-mantenimiento-block). En CEO queda informativa (sin acción).
+              if (bannerId === 'alerts-banner-coord') {
+                mantAlert.onclick = "setCoordTab('contactos'); setTimeout(function(){ var el = document.getElementById('clientes-mantenimiento-block'); if (el) el.scrollIntoView({behavior:'smooth'}); }, 600)";
+              }
+              alerts.push(mantAlert);
+            }
+          }
+        }
+      } catch (e) { /* alerta no crítica — fail silently */ }
     }
 
     // Solicitud de compras: pedidos pendientes del país del coord (coord only)
