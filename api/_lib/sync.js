@@ -126,8 +126,11 @@ async function deleteRows(table, notionIds) {
 //      (ver el try/catch en syncTables: si queryAll falla, nunca llegamos a llamar reconcileDeletes);
 //  (b) si `fetchedActiveIds` vino vacío, no borramos nada (un 0 activos legítimo es indistinguible de un
 //      fetch roto que devolvió vacío por error — mejor dejar fantasmas que vaciar la tabla);
-//  (c) si lo que parece "stale" es más del 20% de lo activo (mínimo 20 filas), tampoco borramos — eso
-//      huele a fetch parcial de Notion, no a bajas reales — y lo reportamos en skippedDelete para auditar.
+//  (c) TOPE DURO de 20 filas por corrida (incidente 02/07: el tope porcentual original —20% de lo
+//      activo— escalaba con un fetch grande-y-equivocado de Notion (search-fallback devolviendo
+//      cientos de páginas ajenas) y habilitó wipes de tablas enteras que el upsert del cron siguiente
+//      "reponía" → espejo oscilando lleno/vacío. Las bajas reales son de a unas pocas por día; todo
+//      lo que supere 20 se reporta en skippedDelete y se audita a mano. NUNCA volver al porcentaje.
 async function reconcileDeletes(table, fetchedActiveIds) {
   const norm = s => String(s || '').replace(/-/g, '').toLowerCase();
   if (!fetchedActiveIds.length) return { deleted: 0 };
@@ -135,8 +138,9 @@ async function reconcileDeletes(table, fetchedActiveIds) {
   const activeSet = new Set(fetchedActiveIds.map(norm));
   const stale = mirrorIds.filter(id => !activeSet.has(norm(id)));
   if (!stale.length) return { deleted: 0 };
-  const limit = Math.max(20, fetchedActiveIds.length * 0.2);
-  if (stale.length > limit) return { deleted: 0, skippedDelete: stale.length };
+  const HARD_CAP = 20;
+  if (stale.length > HARD_CAP) return { deleted: 0, skippedDelete: stale.length };
+  console.log(`reconcileDeletes ${table}: borrando ${stale.length} filas`, JSON.stringify(stale));
   const deleted = await deleteRows(table, stale);
   return { deleted };
 }
