@@ -4239,8 +4239,10 @@ function pinPress(digit) {
   if (_pinTimer) { clearTimeout(_pinTimer); _pinTimer = null; }
   // Soporta PIN de 4 o 6 dígitos: a los 6 envía ya; a los 4 espera un toque por si el PIN sigue
   // hasta 6 (si no llega otro dígito, auto-envía). El ✓ también envía (ver pinConfirm).
+  // 1200ms: con 500ms, un tecleo humano normal de un PIN de 6 disparaba el envío a los 4 dígitos
+  // y daba "PIN incorrecto" falso (hallazgo del barrido 02/07).
   if (pinBuffer.length === 6) pinConfirm();
-  else if (pinBuffer.length === 4) _pinTimer = setTimeout(pinConfirm, 500);
+  else if (pinBuffer.length === 4) _pinTimer = setTimeout(pinConfirm, 1200);
 }
 
 function pinDelete() {
@@ -11438,7 +11440,9 @@ function openPropSheet(pageId) {
   const aprobacion = props['Aprobación interna']?.select?.name || '';
   const importe = props['Importe estimado']?.number ?? '';
   const fechaEnvio = props['Fecha de envío']?.date?.start || '';
-  const ultimaInt = props['Última interacción']?.date?.start || '';
+  // Normalizamos a YYYY-MM-DD: automatizaciones/crons escriben datetime completo ("2026-07-02T09:00:00-03:00")
+  // y eso rompía el <input type="date"> (quedaba vacío) y el render de la card ("Invalid Date").
+  const ultimaInt = (props['Última interacción']?.date?.start || '').split('T')[0];
   const obs = props['Observaciones']?.rich_text?.[0]?.plain_text || '';
   const serviciosAnio = props['Servicios por año']?.number ?? '';
   const comision = props['Comisión %']?.number ?? '';
@@ -12795,7 +12799,7 @@ function renderCoordPropuestasList(keepLimit) {
     const pais = props['País']?.select?.name || '';
     const importe = props['Importe estimado']?.number;
     const dias = props['Días sin respuesta']?.formula?.number ?? null;
-    const ultimaInteraccion = props['Última interacción']?.date?.start || '';
+    const ultimaInteraccion = (props['Última interacción']?.date?.start || '').split('T')[0];
     const ultimaFmt = ultimaInteraccion ? new Date(ultimaInteraccion + 'T00:00:00').toLocaleDateString(dateLocale, { day: 'numeric', month: 'short' }) : '';
     const estadoClass = estado.includes('Aceptada') ? 'aceptada' :
       estado.includes('Negociando') ? 'negociando' :
