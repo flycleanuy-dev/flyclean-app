@@ -1269,164 +1269,169 @@ body::before {
   <div class="coord-content" id="coord-content">
     <div style="text-align:center;padding:40px 0"><div class="spinner" style="margin:0 auto"></div></div>
   </div>
-  <div class="edit-overlay" id="edit-overlay" onclick="overlayClick(event)">
-    <div class="edit-sheet" id="edit-sheet">
-      <button class="sheet-close-btn" type="button" aria-label="Cerrar" onclick="closeEditSheet()">×</button>
-      <div class="edit-sheet-handle"></div>
-      <div class="edit-sheet-header">
-        <div class="edit-sheet-title" id="edit-sheet-title" data-i18n="sheet.edit.title.default">Editar servicio</div>
-        <div class="edit-sheet-sub" id="edit-sheet-sub"></div>
-      </div>
-      <div class="edit-section">
-        <div class="edit-section-label" data-i18n="sheet.edit.section.nombre">NOMBRE DEL SERVICIO</div>
-        <input type="text" class="edit-date-input" id="edit-nombre" oninput="editState.nombre=this.value"/>
-      </div>
-      <div class="edit-section">
-        <div class="edit-section-label" data-i18n="sheet.edit.section.estado">ESTADO</div>
-        <div class="estado-btns" id="edit-estado-btns"></div>
-      </div>
-      <div class="edit-section">
-        <div class="role-cols">
-          <div class="role-col">
-            <div class="edit-section-label" data-i18n="sheet.edit.section.operario">PILOTO</div>
-            <div class="operario-btns" id="edit-operario-btns"></div>
-          </div>
-          <div class="role-col">
-            <div class="edit-section-label" data-i18n="sheet.edit.section.operariomanual">OPERARIO MANUAL</div>
-            <div class="edit-section-hint" data-i18n="sheet.edit.section.operariomanual.hint" style="font-size:11px;color:var(--text3);margin-bottom:8px">Operario que hace el trabajo manual (lanzas, manguera, hidro). Opcional.</div>
-            <div class="operario-btns" id="edit-operario-manual-btns"></div>
-          </div>
+</div>
+
+<!-- Overlays del coordinador (edit/jornada/equipo/prop/contact) — siblings de body:
+     edit-overlay y contact-overlay también se abren desde Por cobrar (Finanzas/CEO) vía
+     openEditSheetFromFinanzas/openContactSheet; dentro de #screen-coordinator (display:none
+     cuando otra screen está activa) quedaban invisibles aunque sean position:fixed. -->
+<div class="edit-overlay" id="edit-overlay" onclick="overlayClick(event)">
+  <div class="edit-sheet" id="edit-sheet">
+    <button class="sheet-close-btn" type="button" aria-label="Cerrar" onclick="closeEditSheet()">×</button>
+    <div class="edit-sheet-handle"></div>
+    <div class="edit-sheet-header">
+      <div class="edit-sheet-title" id="edit-sheet-title" data-i18n="sheet.edit.title.default">Editar servicio</div>
+      <div class="edit-sheet-sub" id="edit-sheet-sub"></div>
+    </div>
+    <div class="edit-section">
+      <div class="edit-section-label" data-i18n="sheet.edit.section.nombre">NOMBRE DEL SERVICIO</div>
+      <input type="text" class="edit-date-input" id="edit-nombre" oninput="editState.nombre=this.value"/>
+    </div>
+    <div class="edit-section">
+      <div class="edit-section-label" data-i18n="sheet.edit.section.estado">ESTADO</div>
+      <div class="estado-btns" id="edit-estado-btns"></div>
+    </div>
+    <div class="edit-section">
+      <div class="role-cols">
+        <div class="role-col">
+          <div class="edit-section-label" data-i18n="sheet.edit.section.operario">PILOTO</div>
+          <div class="operario-btns" id="edit-operario-btns"></div>
+        </div>
+        <div class="role-col">
+          <div class="edit-section-label" data-i18n="sheet.edit.section.operariomanual">OPERARIO MANUAL</div>
+          <div class="edit-section-hint" data-i18n="sheet.edit.section.operariomanual.hint" style="font-size:11px;color:var(--text3);margin-bottom:8px">Operario que hace el trabajo manual (lanzas, manguera, hidro). Opcional.</div>
+          <div class="operario-btns" id="edit-operario-manual-btns"></div>
         </div>
       </div>
-      <div class="edit-section">
-        <div class="edit-section-label" data-i18n="sheet.edit.section.participantes">AYUDANTES</div>
-        <div class="edit-section-hint" data-i18n="sheet.edit.section.participantes.hint" style="font-size:11px;color:var(--text3);margin-bottom:8px">Marcá a los que estuvieron en el campo además del piloto. Cada uno suma 1 jornal.</div>
-        <div class="operario-btns" id="edit-participantes-btns"></div>
-      </div>
-      <div class="edit-section">
-        <div class="edit-section-label" data-i18n="sheet.edit.section.sectores">🏢 SECTORES DE ESTE TRABAJO</div>
-        <div class="edit-section-hint" data-i18n="sheet.edit.section.sectores.hint" style="font-size:11px;color:var(--text3);margin-bottom:8px">Elegí los edificios/zonas del cliente que se trabajan en este servicio.</div>
-        <div class="operario-btns" id="edit-sectores-btns"></div>
-        <div style="display:flex;gap:8px;margin-top:8px">
-          <input type="text" id="edit-sector-input" class="edit-date-input" style="flex:1;margin-bottom:0" placeholder="Nuevo sector (se guarda al cliente)" onkeydown="if(event.key==='Enter'){event.preventDefault();editAddSector();}"/>
-          <button type="button" class="estado-btn" style="white-space:nowrap" onclick="editAddSector()" data-i18n="sheet.edit.sectores.add">+ Agregar</button>
-        </div>
-      </div>
-      <div class="edit-section">
-        <div class="edit-section-label" data-i18n="sheet.edit.section.fecha">FECHA PROGRAMADA</div>
-        <input type="date" class="edit-date-input" id="edit-fecha" onchange="editState.fecha=this.value"/>
-      </div>
-      <div class="edit-section">
-        <div class="edit-section-label" data-i18n="sheet.edit.section.hora">HORA DE INICIO PROGRAMADA</div>
-        <input type="time" class="edit-date-input" id="edit-hora" onchange="editState.hora=this.value"/>
-      </div>
-      <div class="edit-section">
-        <div class="edit-section-label" data-i18n="sheet.edit.section.lugar">LUGAR</div>
-        <input type="text" class="edit-date-input" id="edit-lugar" placeholder="Ej. Edificio Trento, Carrasco" oninput="editState.lugar=this.value"/>
-      </div>
-      <div class="edit-section">
-        <div class="edit-section-label" data-i18n="sheet.edit.section.tiposervicio">TIPO DE SERVICIO</div>
-        <div class="estado-btns" id="edit-tiposervicio-btns"></div>
-      </div>
-      <div class="edit-section">
-        <div class="edit-section-label" data-i18n="sheet.edit.section.notaspre">📝 NOTAS PARA EL OPERARIO (antes del trabajo)</div>
-        <textarea class="edit-date-input" id="edit-notaspre" rows="3" style="resize:none;height:70px" oninput="editState.notasPreServicio=this.value"></textarea>
-      </div>
-      <div class="edit-section">
-        <div class="edit-section-label" data-i18n="sheet.edit.section.obscliente">🗒️ OBSERVACIÓN PARA EL CLIENTE (va en el PDF)</div>
-        <textarea class="edit-date-input" id="edit-obscliente" rows="3" style="resize:none;height:70px" oninput="editState.observacionCliente=this.value"></textarea>
-      </div>
-      <div class="edit-section" id="edit-cliente-ubicacion"></div>
-      <button class="edit-save-btn" id="edit-save-btn" data-i18n="btn.save.notion" onclick="saveServiceEdit()">💾 Guardar</button>
-      <button class="report-pdf-btn" id="report-pdf-btn" onclick="openReportStep(editingService)" style="display:none">📄 Generar reporte</button>
-      <div class="edit-section jornada-cta-wrap" id="edit-jornada-cta" style="display:none">
-        <div class="jornada-cta-card">
-          <div class="jornada-cta-title" data-i18n="sheet.edit.jornada.title">📅 Continuar como jornada</div>
-          <div class="jornada-cta-sub" data-i18n="sheet.edit.jornada.sub">Si este servicio se extiende a otro día, creá una jornada para mañana.</div>
-          <button class="jornada-cta-btn" onclick="openCreateJornadaSheet()" data-i18n="sheet.edit.jornada.btn">📅 Crear jornada para otro día</button>
-        </div>
-      </div>
-      <div class="edit-section" id="edit-equipos-section" style="display:none">
-        <div class="edit-section-label" data-i18n="sheet.edit.section.equipos">🚁 EQUIPOS ASIGNADOS</div>
-        <div class="edit-section-hint" data-i18n="sheet.edit.section.equipos.hint" style="font-size:11px;color:var(--text3);margin-bottom:8px">Drones, hidrolavadoras, vehículos, trailers usados en este trabajo.</div>
-        <div id="edit-equipos-chips"></div>
-        <button class="add-equipo-btn" onclick="openAddEquipoSheet()" data-i18n="sheet.edit.equipos.add">+ Agregar equipo</button>
-      </div>
-      <div class="edit-section" id="edit-gastos-section" style="display:none">
-        <div class="edit-section-label" data-i18n="sheet.edit.section.gastos">💸 GASTOS VINCULADOS</div>
-        <div class="edit-section-hint" data-i18n="sheet.edit.section.gastos.hint" style="font-size:11px;color:var(--text3);margin-bottom:8px">Combustible, comida, peajes y otros gastos directos del servicio.</div>
-        <div id="edit-gastos-chips"></div>
-        <button class="add-equipo-btn" onclick="openNuevoGastoSheet({ defaultClase: '📌 Directo', servicioId: editingService?.id })" data-i18n="sheet.edit.gastos.add">+ Agregar gasto</button>
-      </div>
-      <button class="delete-svc-btn" id="archive-svc-btn" style="display:none;border-color:var(--text3);color:var(--text3)" onclick="archivarServicioFinanzas()">🗄️ Archivar servicio</button>
-      <button class="delete-svc-btn" id="delete-svc-btn" data-i18n="sheet.edit.delete" onclick="deleteService()">🗑️ Eliminar servicio</button>
     </div>
+    <div class="edit-section">
+      <div class="edit-section-label" data-i18n="sheet.edit.section.participantes">AYUDANTES</div>
+      <div class="edit-section-hint" data-i18n="sheet.edit.section.participantes.hint" style="font-size:11px;color:var(--text3);margin-bottom:8px">Marcá a los que estuvieron en el campo además del piloto. Cada uno suma 1 jornal.</div>
+      <div class="operario-btns" id="edit-participantes-btns"></div>
+    </div>
+    <div class="edit-section">
+      <div class="edit-section-label" data-i18n="sheet.edit.section.sectores">🏢 SECTORES DE ESTE TRABAJO</div>
+      <div class="edit-section-hint" data-i18n="sheet.edit.section.sectores.hint" style="font-size:11px;color:var(--text3);margin-bottom:8px">Elegí los edificios/zonas del cliente que se trabajan en este servicio.</div>
+      <div class="operario-btns" id="edit-sectores-btns"></div>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <input type="text" id="edit-sector-input" class="edit-date-input" style="flex:1;margin-bottom:0" placeholder="Nuevo sector (se guarda al cliente)" onkeydown="if(event.key==='Enter'){event.preventDefault();editAddSector();}"/>
+        <button type="button" class="estado-btn" style="white-space:nowrap" onclick="editAddSector()" data-i18n="sheet.edit.sectores.add">+ Agregar</button>
+      </div>
+    </div>
+    <div class="edit-section">
+      <div class="edit-section-label" data-i18n="sheet.edit.section.fecha">FECHA PROGRAMADA</div>
+      <input type="date" class="edit-date-input" id="edit-fecha" onchange="editState.fecha=this.value"/>
+    </div>
+    <div class="edit-section">
+      <div class="edit-section-label" data-i18n="sheet.edit.section.hora">HORA DE INICIO PROGRAMADA</div>
+      <input type="time" class="edit-date-input" id="edit-hora" onchange="editState.hora=this.value"/>
+    </div>
+    <div class="edit-section">
+      <div class="edit-section-label" data-i18n="sheet.edit.section.lugar">LUGAR</div>
+      <input type="text" class="edit-date-input" id="edit-lugar" placeholder="Ej. Edificio Trento, Carrasco" oninput="editState.lugar=this.value"/>
+    </div>
+    <div class="edit-section">
+      <div class="edit-section-label" data-i18n="sheet.edit.section.tiposervicio">TIPO DE SERVICIO</div>
+      <div class="estado-btns" id="edit-tiposervicio-btns"></div>
+    </div>
+    <div class="edit-section">
+      <div class="edit-section-label" data-i18n="sheet.edit.section.notaspre">📝 NOTAS PARA EL OPERARIO (antes del trabajo)</div>
+      <textarea class="edit-date-input" id="edit-notaspre" rows="3" style="resize:none;height:70px" oninput="editState.notasPreServicio=this.value"></textarea>
+    </div>
+    <div class="edit-section">
+      <div class="edit-section-label" data-i18n="sheet.edit.section.obscliente">🗒️ OBSERVACIÓN PARA EL CLIENTE (va en el PDF)</div>
+      <textarea class="edit-date-input" id="edit-obscliente" rows="3" style="resize:none;height:70px" oninput="editState.observacionCliente=this.value"></textarea>
+    </div>
+    <div class="edit-section" id="edit-cliente-ubicacion"></div>
+    <button class="edit-save-btn" id="edit-save-btn" data-i18n="btn.save.notion" onclick="saveServiceEdit()">💾 Guardar</button>
+    <button class="report-pdf-btn" id="report-pdf-btn" onclick="openReportStep(editingService)" style="display:none">📄 Generar reporte</button>
+    <div class="edit-section jornada-cta-wrap" id="edit-jornada-cta" style="display:none">
+      <div class="jornada-cta-card">
+        <div class="jornada-cta-title" data-i18n="sheet.edit.jornada.title">📅 Continuar como jornada</div>
+        <div class="jornada-cta-sub" data-i18n="sheet.edit.jornada.sub">Si este servicio se extiende a otro día, creá una jornada para mañana.</div>
+        <button class="jornada-cta-btn" onclick="openCreateJornadaSheet()" data-i18n="sheet.edit.jornada.btn">📅 Crear jornada para otro día</button>
+      </div>
+    </div>
+    <div class="edit-section" id="edit-equipos-section" style="display:none">
+      <div class="edit-section-label" data-i18n="sheet.edit.section.equipos">🚁 EQUIPOS ASIGNADOS</div>
+      <div class="edit-section-hint" data-i18n="sheet.edit.section.equipos.hint" style="font-size:11px;color:var(--text3);margin-bottom:8px">Drones, hidrolavadoras, vehículos, trailers usados en este trabajo.</div>
+      <div id="edit-equipos-chips"></div>
+      <button class="add-equipo-btn" onclick="openAddEquipoSheet()" data-i18n="sheet.edit.equipos.add">+ Agregar equipo</button>
+    </div>
+    <div class="edit-section" id="edit-gastos-section" style="display:none">
+      <div class="edit-section-label" data-i18n="sheet.edit.section.gastos">💸 GASTOS VINCULADOS</div>
+      <div class="edit-section-hint" data-i18n="sheet.edit.section.gastos.hint" style="font-size:11px;color:var(--text3);margin-bottom:8px">Combustible, comida, peajes y otros gastos directos del servicio.</div>
+      <div id="edit-gastos-chips"></div>
+      <button class="add-equipo-btn" onclick="openNuevoGastoSheet({ defaultClase: '📌 Directo', servicioId: editingService?.id })" data-i18n="sheet.edit.gastos.add">+ Agregar gasto</button>
+    </div>
+    <button class="delete-svc-btn" id="archive-svc-btn" style="display:none;border-color:var(--text3);color:var(--text3)" onclick="archivarServicioFinanzas()">🗄️ Archivar servicio</button>
+    <button class="delete-svc-btn" id="delete-svc-btn" data-i18n="sheet.edit.delete" onclick="deleteService()">🗑️ Eliminar servicio</button>
   </div>
+</div>
 
-  <!-- Sub-modal: Crear jornada -->
-  <div class="edit-overlay" id="jornada-overlay" onclick="jornadaOverlayClick(event)">
-    <div class="edit-sheet" id="jornada-sheet">
-      <button class="sheet-close-btn" type="button" aria-label="Cerrar" onclick="closeCreateJornadaSheet()">×</button>
-      <div class="edit-sheet-handle"></div>
-      <div class="edit-sheet-header">
-        <div class="edit-sheet-title" data-i18n="sheet.jornada.title">📅 Crear jornada</div>
-        <div class="edit-sheet-sub" id="jornada-sheet-sub"></div>
-      </div>
-      <div class="edit-section">
-        <div class="edit-section-label" data-i18n="sheet.jornada.section.numero">JORNADA N°</div>
-        <input type="number" min="1" max="99" class="edit-date-input" id="jornada-numero" oninput="jornadaState.numero=this.value" style="font-size:18px;text-align:center;font-weight:700"/>
-      </div>
-      <div class="edit-section">
-        <div class="edit-section-label" data-i18n="sheet.jornada.section.fecha">FECHA</div>
-        <input type="date" class="edit-date-input" id="jornada-fecha" onchange="jornadaState.fecha=this.value"/>
-      </div>
-      <div class="edit-section">
-        <div class="edit-section-label" data-i18n="sheet.jornada.section.operario">PILOTO</div>
-        <div class="operario-btns" id="jornada-operario-btns"></div>
-      </div>
-      <button class="edit-save-btn" id="jornada-save-btn" onclick="submitCreateJornada()" data-i18n="sheet.jornada.btn.crear">✦ Crear jornada</button>
+<!-- Sub-modal: Crear jornada -->
+<div class="edit-overlay" id="jornada-overlay" onclick="jornadaOverlayClick(event)">
+  <div class="edit-sheet" id="jornada-sheet">
+    <button class="sheet-close-btn" type="button" aria-label="Cerrar" onclick="closeCreateJornadaSheet()">×</button>
+    <div class="edit-sheet-handle"></div>
+    <div class="edit-sheet-header">
+      <div class="edit-sheet-title" data-i18n="sheet.jornada.title">📅 Crear jornada</div>
+      <div class="edit-sheet-sub" id="jornada-sheet-sub"></div>
     </div>
+    <div class="edit-section">
+      <div class="edit-section-label" data-i18n="sheet.jornada.section.numero">JORNADA N°</div>
+      <input type="number" min="1" max="99" class="edit-date-input" id="jornada-numero" oninput="jornadaState.numero=this.value" style="font-size:18px;text-align:center;font-weight:700"/>
+    </div>
+    <div class="edit-section">
+      <div class="edit-section-label" data-i18n="sheet.jornada.section.fecha">FECHA</div>
+      <input type="date" class="edit-date-input" id="jornada-fecha" onchange="jornadaState.fecha=this.value"/>
+    </div>
+    <div class="edit-section">
+      <div class="edit-section-label" data-i18n="sheet.jornada.section.operario">PILOTO</div>
+      <div class="operario-btns" id="jornada-operario-btns"></div>
+    </div>
+    <button class="edit-save-btn" id="jornada-save-btn" onclick="submitCreateJornada()" data-i18n="sheet.jornada.btn.crear">✦ Crear jornada</button>
   </div>
+</div>
 
-  <!-- Sub-modal: Agregar equipo al servicio -->
-  <div class="edit-overlay" id="equipo-overlay" onclick="equipoOverlayClick(event)">
-    <div class="edit-sheet" id="equipo-sheet">
-      <button class="sheet-close-btn" type="button" aria-label="Cerrar" onclick="closeAddEquipoSheet()">×</button>
-      <div class="edit-sheet-handle"></div>
-      <div class="edit-sheet-header">
-        <div class="edit-sheet-title" data-i18n="sheet.equipo.title">🚁 Agregar equipo</div>
-        <div class="edit-sheet-sub" id="equipo-sheet-sub"></div>
-      </div>
-      <div id="equipo-options-list" style="padding:0 0 24px">
-        <div class="equipos-empty">Cargando equipos disponibles…</div>
-      </div>
+<!-- Sub-modal: Agregar equipo al servicio -->
+<div class="edit-overlay" id="equipo-overlay" onclick="equipoOverlayClick(event)">
+  <div class="edit-sheet" id="equipo-sheet">
+    <button class="sheet-close-btn" type="button" aria-label="Cerrar" onclick="closeAddEquipoSheet()">×</button>
+    <div class="edit-sheet-handle"></div>
+    <div class="edit-sheet-header">
+      <div class="edit-sheet-title" data-i18n="sheet.equipo.title">🚁 Agregar equipo</div>
+      <div class="edit-sheet-sub" id="equipo-sheet-sub"></div>
+    </div>
+    <div id="equipo-options-list" style="padding:0 0 24px">
+      <div class="equipos-empty">Cargando equipos disponibles…</div>
     </div>
   </div>
+</div>
 
-  <div class="edit-overlay" id="prop-overlay" onclick="propOverlayClick(event)">
-    <div class="edit-sheet" id="prop-sheet">
-      <button class="sheet-close-btn" type="button" aria-label="Cerrar" onclick="closePropSheet()">×</button>
-      <div class="edit-sheet-handle"></div>
-      <div class="edit-sheet-header">
-        <div class="edit-sheet-title" id="prop-sheet-title" data-i18n="sheet.prop.title.default">Propuesta</div>
-        <div class="edit-sheet-sub" id="prop-sheet-sub"></div>
-      </div>
-      <div id="prop-sheet-body"></div>
-      <button class="edit-save-btn" id="prop-save-btn" data-i18n="btn.save.notion" onclick="savePropEdit()">💾 Guardar</button>
-      <button class="delete-svc-btn" id="delete-prop-btn" onclick="deletePropuesta()" style="display:none">🗑️ Eliminar propuesta</button>
+<div class="edit-overlay" id="prop-overlay" onclick="propOverlayClick(event)">
+  <div class="edit-sheet" id="prop-sheet">
+    <button class="sheet-close-btn" type="button" aria-label="Cerrar" onclick="closePropSheet()">×</button>
+    <div class="edit-sheet-handle"></div>
+    <div class="edit-sheet-header">
+      <div class="edit-sheet-title" id="prop-sheet-title" data-i18n="sheet.prop.title.default">Propuesta</div>
+      <div class="edit-sheet-sub" id="prop-sheet-sub"></div>
     </div>
+    <div id="prop-sheet-body"></div>
+    <button class="edit-save-btn" id="prop-save-btn" data-i18n="btn.save.notion" onclick="savePropEdit()">💾 Guardar</button>
+    <button class="delete-svc-btn" id="delete-prop-btn" onclick="deletePropuesta()" style="display:none">🗑️ Eliminar propuesta</button>
   </div>
-  <div class="edit-overlay" id="contact-overlay" onclick="contactOverlayClick(event)">
-    <div class="edit-sheet" id="contact-sheet">
-      <button class="sheet-close-btn" type="button" aria-label="Cerrar" onclick="closeContactSheet()">×</button>
-      <div class="edit-sheet-handle"></div>
-      <div class="edit-sheet-header">
-        <div class="edit-sheet-title" id="contact-sheet-title" data-i18n="sheet.contact.title.default">Contacto</div>
-        <div class="edit-sheet-sub" id="contact-sheet-sub"></div>
-      </div>
-      <div id="contact-sheet-body"></div>
-      <button class="edit-save-btn" id="contact-save-btn" data-i18n="btn.save.notion" onclick="saveContactEdit()">💾 Guardar</button>
+</div>
+<div class="edit-overlay" id="contact-overlay" onclick="contactOverlayClick(event)">
+  <div class="edit-sheet" id="contact-sheet">
+    <button class="sheet-close-btn" type="button" aria-label="Cerrar" onclick="closeContactSheet()">×</button>
+    <div class="edit-sheet-handle"></div>
+    <div class="edit-sheet-header">
+      <div class="edit-sheet-title" id="contact-sheet-title" data-i18n="sheet.contact.title.default">Contacto</div>
+      <div class="edit-sheet-sub" id="contact-sheet-sub"></div>
     </div>
+    <div id="contact-sheet-body"></div>
+    <button class="edit-save-btn" id="contact-save-btn" data-i18n="btn.save.notion" onclick="saveContactEdit()">💾 Guardar</button>
   </div>
 </div>
 
