@@ -552,5 +552,17 @@ Extiende la continuidad multi-día (que ya existía para servicios **con sectore
 - **Vista agrupada en Notion:** vista "🗂️ Jornadas por trabajo" en la DB Servicios (filtro `Tipo de registro = 📅 Jornada`, agrupada por `Orden madre`, orden por `Jornada N°`) — creada vía MCP.
 - Fuera de alcance: sectores (Forma 2 = una ficha), servicios de un día en curso, confiabilidad del agrupado entre meses en CEO.
 
+## Coordinador autónomo — crear suelto + campos faltantes (sw v101)
+
+Objetivo: el coordinador hace TODO desde la app (Notion queda de respaldo). Tapa los 4 agujeros que lo obligaban a entrar a Notion.
+
+- **Crear servicio / relevamiento / prueba SUELTO (sin propuesta):** botón "＋ Nuevo trabajo" arriba de la tab **Servicios** (`renderCoordList`, gateado a `activeCoordTab === 'servicios'`) y dentro de la **ficha del cliente** (modo edición, con el cliente pre-elegido → `openNewServiceSheetForContact`). Abre `openNewServiceSheet(prefillContactId)` (overlay `new-service-overlay`, sibling del body): selector Tipo de registro (Servicio→Orden / Relevamiento / Prueba), buscador/creador de cliente (reusa el patrón del alta de propuesta: `newSvcClienteSectionHTML` + `resolveOrCreateClienteId`), nombre, Tipo de servicio (Fachada/Vidrios/Paneles), fecha (hoy por defecto). `submitNewService` → POST a Servicios (`data_source_id` = `SERVICIOS_DS_ID`, Estado `📋 Pendiente`, hereda País del cliente), update optimista (`_coordAllServices.unshift` + render de la tab correcta según tipo) y abre el sheet de edición para completar piloto/hora/lugar/sectores.
+- **Editar Tipo de servicio** (Fachada/Vidrios/Paneles) en el sheet de edición: botones `#edit-tiposervicio-btns` + `selectEditTipoServicio` (scopeado a su contenedor); se guarda en `saveServiceEdit` (`select`, solo si hay valor).
+- **Editar Notas pre-servicio** (instrucciones del coord al operario): textarea `#edit-notaspre`; se guarda en `saveServiceEdit` (`rich_text`, vacío = `[]`). **El operario ahora las ve** en su step 0 (bloque ámbar "📝 Instrucciones del coordinador", `renderStep` info-block, `esc()`).
+- **Editar Observación cliente** (la del PDF de devolución) también desde el sheet de edición: textarea `#edit-obscliente` → `saveServiceEdit` (`rich_text`). Doble escritor con el paso del PDF (`openReportStep`): independientes, ambos PATCH del mismo `rich_text`.
+- Fix colateral: `selectEditEstado` ahora scopea a `#edit-estado-btns .estado-btn` (antes el selector global apagaba visualmente el botón de Tipo de servicio).
+- Sin properties Notion nuevas (reusa `Nombre del servicio`, `Estado`, `Tipo de registro`, `Tipo de servicio`, `Fecha programada`, `Contacto`, `País`, `Notas pre-servicio`, `Observación cliente`).
+- Fuera de alcance: filtro de servicios por cliente en la lista general, botón "archivar cliente", intermediario en el alta de cliente, drag-drop del Kanban, migración a Supabase.
+
 ---
 _Generado automáticamente del código (workflow `inventario-funcionalidades`). Si algo no coincide con el código, gana el código → regenerar._
