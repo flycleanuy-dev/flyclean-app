@@ -95,7 +95,8 @@
 // v103: lecturas Supabase COMPLETAS — servicios y propuestas ON (DB_FLAGS) + el SW cachea /api/db
 //       con stale-while-revalidate en NOTION_CACHE (mismo bucket → la purga tras writes invalida
 //       ambas rutas; preserva el offline del operario en la ruta nueva).
-const CACHE = 'flyclean-v103';
+// v104: tablero de Rentabilidad en CEO→Métricas (por cliente / por servicio / país-mes; margen = ingresos vinculados − gastos vinculados, split UY$/USD sin mezclar).
+const CACHE = 'flyclean-v104';
 const SHELL = [
   '/',
   '/index.html',
