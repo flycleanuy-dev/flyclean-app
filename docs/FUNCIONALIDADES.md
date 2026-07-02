@@ -564,5 +564,19 @@ Objetivo: el coordinador hace TODO desde la app (Notion queda de respaldo). Tapa
 - Sin properties Notion nuevas (reusa `Nombre del servicio`, `Estado`, `Tipo de registro`, `Tipo de servicio`, `Fecha programada`, `Contacto`, `País`, `Notas pre-servicio`, `Observación cliente`).
 - Fuera de alcance: filtro de servicios por cliente en la lista general, botón "archivar cliente", intermediario en el alta de cliente, drag-drop del Kanban, migración a Supabase.
 
+## Lecturas Supabase completas + interruptor central (sw v102-v103)
+
+- **`DB_FLAGS` + `dbFlag(name)`** (index.html ~3815): interruptor CENTRAL de las lecturas Supabase — se cambia en código y se deploya; `localStorage.fc_db_<x>` = '1'/'0' queda como override por dispositivo. Estado actual: `{ clientes: true, servicios: true, propuestas: true, writesync: true }` → **toda la app lee del espejo Supabase** (`/api/db`), con fallback automático a Notion en cada sitio (`callDb` tira en !ok). Escrituras siguen Notion-first + `syncAfterWrite` inmediato (ahora también en las 2 altas inline de cliente).
+- **SW cachea `/api/db`** (`handleDbApi` en sw.js): stale-while-revalidate en el MISMO bucket `NOTION_CACHE` → la purga tras cada write invalida ambas rutas y el offline del operario queda intacto en la ruta nueva. `/api/db-sync` no entra (pathname exacto + solo GET).
+- **Espejo completo**: cron cada 10 min + 10 columnas planas nuevas (jornadas, fecha planificada, tipo de servicio, notas pre, operario manual, mapa propuestas) — `db/migrations/2026-07-01-columnas-nuevas.sql`.
+
+## Tablero de Rentabilidad v1 (sw v104)
+
+- Sección desplegable **"📈 Rentabilidad"** en CEO→Métricas (respeta el selector país/período). 3 vistas por chips: **Por cliente · Por servicio · País-Mes** (`computeRentabilidad` + `renderCeoRentaBody` + `setCeoRentaView`, estado en `_ceoRentaData`/`_ceoRentaView`).
+- **Margen v1 = ingresos vinculados − gastos vinculados** (sin jornales ni prorrateo, decisión de Diego 01/07). **UY$/USD SIEMPRE separados** (montoOf/sumByMoneda); margen % por moneda solo si ing>0.
+- Relaciones reales (verificadas): ingreso→servicio `Servicio vinculado`, ingreso→cliente directo `Cuenta`, gasto→servicio `Servicio`, servicio→cliente `Contacto` (fallback legacy `Contactos`).
+- **Reconciliación garantizada**: mismas fuentes/filtros (`ingData`/`gasData` + `kpiIncluido`) que la card Balance; cada registro cae en exactamente un bucket + línea **"Sin vincular"** visible → las sumas siempre cierran contra el Balance. Evolución mensual usa los datos del año (rotulada aparte).
+- Nombres de clientes vía `callDb('clientes')` (espejo, guarded — si falla usa contactData y nunca rompe el panel).
+
 ---
 _Generado automáticamente del código (workflow `inventario-funcionalidades`). Si algo no coincide con el código, gana el código → regenerar._
