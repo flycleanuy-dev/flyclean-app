@@ -604,5 +604,41 @@ no cambian — solo lo visible.
 - **Cards "A contactar hoy" compactas**: estado + días en UNA línea (`.prop-card.compact`, sin la fila
   `prop-meta` separada, botón `.prop-compact-btn` más chico). Las cards normales de propuestas no cambian.
 
+## Endurecimiento + A-contactar-hoy desplegable (sw v115-v116)
+
+- **v115** — fixes de auditoría: purga de cachés de lectura al login/logout (`purgeReadCaches`, evita ver la
+  lista de otro país en un dispositivo compartido) + encierro completo del rol Ventas (no crea servicios/clientes,
+  no ve cartera/alertas/intermediarios) + la × de una alerta ya no colapsa la lista.
+- **v116** — "📞 A contactar hoy" es un desplegable colapsado (`toggleContactarHoy`/`openContactarHoy`; header
+  con contador, cards adentro con su botón Contactado; el deep-link de la alerta lo abre).
+- **Backstop server-side del rol Ventas** (`api/notion.js` + `api/db.js`, helper `esVentas` en `api/_lib/users.js`):
+  el encierro de Ventas ahora es también server-side — un token Ventas solo puede tocar la DB Clientes/Contactos
+  (databases/query, pages create/update de contactos); servicios/propuestas/gastos/ingresos → 403. Verificado en vivo.
+
+## 4 roles del servicio + sub-tabs + ciclo prospecto→cliente + botón mapa (sw v117-v120)
+
+- **Roles del servicio, 4 slots (v117)** — el sheet de edición del coord asigna 4 roles con **exclusión mutua**
+  (1 persona = 1 rol, para el conteo de jornales): **ENCARGADO DEL SERVICIO** (`Operario App`, re-rótulo del ex
+  "Piloto"; sigue siendo el ÚNICO que ve el servicio en su app vía `getMyServices`) · **PILOTO (del dron)**
+  (property Notion `Piloto` select, nueva) · **OPERARIO MANUAL** (`Operario manual`) · **AYUDANTES**
+  (`Operarios participantes` multi_select). Funciones `renderPilotoBtns`/`selectEditPiloto` + los otros 3 setters
+  se limpian entre sí. El operario ve los 4 (read-only) en su step 0; el PDF de devolución los lista.
+  `crearJornadaSiguiente` hereda la cuadrilla completa (Encargado+Piloto+Manual+Ayudantes) a la jornada N+1.
+- **Sub-tabs Servicios/Relevamientos/Pruebas (v118)** — se agrupan en UNA tab de arriba ('📋 Servicios') con un
+  control segmentado (`coord-subtab-bar`, reusa el estilo de `coord-view-toggle`); barra superior de 11 a 9 tabs.
+  Los 3 siguen siendo valores de tab internos (`setCoordTab` intacto); el top-tab 'servicios' queda activo para
+  los 3. `renderServiciosSubtabBar(active)`.
+- **Ciclo prospecto→cliente activo (v119)** — botón **'✅ Pasar a cliente'** en el prospecto 🤝 Interesado
+  (`prospAccion('cliente')`, con confirmación, saca la card de `_coordAllProspectos` optimista + revert en error)
+  + promoción **AUTOMÁTICA** al aceptar una propuesta vinculada (`promoteClienteIfAceptada` en las 2 ramas de
+  `savePropEdit`: si el cliente sigue en `PROSPECCION_ESTADOS` → `✅ Cliente activo`; falla en silencio para no
+  romper el guardado; un '❌ Descartado' SÍ se reactiva — decisión de Diego).
+- **Botón '🗺️ Abrir' en el alta de prospecto (v120)** — al lado del link de mapa, abre el link tipeado
+  (`abrirProspectoMapa`, prepend `https://` si falta). Sirve a Ventas y coord.
+
+**Dato (2026-07-03, no es feature)**: se clasificaron 42 clientes "sin estado/Lead" que NO eran leads →
+31 con actividad a `✅ Cliente activo`, 9 tests (Prueba Diego + ZZZ Test Merge) archivados, 2 intermediarios
+(Aseo/Belhouse) dejados. Total activos 17→48. Scripts one-off (no versionados).
+
 ---
 _Generado automáticamente del código (workflow `inventario-funcionalidades`). Si algo no coincide con el código, gana el código → regenerar._
