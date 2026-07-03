@@ -110,7 +110,8 @@
 // v113: la app ya no le nombra "Notion" al usuario (equipo app-only) — textos neutros en es+pt; y el cierre del operario pasa a "Finalizar servicio".
 // v114: alertas informativas (BPS/docs) se pueden descartar con × (vuelven si urgen ≤7d o se renuevan) + Mantenimiento muestra "hace N meses del último servicio" en rojo + cards de "A contactar hoy" más compactas.
 // v115: fixes de la auditoría nocturna — purga de cachés de lectura al login/logout (evita ver la lista recortada por país del usuario anterior en un dispositivo compartido) + encierro del rol Ventas completo (no crea servicios/clientes ni ve cartera/alertas/intermediarios) + la × de una alerta ya no colapsa toda la lista. (También cubre el fix de _mantMeses stale de d9c69c2 que no bumpeó.)
-const CACHE = 'flyclean-v115';
+// v116: "📞 A contactar hoy" ahora es un desplegable (colapsado por defecto; el header muestra el contador, al tocarlo se abren las cards con su botón Contactado). El deep-link de la alerta lo abre solo.
+const CACHE = 'flyclean-v116';
 const SHELL = [
   '/',
   '/index.html',
