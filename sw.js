@@ -115,7 +115,8 @@
 // v118: el coord agrupa Servicios/Relevamientos/Pruebas en UNA sola tab de arriba ('📋 Servicios') con un control segmentado adentro para cambiar entre las 3 → barra superior más limpia (de 11 a 9 tabs). Los 3 siguen siendo valores de tab internos (setCoordTab intacto); nada más cambia.
 // v119: ciclo prospecto→cliente — botón '✅ Pasar a cliente' en el prospecto Interesado (promoción manual) + promoción AUTOMÁTICA al aceptar una propuesta vinculada (si el cliente sigue en un estado de Prospección pasa a '✅ Cliente activo' y sale de la pestaña Prospección). La promoción auto falla en silencio para no romper el guardado de la propuesta.
 // v120: en el alta de prospecto, el campo de link de mapa suma un botón '🗺️ Abrir' al costado para abrir el link tipeado (mismo gesto que en otros lados).
-const CACHE = 'flyclean-v120';
+// v121: rediseño del PDF de devolución — marca completa (logo sparkle + tipografía Exo 2 embebidas, lazy desde /vendor/report-brand.js), fotos agrupadas POR SECTOR (antes/después por sector, sin tope de 3, multipágina), + datos extra (duración real, barra de % de avance, cronología por jornada, ubicación con link al mapa) + bilingüe es/pt. buildReportDoc separado de generateReportPDF (testeable).
+const CACHE = 'flyclean-v121';
 const SHELL = [
   '/',
   '/index.html',
