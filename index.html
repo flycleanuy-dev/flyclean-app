@@ -6074,6 +6074,19 @@ async function cancelarPedido(id) {
   }
 }
 
+// Borra las cachés de LECTURAS (/api/notion + /api/db) del Service Worker. Se llama al login y
+// al logout: /api/db devuelve la lista YA filtrada por país server-side pero el SW la cachea por
+// URL pelada (sin el país) → sin esta purga, en un dispositivo compartido el siguiente usuario
+// (ej. CEO global) podría ver la lista recortada del usuario anterior (ej. coord de Panamá).
+async function purgeReadCaches() {
+  try {
+    if (window.caches) {
+      const ks = await caches.keys();
+      await Promise.all(ks.filter(k => k.startsWith('flyclean-notion-cache')).map(k => caches.delete(k)));
+    }
+  } catch (_) {}
+}
+
 async function pinConfirm() {
   if (_pinTimer) { clearTimeout(_pinTimer); _pinTimer = null; }
   if (pinBuffer.length < 4) return; // necesita al menos 4 dígitos (soporta 4 o 6)
@@ -6090,6 +6103,7 @@ async function pinConfirm() {
     return;
   }
   pinAttempts = 0;
+  await purgeReadCaches(); // sesión nueva → no servir cachés de lectura del usuario anterior
   currentUser = { id: pinUser.id, name: pinUser.name, role: pinUser.role, emoji: pinUser.emoji, country: pinUser.country };
   localStorage.setItem('fc_user', JSON.stringify(currentUser));
   markUserActive();
@@ -6391,6 +6405,7 @@ function forceRelogin() {
 }
 
 function logout() {
+  purgeReadCaches(); // fire-and-forget: al cerrar sesión, limpiar cachés de lectura (país/usuario)
   try { localStorage.removeItem('fc_token'); } catch (_) {}
   // M8 — Reset de variables globales en memoria para que el siguiente login
   // no vea data residual. localStorage de servicios (fc_service_*) se mantiene
@@ -11994,6 +12009,7 @@ function newServiceOverlayClick(e) { if (e.target.id === 'new-service-overlay') 
 function closeNewServiceSheet() { document.getElementById('new-service-overlay').classList.remove('open'); }
 
 function openNewServiceSheet(prefillContactId = null) {
+  if (esVentas()) return; // Ventas nunca crea servicios/relevamientos/pruebas (encierro rol B2)
   const today = new Date();
   const hoyISO = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
   const paisCoord = COUNTRY_NOTION_MAP[selectedCountry] || '';
@@ -12024,6 +12040,7 @@ function openNewServiceSheet(prefillContactId = null) {
 }
 
 function openNewServiceSheetForContact(contactId) {
+  if (esVentas()) return; // Ventas no crea trabajos desde la ficha del prospecto (encierro rol B2)
   closeContactSheet();
   setTimeout(() => openNewServiceSheet(contactId || null), 250);
 }
@@ -12040,6 +12057,7 @@ function newSvcSetTipoSvc(el, val) {
 }
 
 async function submitNewService() {
+  if (esVentas()) return; // backstop: Ventas no crea trabajos (encierro rol B2)
   const btn = document.getElementById('new-service-save-btn');
   const s = newSvcState;
   if (!(s.nombre || '').trim()) { alert(t('sheet.newsvc.error.nombre')); return; }
@@ -12974,7 +12992,7 @@ function buildContactSheetBody(mode) {
         <button type="button" class="estado-btn" style="white-space:nowrap" onclick="contactAddSector()">${t('sheet.contact.sectores.add')}</button>
       </div></div>` +
     (mode === 'edit'
-      ? `<div class="edit-section"><button class="nueva-prop-btn" style="width:100%" onclick="openNewServiceSheetForContact(editingContact && editingContact.id)">${t('sheet.contact.new.servicio')}</button></div>` +
+      ? ((!esVentas() ? `<div class="edit-section"><button class="nueva-prop-btn" style="width:100%" onclick="openNewServiceSheetForContact(editingContact && editingContact.id)">${t('sheet.contact.new.servicio')}</button></div>` : '')) +
         `<div class="edit-section" style="padding-bottom:0"><div class="edit-section-label">${t('contact.history.title')}</div>
           <div id="contact-history-container"><div class="history-loading">${t('contact.history.loading')}</div></div>
          </div>`
@@ -13045,7 +13063,8 @@ async function openContactSheet(pageId) {
   } else {
     loadContactHistory(pageId);
   }
-  loadContactIntermediarios(pageId);
+  // Ventas tampoco carga los intermediarios (traería toda la cartera como <option> al DOM).
+  if (!esVentas()) loadContactIntermediarios(pageId);
 }
 
 function openNewContactSheet() {
@@ -13709,8 +13728,18 @@ function dismissAlertKey(key) {
   try { localStorage.setItem('fc_alertsDismissed', JSON.stringify(Array.from(set))); } catch (e) {}
 }
 function dismissAlert(containerId, key) {
+  // Preservar si la lista estaba abierta: renderAlertsBanner reconstruye el banner con la
+  // lista colapsada, así que sin esto tocar la × cerraba TODA la lista (regresión v114).
+  const prevList = document.getElementById(containerId + '_list');
+  const estabaAbierta = prevList && prevList.style.display !== 'none';
   dismissAlertKey(key);
   renderAlertsBanner(containerId, _alertsByContainer[containerId] || []);
+  if (estabaAbierta) {
+    const list = document.getElementById(containerId + '_list');
+    const toggle = document.getElementById(containerId + '_list_toggle');
+    if (list) list.style.display = 'block';
+    if (toggle) toggle.textContent = t('alerts.close');
+  }
 }
 
 function renderAlertsBanner(containerId, alerts) {
@@ -13752,6 +13781,8 @@ function toggleAlertsList(id, header) {
 
 async function loadAlerts(role, bannerId) {
   if (!currentUser) { const el = document.getElementById(bannerId); if (el) el.innerHTML = ''; return; }
+  // Ventas solo ve su tab de prospección: sin banner de alertas (documentos/mantenimiento/pipeline).
+  if (esVentas()) { const el = document.getElementById(bannerId); if (el) el.innerHTML = ''; return; }
   const alerts = [];
   const today = new Date().toISOString().split('T')[0];
   const warnDate = new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0];

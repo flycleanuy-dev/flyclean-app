@@ -109,7 +109,8 @@
 // v112: fase de Prospección (tab 🎯 para coord + rol nuevo 🧲 Ventas que SOLO ve prospección) — alta rápida de prospectos, acciones de un toque, próximo contacto planificado, y sub-bloque de prospección en las métricas comerciales del CEO.
 // v113: la app ya no le nombra "Notion" al usuario (equipo app-only) — textos neutros en es+pt; y el cierre del operario pasa a "Finalizar servicio".
 // v114: alertas informativas (BPS/docs) se pueden descartar con × (vuelven si urgen ≤7d o se renuevan) + Mantenimiento muestra "hace N meses del último servicio" en rojo + cards de "A contactar hoy" más compactas.
-const CACHE = 'flyclean-v114';
+// v115: fixes de la auditoría nocturna — purga de cachés de lectura al login/logout (evita ver la lista recortada por país del usuario anterior en un dispositivo compartido) + encierro del rol Ventas completo (no crea servicios/clientes ni ve cartera/alertas/intermediarios) + la × de una alerta ya no colapsa toda la lista. (También cubre el fix de _mantMeses stale de d9c69c2 que no bumpeó.)
+const CACHE = 'flyclean-v115';
 const SHELL = [
   '/',
   '/index.html',
