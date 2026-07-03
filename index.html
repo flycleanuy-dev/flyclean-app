@@ -1068,7 +1068,7 @@ body::before {
 </head>
 <body>
 
-<div class="saving-bar" id="savingBar">✓ Guardado en Notion</div>
+<div class="saving-bar" id="savingBar">✓ Guardado</div>
 <div class="app-version-badge" id="app-version-badge"></div>
 
 <!-- LOADING -->
@@ -1214,7 +1214,7 @@ body::before {
     <div class="services-sub" id="services-sub" data-i18n="services.sub.loading">Cargando...</div>
   </div>
   <div class="error-banner" id="error-banner" data-i18n="services.error.banner">
-    No se pudo conectar con Notion. Verificá tu conexión.
+    No se pudo conectar. Verificá tu conexión.
   </div>
   <div class="services-list" id="services-list">
     <div style="text-align:center;padding:40px 0">
@@ -1710,7 +1710,7 @@ body::before {
 <div class="screen" id="screen-done">
   <div class="done-icon">🏁</div>
   <div class="done-title" data-i18n="done.title">¡Servicio cerrado!</div>
-  <div class="done-sub" data-i18n="done.sub">Todos los datos se guardaron en Notion automáticamente.</div>
+  <div class="done-sub" data-i18n="done.sub">Todos los datos se guardaron automáticamente.</div>
   <div class="done-stats" id="done-stats"></div>
   <button class="btn-main btn-green" data-i18n="done.btn" style="width:100%;max-width:300px" onclick="finishAndGoBack()">Ver mis servicios →</button>
 </div>
@@ -1843,10 +1843,10 @@ const TRANSLATIONS = {
     'services.title': 'Mis servicios',
     'services.sub.loading': 'Cargando...',
     'services.sub.loading2': 'Cargando servicios...',
-    'services.error.banner': 'No se pudo conectar con Notion. Verificá tu conexión.',
+    'services.error.banner': 'No se pudo conectar. Verificá tu conexión.',
     'services.sub.error': 'Error al cargar',
     'services.empty.title': 'No hay servicios asignados',
-    'services.empty.text': 'Pedile al coordinador que te asigne un servicio en Notion. Los servicios aparecen aquí cuando el coordinador te los asigna.',
+    'services.empty.text': 'Pedile al coordinador que te asigne un servicio. Los servicios aparecen aquí cuando el coordinador te los asigna.',
     'services.empty.sub': 'Sin servicios asignados',
     'services.connect.title': 'No se pudo conectar',
     'services.connect.text': 'Verificá tu conexión a internet y que la app esté bien configurada.',
@@ -1906,7 +1906,7 @@ const TRANSLATIONS = {
     'step.fotos.despues.sub': 'Mínimo 2 fotos del resultado final',
     'step.fotos.despues.hint': '📷 Mostrá claramente el trabajo terminado.',
     'step.fotos.area.text': 'Subida de fotos',
-    'step.fotos.area.note': 'La función de fotos se activa en la próxima versión.<br>Por ahora subí las fotos directamente en Notion.',
+    'step.fotos.area.note': 'La función de fotos se activa en la próxima versión.',
     'step.inicioef.title': '🕐 Inicio Efectivo',
     'step.inicioef.sub': 'Confirmá el clima y registrá el inicio de operativa',
     'step.clima.label': '🌤️ CONDICIÓN CLIMÁTICA',
@@ -1938,11 +1938,11 @@ const TRANSLATIONS = {
     'sector.estado.hecho': 'Hecho',
     'step.cierreef.title': '⏹ Cierre Efectivo',
     'step.cierreef.sub': 'Tocá cuando el drone aterrice',
-    'step.cierreef.hint': '🟠 Registra el tiempo efectivo de trabajo. El cálculo se hace automático en Notion.',
+    'step.cierreef.hint': '🟠 Registra el tiempo efectivo de trabajo. El cálculo se hace solo.',
     'step.cierreef.recorded': '✅ Cierre efectivo registrado',
     'step.cierreef.btn': '⏹ REGISTRAR CIERRE EFECTIVO',
     'step.obs.title': '📝 Observaciones y datos finales',
-    'step.obs.sub': 'Completá antes de cerrar el servicio',
+    'step.obs.sub': 'Completá antes de finalizar el servicio',
     'step.obs.notas.label': '📝 NOTAS POST-SERVICIO',
     'step.obs.notas.placeholder': '¿Hubo algo inusual? ¿Dificultades? ¿Algo que dirección deba saber?',
     'step.obs.avance.label': '📊 % DE AVANCE DE HOY',
@@ -1962,9 +1962,9 @@ const TRANSLATIONS = {
     'close.jornada.need.online': 'Necesitás conexión para cerrar y programar el día siguiente.',
     'close.jornada.next.error': 'Se guardó tu jornada, pero no se pudo crear la ficha de mañana. Avisá al coordinador.',
     'step.obs.resultado.label': '🏁 RESULTADO',
-    'step.cerrar.title': '🏁 Cerrar servicio',
+    'step.cerrar.title': '🏁 Finalizar servicio',
     'step.cerrar.sub': 'Revisá todo antes de confirmar',
-    'step.cerrar.hint': '✅ Al cerrar, todos los datos se guardan automáticamente en Notion.',
+    'step.cerrar.hint': '✅ Al finalizar, todos los datos se guardan automáticamente.',
     'summary.title': 'RESUMEN DEL SERVICIO',
     'summary.horainicio': '🕐 Hora de inicio',
     'summary.inicioef': '⚡ Inicio efectivo',
@@ -1976,19 +1976,19 @@ const TRANSLATIONS = {
     'summary.clima': '🌤️ Clima',
     'btn.back': '← Atrás',
     'btn.continue': 'Continuar →',
-    'btn.close.notion': '🏁 Cerrar servicio',
+    'btn.close.notion': '🏁 Finalizar servicio',
     'cierre.sectores.confirm.cerrar': 'El trabajo no se terminó: faltan {n} sector(es). ¿Cerrarlo así igual, en lugar de seguir otro día?',
     'estado.jornada.completada': '🗓️ Jornada {n} completada',
     'badge.servicio.completo': '✅ Servicio completo',
     'badge.fueradefecha': '⚠️ Iniciado fuera de fecha · planif. {d}',
-    'sheet.edit.delete.confirm.completed': 'El servicio "{name}" está COMPLETADO (registro histórico). ¿Eliminarlo igual? Va a la papelera de Notion (recuperable 30 días).',
+    'sheet.edit.delete.confirm.completed': 'El servicio "{name}" está COMPLETADO (registro histórico). ¿Eliminarlo igual? Va a la papelera (recuperable 30 días).',
     'btn.save.notion': '💾 Guardar',
     'btn.create.notion': '✨ Crear',
     'btn.saving': '⏳ Guardando...',
     'btn.saving.notion': '⏳ Guardando...',
     'btn.cancel': 'Cancelar',
     'done.title': '¡Servicio cerrado!',
-    'done.sub': 'Todos los datos se guardaron en Notion automáticamente.',
+    'done.sub': 'Todos los datos se guardaron automáticamente.',
     'done.continua.title': 'Guardado ✅',
     'done.continua.sub': 'El servicio sigue mañana con los sectores que faltan.',
     'cierre.sectores.title': 'Quedan sectores sin hacer',
@@ -2275,7 +2275,7 @@ const TRANSLATIONS = {
     'sheet.jornada.btn.crear': '✦ Crear jornada',
     'sheet.jornada.btn.crear.short': 'Crear jornada',
     'sheet.jornada.creating': 'Creando…',
-    'sheet.jornada.success': '✅ Jornada creada en Notion. Refrescando lista…',
+    'sheet.jornada.success': '✅ Jornada creada. Refrescando lista…',
     'sheet.jornada.error.numero': 'El número de jornada debe ser un entero positivo.',
     'sheet.jornada.error.fecha': 'Tenés que elegir una fecha para la jornada.',
     'sheet.jornada.error.crear': '❌ Error al crear la jornada:',
@@ -2288,7 +2288,7 @@ const TRANSLATIONS = {
     'sheet.alert.save.error2': 'Error al guardar: ',
     'sheet.prop.title.nueva': 'Nueva Propuesta',
     'sheet.prop.title.default': 'Propuesta',
-    'sheet.prop.subtitle.nueva': 'Se creará en Notion al guardar',
+    'sheet.prop.subtitle.nueva': 'Se creará al guardar',
     'sheet.prop.subtitle.default': 'Propuesta / Presupuesto',
     'sheet.prop.section.nombre': 'NOMBRE DE LA PROPUESTA *',
     'sheet.prop.nombre.placeholder': 'Ej: Fachada Torre Norte',
@@ -2305,7 +2305,7 @@ const TRANSLATIONS = {
     'sheet.prop.error.nombre': 'El nombre de la propuesta es obligatorio.',
     'sheet.contact.title.default': 'Contacto',
     'sheet.contact.title.nuevo': 'Nuevo Contacto',
-    'sheet.contact.subtitle.nuevo': 'Se creará en Notion al guardar',
+    'sheet.contact.subtitle.nuevo': 'Se creará al guardar',
     'sheet.contact.section.nombre': 'NOMBRE / EMPRESA *',
     'sheet.contact.nombre.placeholder': 'Ej: Torre del Parque',
     'sheet.contact.section.estado': 'ESTADO',
@@ -2425,7 +2425,7 @@ const TRANSLATIONS = {
     'photos.retry': 'Reintentar',
     'photos.empty.gallery': 'Sin fotos aún',
     'photos.gallery.title': 'Fotos del servicio',
-    'photos.wait.uploading': 'Esperá que terminen de subir las fotos antes de cerrar el servicio.',
+    'photos.wait.uploading': 'Esperá que terminen de subir las fotos antes de finalizar el servicio.',
     'sheet.prop.create.svc': 'Crear servicio desde esta propuesta',
     'sheet.prop.create.another.svc': 'Crear otro servicio',
     'sheet.prop.svc.already': 'servicio(s) ya creado(s)',
@@ -2433,13 +2433,13 @@ const TRANSLATIONS = {
     'sheet.prop.create.error': 'Error al crear servicio:',
     'sheet.edit.delete': 'Eliminar servicio',
     'sheet.edit.deleting': 'Eliminando...',
-    'sheet.edit.delete.confirm': '¿Eliminar "{name}"? Lo mando a la papelera de Notion (recuperable desde ahí en los próximos 30 días).',
+    'sheet.edit.delete.confirm': '¿Eliminar "{name}"? Lo mando a la papelera (recuperable desde ahí en los próximos 30 días).',
     'sheet.edit.delete.error': 'Error al eliminar:',
     'sheet.edit.delete.blocked.completed': 'Los servicios completados no se pueden eliminar (son registro histórico). Solo se pueden modificar.',
     'sheet.prop.delete': 'Eliminar propuesta',
     'sheet.prop.deleting': 'Eliminando...',
-    'sheet.prop.delete.confirm': '¿Eliminar la propuesta "{name}"? Va a la papelera de Notion (recuperable 30 días).',
-    'sheet.prop.delete.confirm.with.svc': '¿Eliminar la propuesta "{name}"?\\n\\nTiene {n} servicio(s) vinculado(s) — los servicios NO se borran, solo la propuesta. Recuperable 30 días desde la papelera de Notion.',
+    'sheet.prop.delete.confirm': '¿Eliminar la propuesta "{name}"? Va a la papelera (recuperable 30 días).',
+    'sheet.prop.delete.confirm.with.svc': '¿Eliminar la propuesta "{name}"?\\n\\nTiene {n} servicio(s) vinculado(s) — los servicios NO se borran, solo la propuesta. Recuperable 30 días desde la papelera.',
     'sheet.prop.delete.error': 'Error al eliminar:',
     'sheet.prop.pedir.relev': 'Pedir relevamiento previo',
     'sheet.prop.creating.relev': 'Creando relevamiento...',
@@ -2563,10 +2563,10 @@ const TRANSLATIONS = {
     'services.title': 'Meus serviços',
     'services.sub.loading': 'Carregando...',
     'services.sub.loading2': 'Carregando serviços...',
-    'services.error.banner': 'Não foi possível conectar com Notion. Verifique sua conexão.',
+    'services.error.banner': 'Não foi possível conectar. Verifique sua conexão.',
     'services.sub.error': 'Erro ao carregar',
     'services.empty.title': 'Sem serviços atribuídos',
-    'services.empty.text': 'Peça ao coordenador que atribua um serviço no Notion. Os serviços aparecem aqui quando o coordenador os atribui.',
+    'services.empty.text': 'Peça ao coordenador que atribua um serviço. Os serviços aparecem aqui quando o coordenador os atribui.',
     'services.empty.sub': 'Sem serviços atribuídos',
     'services.connect.title': 'Não foi possível conectar',
     'services.connect.text': 'Verifique sua conexão com a internet e se o app está bem configurado.',
@@ -2626,7 +2626,7 @@ const TRANSLATIONS = {
     'step.fotos.despues.sub': 'Mínimo 2 fotos do resultado final',
     'step.fotos.despues.hint': '📷 Mostre claramente o trabalho concluído.',
     'step.fotos.area.text': 'Upload de fotos',
-    'step.fotos.area.note': 'A função de fotos será ativada na próxima versão.<br>Por enquanto, suba as fotos diretamente no Notion.',
+    'step.fotos.area.note': 'A função de fotos será ativada na próxima versão.',
     'step.inicioef.title': '🕐 Início Efetivo',
     'step.inicioef.sub': 'Confirme o clima e registre o início da operação',
     'step.clima.label': '🌤️ CONDIÇÃO CLIMÁTICA',
@@ -2658,11 +2658,11 @@ const TRANSLATIONS = {
     'sector.estado.hecho': 'Feito',
     'step.cierreef.title': '⏹ Fechamento Efetivo',
     'step.cierreef.sub': 'Toque quando o drone pousar',
-    'step.cierreef.hint': '🟠 Registra o tempo efetivo de trabalho. O cálculo é automático no Notion.',
+    'step.cierreef.hint': '🟠 Registra o tempo efetivo de trabalho. O cálculo é automático.',
     'step.cierreef.recorded': '✅ Fechamento efetivo registrado',
     'step.cierreef.btn': '⏹ REGISTRAR FECHAMENTO EFETIVO',
     'step.obs.title': '📝 Observações e dados finais',
-    'step.obs.sub': 'Preencha antes de fechar o serviço',
+    'step.obs.sub': 'Preencha antes de finalizar o serviço',
     'step.obs.notas.label': '📝 NOTAS PÓS-SERVIÇO',
     'step.obs.notas.placeholder': 'Houve algo incomum? Dificuldades? Algo que a direção deva saber?',
     'step.obs.avance.label': '📊 % DE AVANÇO DE HOJE',
@@ -2682,9 +2682,9 @@ const TRANSLATIONS = {
     'close.jornada.need.online': 'Você precisa de conexão para fechar e agendar o dia seguinte.',
     'close.jornada.next.error': 'Sua jornada foi salva, mas não foi possível criar a ficha de amanhã. Avise o coordenador.',
     'step.obs.resultado.label': '🏁 RESULTADO',
-    'step.cerrar.title': '🏁 Fechar serviço',
+    'step.cerrar.title': '🏁 Finalizar serviço',
     'step.cerrar.sub': 'Revise tudo antes de confirmar',
-    'step.cerrar.hint': '✅ Ao fechar, todos os dados são salvos automaticamente no Notion.',
+    'step.cerrar.hint': '✅ Ao finalizar, todos os dados são salvos automaticamente.',
     'summary.title': 'RESUMO DO SERVIÇO',
     'summary.horainicio': '🕐 Hora de início',
     'summary.inicioef': '⚡ Início efetivo',
@@ -2696,19 +2696,19 @@ const TRANSLATIONS = {
     'summary.clima': '🌤️ Clima',
     'btn.back': '← Voltar',
     'btn.continue': 'Continuar →',
-    'btn.close.notion': '🏁 Fechar serviço',
+    'btn.close.notion': '🏁 Finalizar serviço',
     'cierre.sectores.confirm.cerrar': 'O trabalho não terminou: faltam {n} setor(es). Fechar assim mesmo, em vez de continuar outro dia?',
     'estado.jornada.completada': '🗓️ Jornada {n} concluída',
     'badge.servicio.completo': '✅ Serviço completo',
     'badge.fueradefecha': '⚠️ Iniciado fora da data · planej. {d}',
-    'sheet.edit.delete.confirm.completed': 'O serviço "{name}" está CONCLUÍDO (registro histórico). Excluir mesmo assim? Vai para a lixeira do Notion (recuperável 30 dias).',
+    'sheet.edit.delete.confirm.completed': 'O serviço "{name}" está CONCLUÍDO (registro histórico). Excluir mesmo assim? Vai para a lixeira (recuperável 30 dias).',
     'btn.save.notion': '💾 Salvar',
     'btn.create.notion': '✨ Criar',
     'btn.saving': '⏳ Salvando...',
     'btn.saving.notion': '⏳ Salvando...',
     'btn.cancel': 'Cancelar',
     'done.title': 'Serviço fechado!',
-    'done.sub': 'Todos os dados foram salvos automaticamente no Notion.',
+    'done.sub': 'Todos os dados foram salvos automaticamente.',
     'done.continua.title': 'Salvo ✅',
     'done.continua.sub': 'O serviço continua amanhã com os setores que faltam.',
     'cierre.sectores.title': 'Faltam setores por fazer',
@@ -2995,7 +2995,7 @@ const TRANSLATIONS = {
     'sheet.jornada.btn.crear': '✦ Criar jornada',
     'sheet.jornada.btn.crear.short': 'Criar jornada',
     'sheet.jornada.creating': 'Criando…',
-    'sheet.jornada.success': '✅ Jornada criada no Notion. Atualizando lista…',
+    'sheet.jornada.success': '✅ Jornada criada. Atualizando lista…',
     'sheet.jornada.error.numero': 'O número da jornada deve ser um inteiro positivo.',
     'sheet.jornada.error.fecha': 'É preciso escolher uma data para a jornada.',
     'sheet.jornada.error.crear': '❌ Erro ao criar a jornada:',
@@ -3008,7 +3008,7 @@ const TRANSLATIONS = {
     'sheet.alert.save.error2': 'Erro ao salvar: ',
     'sheet.prop.title.nueva': 'Nova Proposta',
     'sheet.prop.title.default': 'Proposta',
-    'sheet.prop.subtitle.nueva': 'Será criada no Notion ao salvar',
+    'sheet.prop.subtitle.nueva': 'Será criada ao salvar',
     'sheet.prop.subtitle.default': 'Proposta / Orçamento',
     'sheet.prop.section.nombre': 'NOME DA PROPOSTA *',
     'sheet.prop.nombre.placeholder': 'Ex: Fachada Torre Norte',
@@ -3025,7 +3025,7 @@ const TRANSLATIONS = {
     'sheet.prop.error.nombre': 'O nome da proposta é obrigatório.',
     'sheet.contact.title.default': 'Contato',
     'sheet.contact.title.nuevo': 'Novo Contato',
-    'sheet.contact.subtitle.nuevo': 'Será criado no Notion ao salvar',
+    'sheet.contact.subtitle.nuevo': 'Será criado ao salvar',
     'sheet.contact.section.nombre': 'NOME / EMPRESA *',
     'sheet.contact.nombre.placeholder': 'Ex: Torre do Parque',
     'sheet.contact.section.estado': 'STATUS',
@@ -3145,7 +3145,7 @@ const TRANSLATIONS = {
     'photos.retry': 'Tentar novamente',
     'photos.empty.gallery': 'Sem fotos ainda',
     'photos.gallery.title': 'Fotos do serviço',
-    'photos.wait.uploading': 'Aguarde as fotos terminarem de enviar antes de fechar o serviço.',
+    'photos.wait.uploading': 'Aguarde as fotos terminarem de enviar antes de finalizar o serviço.',
     'sheet.prop.create.svc': 'Criar serviço a partir desta proposta',
     'sheet.prop.create.another.svc': 'Criar outro serviço',
     'sheet.prop.svc.already': 'serviço(s) já criado(s)',
@@ -3153,13 +3153,13 @@ const TRANSLATIONS = {
     'sheet.prop.create.error': 'Erro ao criar serviço:',
     'sheet.edit.delete': 'Excluir serviço',
     'sheet.edit.deleting': 'Excluindo...',
-    'sheet.edit.delete.confirm': 'Excluir "{name}"? Vai para a lixeira do Notion (recuperável de lá por 30 dias).',
+    'sheet.edit.delete.confirm': 'Excluir "{name}"? Vai para a lixeira (recuperável de lá por 30 dias).',
     'sheet.edit.delete.error': 'Erro ao excluir:',
     'sheet.edit.delete.blocked.completed': 'Serviços concluídos não podem ser excluídos (são registro histórico). Apenas podem ser modificados.',
     'sheet.prop.delete': 'Excluir proposta',
     'sheet.prop.deleting': 'Excluindo...',
-    'sheet.prop.delete.confirm': 'Excluir a proposta "{name}"? Vai para a lixeira do Notion (recuperável por 30 dias).',
-    'sheet.prop.delete.confirm.with.svc': 'Excluir a proposta "{name}"?\\n\\nTem {n} serviço(s) vinculado(s) — os serviços NÃO são excluídos, apenas a proposta. Recuperável por 30 dias na lixeira do Notion.',
+    'sheet.prop.delete.confirm': 'Excluir a proposta "{name}"? Vai para a lixeira (recuperável por 30 dias).',
+    'sheet.prop.delete.confirm.with.svc': 'Excluir a proposta "{name}"?\\n\\nTem {n} serviço(s) vinculado(s) — os serviços NÃO são excluídos, apenas a proposta. Recuperável por 30 dias na lixeira.',
     'sheet.prop.delete.error': 'Erro ao excluir:',
     'sheet.prop.pedir.relev': 'Pedir levantamento prévio',
     'sheet.prop.creating.relev': 'Criando levantamento...',
@@ -3435,7 +3435,7 @@ const CHECKLIST_POST = [
   '🧹 Zona limpia, sin rastros de operación',
   '📸 Fotos post-servicio tomadas (mínimo 2)',
   '🤝 Cliente notificado del trabajo realizado',
-  '✅ Resultado marcado en Notion'
+  '✅ Resultado guardado'
 ];
 
 const STEPS_SERVICIO = [
@@ -7146,7 +7146,7 @@ function requestUserLocationWithConsent(timeoutMs = 10000) {
       <div class="gps-modal">
         <div class="gps-emoji">📍</div>
         <div class="gps-title">Compartir ubicación</div>
-        <div class="gps-body">FlyClean usa tu ubicación GPS sólo para registrar dónde se realiza el servicio. La info queda en la planilla del servicio en Notion (no se comparte con terceros, no se usa para rastreo).</div>
+        <div class="gps-body">FlyClean usa tu ubicación GPS sólo para registrar dónde se realiza el servicio. La info queda en el registro del servicio (no se comparte con terceros, no se usa para rastreo).</div>
         <div class="gps-actions">
           <button class="gps-btn gps-btn-skip" id="gps-skip">Omitir</button>
           <button class="gps-btn gps-btn-allow" id="gps-allow">Permitir</button>
@@ -10963,7 +10963,7 @@ async function deleteService() {
   // Coord/Dirección + Completado: registro histórico → confirmación EXTRA (antes estaba bloqueado).
   if (estado.includes('Completado') && !esFin && !confirm(t('sheet.edit.delete.confirm.completed').replace('{name}', nombre))) return;
   // Doble confirmación para Finanzas (papelera de Notion).
-  if (esFin && !confirm('Confirmá de nuevo: "' + nombre + '" se va a la PAPELERA de Notion (recuperable 30 días). ¿Eliminar?')) return;
+  if (esFin && !confirm('Confirmá de nuevo: "' + nombre + '" se va a la PAPELERA (recuperable 30 días). ¿Eliminar?')) return;
 
   const btn = document.getElementById('delete-svc-btn');
   if (btn) { btn.textContent = '⏳ ' + t('sheet.edit.deleting'); btn.disabled = true; }
