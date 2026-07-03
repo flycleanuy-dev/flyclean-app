@@ -2411,6 +2411,8 @@ const TRANSLATIONS = {
     'prosp.sheet.contacto.placeholder': 'Nombre y cargo',
     'prosp.sheet.section.mapa': 'LINK MAPA (OPCIONAL)',
     'prosp.sheet.mapa.placeholder': 'https://maps.google.com/...',
+    'prosp.sheet.mapa.abrir': '🗺️ Abrir',
+    'prosp.sheet.mapa.vacio': 'Pegá primero un link de mapa.',
     'prosp.sheet.section.origen': 'ORIGEN DEL LEAD',
     'prosp.sheet.section.interes': 'INTERÉS',
     'prosp.sheet.section.proximo': 'PRÓXIMO CONTACTO',
@@ -3138,6 +3140,8 @@ const TRANSLATIONS = {
     'prosp.sheet.contacto.placeholder': 'Nome e cargo',
     'prosp.sheet.section.mapa': 'LINK DO MAPA (OPCIONAL)',
     'prosp.sheet.mapa.placeholder': 'https://maps.google.com/...',
+    'prosp.sheet.mapa.abrir': '🗺️ Abrir',
+    'prosp.sheet.mapa.vacio': 'Cole primeiro um link do mapa.',
     'prosp.sheet.section.origen': 'ORIGEM DO LEAD',
     'prosp.sheet.section.interes': 'INTERESSE',
     'prosp.sheet.section.proximo': 'PRÓXIMO CONTATO',
@@ -12862,6 +12866,14 @@ let prospectoState = {};
 function prospectoOverlayClick(e) { if (e.target.id === 'prospecto-overlay') closeProspectoSheet(); }
 function closeProspectoSheet() { document.getElementById('prospecto-overlay').classList.remove('open'); }
 
+// Abre el link de mapa recién tipeado en el alta de prospecto (mismo gesto que 'Abrir mapa' en otros lados).
+function abrirProspectoMapa() {
+  const u = (prospectoState.mapa || '').trim();
+  if (!u) { alert(t('prosp.sheet.mapa.vacio')); return; }
+  const url = /^https?:\/\//i.test(u) ? u : 'https://' + u;
+  window.open(url, '_blank', 'noopener');
+}
+
 function openProspectoSheet() {
   const en3dias = new Date(Date.now() + 3 * 86400000).toISOString().split('T')[0];
   prospectoState = { nombre: '', persona: '', tel: '', email: '', mapa: '', origen: '', interes: [], proximo: en3dias, nota: '' };
@@ -12884,7 +12896,10 @@ function buildProspectoSheetBody() {
     `<div class="edit-section"><div class="edit-section-label">${t('sheet.contact.section.email')}</div>
       <input type="email" class="edit-date-input" placeholder="${t('sheet.contact.email.placeholder')}" oninput="prospectoState.email=this.value"/></div>` +
     `<div class="edit-section"><div class="edit-section-label">${t('prosp.sheet.section.mapa')}</div>
-      <input type="url" class="edit-date-input" placeholder="${t('prosp.sheet.mapa.placeholder')}" oninput="prospectoState.mapa=this.value"/></div>` +
+      <div style="display:flex;gap:6px;align-items:stretch">
+        <input type="url" class="edit-date-input" style="flex:1;margin-bottom:0" placeholder="${t('prosp.sheet.mapa.placeholder')}" oninput="prospectoState.mapa=this.value"/>
+        <button type="button" class="estado-btn" style="flex:0 0 auto;white-space:nowrap" onclick="abrirProspectoMapa()">${t('prosp.sheet.mapa.abrir')}</button>
+      </div></div>` +
     `<div class="edit-section"><div class="edit-section-label">${t('prosp.sheet.section.origen')}</div><div class="estado-btns">${origenBtns}</div></div>` +
     `<div class="edit-section"><div class="edit-section-label">${t('prosp.sheet.section.interes')}</div><div class="multi-toggle-grid">${interesBtns}</div></div>` +
     `<div class="edit-section"><div class="edit-section-label">${t('prosp.sheet.section.proximo')}</div>
