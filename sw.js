@@ -108,7 +108,8 @@
 // v111: reloj de vida de propuestas desde FECHA DE ENVÍO (45d → Sin respuesta; Negociando exento) + Fecha de envío se estampa sola al pasar a Enviada + "☠️ quedan Nd" en A contactar hoy (rojo = ≤5d de vida) + secciones de clientes (ver v111b).
 // v112: fase de Prospección (tab 🎯 para coord + rol nuevo 🧲 Ventas que SOLO ve prospección) — alta rápida de prospectos, acciones de un toque, próximo contacto planificado, y sub-bloque de prospección en las métricas comerciales del CEO.
 // v113: la app ya no le nombra "Notion" al usuario (equipo app-only) — textos neutros en es+pt; y el cierre del operario pasa a "Finalizar servicio".
-const CACHE = 'flyclean-v113';
+// v114: alertas informativas (BPS/docs) se pueden descartar con × (vuelven si urgen ≤7d o se renuevan) + Mantenimiento muestra "hace N meses del último servicio" en rojo + cards de "A contactar hoy" más compactas.
+const CACHE = 'flyclean-v114';
 const SHELL = [
   '/',
   '/index.html',

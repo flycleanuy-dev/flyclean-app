@@ -652,6 +652,10 @@ body::before {
   .prop-dias.alert { color: var(--amber); font-weight: 600; }
   .prop-dias.vencer { color: var(--red); }
   .prop-card.vencer { border-color: var(--red); }
+  .prop-card.compact { padding: 8px 12px; margin: 6px 16px 0; }
+  .prop-card.compact .prop-nombre { font-size: 13px; margin-bottom: 3px; }
+  .prop-card.compact .prop-dias { margin-top: 0; }
+  .prop-compact-btn { width: 100%; margin-top: 6px; padding: 6px; font-size: 12px; }
   .prop-importe { font-size: 13px; font-weight: 600; color: var(--green); }
   .coord-empty { padding: 40px 24px; text-align: center; color: var(--text3); font-size: 14px; }
   .nueva-prop-btn { width: 100%; padding: 13px; background: var(--green-dark); border: 1px solid var(--green); border-radius: var(--radius-sm); color: var(--green); font-size: 14px; font-weight: 700; cursor: pointer; font-family: 'Exo 2', sans-serif; transition: all 0.15s; }
@@ -828,6 +832,7 @@ body::before {
   .alert-item { display: flex; align-items: flex-start; gap: 10px; padding: 10px 14px; border-bottom: 1px solid var(--border); font-size: 12px; color: var(--text2); }
   .alert-item:last-child { border-bottom: none; }
   .alert-icon { font-size: 14px; flex-shrink: 0; margin-top: 1px; }
+  .alert-dismiss { margin-left: auto; padding: 0 4px; color: var(--text3); cursor: pointer; font-size: 15px; flex-shrink: 0; }
 
   /* ── COMUNICACIONES ── */
   .comms-placeholder { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 60px 32px; text-align: center; }
@@ -2375,6 +2380,7 @@ const TRANSLATIONS = {
     'coord.cli.seccion.mantenimiento': '🔁 Mantenimiento',
     'coord.cli.seccion.sinrespuesta': '😶 Sin respuesta',
     'coord.cli.seccion.rechazados': '❌ Rechazados',
+    'coord.cli.mant.meses': 'hace {n} meses del último servicio',
     'prosp.empty': 'Sin prospectos en este momento.',
     'prosp.error': 'Error al cargar prospección.',
     'prosp.section.descartados': '❌ Descartados',
@@ -3094,6 +3100,7 @@ const TRANSLATIONS = {
     'coord.cli.seccion.mantenimiento': '🔁 Manutenção',
     'coord.cli.seccion.sinrespuesta': '😶 Sem resposta',
     'coord.cli.seccion.rechazados': '❌ Recusados',
+    'coord.cli.mant.meses': 'há {n} meses do último serviço',
     'prosp.empty': 'Nenhum prospecto no momento.',
     'prosp.error': 'Erro ao carregar prospecção.',
     'prosp.section.descartados': '❌ Descartados',
@@ -12463,7 +12470,7 @@ function computeClienteSecciones(contacts, propuestas, servicios) {
       const diasDesde = ultimaFecha ? Math.floor((hoy - new Date(ultimaFecha).getTime()) / 86400000) : null;
       const hayMasNuevo = svcsCliente.some(s => svcFecha(s) > ultimaFecha);
       const propAbierta = propsCliente.some(p => !PROP_ESTADOS_TERMINALES.includes(propEstado(p)));
-      if (diasDesde != null && diasDesde >= MANTENIMIENTO_DIAS && !hayMasNuevo && !propAbierta) { mantenimiento.push(c); return; }
+      if (diasDesde != null && diasDesde >= MANTENIMIENTO_DIAS && !hayMasNuevo && !propAbierta) { c._mantMeses = Math.round(diasDesde / 30.4); mantenimiento.push(c); return; }
       activa.push(c);
       return;
     }
@@ -12904,6 +12911,7 @@ function coordContactCard(c) {
     ${servicios ? `<div class="contact-detail">🛠 ${esc(servicios)}</div>` : ''}
     ${tel ? `<div class="contact-detail">📞 ${esc(tel)}</div>` : ''}
     ${email ? `<div class="contact-detail">✉️ ${esc(email)}</div>` : ''}
+    ${Number.isFinite(c._mantMeses) ? `<div class="contact-detail" style="color:var(--red);font-weight:600">🔴 ${t('coord.cli.mant.meses').replace('{n}', c._mantMeses)}</div>` : ''}
   </div>`;
 }
 
@@ -13640,11 +13648,10 @@ function renderContactarHoyHTML() {
       : (vida != null ? ' · ☠️ ' + t('coord.prop.contactar.vida').replace('{n}', vida) : '');
     const estadoClass = negociando ? 'negociando' : estado.toLowerCase().includes('enviada') ? 'enviada' : '';
     const idAttr = esc(p.id);
-    return `<div class="prop-card${vencido ? ' vencer' : ''}">
+    return `<div class="prop-card compact${vencido ? ' vencer' : ''}">
       <div class="prop-nombre">${esc(nombre)}</div>
-      <div class="prop-meta"><span class="prop-estado ${estadoClass}">${esc(estado)}</span></div>
-      <div class="prop-dias alert${vencido ? ' vencer' : ''}">${dias}${t('coord.prop.days.suffix')}${extraLinea}</div>
-      <button class="estado-btn active" style="width:100%;margin-top:8px" id="contactar-btn-${idAttr}" onclick="marcarPropContactada('${idAttr}')">${t('coord.prop.contactar.btn')}</button>
+      <div class="prop-dias alert${vencido ? ' vencer' : ''}"><span class="prop-estado ${estadoClass}">${esc(estado)}</span> · ${dias}${t('coord.prop.days.suffix')}${extraLinea}</div>
+      <button class="estado-btn active prop-compact-btn" id="contactar-btn-${idAttr}" onclick="marcarPropContactada('${idAttr}')">${t('coord.prop.contactar.btn')}</button>
     </div>`;
   }).join('');
   const countSuffix = ' (' + items.length + ')' + (vencerCount ? ' · ' + vencerCount + ' ⚠️' : '');
@@ -13683,25 +13690,51 @@ async function marcarPropContactada(id) {
 // ─────────────────────────────────────────────
 // ALERTS
 // ─────────────────────────────────────────────
+// Alertas informativas (sin onclick, ej. Documentos & Certificados) se pueden descartar con
+// una × — se persiste en localStorage por dismissKey. Las críticas (≤7 días / vencido) SIEMPRE
+// se muestran igual, aunque estén descartadas, para no esconder algo urgente.
+const _alertsByContainer = {};
+
+function _alertsDismissedSet() {
+  try { return new Set(JSON.parse(localStorage.getItem('fc_alertsDismissed') || '[]')); }
+  catch (e) { return new Set(); }
+}
+function isAlertDismissed(key) {
+  return _alertsDismissedSet().has(key);
+}
+function dismissAlertKey(key) {
+  const set = _alertsDismissedSet();
+  set.add(key);
+  try { localStorage.setItem('fc_alertsDismissed', JSON.stringify(Array.from(set))); } catch (e) {}
+}
+function dismissAlert(containerId, key) {
+  dismissAlertKey(key);
+  renderAlertsBanner(containerId, _alertsByContainer[containerId] || []);
+}
+
 function renderAlertsBanner(containerId, alerts) {
   const el = document.getElementById(containerId);
   if (!el) return;
-  if (!alerts.length) { el.innerHTML = ''; return; }
-  const hasCritical = alerts.some(a => a.level === 'critical');
+  _alertsByContainer[containerId] = alerts;
+  const visible = alerts.filter(a => !(a.dismissKey && isAlertDismissed(a.dismissKey) && a.level !== 'critical'));
+  if (!visible.length) { el.innerHTML = ''; return; }
+  const hasCritical = visible.some(a => a.level === 'critical');
   const id = containerId + '_list';
-  const labelAlertas = alerts.length > 1 ? t('alerts.alertas') : t('alerts.alerta');
-  const labelActivas = alerts.length > 1 ? t('alerts.activas') : t('alerts.activa');
+  const labelAlertas = visible.length > 1 ? t('alerts.alertas') : t('alerts.alerta');
+  const labelActivas = visible.length > 1 ? t('alerts.activas') : t('alerts.activa');
   el.innerHTML =
     '<div class="alerts-banner">' +
       '<div class="alerts-header ' + (hasCritical ? 'critical' : '') + '" onclick="toggleAlertsList(\'' + id + '\', this)">' +
         '<div class="alerts-header-left">' +
-          (hasCritical ? '🔴' : '⚠️') + ' ' + alerts.length + ' ' + labelAlertas + ' ' + labelActivas +
+          (hasCritical ? '🔴' : '⚠️') + ' ' + visible.length + ' ' + labelAlertas + ' ' + labelActivas +
         '</div>' +
         '<span class="alerts-toggle" id="' + id + '_toggle">' + t('alerts.see') + '</span>' +
       '</div>' +
       '<div class="alerts-list ' + (hasCritical ? 'critical' : '') + '" id="' + id + '" style="display:none">' +
-        alerts.map(a =>
-          '<div class="alert-item"' + (a.onclick ? ' style="cursor:pointer" onclick="' + a.onclick.replace(/"/g, '&quot;') + '"' : '') + '><div class="alert-icon">' + a.icon + '</div><div>' + a.message + (a.onclick ? ' <span style="opacity:0.6">›</span>' : '') + '</div></div>'
+        visible.map(a =>
+          '<div class="alert-item"' + (a.onclick ? ' style="cursor:pointer" onclick="' + a.onclick.replace(/"/g, '&quot;') + '"' : '') + '><div class="alert-icon">' + a.icon + '</div><div>' + a.message + (a.onclick ? ' <span style="opacity:0.6">›</span>' : '') + '</div>' +
+          (a.dismissKey ? '<span class="alert-dismiss" onclick="event.stopPropagation(); dismissAlert(\'' + containerId + '\',\'' + esc(a.dismissKey) + '\')">×</span>' : '') +
+          '</div>'
         ).join('') +
       '</div>' +
     '</div>';
@@ -13879,10 +13912,11 @@ async function loadAlerts(role, bannerId) {
         const daysLeft = Math.round((new Date(vence) - new Date()) / 86400000);
         if (daysLeft > umbral) return; // todavía dentro de su ventana sana
         const nombre = p['Documento']?.title?.[0]?.plain_text || 'Documento';
+        const dismissKey = 'doc:' + r.id + ':' + vence;
         if (daysLeft < 0) {
-          alerts.push({ level: 'critical', icon: '🔴', message: nombre + ' VENCIDO (venció ' + vence + ')' });
+          alerts.push({ level: 'critical', icon: '🔴', message: nombre + ' VENCIDO (venció ' + vence + ')', dismissKey });
         } else {
-          alerts.push({ level: daysLeft <= 7 ? 'critical' : 'warn', icon: '📑', message: nombre + ' vence en ' + daysLeft + ' día' + (daysLeft === 1 ? '' : 's') + ' (' + vence + ')' });
+          alerts.push({ level: daysLeft <= 7 ? 'critical' : 'warn', icon: '📑', message: nombre + ' vence en ' + daysLeft + ' día' + (daysLeft === 1 ? '' : 's') + ' (' + vence + ')', dismissKey });
         }
       });
     }
