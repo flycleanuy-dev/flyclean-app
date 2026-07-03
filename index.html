@@ -10940,6 +10940,12 @@ async function crearJornadaSiguiente(parentService, numero, fecha) {
     const userForOp = USERS.find(u => u.name === operarioApp);
     if (userForOp?.notionId) properties['Operario(s)'] = { people: [{ object: 'user', id: userForOp.notionId }] };
   }
+  // La jornada del día siguiente hereda TODA la cuadrilla (mismo equipo, otro día) para que el
+  // conteo de jornales del tablero no subcontabilice piloto/manual en los días 2+.
+  const pilotoJ = p['Piloto']?.select?.name;
+  if (pilotoJ) properties['Piloto'] = { select: { name: pilotoJ } };
+  const operarioManualJ = p['Operario manual']?.select?.name;
+  if (operarioManualJ) properties['Operario manual'] = { select: { name: operarioManualJ } };
   const ayudantes = (p['Operarios participantes']?.multi_select || []).map(o => o.name);
   if (ayudantes.length) properties['Operarios participantes'] = { multi_select: ayudantes.map(name => ({ name })) };
   const lugar = p['Lugar']?.rich_text?.[0]?.plain_text;
