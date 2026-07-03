@@ -12836,6 +12836,10 @@ async function prospAccion(id, tipo) {
   }
 
   Object.entries(props).forEach(([k, v]) => { c.properties[k] = v; });
+  // '✅ Cliente activo' NO está en PROSPECCION_ESTADOS → el renderer no lo agruparía en ninguna
+  // sección y quedaría colgado como "activo". Lo sacamos de la lista optimista (se lo repone en el
+  // catch si el write falla). El resto de acciones dejan un estado que sí es de prospección.
+  if (tipo === 'cliente') _coordAllProspectos = (_coordAllProspectos || []).filter(x => x.id !== id);
   renderProspeccionList();
   markUserActive();
 
@@ -12846,6 +12850,7 @@ async function prospAccion(id, tipo) {
     // Revertir el optimista en error duro + avisar (mismo criterio que cambiarEstadoServicio).
     if (estadoAnterior) c.properties['Estado'] = { select: { name: estadoAnterior } }; else delete c.properties['Estado'];
     if (proxAnterior) c.properties['Próximo contacto'] = { date: { start: proxAnterior } }; else delete c.properties['Próximo contacto'];
+    if (tipo === 'cliente' && !(_coordAllProspectos || []).some(x => x.id === id)) (_coordAllProspectos = _coordAllProspectos || []).push(c);
     renderProspeccionList();
     alert(t('prosp.error.accion') + e.message);
   }
