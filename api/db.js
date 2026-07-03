@@ -6,7 +6,7 @@
 // Devuelve { results: [{ object:'page', id:notion_id, properties:raw }] } → idéntico a la respuesta de Notion,
 // gracias a que el sync guardó `raw` = las properties tal cual de Notion. Así el render de la app NO cambia.
 import { verifySession, tokenFromReq } from './_lib/session.js';
-import { userById, esGlobal } from './_lib/users.js';
+import { userById, esGlobal, esVentas } from './_lib/users.js';
 import crypto from 'node:crypto';
 
 const ALLOWED_ORIGINS = [
@@ -84,6 +84,12 @@ export default async function handler(req, res) {
   const resource = String((req.query && req.query.resource) || '');
   const table = RESOURCES[resource];
   if (!table) return res.status(400).json({ error: 'resource inválido' });
+
+  // Backstop server-side del rol Ventas: solo puede leer Clientes/Contactos (ver
+  // docs/superpowers/specs/2026-07-03-backstop-ventas-serverside-design.md). Con el asiento
+  // ventas-uy ya en users.js, u deja de ser null para Ventas → este check explícito es el que
+  // efectivamente cierra el acceso a servicios/propuestas/ingresos/gastos.
+  if (esVentas(u) && resource !== 'clientes') return res.status(403).json({ error: 'forbidden: rol Ventas solo clientes' });
 
   if (!SUPABASE_URL || !SERVICE_KEY) return res.status(500).json({ error: 'db no configurada' });
 

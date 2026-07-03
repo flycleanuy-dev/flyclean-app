@@ -1,4 +1,5 @@
 import { verifySession, tokenFromReq } from './_lib/session.js';
+import { userById, esVentas } from './_lib/users.js';
 
 // Auth del proxy (#1). MONITOR (false): valida el token y lo reporta en X-Auth, pero NO rechaza.
 // ENFORCE (true): rechaza con 401 los pedidos sin token válido → CIERRA el agujero.
@@ -14,6 +15,11 @@ const ALLOWED_ENDPOINTS = [
   /^search$/,
 ];
 const ALLOWED_METHODS = ['GET', 'POST', 'PATCH'];
+
+// Backstop server-side del rol Ventas (ver docs/superpowers/specs/2026-07-03-backstop-ventas-serverside-design.md):
+// Ventas solo puede tocar la DB de Clientes/Contactos. Ids de Notion vienen con o sin guiones → normalizar.
+const CONTACTOS_NORM = '250115612de74e0582366549bbe5e389';
+const norm = s => String(s || '').replace(/-/g, '').toLowerCase();
 
 // Margen amplio para que los reintentos no choquen con el límite de duración de la función.
 export const config = { maxDuration: 30 };
@@ -92,6 +98,23 @@ export default async function handler(req, res) {
   const httpMethod = String(method).toUpperCase();
   if (!ALLOWED_METHODS.includes(httpMethod)) {
     return res.status(400).json({ error: 'HTTP method not allowed' });
+  }
+
+  // Backstop server-side del rol Ventas: restringe a la DB de Clientes/Contactos.
+  // Solo entra si hay sesión Y esVentas(u) → cero cambio de comportamiento para cualquier otro rol.
+  const u = session ? userById(session.id) : null;
+  if (esVentas(u)) {
+    const mQuery = endpointNorm.match(/^databases\/([a-f0-9-]{32,36})(\/query)?$/);
+    if (mQuery) {
+      if (norm(mQuery[1]) !== CONTACTOS_NORM) return res.status(403).json({ error: 'forbidden: rol Ventas solo accede a clientes' });
+    } else if (endpointNorm === 'pages') {
+      // crear página: solo si el parent es Contactos
+      const parentDb = body?.parent?.database_id;
+      if (norm(parentDb) !== CONTACTOS_NORM) return res.status(403).json({ error: 'forbidden: rol Ventas solo crea clientes' });
+    } else if (endpointNorm === 'search') {
+      return res.status(403).json({ error: 'forbidden: rol Ventas' });
+    }
+    // pages/{id} PATCH (actualizar prospecto por id): permitido (residual bajo, documentado en la spec).
   }
 
   const notionHeaders = {

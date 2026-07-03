@@ -23,6 +23,7 @@ export const USERS = {
   'finanzas-panama':      { nombre: 'Finanzas Panamá',      rol: '📊 Administración', pais: 'Panamá' },
   'finanzas-guatemala':   { nombre: 'Finanzas Guatemala',   rol: '📊 Administración', pais: 'Guatemala' },
   'finanzas-mexico':      { nombre: 'Finanzas México',      rol: '📊 Administración', pais: 'México' },
+  'ventas-uy':            { nombre: 'Ventas UY',            rol: '🧲 Ventas',         pais: 'Uruguay' },
 };
 
 export function userById(id) { return USERS[id] || null; }
@@ -33,3 +34,7 @@ export function esGlobal(u) {
   const r = String(u.rol || '');
   return r.includes('Direcci') || (r.includes('CEO') && u.pais === 'Uruguay');
 }
+
+// ¿Rol Ventas? Usado para el backstop server-side: Ventas solo accede a Clientes/Contactos
+// (ver docs/superpowers/specs/2026-07-03-backstop-ventas-serverside-design.md).
+export function esVentas(u) { return !!(u && String(u.rol || '').includes('Ventas')); }
