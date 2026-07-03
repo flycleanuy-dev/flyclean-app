@@ -12454,6 +12454,7 @@ function computeClienteSecciones(contacts, propuestas, servicios) {
 
   const mantenimiento = [], sinRespuesta = [], rechazados = [], activa = [];
   contacts.forEach(c => {
+    delete c._mantMeses; // se re-deriva abajo; limpiar evita el "hace N meses" viejo si el cliente ya no es de mantenimiento
     // Los clientes en estado de prospección (🎯/📵/🤝/❌) viven en su propia tab 🎯 Prospección,
     // nunca en "Cartera activa" ni en ninguna otra sección de la tab 👥 Clientes.
     const _est = c.properties?.['Estado']?.select?.name || '';
