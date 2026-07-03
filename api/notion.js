@@ -105,16 +105,28 @@ export default async function handler(req, res) {
   const u = session ? userById(session.id) : null;
   if (esVentas(u)) {
     const mQuery = endpointNorm.match(/^databases\/([a-f0-9-]{32,36})(\/query)?$/);
+    const mPage = endpointNorm.match(/^pages\/([a-f0-9-]{32,36})$/);
     if (mQuery) {
       if (norm(mQuery[1]) !== CONTACTOS_NORM) return res.status(403).json({ error: 'forbidden: rol Ventas solo accede a clientes' });
     } else if (endpointNorm === 'pages') {
-      // crear página: solo si el parent es Contactos
-      const parentDb = body?.parent?.database_id;
-      if (norm(parentDb) !== CONTACTOS_NORM) return res.status(403).json({ error: 'forbidden: rol Ventas solo crea clientes' });
+      // crear página: solo Contactos por database_id, y SIN data_source_id (evita smuggling a otra base)
+      const p = body?.parent || {};
+      if (norm(p.database_id) !== CONTACTOS_NORM || p.data_source_id) return res.status(403).json({ error: 'forbidden: rol Ventas solo crea clientes' });
+    } else if (mPage) {
+      // leer/editar una página por id: verificar server-side que ES un contacto (su parent es la base
+      // Contactos). Sin esto, Ventas podía cosechar ids de servicios/propuestas/ingresos desde la
+      // relación del contacto y leerlos/editarlos por pages/{id} (hallazgo del review adversarial).
+      try {
+        const metaRes = await notionFetch(`https://api.notion.com/v1/pages/${mPage[1]}`, {
+          method: 'GET',
+          headers: { Authorization: `Bearer ${token}`, 'Notion-Version': '2022-06-28' },
+        });
+        const meta = await metaRes.json();
+        if (norm(meta?.parent?.database_id) !== CONTACTOS_NORM) return res.status(403).json({ error: 'forbidden: rol Ventas solo clientes' });
+      } catch (e) { return res.status(403).json({ error: 'forbidden' }); }
     } else if (endpointNorm === 'search') {
       return res.status(403).json({ error: 'forbidden: rol Ventas' });
     }
-    // pages/{id} PATCH (actualizar prospecto por id): permitido (residual bajo, documentado en la spec).
   }
 
   const notionHeaders = {
