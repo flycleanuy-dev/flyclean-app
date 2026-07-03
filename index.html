@@ -1244,8 +1244,6 @@ body::before {
     <div class="coord-tab active" id="ctab-inicio" data-i18n="coord.tab.inicio" onclick="setCoordTab('inicio')">🏠 Inicio</div>
     <div class="coord-tab" id="ctab-resumen" data-i18n="coord.tab.resumen" onclick="setCoordTab('resumen')">📊 Resumen</div>
     <div class="coord-tab" id="ctab-servicios" data-i18n="coord.tab.servicios" onclick="setCoordTab('servicios')">📋 Servicios</div>
-    <div class="coord-tab" id="ctab-pruebas" data-i18n="coord.tab.pruebas" onclick="setCoordTab('pruebas')">🧪 Pruebas</div>
-    <div class="coord-tab" id="ctab-relevamientos" data-i18n="coord.tab.relevamientos" onclick="setCoordTab('relevamientos')">🔍 Relevamientos</div>
     <div class="coord-tab" id="ctab-propuestas" data-i18n="coord.tab.propuestas" onclick="setCoordTab('propuestas')">💼 Propuestas</div>
     <div class="coord-tab" id="ctab-contactos" data-i18n="coord.tab.contactos" onclick="setCoordTab('contactos')">👥 Clientes</div>
     <div class="coord-tab" id="ctab-prospeccion" data-i18n="coord.tab.prospeccion" onclick="setCoordTab('prospeccion')">🎯 Prospección</div>
@@ -1268,6 +1266,7 @@ body::before {
     <div class="coord-filters-panel" id="coord-filters-panel" style="display:none"></div>
   </div>
   <div id="coord-view-toggle" class="coord-view-toggle" style="display:none"></div>
+  <div id="coord-subtab-bar" class="coord-view-toggle" style="display:none"></div>
   <div class="month-nav" id="coord-month-nav">
     <button class="month-nav-btn" onclick="changeCoordMonth(-1)">‹</button>
     <div class="month-nav-label" id="coord-month-label"></div>
@@ -6139,6 +6138,17 @@ function puedeEditarNombre(u = currentUser) { return !!(u?.role && (u.role.inclu
 // ni crea propuestas (decisión explícita del dueño del producto — el coord es quien cotiza).
 function esVentas(u = currentUser) { return !!(u?.role && u.role.includes('Ventas')); }
 
+// Control segmentado de las sub-vistas de Servicios (reusa el estilo de coord-view-toggle).
+// Cada botón vuelve a llamar a setCoordTab con el valor de tab interno correspondiente.
+function renderServiciosSubtabBar(active) {
+  const bar = document.getElementById('coord-subtab-bar');
+  if (!bar) return;
+  bar.innerHTML =
+    `<button class="${active === 'servicios' ? 'active' : ''}" onclick="setCoordTab('servicios')">${t('coord.tab.servicios')}</button>` +
+    `<button class="${active === 'relevamientos' ? 'active' : ''}" onclick="setCoordTab('relevamientos')">${t('coord.tab.relevamientos')}</button>` +
+    `<button class="${active === 'pruebas' ? 'active' : ''}" onclick="setCoordTab('pruebas')">${t('coord.tab.pruebas')}</button>`;
+}
+
 function setCoordTab(tab, skipRender) {
   if (tab === 'limpieza' && !esDireccion()) return;
   // Blindaje: Ventas solo puede tener activa la tab Prospección, aunque se invoque setCoordTab a mano
@@ -6146,9 +6156,13 @@ function setCoordTab(tab, skipRender) {
   if (tab !== 'prospeccion' && esVentas()) return;
   activeCoordTab = tab;
   markUserActive();
+  // Servicios/Relevamientos/Pruebas comparten UNA tab de arriba ('📋 Servicios') + un control
+  // segmentado adentro; los 3 siguen siendo valores de tab internos, así que el top-tab 'servicios'
+  // queda activo para cualquiera de los 3.
+  const SERV_SUBTABS = ['servicios', 'relevamientos', 'pruebas'];
   ['inicio', 'resumen', 'servicios', 'pruebas', 'relevamientos', 'propuestas', 'contactos', 'pedidos', 'comunicaciones', 'limpieza', 'prospeccion'].forEach(t => {
     const el = document.getElementById('ctab-' + t);
-    if (el) el.classList.toggle('active', t === tab);
+    if (el) el.classList.toggle('active', t === tab || (t === 'servicios' && SERV_SUBTABS.includes(tab)));
   });
   // Reset de filtros al cambiar de tab (search/estado/etc no se aplican entre dominios distintos).
   coordFilters.search = '';
@@ -6168,6 +6182,12 @@ function setCoordTab(tab, skipRender) {
   // El toggle Lista/Tablero solo aplica a Inicio (centro de mando). Lo ocultamos por default; renderCoordInicio lo re-muestra.
   const viewToggle = document.getElementById('coord-view-toggle');
   if (viewToggle) viewToggle.style.display = tab === 'inicio' ? 'flex' : 'none';
+  // Control segmentado Servicios | Relevamientos | Pruebas: visible solo dentro del grupo Servicios.
+  const subBar = document.getElementById('coord-subtab-bar');
+  if (subBar) {
+    if (SERV_SUBTABS.includes(tab)) { subBar.style.display = 'flex'; renderServiciosSubtabBar(tab); }
+    else subBar.style.display = 'none';
+  }
 
   // skipRender: el caller hará su propio render (evita un 2º fetch concurrente que pisaría la lista;
   // ej. submitNewService fija la tab y luego awaitea UN solo render + update optimista).

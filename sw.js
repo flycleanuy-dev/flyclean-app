@@ -112,7 +112,8 @@
 // v115: fixes de la auditoría nocturna — purga de cachés de lectura al login/logout (evita ver la lista recortada por país del usuario anterior en un dispositivo compartido) + encierro del rol Ventas completo (no crea servicios/clientes ni ve cartera/alertas/intermediarios) + la × de una alerta ya no colapsa toda la lista. (También cubre el fix de _mantMeses stale de d9c69c2 que no bumpeó.)
 // v116: "📞 A contactar hoy" ahora es un desplegable (colapsado por defecto; el header muestra el contador, al tocarlo se abren las cards con su botón Contactado). El deep-link de la alerta lo abre solo.
 // v117: 4 roles por servicio — el 'PILOTO' pasa a ENCARGADO DEL SERVICIO (quien ve el servicio) + nuevo slot PILOTO (del dron) + Operario manual + Ayudantes, con exclusión mutua (1 persona = 1 rol) para el conteo de jornales; el operario ve los 4 en su pantalla de inicio.
-const CACHE = 'flyclean-v117';
+// v118: el coord agrupa Servicios/Relevamientos/Pruebas en UNA sola tab de arriba ('📋 Servicios') con un control segmentado adentro para cambiar entre las 3 → barra superior más limpia (de 11 a 9 tabs). Los 3 siguen siendo valores de tab internos (setCoordTab intacto); nada más cambia.
+const CACHE = 'flyclean-v118';
 const SHELL = [
   '/',
   '/index.html',
