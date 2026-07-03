@@ -1302,8 +1302,12 @@ body::before {
     <div class="edit-section">
       <div class="role-cols">
         <div class="role-col">
-          <div class="edit-section-label" data-i18n="sheet.edit.section.operario">PILOTO</div>
+          <div class="edit-section-label" data-i18n="sheet.edit.section.operario">ENCARGADO DEL SERVICIO</div>
           <div class="operario-btns" id="edit-operario-btns"></div>
+        </div>
+        <div class="role-col">
+          <div class="edit-section-label" data-i18n="sheet.edit.section.piloto">PILOTO (del dron)</div>
+          <div class="operario-btns" id="edit-piloto-btns"></div>
         </div>
         <div class="role-col">
           <div class="edit-section-label" data-i18n="sheet.edit.section.operariomanual">OPERARIO MANUAL</div>
@@ -1895,6 +1899,10 @@ const TRANSLATIONS = {
     'step.info.pais': '🌎 País',
     'step.info.m2': '📐 m² aprox.',
     'step.info.tiporeg': '📋 Tipo de registro',
+    'step.info.encargado': '👷 Encargado',
+    'step.info.piloto': '🚁 Piloto',
+    'step.info.manual': '💪 Operario manual',
+    'step.info.ayudantes': '🤝 Ayudantes',
     'step.info.notaspre': '📝 Instrucciones del coordinador',
     'step.info.nofecha': 'Sin fecha',
     'step.pre.title': '✅ Checklist PRE-vuelo',
@@ -2256,7 +2264,8 @@ const TRANSLATIONS = {
     'sheet.edit.title.default': 'Editar servicio',
     'sheet.edit.section.nombre': 'NOMBRE DEL SERVICIO',
     'sheet.edit.section.estado': 'ESTADO',
-    'sheet.edit.section.operario': 'PILOTO',
+    'sheet.edit.section.operario': 'ENCARGADO DEL SERVICIO',
+    'sheet.edit.section.piloto': 'PILOTO (del dron)',
     'sheet.edit.section.operariomanual': 'OPERARIO MANUAL',
     'sheet.edit.section.operariomanual.hint': 'Operario que hace el trabajo manual (lanzas, manguera, hidro). Opcional.',
     'sheet.edit.section.participantes': 'AYUDANTES',
@@ -2276,7 +2285,7 @@ const TRANSLATIONS = {
     'sheet.jornada.title': '📅 Crear jornada',
     'sheet.jornada.section.numero': 'JORNADA N°',
     'sheet.jornada.section.fecha': 'FECHA',
-    'sheet.jornada.section.operario': 'PILOTO',
+    'sheet.jornada.section.operario': 'ENCARGADO DEL SERVICIO',
     'sheet.jornada.btn.crear': '✦ Crear jornada',
     'sheet.jornada.btn.crear.short': 'Crear jornada',
     'sheet.jornada.creating': 'Creando…',
@@ -2616,6 +2625,10 @@ const TRANSLATIONS = {
     'step.info.pais': '🌎 País',
     'step.info.m2': '📐 m² aprox.',
     'step.info.tiporeg': '📋 Tipo de registro',
+    'step.info.encargado': '👷 Encarregado',
+    'step.info.piloto': '🚁 Piloto',
+    'step.info.manual': '💪 Operário manual',
+    'step.info.ayudantes': '🤝 Ajudantes',
     'step.info.notaspre': '📝 Instruções do coordenador',
     'step.info.nofecha': 'Sem data',
     'step.pre.title': '✅ Checklist PRÉ-voo',
@@ -2977,7 +2990,8 @@ const TRANSLATIONS = {
     'sheet.edit.title.default': 'Editar serviço',
     'sheet.edit.section.nombre': 'NOME DO SERVIÇO',
     'sheet.edit.section.estado': 'STATUS',
-    'sheet.edit.section.operario': 'PILOTO',
+    'sheet.edit.section.operario': 'ENCARREGADO DO SERVIÇO',
+    'sheet.edit.section.piloto': 'PILOTO (do drone)',
     'sheet.edit.section.operariomanual': 'OPERADOR MANUAL',
     'sheet.edit.section.operariomanual.hint': 'Operador que faz o trabalho manual (lanças, mangueira, lavadora). Opcional.',
     'sheet.edit.section.participantes': 'AJUDANTES',
@@ -2997,7 +3011,7 @@ const TRANSLATIONS = {
     'sheet.jornada.title': '📅 Criar jornada',
     'sheet.jornada.section.numero': 'JORNADA N°',
     'sheet.jornada.section.fecha': 'DATA',
-    'sheet.jornada.section.operario': 'PILOTO',
+    'sheet.jornada.section.operario': 'ENCARREGADO DO SERVIÇO',
     'sheet.jornada.btn.crear': '✦ Criar jornada',
     'sheet.jornada.btn.crear.short': 'Criar jornada',
     'sheet.jornada.creating': 'Criando…',
@@ -6727,6 +6741,10 @@ function renderStep() {
   const tipo = props['Tipo de servicio']?.select?.name || '';
   const pais = props['País']?.select?.name || '';
   const tipoReg = props['Tipo de registro']?.select?.name || '';
+  const encargadoNombre = props['Operario App']?.select?.name || '';
+  const pilotoNombre = props['Piloto']?.select?.name || '';
+  const operarioManualNombre = props['Operario manual']?.select?.name || '';
+  const ayudantesNombres = (props['Operarios participantes']?.multi_select || []).map(o => o.name).join(', ');
   const notasPre = props['Notas pre-servicio']?.rich_text?.[0]?.plain_text || '';
   const m2 = props['m² aproximados']?.number || '';
   const dateLocale = currentLang === 'pt-BR' ? 'pt-BR' : 'es-UY';
@@ -6749,6 +6767,10 @@ function renderStep() {
         <div class="info-row"><span class="info-label">${t('step.info.pais')}</span><span class="info-val">${esc(pais)}</span></div>
         ${m2 ? `<div class="info-row"><span class="info-label">${t('step.info.m2')}</span><span class="info-val">${m2} m²</span></div>` : ''}
         <div class="info-row"><span class="info-label">${t('step.info.tiporeg')}</span><span class="info-val">${esc(tipoReg)}</span></div>
+        ${encargadoNombre ? `<div class="info-row"><span class="info-label">${t('step.info.encargado')}</span><span class="info-val">${esc(encargadoNombre)}</span></div>` : ''}
+        ${pilotoNombre ? `<div class="info-row"><span class="info-label">${t('step.info.piloto')}</span><span class="info-val">${esc(pilotoNombre)}</span></div>` : ''}
+        ${operarioManualNombre ? `<div class="info-row"><span class="info-label">${t('step.info.manual')}</span><span class="info-val">${esc(operarioManualNombre)}</span></div>` : ''}
+        ${ayudantesNombres ? `<div class="info-row"><span class="info-label">${t('step.info.ayudantes')}</span><span class="info-val">${esc(ayudantesNombres)}</span></div>` : ''}
       </div>
       ${(notasPre && !tipoReg.includes('Relevamiento')) ? `<div class="hint hint-amber" style="white-space:pre-wrap;margin-top:10px"><strong>${t('step.info.notaspre')}</strong><br>${esc(notasPre)}</div>` : ''}
       ${mapa ? `<a href="${mapa}" target="_blank" rel="noopener" class="btn-main btn-blue" style="display:block;text-align:center;text-decoration:none;margin:12px 0">🗺️ ${t('step.info.abrirmapa')}</a>` : ''}
@@ -10189,23 +10211,78 @@ function selectEditOperarioManual(name, el) {
   if (name && Array.isArray(editState.participantes)) {
     editState.participantes = editState.participantes.filter(p => p !== name);
   }
-  // Si el nuevo operario manual era el piloto, limpiar (no puede ser ambos).
+  // Si el nuevo operario manual era el encargado, limpiar (no puede ser ambos).
   if (name && editState.operario === name) {
     editState.operario = null;
     renderOperarioBtns(null);
   }
+  // Si el nuevo operario manual era el piloto, limpiar (no puede ser ambos — 1 persona = 1 rol).
+  if (name && editState.piloto === name) {
+    editState.piloto = '';
+    renderPilotoBtns();
+  }
   renderParticipantesBtns();
 }
 
-// Renderiza los botones de "Ayudantes" (multi-select). Excluye al piloto
-// para no permitir asignar a la misma persona como ayudante + piloto.
+// ── Rol PILOTO (del dron) ── property Notion "Piloto" (select). Slot independiente del
+// Operario App (ahora "Encargado del servicio") — un dron puede volarlo alguien distinto
+// de quien coordina/ve el servicio en su app. Exclusión mutua con los otros 3 roles para
+// que el conteo de jornales no duplique a la misma persona.
+function renderPilotoBtns() {
+  const container = document.getElementById('edit-piloto-btns');
+  if (!container) return;
+  const current = editState.piloto;
+  let options = operariosDePais(editState.pais);
+  if (current && !options.includes(current)) options = [current, ...options]; // no perder la asignación actual
+  _extraOperarios.forEach(n => { if (!options.includes(n)) options.push(n); });
+  container.innerHTML =
+    `<button class="operario-btn ${!current ? 'active' : ''}" onclick="selectEditPiloto('')">${t('sheet.edit.operario.sinasignar')}</button>` +
+    options.map(name => `<button class="operario-btn ${current === name ? 'active' : ''}" data-name="${escAttrEdit(name)}" onclick="selectEditPiloto(this.dataset.name)">${name}</button>`).join('') +
+    `<button class="operario-btn" style="border-style:dashed;color:var(--green);font-weight:600" onclick="showNewPilotoInput()">${t('sheet.edit.operario.nuevo')}</button>` +
+    `<div id="new-op-piloto-wrap" style="display:none;gap:6px;margin-top:2px">
+      <input id="new-op-piloto-input" type="text" class="edit-date-input" placeholder="${t('sheet.edit.operario.nombre')}" style="margin-bottom:0"/>
+      <button onclick="confirmNewPiloto()" style="width:100%;padding:10px;background:var(--green-dark);border:1px solid var(--green);border-radius:var(--radius-sm);color:var(--green);font-weight:700;font-family:inherit;font-size:13px;cursor:pointer">${t('sheet.edit.operario.agregar')}</button>
+    </div>`;
+}
+
+function showNewPilotoInput() {
+  const wrap = document.getElementById('new-op-piloto-wrap');
+  if (wrap) { wrap.style.display = 'flex'; wrap.style.flexDirection = 'column'; document.getElementById('new-op-piloto-input')?.focus(); }
+}
+
+function confirmNewPiloto() {
+  const input = document.getElementById('new-op-piloto-input');
+  const name = input?.value.trim();
+  if (!name) return;
+  if (!_extraOperarios.includes(name)) _extraOperarios.push(name);
+  selectEditPiloto(name);
+}
+
+// Toggle: tocar al que ya está activo lo deselecciona (queda "sin asignar").
+// Al elegir a alguien, se lo saca de los otros 3 roles (exclusión mutua: 1 persona = 1 rol)
+// y se re-renderizan los 4 grupos de botones para que las exclusiones se reflejen en pantalla.
+function selectEditPiloto(name) {
+  editState.piloto = (editState.piloto === name ? '' : name);
+  if (editState.piloto) {
+    if (editState.operario === editState.piloto) editState.operario = null;
+    if (editState.operarioManual === editState.piloto) editState.operarioManual = null;
+    editState.participantes = (editState.participantes || []).filter(p => p !== editState.piloto);
+  }
+  renderOperarioBtns(editState.operario);
+  renderPilotoBtns();
+  renderOperarioManualBtns(editState.operarioManual);
+  renderParticipantesBtns();
+}
+
+// Renderiza los botones de "Ayudantes" (multi-select). Excluye al encargado, al piloto
+// y al operario manual (no permitir asignar a la misma persona a más de un rol).
 function renderParticipantesBtns() {
   const container = document.getElementById('edit-participantes-btns');
   if (!container) return;
-  let options = operariosDePais(editState.pais).filter(name => name !== editState.operario && name !== editState.operarioManual);
+  let options = operariosDePais(editState.pais).filter(name => name !== editState.operario && name !== editState.operarioManual && name !== editState.piloto);
   // incluir ayudantes ya seleccionados / agregados a mano aunque no sean del país (no perder datos)
-  (editState.participantes || []).forEach(n => { if (n !== editState.operario && n !== editState.operarioManual && !options.includes(n)) options.push(n); });
-  _extraOperarios.forEach(n => { if (n !== editState.operario && n !== editState.operarioManual && !options.includes(n)) options.push(n); });
+  (editState.participantes || []).forEach(n => { if (n !== editState.operario && n !== editState.operarioManual && n !== editState.piloto && !options.includes(n)) options.push(n); });
+  _extraOperarios.forEach(n => { if (n !== editState.operario && n !== editState.operarioManual && n !== editState.piloto && !options.includes(n)) options.push(n); });
   const selected = editState.participantes || [];
   container.innerHTML = options.map(name => {
     const isActive = selected.includes(name);
@@ -10237,8 +10314,17 @@ function genSectorId() {
 function toggleParticipante(name, btnEl) {
   if (!editState.participantes) editState.participantes = [];
   const idx = editState.participantes.indexOf(name);
-  if (idx === -1) editState.participantes.push(name);
-  else editState.participantes.splice(idx, 1);
+  if (idx === -1) {
+    editState.participantes.push(name);
+    // Exclusión mutua: si a este ayudante lo tenía asignado como piloto, sacarlo de ahí
+    // (1 persona = 1 rol, para no duplicarlo en el conteo de jornales).
+    if (editState.piloto === name) {
+      editState.piloto = '';
+      renderPilotoBtns();
+    }
+  } else {
+    editState.participantes.splice(idx, 1);
+  }
   if (btnEl) btnEl.classList.toggle('active');
 }
 
@@ -10279,6 +10365,7 @@ async function openEditSheet(pageId) {
   const legacyOps = (props['Operario(s)']?.people || []).map(p => p.name);
   const operarioActual = operarioApp || legacyOps[0] || null;
   const operarioManualActual = props['Operario manual']?.select?.name || null;
+  const pilotoActual = props['Piloto']?.select?.name || '';
   const participantesActuales = (props['Operarios participantes']?.multi_select || []).map(o => o.name);
   // Hora Inicio (datetime) almacena la hora programada (ej. "2026-05-27T14:00:00.000Z").
   // Extraemos solo HH:mm para el input type=time. Si no es datetime, hora queda vacía.
@@ -10291,7 +10378,7 @@ async function openEditSheet(pageId) {
   const lugar = props['Lugar']?.rich_text?.[0]?.plain_text || '';
   const mapa = props['Mapa']?.url || '';
   const contactoId = props['Contacto']?.relation?.[0]?.id || props['Contactos']?.relation?.[0]?.id || '';
-  editState = { estado: estadoActual, operario: operarioActual, operarioManual: operarioManualActual, fecha, hora, lugar, mapa, participantes: participantesActuales, pais: props['País']?.select?.name || '', nombre,
+  editState = { estado: estadoActual, operario: operarioActual, operarioManual: operarioManualActual, piloto: pilotoActual, fecha, hora, lugar, mapa, participantes: participantesActuales, pais: props['País']?.select?.name || '', nombre,
     contactoId, clienteNombre: '', clienteMapa: '', propMapa: '',
     sectoresCliente: [],
     sectores: (() => { try { return JSON.parse(props['Estado sectores']?.rich_text?.[0]?.plain_text || '[]'); } catch (_) { return []; } })(),
@@ -10380,6 +10467,7 @@ async function openEditSheet(pageId) {
 
   document.getElementById('edit-overlay').classList.add('open');
   renderOperarioBtns(operarioActual);
+  renderPilotoBtns();
   renderOperarioManualBtns(operarioManualActual);
   renderParticipantesBtns();
   renderEditSectores();
@@ -10893,14 +10981,19 @@ function selectEditOperario(name, el) {
   editState.operario = name;
   document.querySelectorAll('#edit-operario-btns .operario-btn').forEach(b => b.classList.remove('active'));
   if (el) el.classList.add('active');
-  // Si el nuevo piloto estaba en ayudantes, quitarlo (no puede ser ambos).
+  // Si el nuevo encargado estaba en ayudantes, quitarlo (no puede ser ambos).
   if (name && Array.isArray(editState.participantes)) {
     editState.participantes = editState.participantes.filter(p => p !== name);
   }
-  // Si el nuevo piloto era el operario manual, limpiar (no puede ser ambos).
+  // Si el nuevo encargado era el operario manual, limpiar (no puede ser ambos).
   if (name && editState.operarioManual === name) {
     editState.operarioManual = null;
     renderOperarioManualBtns(null);
+  }
+  // Si el nuevo encargado era el piloto, limpiar (no puede ser ambos — 1 persona = 1 rol).
+  if (name && editState.piloto === name) {
+    editState.piloto = '';
+    renderPilotoBtns();
   }
   renderParticipantesBtns();
 }
@@ -10924,6 +11017,7 @@ async function saveServiceEdit() {
     props['Lugar'] = editState.lugar ? { rich_text: [{ text: { content: editState.lugar } }] } : { rich_text: [] };
     props['Mapa'] = editState.mapa ? { url: editState.mapa } : { url: null };
     props['Operario App'] = editState.operario ? { select: { name: editState.operario } } : { select: null };
+    props['Piloto'] = editState.piloto ? { select: { name: editState.piloto } } : { select: null };
     props['Operario manual'] = editState.operarioManual ? { select: { name: editState.operarioManual } } : { select: null };
     const userForOp = editState.operario ? USERS.find(u => u.name === editState.operario) : null;
     if (userForOp?.notionId) {
@@ -11257,8 +11351,10 @@ async function generateReportPDF(svc, extra = {}) {
     const isRelev = /Relevamiento/.test(tipoReg), isJornada = /Jornada/.test(tipoReg), isPrueba = /Prueba/.test(tipoReg);
     const titulo = isRelev ? 'Reporte de Relevamiento' : isJornada ? 'Reporte de Jornada' : isPrueba ? 'Reporte de Prueba' : 'Reporte de Servicio';
     const nombre = cleanLabel(p['Nombre del servicio']?.title?.[0]?.plain_text || 'Servicio');
-    const piloto = sel('Operario App');
-    const ayudantes = (p['Operarios participantes']?.multi_select || []).map(o => o.name).filter(a => a && a !== piloto);
+    const encargado = sel('Operario App');
+    const pilotoReal = sel('Piloto');
+    const operarioManualReal = sel('Operario manual');
+    const ayudantes = (p['Operarios participantes']?.multi_select || []).map(o => o.name).filter(a => a && a !== encargado && a !== pilotoReal && a !== operarioManualReal);
     const resultado = isPrueba ? sel('Resultado prueba') : sel('Resultado');
     const lugar = rtxt('Lugar');
     const m2 = p['m² aproximados']?.number;
@@ -11322,7 +11418,9 @@ async function generateReportPDF(svc, extra = {}) {
     if (m2 != null) row('m² aprox.', m2 + ' m²');
     row('País', sel('País'));
     row('Fecha programada', fmtDate(p['Fecha programada']?.date?.start));
-    if (piloto) row('Piloto', piloto);
+    if (encargado) row('Encargado', encargado);
+    if (pilotoReal) row('Piloto', pilotoReal);
+    if (operarioManualReal) row('Operario manual', operarioManualReal);
     if (ayudantes.length) row('Ayudantes', ayudantes.join(', '));
 
     section('Resultado');
