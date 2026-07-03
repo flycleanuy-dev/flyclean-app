@@ -2399,7 +2399,9 @@ const TRANSLATIONS = {
     'prosp.action.interesado': '🤝 Interesado',
     'prosp.action.descartar': '❌ Descartar',
     'prosp.action.crearpropuesta': '→ Crear propuesta',
+    'prosp.action.cliente': '✅ Pasar a cliente',
     'prosp.confirm.descartar': '¿Descartar este prospecto? Podés revisarlo igual en la sección Descartados.',
+    'prosp.confirm.cliente': '¿Marcar este prospecto como Cliente activo? Sale de Prospección y pasa a tu cartera de clientes.',
     'prosp.error.accion': 'No se pudo guardar el cambio: ',
     'prosp.sheet.title': '🎯 Nuevo prospecto',
     'prosp.sheet.subtitle': 'Alta rápida — 20 segundos',
@@ -3124,7 +3126,9 @@ const TRANSLATIONS = {
     'prosp.action.interesado': '🤝 Interessado',
     'prosp.action.descartar': '❌ Descartar',
     'prosp.action.crearpropuesta': '→ Criar proposta',
+    'prosp.action.cliente': '✅ Passar a cliente',
     'prosp.confirm.descartar': 'Descartar este prospecto? Você pode revisá-lo na seção Descartados.',
+    'prosp.confirm.cliente': 'Marcar este prospecto como Cliente ativo? Sai de Prospecção e passa para sua carteira de clientes.',
     'prosp.error.accion': 'Não foi possível salvar a alteração: ',
     'prosp.sheet.title': '🎯 Novo prospecto',
     'prosp.sheet.subtitle': 'Cadastro rápido — 20 segundos',
@@ -12439,6 +12443,21 @@ function updateCreateSvcBtnVisibility() {
 function propOverlayClick(e) { if (e.target.id === 'prop-overlay') closePropSheet(); }
 function closePropSheet() { document.getElementById('prop-overlay').classList.remove('open'); editingProp = null; if (typeof _contactHistoryCache !== 'undefined') Object.keys(_contactHistoryCache).forEach(k => delete _contactHistoryCache[k]); }
 
+// Al aceptar una propuesta, si el cliente vinculado sigue en un estado de PROSPECCIÓN, se lo promueve
+// solo a "✅ Cliente activo" (cierra el ciclo prospecto→cliente). Falla en silencio: la propuesta ya
+// se guardó, y una promoción fallida no debe romper ese guardado. No toca clientes que ya están en la
+// cartera (Lead/Activo/Inactivo) — solo los que todavía viven en la pestaña Prospección.
+async function promoteClienteIfAceptada(clienteId, estadoPipeline) {
+  if (!clienteId || !estadoPipeline || !estadoPipeline.includes('Aceptada')) return;
+  try {
+    const cli = await callNotion('pages/' + clienteId, 'GET');
+    const cliEstado = cli?.properties?.['Estado']?.select?.name || '';
+    if (!PROSPECCION_ESTADOS.includes(cliEstado)) return;
+    await updateServiceProps(clienteId, { 'Estado': { select: { name: '✅ Cliente activo' } } });
+    if (typeof syncAfterWrite === 'function') { try { syncAfterWrite(clienteId, 'clientes'); } catch (_) {} }
+  } catch (_) { /* no romper el guardado de la propuesta */ }
+}
+
 async function savePropEdit() {
   const btn = document.getElementById('prop-save-btn');
   btn.textContent = t('btn.saving'); btn.disabled = true;
@@ -12508,6 +12527,7 @@ async function savePropEdit() {
       if (propEditState.obs) props['Observaciones'] = { rich_text: [{ text: { content: propEditState.obs } }] };
       if (clienteId) props['Contacto'] = { relation: [{ id: clienteId }] };
       await callNotion('pages', 'POST', { parent: { database_id: PROPUESTAS_DB_ID }, properties: props });
+      await promoteClienteIfAceptada(clienteId, propEditState.estado);
     } else {
       const props = {};
       if (propEditState.estado) props['Estado pipeline'] = { select: { name: propEditState.estado } };
@@ -12531,6 +12551,9 @@ async function savePropEdit() {
       props['Mapa'] = { url: (propEditState.mapa && propEditState.mapa.trim()) ? propEditState.mapa.trim() : null };
       if (clienteId) props['Contacto'] = { relation: [{ id: clienteId }] };
       await updateServiceProps(editingProp.id, props);
+      // En edición el cliente puede venir del selector (clienteId) o del vínculo previo de la propuesta.
+      const clienteVinculado = clienteId || editingProp?.properties?.['Contacto']?.relation?.[0]?.id || editingProp?.properties?.['Contactos']?.relation?.[0]?.id || null;
+      await promoteClienteIfAceptada(clienteVinculado, propEditState.estado);
     }
     closePropSheet();
     await renderCoordPropuestas();
@@ -12766,6 +12789,7 @@ function prospectoCard(c) {
       <button class="estado-btn" onclick="event.stopPropagation();prospAccion('${esc(id)}','interesado')">${t('prosp.action.interesado')}</button>
       <button class="estado-btn" style="color:var(--red,#e5484d)" onclick="event.stopPropagation();prospAccion('${esc(id)}','descartar')">${t('prosp.action.descartar')}</button>
       ${(estado === '🤝 Interesado' && puedeCrearProp) ? `<button class="estado-btn active" onclick="event.stopPropagation();openNewPropSheet('${esc(id)}')">${t('prosp.action.crearpropuesta')}</button>` : ''}
+      ${(estado === '🤝 Interesado') ? `<button class="estado-btn" style="color:var(--green)" onclick="event.stopPropagation();prospAccion('${esc(id)}','cliente')">${t('prosp.action.cliente')}</button>` : ''}
     </div>`;
 
   return `<div class="contact-card" onclick="openContactSheet('${esc(id)}')">
@@ -12788,6 +12812,7 @@ async function prospAccion(id, tipo) {
   const c = (_coordAllProspectos || []).find(x => x.id === id);
   if (!c) return;
   if (tipo === 'descartar' && !confirm(t('prosp.confirm.descartar'))) return;
+  if (tipo === 'cliente' && !confirm(t('prosp.confirm.cliente'))) return;
   if (!c.properties) c.properties = {};
   const estadoAnterior = c.properties['Estado']?.select?.name || '';
   const proxAnterior = c.properties['Próximo contacto']?.date?.start || null;
@@ -12803,6 +12828,9 @@ async function prospAccion(id, tipo) {
     props['Estado'] = { select: { name: '🤝 Interesado' } };
   } else if (tipo === 'descartar') {
     props['Estado'] = { select: { name: '❌ Descartado' } };
+  } else if (tipo === 'cliente') {
+    // Promoción manual: el prospecto pasa a la cartera como cliente activo (sale de Prospección).
+    props['Estado'] = { select: { name: '✅ Cliente activo' } };
   } else {
     return;
   }
