@@ -11424,7 +11424,7 @@ async function buildReportDoc(svc, extra = {}) {
   const sel = (k) => cleanLabel(p[k]?.select?.name || '');
   const rtxt = (k) => p[k]?.rich_text?.[0]?.plain_text || '';
   const fileEntries = (k) => (p[k]?.files || []).map(f => ({ url: f.external?.url || f.file?.url, name: f.name || '' })).filter(e => e.url);
-  const jsonProp = (k) => { try { return JSON.parse(rtxt(k) || '[]'); } catch (_) { return []; } };
+  const jsonProp = (k) => { try { const v = JSON.parse(rtxt(k) || '[]'); return Array.isArray(v) ? v : []; } catch (_) { return []; } };
   const TIPO_DESC = ptLang
     ? { 'Vidrios': 'Limpeza de vidros', 'Fachada': 'Limpeza de fachada', 'Paneles solares': 'Limpeza de painéis solares' }
     : { 'Vidrios': 'Limpieza de vidrios', 'Fachada': 'Limpieza de fachada', 'Paneles solares': 'Limpieza de paneles solares' };
@@ -11466,7 +11466,10 @@ async function buildReportDoc(svc, extra = {}) {
   const jornadas = isRelev ? [] : jsonProp('Registro jornadas').filter(j => j && j.fecha);
 
   // Traer TODAS las fotos (pre/post/relev), cada una con su fase + sectorId (embebido en el nombre).
-  const sectorIdOf = (name) => (name && name.includes('__')) ? name.split('__')[0] : null;
+  // Si el sectorId ya no existe en Estado sectores (sector quitado/renombrado después de subir fotos),
+  // la foto NO se pierde: cae al grupo "Otras fotos" (sectorId null) en vez de desaparecer del reporte.
+  const knownSectorIds = new Set(sectores.map(s => s.id));
+  const sectorIdOf = (name) => { const id = (name && name.includes('__')) ? name.split('__')[0] : null; return (id && knownSectorIds.has(id)) ? id : null; };
   const entries = isRelev
     ? fileEntries('📸 Fotos relevamiento').map(e => ({ ...e, fase: 'relev' }))
     : [...fileEntries('📸 Fotos pre-servicio').map(e => ({ ...e, fase: 'pre' })),
