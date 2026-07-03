@@ -584,5 +584,25 @@ Objetivo: el coordinador hace TODO desde la app (Notion queda de respaldo). Tapa
 - **Secciones del tab Clientes (v111)**: 🔁 Mantenimiento (último trabajo ≥270d, sin nada más nuevo — arriba, con alerta tocable) · Cartera activa · 😶 Sin respuesta / ❌ Rechazados (colapsadas al fondo; solo clientes SIN ningún servicio vivo). `computeClienteSecciones` + `MANTENIMIENTO_DIAS=270`. Buscador = plano sobre todos.
 - **Prospección + rol 🧲 Ventas (v112)**: tab 🎯 (coord/Dirección/Ventas) con alta rápida de prospectos (overlay sibling de body), estados 🎯 Prospecto → 📵 Contactado → 🤝 Interesado → ❌ Descartado (en el select Estado de Clientes), campos `Origen del lead`/`Interés`/`Contacto (persona)`/`Próximo contacto`/`Notas prospección`, orden por urgencia, acciones de un toque, "→ Crear propuesta" solo coord/Dirección. Rol Ventas (asiento `ventas-uy`) encerrado en 4 capas + fix pass adversarial: 💸📦 ocultos y guardeados, ficha de contacto read-only SIN 360 financiero, prospectos/descartados fuera de Cartera activa y de los selectores de cliente ('❌ Descartado'). Sub-bloque prospección en CEO→Comercial.
 
+## Voz app-only + Finalizar (sw v113) · UX alertas/mantenimiento/cards (sw v114)
+
+**v113 — la app ya NO le nombra "Notion" al usuario** (equipo app-only): 32 textos es+pt neutralizados
+(el aviso "✓ Guardado", pantalla final, papelera, errores, confirmaciones). El operario cierra con
+**"🏁 Finalizar servicio"** (antes "Cerrar servicio"; botón + título del paso + cierre de jornadas, es+pt).
+Notion queda de respaldo invisible. Los identificadores internos (callNotion, COUNTRY_NOTION_MAP, endpoints)
+no cambian — solo lo visible.
+
+**v114 — 3 mejoras UX:**
+- **Alertas descartables**: las informativas (📑 Documentos/BPS, sin onclick) suman una **×** para ocultarlas
+  (`dismissKey` = `doc:<id>:<vence>`, persiste en `localStorage.fc_alertsDismissed`). Una alerta **crítica**
+  (≤7 días / vencido) SIEMPRE se muestra aunque esté descartada (no se puede ocultar algo urgente); una
+  renovación (nueva fecha de vencimiento) cambia el key → reaparece. `_alertsByContainer` + `dismissAlert` +
+  `isAlertDismissed`/`dismissAlertKey`. Las alertas tocables (re-contactar, mantenimiento) NO tienen ×.
+- **Mantenimiento con meses en rojo**: cada cliente de la sección 🔁 muestra "🔴 hace N meses del último
+  servicio" (`_mantMeses` = round(diasDesde/30.4), seteado en `computeClienteSecciones` y limpiado al
+  recomputar para no quedar stale; render en `coordContactCard`). i18n `coord.cli.mant.meses` es+pt.
+- **Cards "A contactar hoy" compactas**: estado + días en UNA línea (`.prop-card.compact`, sin la fila
+  `prop-meta` separada, botón `.prop-compact-btn` más chico). Las cards normales de propuestas no cambian.
+
 ---
 _Generado automáticamente del código (workflow `inventario-funcionalidades`). Si algo no coincide con el código, gana el código → regenerar._
