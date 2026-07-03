@@ -640,5 +640,20 @@ no cambian — solo lo visible.
 31 con actividad a `✅ Cliente activo`, 9 tests (Prueba Diego + ZZZ Test Merge) archivados, 2 intermediarios
 (Aseo/Belhouse) dejados. Total activos 17→48. Scripts one-off (no versionados).
 
+## Rediseño del PDF de devolución al cliente (sw v121)
+
+`generateReportPDF` se partió en **`buildReportDoc(svc, extra)`** (arma y DEVUELVE el doc jsPDF, testeable) +
+`generateReportPDF` (guarda). Los 3 disparadores (sheet coord, CEO, picker Finanzas) no cambiaron.
+- **Marca completa**: logo sparkle blanco + tipografía **Exo 2** embebidas en el PDF, lazy desde
+  **`vendor/report-brand.js`** (~125KB base64: Exo2-Regular/Bold subset latin + logo 256px) vía
+  `ensureReportBrand()`. Header verde con logo + wordmark + título; tira de marca + "Página X de Y" en las
+  siguientes. Fallback a helvetica sin logo si el pack no carga.
+- **Fotos por sector**: lee `Estado sectores` y agrupa las fotos por el `sectorId` del nombre del archivo
+  (`sec-xxx__pre-1.jpg`); un bloque por sector (nombre + pill de estado + antes/después). Fotos con sector
+  ausente → "Otras fotos" (no se pierden). **Sin tope de 3, multipágina**; sin sectores = antes/después global.
+- **Info nueva**: duración real (Hora Inicio/Fin Efectivo), barra de % de avance, cronología por jornada
+  (`Registro jornadas`), ubicación con link "Ver en el mapa".
+- **Bilingüe es/pt** (dicc. `REPORT_LBL`) → clientes de Brasil reciben el reporte en portugués.
+
 ---
 _Generado automáticamente del código (workflow `inventario-funcionalidades`). Si algo no coincide con el código, gana el código → regenerar._
