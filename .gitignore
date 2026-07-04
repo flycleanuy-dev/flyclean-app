@@ -9,6 +9,12 @@ node_modules/
 .env.*
 !.env.example
 
+# Material sensible del APK (preventivo — estos archivos viven fuera del repo, pero si
+# alguna vez aparecen acá NO deben subir a git)
+*.passphrase
+*.keystore
+keystore/
+
 # Sistema operativo
 .DS_Store
 Thumbs.db

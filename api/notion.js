@@ -1,4 +1,4 @@
-import { verifySession, tokenFromReq } from './_lib/session.js';
+import { verifySession, tokenFromReq, maybeRenewSession } from './_lib/session.js';
 import { userById, esVentas } from './_lib/users.js';
 
 // Auth del proxy (#1). MONITOR (false): valida el token y lo reporta en X-Auth, pero NO rechaza.
@@ -79,6 +79,7 @@ export default async function handler(req, res) {
   const session = verifySession(tokenFromReq(req));
   res.setHeader('X-Auth', session ? 'ok' : 'missing');
   if (ENFORCE_AUTH && !session) return res.status(401).json({ error: 'auth required' });
+  maybeRenewSession(res, session); // renovación silenciosa (token 7d sliding)
 
   const token = process.env.NOTION_TOKEN;
   if (!token) return res.status(500).json({ error: 'NOTION_TOKEN not configured' });

@@ -7,7 +7,10 @@
 // reingresan el PIN una vez). El token NO contiene datos sensibles (solo el id + expiración).
 import crypto from 'node:crypto';
 
-const TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 días (largo → minimiza re-logins)
+// 7 días con RENOVACIÓN SILENCIOSA (blindaje 2026-07-04, decisión de Diego): quien usa la app
+// recibe un token fresco vía header X-Session-Renew antes de expirar (ver maybeRenewSession) →
+// el equipo activo nunca re-tipea el PIN; un dispositivo inactivo/perdido muere en ≤7 días.
+const TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 function signingKey() {
   // Sin fallback hardcodeado: si falta el secreto, fail-closed (verifySession captura → null; signSession lanza).
@@ -46,4 +49,17 @@ export function verifySession(token) {
 export function tokenFromReq(req) {
   const h = (req.headers && req.headers.authorization) || '';
   return h.startsWith('Bearer ') ? h.slice(7) : '';
+}
+
+// Renovación silenciosa: si a la sesión le queda menos de la mitad del TTL, emite un token fresco
+// en el header X-Session-Renew (el cliente lo captura en callNotion/callDb y pisa fc_token).
+// Stateless — no requiere endpoint nuevo ni KV. Llamar DESPUÉS de verificar la sesión.
+export function maybeRenewSession(res, session) {
+  if (!session || !session.id || typeof session.exp !== 'number') return;
+  if (session.exp - Date.now() >= TTL_MS / 2) return;
+  try {
+    res.setHeader('X-Session-Renew', signSession({ id: session.id }));
+    // CORS: sin esto el browser no deja leer el header custom desde fetch.
+    res.setHeader('Access-Control-Expose-Headers', 'X-Session-Renew');
+  } catch (_) { /* sin secreto de firma → no renovar (fail-quiet; la sesión vigente sigue) */ }
 }

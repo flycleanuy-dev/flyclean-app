@@ -5,7 +5,7 @@
 //  - Si no (o usuario global) → service_role + filtro por país server-side (espejo de recEnPaisNotion).
 // Devuelve { results: [{ object:'page', id:notion_id, properties:raw }] } → idéntico a la respuesta de Notion,
 // gracias a que el sync guardó `raw` = las properties tal cual de Notion. Así el render de la app NO cambia.
-import { verifySession, tokenFromReq } from './_lib/session.js';
+import { verifySession, tokenFromReq, maybeRenewSession } from './_lib/session.js';
 import { userById, esGlobal, esVentas } from './_lib/users.js';
 import crypto from 'node:crypto';
 
@@ -78,6 +78,7 @@ export default async function handler(req, res) {
   // Exige sesión (mismo token HMAC que el resto de la app).
   const session = verifySession(tokenFromReq(req));
   if (!session || !session.id) return res.status(401).json({ error: 'auth required' });
+  maybeRenewSession(res, session); // renovación silenciosa (token 7d sliding)
   const u = userById(session.id);
   if (!u) return res.status(403).json({ error: 'usuario desconocido' });
 

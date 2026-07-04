@@ -4015,6 +4015,25 @@ function dbFlag(name) {
   return !!DB_FLAGS[name];
 }
 
+// Renovación silenciosa de sesión (token 7d sliding): el server manda X-Session-Renew con un token
+// fresco cuando al vigente le queda <mitad de vida → lo pisamos en localStorage. El equipo activo
+// nunca vuelve a tipear el PIN; un dispositivo inactivo expira solo a los 7 días.
+// GUARD: solo pisar si el token nuevo expira DESPUÉS que el actual — el SW cachea respuestas con
+// headers, y una respuesta cacheada vieja podría traer un X-Session-Renew más viejo (o vencido).
+function captureRenewedToken(response) {
+  try {
+    const nt = response.headers.get('X-Session-Renew');
+    if (!nt) return;
+    const expOf = (tk) => {
+      try {
+        const b = String(tk).split('.')[0].replace(/-/g, '+').replace(/_/g, '/');
+        return JSON.parse(atob(b + '='.repeat((4 - b.length % 4) % 4))).exp || 0;
+      } catch (_) { return 0; }
+    };
+    if (expOf(nt) > expOf(localStorage.getItem('fc_token') || '')) localStorage.setItem('fc_token', nt);
+  } catch (_) {}
+}
+
 async function callNotion(endpoint, method = 'GET', body = null) {
   if (method === 'POST') {
     const resource = _migResource(endpoint);
@@ -4029,6 +4048,7 @@ async function callNotion(endpoint, method = 'GET', body = null) {
   });
   if (response.status === 401) { forceRelogin(); throw new Error('Sesión expirada'); }
   if (!response.ok) throw new Error('API error ' + response.status);
+  captureRenewedToken(response);
   return response.json();
 }
 
@@ -4039,6 +4059,7 @@ async function callDb(resource) {
   });
   if (response.status === 401) { forceRelogin(); throw new Error('Sesión expirada'); }
   if (!response.ok) throw new Error('DB error ' + response.status);
+  captureRenewedToken(response);
   const j = await response.json();
   // Blindaje (incidente 02/07): un espejo VACÍO (RLS mal aplicada, tabla recreada, wipe) devolvía
   // 200 + [] y la app mostraba todo en blanco sin caer a Notion. Estas listas nunca son legítimamente

@@ -116,7 +116,8 @@
 // v119: ciclo prospecto→cliente — botón '✅ Pasar a cliente' en el prospecto Interesado (promoción manual) + promoción AUTOMÁTICA al aceptar una propuesta vinculada (si el cliente sigue en un estado de Prospección pasa a '✅ Cliente activo' y sale de la pestaña Prospección). La promoción auto falla en silencio para no romper el guardado de la propuesta.
 // v120: en el alta de prospecto, el campo de link de mapa suma un botón '🗺️ Abrir' al costado para abrir el link tipeado (mismo gesto que en otros lados).
 // v121: rediseño del PDF de devolución — marca completa (logo sparkle + tipografía Exo 2 embebidas, lazy desde /vendor/report-brand.js), fotos agrupadas POR SECTOR (antes/después por sector, sin tope de 3, multipágina), + datos extra (duración real, barra de % de avance, cronología por jornada, ubicación con link al mapa) + bilingüe es/pt. buildReportDoc separado de generateReportPDF (testeable).
-const CACHE = 'flyclean-v121';
+// v122: blindaje post-auditoría (quick wins) — caché de lecturas AISLADA POR USUARIO (clave ?u=<id> en /api/notion y /api/db; la purga al login/logout queda de 2da barrera) + token de sesión pasa a 7 días con RENOVACIÓN SILENCIOSA (header X-Session-Renew; el equipo activo nunca re-tipea el PIN, un dispositivo perdido muere en ≤7d) + rate-limit del PIN a KV (global entre instancias) + esc() en el email del cron pipeline.
+const CACHE = 'flyclean-v122';
 const SHELL = [
   '/',
   '/index.html',
@@ -205,7 +206,9 @@ async function handleNotionApi(event) {
   // descarta el fragmento de los Request, así que con '#' TODAS las consultas compartían la misma
   // clave y se pisaban (ej. gastos devolvía el cache de ingresos). Con network-first no se notaba
   // (casi no usaba cache); con stale-while-revalidate sí. El query string sí se respeta en el match.
-  const cacheKey = new Request(event.request.url + '?k=' + encodeURIComponent(btoa(unescape(encodeURIComponent(bodyText)))), { method: 'GET' });
+  // v122: la clave suma ?u=<id del usuario> → en un dispositivo compartido un usuario no recibe
+  // la lista cacheada de otro (antes solo lo mitigaba la purga al login/logout, que se mantiene).
+  const cacheKey = new Request(event.request.url + '?u=' + userKeyOf(event.request) + '&k=' + encodeURIComponent(btoa(unescape(encodeURIComponent(bodyText)))), { method: 'GET' });
   const cache = await caches.open(NOTION_CACHE);
   const cached = await cache.match(cacheKey);
 
@@ -245,11 +248,28 @@ async function handleNotionApi(event) {
 // re-puebla al no usarse esa ruta). La clave es la URL (GET sin body). Nota: igual que con
 // /api/notion, la respuesta cacheada se comparte entre usuarios del mismo dispositivo; el
 // re-filtro por país/rol del cliente aplica al renderizar (mismo modelo que la ruta Notion).
+// Aísla la caché de lecturas POR USUARIO (auditoría 2026-07-04): saca el id del payload del token
+// de sesión (Authorization: Bearer <base64url(payload)>.<sig>) y lo mete en la clave de caché.
+// El id es estable entre renovaciones del token (cambia el exp, no el id) → renovar NO invalida
+// la caché. Sin token → 'anon'. La purga al login/logout (v115) queda como segunda barrera.
+function userKeyOf(request) {
+  try {
+    const h = request.headers.get('Authorization') || '';
+    const tk = h.startsWith('Bearer ') ? h.slice(7) : '';
+    if (!tk) return 'anon';
+    const b = tk.split('.')[0].replace(/-/g, '+').replace(/_/g, '/');
+    const id = JSON.parse(atob(b + '='.repeat((4 - b.length % 4) % 4))).id;
+    return encodeURIComponent(String(id || 'anon'));
+  } catch (_) { return 'anon'; }
+}
+
 async function handleDbApi(event) {
   const cache = await caches.open(NOTION_CACHE);
-  const cached = await cache.match(event.request.url);
+  // v122: clave por usuario (ver userKeyOf) — /api/db?resource=... ya trae query string → sumamos &u=.
+  const dbKey = event.request.url + '&u=' + userKeyOf(event.request);
+  const cached = await cache.match(dbKey);
   const revalidate = fetch(event.request).then(res => {
-    if (res && res.ok) cache.put(event.request.url, res.clone()).catch(() => {});
+    if (res && res.ok) cache.put(dbKey, res.clone()).catch(() => {});
     return res;
   });
   if (cached) {
