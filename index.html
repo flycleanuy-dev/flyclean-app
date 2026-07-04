@@ -3849,7 +3849,8 @@ async function uploadPhoto(file, fotoType, sectorId) {
         serviceId: targetServiceId,
         fotoType,
         filename: file.name,
-        contentType: mime
+        contentType: mime,
+        contentLength: file.size // se firma en el presign (tope 15MB server-side)
       })
     });
     if (!resp.ok) {
@@ -5154,7 +5155,7 @@ async function uploadReceiptPhoto(file, gastoId) {
   const resp = await fetch('/api/upload-url', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (localStorage.getItem('fc_token') || '') },
-    body: JSON.stringify({ gastoId, fotoType: 'recibo', filename: file.name, contentType: mime }),
+    body: JSON.stringify({ gastoId, fotoType: 'recibo', filename: file.name, contentType: mime, contentLength: file.size }),
   });
   if (!resp.ok) {
     const data = await resp.json().catch(() => ({}));
