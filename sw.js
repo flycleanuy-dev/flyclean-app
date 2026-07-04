@@ -118,7 +118,8 @@
 // v121: rediseño del PDF de devolución — marca completa (logo sparkle + tipografía Exo 2 embebidas, lazy desde /vendor/report-brand.js), fotos agrupadas POR SECTOR (antes/después por sector, sin tope de 3, multipágina), + datos extra (duración real, barra de % de avance, cronología por jornada, ubicación con link al mapa) + bilingüe es/pt. buildReportDoc separado de generateReportPDF (testeable).
 // v122: blindaje post-auditoría (quick wins) — caché de lecturas AISLADA POR USUARIO (clave ?u=<id> en /api/notion y /api/db; la purga al login/logout queda de 2da barrera) + token de sesión pasa a 7 días con RENOVACIÓN SILENCIOSA (header X-Session-Renew; el equipo activo nunca re-tipea el PIN, un dispositivo perdido muere en ≤7d) + rate-limit del PIN a KV (global entre instancias) + esc() en el email del cron pipeline.
 // v123: blindaje del upload de fotos — el server verifica OWNERSHIP antes de presignar (el servicio existe, no está archivado, el operario figura en alguno de los 4 roles, la gestión no-global coincide en país; recibos = rol ≠ Ventas) + tope de 15MB FIRMADO en el presign (un PUT con otro tamaño falla la firma). Cache positivo 5 min por (servicio, usuario). Fail-closed 503 si la verificación no responde.
-const CACHE = 'flyclean-v123';
+// v124: matriz de permisos por rol en /api/notion en modo MONITOR — el proxy evalúa cada query/schema/create/search contra la matriz rol→bases (api/_lib/permisos.js, del inventario real de pantallas) y loguea '[perms] DENEGARÍA' sin rechazar nada; Ventas sigue con su backstop propio. ENFORCE_PERMS se prende tras afinar la matriz con los logs.
+const CACHE = 'flyclean-v124';
 const SHELL = [
   '/',
   '/index.html',

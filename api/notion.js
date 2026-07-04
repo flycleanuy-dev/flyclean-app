@@ -1,11 +1,20 @@
 import { verifySession, tokenFromReq, maybeRenewSession } from './_lib/session.js';
 import { userById, esVentas } from './_lib/users.js';
+import { checkPermiso } from './_lib/permisos.js';
 
 // Auth del proxy (#1). MONITOR (false): valida el token y lo reporta en X-Auth, pero NO rechaza.
 // ENFORCE (true): rechaza con 401 los pedidos sin token válido → CIERRA el agujero.
 // Activado tras verificar el round-trip completo (login emite token, proxy valida x-auth:ok) y que
 // todos los usuarios están en PINs server-known → nadie queda trancado. Revertir = poner false.
 const ENFORCE_AUTH = true;
+
+// Matriz de permisos por rol (#2). Mismo patrón monitor→enforce que ENFORCE_AUTH:
+// MONITOR (false): evalúa cada request contra la matriz (api/_lib/permisos.js) y loguea
+// '[perms] DENEGARÍA ...' cuando un rol pide una base que no le corresponde, pero NO rechaza
+// (cero cambio de comportamiento). ENFORCE (true): responde 403 → CIERRA el acceso cruzado.
+// Prender recién después de auditar los warns en prod y afinar la matriz para que ningún
+// flujo real quede afuera. Revertir = poner false.
+const ENFORCE_PERMS = false;
 
 const ALLOWED_ENDPOINTS = [
   /^databases\/[a-f0-9-]{32,36}\/query$/,
@@ -127,6 +136,33 @@ export default async function handler(req, res) {
       } catch (e) { return res.status(403).json({ error: 'forbidden' }); }
     } else if (endpointNorm === 'search') {
       return res.status(403).json({ error: 'forbidden: rol Ventas' });
+    }
+  }
+
+  // Matriz de permisos por rol (#2, api/_lib/permisos.js) — para el RESTO de los roles.
+  // Ventas NO pasa por acá: su backstop dedicado (arriba) corta primero y gobierna todo su acceso.
+  // La matriz gobierna solo queries por DB, schema por DB, creates por parent y search directo;
+  // pages/{id} GET/PATCH quedan fuera (residual documentado en permisos.js).
+  if (!esVentas(u)) {
+    let tipo = null, dbId = '';
+    const mQuery = endpointNorm.match(/^databases\/([a-f0-9-]{32,36})\/query$/);
+    const mSchema = endpointNorm.match(/^databases\/([a-f0-9-]{32,36})$/);
+    if (mQuery) { tipo = 'query'; dbId = mQuery[1]; }
+    else if (mSchema) { tipo = 'schema'; dbId = mSchema[1]; }
+    else if (endpointNorm === 'pages' && httpMethod === 'POST') {
+      // create: el parent puede venir por database_id o por data_source_id (servicios/gastos/
+      // ingresos/solicitudes crean por data source) — la matriz acepta ambos ids normalizados.
+      tipo = 'create';
+      dbId = body?.parent?.database_id || body?.parent?.data_source_id || '';
+    } else if (endpointNorm === 'search') {
+      tipo = 'search';
+    }
+    if (tipo) {
+      const perm = checkPermiso(u, { tipo, dbId });
+      if (!perm.ok) {
+        console.warn('[perms] DENEGARÍA', JSON.stringify({ rol: u?.rol, id: session?.id, tipo, db: norm(dbId), endpoint: endpointNorm, motivo: perm.motivo }));
+        if (ENFORCE_PERMS) return res.status(403).json({ error: 'forbidden: tu rol no accede a esa base' });
+      }
     }
   }
 
