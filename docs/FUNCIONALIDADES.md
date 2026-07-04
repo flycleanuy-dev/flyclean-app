@@ -655,5 +655,30 @@ no cambian — solo lo visible.
   (`Registro jornadas`), ubicación con link "Ver en el mapa".
 - **Bilingüe es/pt** (dicc. `REPORT_LBL`) → clientes de Brasil reciben el reporte en portugués.
 
+## Ronda de blindaje post-auditoría externa (sw v122-v124)
+
+Auditoría externa (Codex, 2026-07-04) — 7 hallazgos verificados como reales, todos atacados:
+- **v122 quick wins**: token de sesión **7 días con renovación silenciosa** (`maybeRenewSession` emite
+  `X-Session-Renew` cuando queda <mitad de vida; `captureRenewedToken` en el cliente lo pisa con guard
+  de exp anti-header-cacheado) · rate-limit del PIN a **KV** (INCR+EXPIRE global; fallback Map) ·
+  **caché del SW aislada por usuario** (`userKeyOf` → `?u=<id>` en las claves de /api/notion y /api/db;
+  la purga al login/logout queda de 2da barrera) · `esc()` en el email de cron-pipeline · `.gitignore`
+  preventivo keystore · `_LEEME-COPIA-VIEJA.md` en la copia histórica del workspace.
+- **v123 upload blindado**: `checkServiceOwnership` en `api/upload-url.js` — el servicio debe existir,
+  no estar archivado, y quien sube debe tener derecho (operario en alguno de los 4 roles; gestión
+  no-global con país coincidente; recibos = rol ≠ Ventas). Tope de **15MB firmado** en el presign
+  (`contentLength` del cliente; legacy sin el campo → presign sin firma + warn, endurecer después).
+  Cache positivo 5 min. Fail-closed 503.
+- **v124 matriz de permisos por rol — MODO MONITOR**: `api/_lib/permisos.js` (matriz rol→bases con la
+  evidencia función→DB en la cabecera) + evaluación en `api/notion.js` con **`ENFORCE_PERMS = false`**:
+  loguea `[perms] DENEGARÍA {rol,id,tipo,db,endpoint,motivo}` sin rechazar. Dirección/CEO = `'*'`;
+  Coordinador/Operario/Administración con listas explícitas; Ventas fuera (su backstop dedicado corta
+  primero). `search: false` para todos (el fallback multi-data-source usa search server-side, no cuenta).
+  **Para prender el candado**: auditar los warns en `vercel logs` con uso real → afinar matriz →
+  `ENFORCE_PERMS = true` (v125, revertible con el flag). `tests/permisos.mjs` en `npm test` (los casos
+  autenticados requieren `CRON_SECRET` en el entorno; sin él skipean limpio).
+- **Pendiente conocido (residual documentado)**: `pages/{id}` GET/PATCH fuera de la matriz para roles
+  no-Ventas; país no enforceado en /api/notion (las lecturas van por /api/db con RLS).
+
 ---
 _Generado automáticamente del código (workflow `inventario-funcionalidades`). Si algo no coincide con el código, gana el código → regenerar._

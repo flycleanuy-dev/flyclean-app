@@ -87,3 +87,20 @@ inventario completo de accesos y el "si pasa X → hacé Y".
 - **Respaldo NO técnico:** Eduardo Cabral (CEO) — admin de la app (resetea PINs en CEO→Equipo→🔑) + lo administrativo.
 - **Respaldo técnico:** programador de "guardia" (a definir) — deploys/bugs/caídas; deploy = `git push` a `main` (ver arriba).
 - Todos los secretos/valores reales viven en Vercel (Sensitive) y, a futuro, en 1Password — **nunca en el repo**.
+
+## Matriz de permisos por rol (monitor → enforce)
+
+Desde sw v124, `/api/notion` evalúa cada request contra `api/_lib/permisos.js` (matriz rol→bases).
+Con **`ENFORCE_PERMS = false`** (api/notion.js) solo LOGUEA lo que denegaría, sin bloquear.
+
+**Para prender el candado (v125):**
+1. Con uso real del equipo (mínimo 2-3 días hábiles), revisar los logs:
+   `vercel -Q ~/.config/vercel-flyclean logs flyclean-app | grep '\[perms\] DENEGARÍA'`
+2. Cada warn = un flujo real que la matriz no contempló → agregarlo a `api/_lib/permisos.js` (con
+   evidencia función→DB en la cabecera, como el resto).
+3. Cuando haya 0 warns con uso normal → `ENFORCE_PERMS = true` + bump sw + deploy.
+4. Rollback instantáneo: volver el flag a `false` (sin tocar la matriz).
+
+**Tests de permisos**: `npm test` incluye `tests/permisos.mjs` (sin token→401 + backstop Ventas +
+casos por rol). Los casos autenticados necesitan la clave de firma real:
+`CRON_SECRET=<valor de Vercel> node tests/permisos.mjs`. Al prender enforce, flipear `EXPECT_ENFORCE=true`.
