@@ -680,5 +680,21 @@ Auditoría externa (Codex, 2026-07-04) — 7 hallazgos verificados como reales, 
 - **Pendiente conocido (residual documentado)**: `pages/{id}` GET/PATCH fuera de la matriz para roles
   no-Ventas; país no enforceado en /api/notion (las lecturas van por /api/db con RLS).
 
+## Tipo de servicio múltiple (sw v125)
+
+Un trabajo puede ser **Fachada + Vidrios + Paneles solares** en cualquier combinación. La property
+Notion `Tipo de servicio` pasó de `select` a **`multi_select`** (2026-07-04; los 35 valores existentes
+se restauraron desde el espejo Supabase tras el reset de la conversión vía API — 0 perdidos).
+- Lector ÚNICO `tipoServicioList(props)` / `tipoServicioStr(props)` (defensivo: multi_select nuevo ||
+  select legacy) — usarlo SIEMPRE; no leer la property a mano.
+- Selector multi-toggle en el sheet edit del coord (`selectEditTipoServicio`, `editState.tipoServicios`
+  array) y en "＋ Nuevo trabajo" (`newSvcSetTipoSvc`, `newSvcState.tipoServicios`).
+- Escritura SIEMPRE `multi_select` (saveServiceEdit con array vacío = limpiar; submitNewService;
+  las 2 herencias de jornadas copian todos los tipos).
+- Métricas CEO: un servicio con 2 tipos cuenta en ambas barras (mide trabajo por tipo).
+- PDF: "Limpieza de fachada + Limpieza de vidrios". Espejo: `notion-map.tipo_servicio` defensivo (join).
+- ⚠️ Lección de la conversión: PATCH del schema select→multi_select vía API **borra opciones y valores**
+  (la UI de Notion los preserva; la API no) → siempre respaldar valores ANTES (acá salvó el espejo).
+
 ---
 _Generado automáticamente del código (workflow `inventario-funcionalidades`). Si algo no coincide con el código, gana el código → regenerar._
