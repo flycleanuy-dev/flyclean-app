@@ -119,7 +119,8 @@
 // v122: blindaje post-auditoría (quick wins) — caché de lecturas AISLADA POR USUARIO (clave ?u=<id> en /api/notion y /api/db; la purga al login/logout queda de 2da barrera) + token de sesión pasa a 7 días con RENOVACIÓN SILENCIOSA (header X-Session-Renew; el equipo activo nunca re-tipea el PIN, un dispositivo perdido muere en ≤7d) + rate-limit del PIN a KV (global entre instancias) + esc() en el email del cron pipeline.
 // v123: blindaje del upload de fotos — el server verifica OWNERSHIP antes de presignar (el servicio existe, no está archivado, el operario figura en alguno de los 4 roles, la gestión no-global coincide en país; recibos = rol ≠ Ventas) + tope de 15MB FIRMADO en el presign (un PUT con otro tamaño falla la firma). Cache positivo 5 min por (servicio, usuario). Fail-closed 503 si la verificación no responde.
 // v124: matriz de permisos por rol en /api/notion en modo MONITOR — el proxy evalúa cada query/schema/create/search contra la matriz rol→bases (api/_lib/permisos.js, del inventario real de pantallas) y loguea '[perms] DENEGARÍA' sin rechazar nada; Ventas sigue con su backstop propio. ENFORCE_PERMS se prende tras afinar la matriz con los logs.
-const CACHE = 'flyclean-v124';
+// v125: Tipo de servicio MÚLTIPLE — la property Notion pasó a multi_select (un trabajo puede ser Fachada + Vidrios + Paneles, cualquier combinación). Botones toggle en el sheet edit del coord y en "＋ Nuevo trabajo"; lector único tipoServicioList/Str (defensivo con el select legacy) en cards/operario/CEO/PDF/historial; las jornadas heredan todos los tipos; el PDF muestra "Limpieza de fachada + Limpieza de vidrios"; espejo notion-map defensivo.
+const CACHE = 'flyclean-v125';
 const SHELL = [
   '/',
   '/index.html',

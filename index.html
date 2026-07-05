@@ -5056,6 +5056,16 @@ const MONTO_FIELDS = {
   ingreso: { moneda: 'Moneda cobro', uy: 'Monto UY$ cobrado', usd: 'Monto USD' },
 };
 // Devuelve { moneda, esUY, monto } leyendo el campo de monto que corresponde a la moneda.
+// Tipo(s) de servicio — la property Notion pasó de select a MULTI_SELECT (2026-07-04): un servicio
+// puede ser Fachada + Vidrios (+ Paneles). Lector defensivo: acepta multi_select (nuevo) y select
+// (legacy: espejo Supabase / cachés todavía sin resync). Única fuente de lectura en toda la app.
+function tipoServicioList(props) {
+  const p = props?.['Tipo de servicio'];
+  if (Array.isArray(p?.multi_select) && p.multi_select.length) return p.multi_select.map(o => o.name).filter(Boolean);
+  return p?.select?.name ? [p.select.name] : [];
+}
+function tipoServicioStr(props) { return tipoServicioList(props).join(' + '); }
+
 function montoOf(props, kind = 'gasto') {
   const F = MONTO_FIELDS[kind] || MONTO_FIELDS.gasto;
   const tag = props?.[F.moneda]?.select?.name || null;
@@ -6599,7 +6609,7 @@ function renderServices(services) {
     const estado = props['Estado']?.select?.name || '📋 Pendiente';
     const fecha = props['Fecha programada']?.date?.start || '';
     const horaInicio = props['Hora Inicio']?.date?.start || '';
-    const tipo = props['Tipo de servicio']?.select?.name || '';
+    const tipo = tipoServicioStr(props);
     const pais = props['País']?.select?.name || '';
     const tipoReg = props['Tipo de registro']?.select?.name || '';
     const jornadaN = props['Jornada N°']?.number;
@@ -6788,7 +6798,7 @@ function renderStep() {
   const horaFmt = (horaInicio && horaInicio.includes('T')) ? new Date(horaInicio).toTimeString().slice(0, 5) : '';
   const lugar = props['Lugar']?.rich_text?.[0]?.plain_text || '';
   const mapa = resolveMapsUrl({ svcMapa: props['Mapa']?.url || '', propMapa: serviceState.propMapa || '', clienteMapa: serviceState.clienteMapa || '' });
-  const tipo = props['Tipo de servicio']?.select?.name || '';
+  const tipo = tipoServicioStr(props);
   const pais = props['País']?.select?.name || '';
   const tipoReg = props['Tipo de registro']?.select?.name || '';
   const encargadoNombre = props['Operario App']?.select?.name || '';
@@ -7832,7 +7842,8 @@ async function renderCEOMetricas() {
     if (svcSinFecha) aRevisar.push(svcSinFecha + ' servicios completados sin fecha programada');
 
     const tipoCount = {};
-    svcComp.forEach(s => { const tp = s.properties?.['Tipo de servicio']?.select?.name || t('ceo.tipos.sintipo'); tipoCount[tp] = (tipoCount[tp] || 0) + 1; });
+    // multi_select: un servicio Fachada+Vidrios cuenta en AMBAS barras (mide trabajo por tipo, no servicios)
+    svcComp.forEach(s => { const tps = tipoServicioList(s.properties); (tps.length ? tps : [t('ceo.tipos.sintipo')]).forEach(tp => { tipoCount[tp] = (tipoCount[tp] || 0) + 1; }); });
     const maxTipo = Math.max(1, ...Object.values(tipoCount));
     const tipoHTML = Object.entries(tipoCount).sort((a, b) => b[1] - a[1]).map(([k, v]) => '<div class="tipo-row"><span class="tipo-name">' + esc(k) + '</span><span class="tipo-bar"><span style="width:' + Math.round(v / maxTipo * 100) + '%"></span></span><span class="tipo-val">' + v + '</span></div>').join('') || '<div class="kpi-sub" style="padding:8px 16px">— sin servicios completados en este período —</div>';
 
@@ -8235,7 +8246,7 @@ async function renderCEOServicios() {
       const props = s.properties || {};
       const nombre = props['Nombre del servicio']?.title?.[0]?.plain_text || t('common.sinnombre');
       const estado = props['Estado']?.select?.name || '';
-      const tipo = props['Tipo de servicio']?.select?.name || '';
+      const tipo = tipoServicioStr(props);
       const fecha = props['Fecha programada']?.date?.start || '';
       const pais = props['País']?.select?.name || '';
       const operario = props['Operario App']?.select?.name || (props['Operario(s)']?.people?.[0]?.name || '');
@@ -8421,7 +8432,7 @@ async function openServicioQuickView(id) {
     const p = data.properties || {};
     const g = (k) => (p[k]?.title?.[0]?.plain_text) || (p[k]?.rich_text?.[0]?.plain_text) || (p[k]?.select?.name) || (p[k]?.date?.start) || '';
     const nombre = g('Nombre del servicio') || '(servicio)';
-    const rows = [['Estado', g('Estado')], ['Tipo', g('Tipo de servicio')], ['Fecha', (g('Fecha programada') || '').slice(0, 10)], ['Lugar', g('Lugar')], ['Operario', g('Operario App')]].filter(x => x[1]);
+    const rows = [['Estado', g('Estado')], ['Tipo', tipoServicioStr(p) || g('Tipo de servicio')], ['Fecha', (g('Fecha programada') || '').slice(0, 10)], ['Lugar', g('Lugar')], ['Operario', g('Operario App')]].filter(x => x[1]);
     ov.innerHTML = '<div class="svc-qv-card"><div class="svc-qv-head"><span>' + esc(nombre) + '</span>' + close + '</div>' +
       (rows.map(x => '<div class="svc-qv-row"><span class="svc-qv-k">' + x[0] + '</span><span class="svc-qv-v">' + esc(x[1]) + '</span></div>').join('') || '<div class="svc-qv-row">— sin datos —</div>') + '</div>';
   } catch (e) {
@@ -10113,7 +10124,7 @@ function coordServiceCard(s) {
     console.warn('[fc] coord: servicio sin nombre', s.id, 'properties keys:', Object.keys(props));
   }
   const estado = props['Estado']?.select?.name || '';
-  const tipo = props['Tipo de servicio']?.select?.name || '';
+  const tipo = tipoServicioStr(props);
   const operarioAppName = props['Operario App']?.select?.name || '';
   const legacyOpsNames = (props['Operario(s)']?.people || []).map(p => p.name).join(', ');
   const participantes = (props['Operarios participantes']?.multi_select || []).map(o => o.name);
@@ -10433,7 +10444,7 @@ async function openEditSheet(pageId) {
     sectoresCliente: [],
     sectores: (() => { try { return JSON.parse(props['Estado sectores']?.rich_text?.[0]?.plain_text || '[]'); } catch (_) { return []; } })(),
     _sectoresClienteDirty: false, _sectoresClienteLoaded: false,
-    tipoServicio: props['Tipo de servicio']?.select?.name || '',
+    tipoServicios: tipoServicioList(props), // multi: un servicio puede ser Fachada + Vidrios (+ Paneles)
     notasPreServicio: props['Notas pre-servicio']?.rich_text?.[0]?.plain_text || '',
     observacionCliente: props['Observación cliente']?.rich_text?.[0]?.plain_text || '' };
   document.getElementById('edit-sheet-title').textContent = nombre;
@@ -10448,7 +10459,7 @@ async function openEditSheet(pageId) {
   document.getElementById('edit-lugar').value = lugar;
   const TIPOS_SVC_EDIT = ['🏢 Fachada', '🪟 Vidrios', '☀️ Paneles solares'];
   const tsEl = document.getElementById('edit-tiposervicio-btns');
-  if (tsEl) tsEl.innerHTML = TIPOS_SVC_EDIT.map(o => `<button class="estado-btn ${editState.tipoServicio === o ? 'active' : ''}" onclick="selectEditTipoServicio('${o.replace(/'/g,"\\'")}')">${o}</button>`).join('');
+  if (tsEl) tsEl.innerHTML = TIPOS_SVC_EDIT.map(o => `<button class="estado-btn ${editState.tipoServicios.includes(o) ? 'active' : ''}" onclick="selectEditTipoServicio('${o.replace(/'/g,"\\'")}')">${o}</button>`).join('');
   const npEl = document.getElementById('edit-notaspre'); if (npEl) npEl.value = editState.notasPreServicio || '';
   const ocEl = document.getElementById('edit-obscliente'); if (ocEl) ocEl.value = editState.observacionCliente || '';
   const nombreInput = document.getElementById('edit-nombre'); if (nombreInput) nombreInput.value = nombre;
@@ -10928,8 +10939,8 @@ async function submitCreateJornada() {
     };
     const pais = parentProps['País']?.select?.name;
     if (pais) properties['País'] = { select: { name: pais } };
-    const tipoSvc = parentProps['Tipo de servicio']?.select?.name;
-    if (tipoSvc) properties['Tipo de servicio'] = { select: { name: tipoSvc } };
+    const tipoSvc = tipoServicioList(parentProps);
+    if (tipoSvc.length) properties['Tipo de servicio'] = { multi_select: tipoSvc.map(name => ({ name })) };
     const propuestaRel = parentProps['Propuesta']?.relation?.[0]?.id;
     if (propuestaRel) properties['Propuesta'] = { relation: [{ id: propuestaRel }] };
     const contactoRel = parentProps['Contacto']?.relation?.[0]?.id;
@@ -10979,8 +10990,8 @@ async function crearJornadaSiguiente(parentService, numero, fecha) {
   };
   const pais = p['País']?.select?.name;
   if (pais) properties['País'] = { select: { name: pais } };
-  const tipoSvc = p['Tipo de servicio']?.select?.name;
-  if (tipoSvc) properties['Tipo de servicio'] = { select: { name: tipoSvc } };
+  const tipoSvc = tipoServicioList(p);
+  if (tipoSvc.length) properties['Tipo de servicio'] = { multi_select: tipoSvc.map(name => ({ name })) };
   const propuestaRel = p['Propuesta']?.relation?.[0]?.id;
   if (propuestaRel) properties['Propuesta'] = { relation: [{ id: propuestaRel }] };
   const contactoRel = p['Contacto']?.relation?.[0]?.id;
@@ -11029,9 +11040,12 @@ function selectEditEstado(estado) {
   editState.estado = estado;
   document.querySelectorAll('#edit-estado-btns .estado-btn').forEach(b => b.classList.toggle('active', b.textContent.trim() === estado));
 }
+// Multi-toggle: un servicio puede tener varios tipos (Fachada + Vidrios + Paneles). Tocar agrega/saca.
 function selectEditTipoServicio(val) {
-  editState.tipoServicio = val;
-  document.querySelectorAll('#edit-tiposervicio-btns .estado-btn').forEach(b => b.classList.toggle('active', b.textContent.trim() === val));
+  if (!Array.isArray(editState.tipoServicios)) editState.tipoServicios = [];
+  const i = editState.tipoServicios.indexOf(val);
+  if (i === -1) editState.tipoServicios.push(val); else editState.tipoServicios.splice(i, 1);
+  document.querySelectorAll('#edit-tiposervicio-btns .estado-btn').forEach(b => b.classList.toggle('active', editState.tipoServicios.includes(b.textContent.trim())));
 }
 function selectEditOperario(name, el) {
   editState.operario = name;
@@ -11099,7 +11113,8 @@ async function saveServiceEdit() {
         if (typeof syncAfterWrite === 'function') { try { syncAfterWrite(editState.contactoId, 'clientes'); } catch (_) {} }
       } catch (_) { /* no bloquear el guardado del servicio si el cliente falla */ }
     }
-    if (editState.tipoServicio) props['Tipo de servicio'] = { select: { name: editState.tipoServicio } };
+    // multi_select desde 2026-07-04 (antes select). Se escribe SIEMPRE: array vacío = limpiar el campo.
+    props['Tipo de servicio'] = { multi_select: (editState.tipoServicios || []).map(name => ({ name })) };
     props['Notas pre-servicio'] = editState.notasPreServicio ? { rich_text: [{ text: { content: editState.notasPreServicio } }] } : { rich_text: [] };
     props['Observación cliente'] = editState.observacionCliente ? { rich_text: [{ text: { content: editState.observacionCliente } }] } : { rich_text: [] };
     const updated = await updateServiceProps(editingService.id, props);
@@ -11451,7 +11466,9 @@ async function buildReportDoc(svc, extra = {}) {
     ? { 'Vidrios': 'Limpeza de vidros', 'Fachada': 'Limpeza de fachada', 'Paneles solares': 'Limpeza de painéis solares' }
     : { 'Vidrios': 'Limpieza de vidrios', 'Fachada': 'Limpieza de fachada', 'Paneles solares': 'Limpieza de paneles solares' };
 
-  const tipoServ = sel('Tipo de servicio');
+  // multi_select: 1..3 tipos → "Limpieza de fachada + Limpieza de vidrios" (cleanLabel saca el emoji
+  // para matchear las claves de TIPO_DESC y porque el PDF no dibuja emojis).
+  const tiposServ = tipoServicioList(p).map(cleanLabel).filter(Boolean);
   const tipoReg = sel('Tipo de registro');
   const isRelev = /Relevamiento/.test(tipoReg), isJornada = /Jornada/.test(tipoReg), isPrueba = /Prueba/.test(tipoReg);
   const titulo = isRelev ? L.relevamiento : isJornada ? L.jornada : isPrueba ? L.prueba : L.servicio;
@@ -11573,7 +11590,7 @@ async function buildReportDoc(svc, extra = {}) {
   section(L.datos);
   row(L.cliente, clienteName);
   row(isRelev ? L.relevRow : L.servicioRow, nombre);
-  row(L.tipo, TIPO_DESC[tipoServ] || tipoServ);
+  row(L.tipo, tiposServ.map(t => TIPO_DESC[t] || t).join(' + '));
   if (lugar) row(L.lugar, lugar);
   if (m2 != null) row(L.m2, m2 + ' m²');
   row(L.pais, sel('País'));
@@ -12337,7 +12354,7 @@ function openNewServiceSheet(prefillContactId = null) {
   const today = new Date();
   const hoyISO = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
   const paisCoord = COUNTRY_NOTION_MAP[selectedCountry] || '';
-  newSvcState = { tipoRegistro: '📋 Orden de trabajo', clienteSel: prefillContactId || '__new__', nombreCliente: '', tel: '', email: '', nombre: '', tipoServicio: '', fecha: hoyISO, pais: paisCoord };
+  newSvcState = { tipoRegistro: '📋 Orden de trabajo', clienteSel: prefillContactId || '__new__', nombreCliente: '', tel: '', email: '', nombre: '', tipoServicios: [], fecha: hoyISO, pais: paisCoord };
 
   const TIPOS_REG = [
     { label: '🏢 Servicio', val: '📋 Orden de trabajo' },
@@ -12346,7 +12363,7 @@ function openNewServiceSheet(prefillContactId = null) {
   ];
   const TIPOS_SVC = ['🏢 Fachada', '🪟 Vidrios', '☀️ Paneles solares'];
   const tipoRegBtns = TIPOS_REG.map(o => `<button class="estado-btn ${newSvcState.tipoRegistro === o.val ? 'active' : ''}" onclick="newSvcSetTipoReg(this,'${o.val.replace(/'/g,"\\'")}')">${o.label}</button>`).join('');
-  const tipoSvcBtns = TIPOS_SVC.map(o => `<button class="estado-btn ${newSvcState.tipoServicio === o ? 'active' : ''}" onclick="newSvcSetTipoSvc(this,'${o.replace(/'/g,"\\'")}')">${o}</button>`).join('');
+  const tipoSvcBtns = TIPOS_SVC.map(o => `<button class="estado-btn ${newSvcState.tipoServicios.includes(o) ? 'active' : ''}" onclick="newSvcSetTipoSvc(this,'${o.replace(/'/g,"\\'")}')">${o}</button>`).join('');
 
   document.getElementById('new-service-sheet-body').innerHTML =
     `<div class="edit-section"><div class="edit-section-label">${t('sheet.newsvc.section.tipo')}</div><div class="estado-btns" id="newsvc-tiporeg-btns">${tipoRegBtns}</div></div>` +
@@ -12374,10 +12391,12 @@ function newSvcSetTipoReg(el, val) {
   document.querySelectorAll('#newsvc-tiporeg-btns .estado-btn').forEach(b => b.classList.remove('active'));
   if (el) el.classList.add('active');
 }
+// Multi-toggle (igual que en el sheet edit): un trabajo puede ser Fachada + Vidrios (+ Paneles).
 function newSvcSetTipoSvc(el, val) {
-  newSvcState.tipoServicio = val;
-  document.querySelectorAll('#newsvc-tiposvc-btns .estado-btn').forEach(b => b.classList.remove('active'));
-  if (el) el.classList.add('active');
+  if (!Array.isArray(newSvcState.tipoServicios)) newSvcState.tipoServicios = [];
+  const i = newSvcState.tipoServicios.indexOf(val);
+  if (i === -1) newSvcState.tipoServicios.push(val); else newSvcState.tipoServicios.splice(i, 1);
+  if (el) el.classList.toggle('active');
 }
 
 async function submitNewService() {
@@ -12396,7 +12415,7 @@ async function submitNewService() {
       'Tipo de registro': { select: { name: s.tipoRegistro } },
       'Fecha programada': { date: { start: s.fecha } },
     };
-    if (s.tipoServicio) properties['Tipo de servicio'] = { select: { name: s.tipoServicio } };
+    if ((s.tipoServicios || []).length) properties['Tipo de servicio'] = { multi_select: s.tipoServicios.map(name => ({ name })) };
     if (s.pais) properties['País'] = { select: { name: s.pais } };
     if (clienteId) properties['Contacto'] = { relation: [{ id: clienteId }] };
     const created = await callNotion('pages', 'POST', { parent: { type: 'data_source_id', data_source_id: SERVICIOS_DS_ID }, properties });
@@ -13779,7 +13798,7 @@ function renderContactHistory(items) {
     }
     if (item.type === 'servicio') {
       const nombre = p['Nombre del servicio']?.title?.[0]?.plain_text || '—';
-      const tipo = p['Tipo de servicio']?.select?.name || '';
+      const tipo = tipoServicioStr(p);
       return `<div class="history-item" onclick="openHistoryItem('servicio','${id}')">
         <div class="history-icon">🛠️</div>
         <div class="history-content">

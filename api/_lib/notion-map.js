@@ -64,7 +64,10 @@ export const MAP = {
   }),
   servicios: (props, page) => ({
     notion_id: page.id, nombre_servicio: title(props, 'Nombre del servicio'),
-    tipo_registro: sel(props, 'Tipo de registro'), tipo_servicio: sel(props, 'Tipo de servicio'),
+    // Tipo de servicio pasó a multi_select (2026-07-04) — defensivo select||multi, join a texto
+    // para no cambiar el tipo de la columna del espejo.
+    tipo_registro: sel(props, 'Tipo de registro'),
+    tipo_servicio: sel(props, 'Tipo de servicio') ?? (msel(props, 'Tipo de servicio').join(', ') || null),
     estado: sel(props, 'Estado'), pais: pais(props),
     operario_app: sel(props, 'Operario App'), operarios_participantes: msel(props, 'Operarios participantes'),
     operario_manual: sel(props, 'Operario manual'),
