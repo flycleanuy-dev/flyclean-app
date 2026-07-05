@@ -120,7 +120,9 @@
 // v123: blindaje del upload de fotos — el server verifica OWNERSHIP antes de presignar (el servicio existe, no está archivado, el operario figura en alguno de los 4 roles, la gestión no-global coincide en país; recibos = rol ≠ Ventas) + tope de 15MB FIRMADO en el presign (un PUT con otro tamaño falla la firma). Cache positivo 5 min por (servicio, usuario). Fail-closed 503 si la verificación no responde.
 // v124: matriz de permisos por rol en /api/notion en modo MONITOR — el proxy evalúa cada query/schema/create/search contra la matriz rol→bases (api/_lib/permisos.js, del inventario real de pantallas) y loguea '[perms] DENEGARÍA' sin rechazar nada; Ventas sigue con su backstop propio. ENFORCE_PERMS se prende tras afinar la matriz con los logs.
 // v125: Tipo de servicio MÚLTIPLE — la property Notion pasó a multi_select (un trabajo puede ser Fachada + Vidrios + Paneles, cualquier combinación). Botones toggle en el sheet edit del coord y en "＋ Nuevo trabajo"; lector único tipoServicioList/Str (defensivo con el select legacy) en cards/operario/CEO/PDF/historial; las jornadas heredan todos los tipos; el PDF muestra "Limpieza de fachada + Limpieza de vidrios"; espejo notion-map defensivo.
-const CACHE = 'flyclean-v125';
+// v126: tab 🗺️ Mapa embebido en el rol Ventas — iframe al mapa de prospección "TOP 1000 objetivos"
+// (flyclean-mapa.vercel.app, sitio estático aparte). Solo Ventas ve/activa la tab; CSP con frame-src al dominio.
+const CACHE = 'flyclean-v126';
 const SHELL = [
   '/',
   '/index.html',

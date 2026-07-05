@@ -1247,6 +1247,7 @@ body::before {
     <div class="coord-tab" id="ctab-propuestas" data-i18n="coord.tab.propuestas" onclick="setCoordTab('propuestas')">💼 Propuestas</div>
     <div class="coord-tab" id="ctab-contactos" data-i18n="coord.tab.contactos" onclick="setCoordTab('contactos')">👥 Clientes</div>
     <div class="coord-tab" id="ctab-prospeccion" data-i18n="coord.tab.prospeccion" onclick="setCoordTab('prospeccion')">🎯 Prospección</div>
+    <div class="coord-tab" id="ctab-mapa" data-i18n="coord.tab.mapa" style="display:none" onclick="setCoordTab('mapa')">🗺️ Mapa</div>
     <div class="coord-tab" id="ctab-pedidos" data-i18n="coord.tab.pedidos" onclick="setCoordTab('pedidos')">📦 Pedidos</div>
     <div class="coord-tab" id="ctab-limpieza" style="display:none" onclick="setCoordTab('limpieza')">🧹 Limpieza</div>
     <div class="coord-tab" id="ctab-comunicaciones" data-i18n="coord.tab.mensajes" onclick="setCoordTab('comunicaciones')">💬 Mensajes</div>
@@ -2043,6 +2044,8 @@ const TRANSLATIONS = {
     'coord.tab.propuestas': '💼 Propuestas',
     'coord.tab.contactos': '👥 Clientes',
     'coord.tab.prospeccion': '🎯 Prospección',
+    'coord.tab.mapa': '🗺️ Mapa',
+    'coord.mapa.title': 'Mapa de objetivos',
     'coord.tab.pedidos': '📦 Pedidos',
     'coord.tab.mensajes': '💬 Mensajes',
     'pedido.title': '📦 Pedir insumo',
@@ -2773,6 +2776,8 @@ const TRANSLATIONS = {
     'coord.tab.propuestas': '💼 Propostas',
     'coord.tab.contactos': '👥 Clientes',
     'coord.tab.prospeccion': '🎯 Prospecção',
+    'coord.tab.mapa': '🗺️ Mapa',
+    'coord.mapa.title': 'Mapa de alvos',
     'coord.tab.pedidos': '📦 Pedidos',
     'coord.tab.mensajes': '💬 Mensagens',
     'pedido.title': '📦 Pedir insumo',
@@ -3352,6 +3357,7 @@ function rerenderActiveContent() {
       else if (activeCoordTab === 'propuestas' && typeof renderCoordPropuestas === 'function') renderCoordPropuestas();
       else if (activeCoordTab === 'contactos') renderCoordContactos();
       else if (activeCoordTab === 'prospeccion') renderCoordProspeccion();
+      else if (activeCoordTab === 'mapa') renderCoordMapa();
     } else if (id === 'screen-ceo' && currentUser) {
       renderCEOCountryTabs();
       if (activeCEOTab === 'metricas') renderCEOMetricas();
@@ -6191,16 +6197,17 @@ function renderServiciosSubtabBar(active) {
 
 function setCoordTab(tab, skipRender) {
   if (tab === 'limpieza' && !esDireccion()) return;
-  // Blindaje: Ventas solo puede tener activa la tab Prospección, aunque se invoque setCoordTab a mano
-  // (consola/otro código) con cualquier otro valor — nunca debe llegar a ver cartera/servicios/finanzas.
-  if (tab !== 'prospeccion' && esVentas()) return;
+  if (tab === 'mapa' && !esVentas()) return;
+  // Blindaje: Ventas solo puede tener activas las tabs Prospección o Mapa, aunque se invoque setCoordTab
+  // a mano (consola/otro código) con cualquier otro valor — nunca debe ver cartera/servicios/finanzas.
+  if (tab !== 'prospeccion' && tab !== 'mapa' && esVentas()) return;
   activeCoordTab = tab;
   markUserActive();
   // Servicios/Relevamientos/Pruebas comparten UNA tab de arriba ('📋 Servicios') + un control
   // segmentado adentro; los 3 siguen siendo valores de tab internos, así que el top-tab 'servicios'
   // queda activo para cualquiera de los 3.
   const SERV_SUBTABS = ['servicios', 'relevamientos', 'pruebas'];
-  ['inicio', 'resumen', 'servicios', 'pruebas', 'relevamientos', 'propuestas', 'contactos', 'pedidos', 'comunicaciones', 'limpieza', 'prospeccion'].forEach(t => {
+  ['inicio', 'resumen', 'servicios', 'pruebas', 'relevamientos', 'propuestas', 'contactos', 'pedidos', 'comunicaciones', 'limpieza', 'prospeccion', 'mapa'].forEach(t => {
     const el = document.getElementById('ctab-' + t);
     if (el) el.classList.toggle('active', t === tab || (t === 'servicios' && SERV_SUBTABS.includes(tab)));
   });
@@ -6241,6 +6248,7 @@ function setCoordTab(tab, skipRender) {
   else if (tab === 'contactos') renderCoordContactos();
   else if (tab === 'pedidos') renderCoordPedidos();
   else if (tab === 'prospeccion') renderCoordProspeccion();
+  else if (tab === 'mapa') renderCoordMapa();
   else if (tab === 'limpieza') renderLimpieza();
   else renderComunicaciones();
 }
@@ -9419,6 +9427,10 @@ async function loadCoordinator() {
   // consistente: tab activo, toolbar, month-nav, view-toggle visible y el render.
   const limpiezaTab = document.getElementById('ctab-limpieza');
   if (limpiezaTab) limpiezaTab.style.display = esDireccion() ? '' : 'none';
+  // Tab 🗺️ Mapa: SOLO para Ventas (mapa de prospección embebido). NO va en el array de
+  // ocultar-para-Ventas de abajo; se muestra explícitamente solo si esVentas().
+  const mapaTab = document.getElementById('ctab-mapa');
+  if (mapaTab) mapaTab.style.display = esVentas() ? '' : 'none';
   // Rol 🧲 Ventas (spec 2026-07-02 B2): oculta TODA la tab bar salvo 🎯 Prospección y arranca ahí
   // directo — nunca ve Servicios/Propuestas/Clientes de cartera/Pedidos/Mensajes. Para Coordinador/
   // Dirección esto es un no-op (queda todo visible igual que antes).
@@ -12898,6 +12910,19 @@ const INTERES_OPTIONS = ['🏢 Fachada', '🪟 Vidrios', '☀️ Paneles solares
 // campo "Próximo contacto". Mismo espíritu que MANTENIMIENTO_DIAS más arriba.
 const PROSPECTO_SIGUIENTE_CONTACTO_DIAS = 7;
 let _coordAllProspectos = [];
+
+// Tab 🗺️ Mapa (solo Ventas): mapa de prospección "TOP 1000 objetivos" embebido como iframe
+// (sitio estático aparte en flyclean-mapa.vercel.app). Requiere frame-src en la CSP (vercel.json).
+// Se crea recién al abrir la tab (no penaliza el arranque). Encierro defensivo como renderLimpieza.
+function renderCoordMapa() {
+  if (!esVentas()) return;
+  const content = document.getElementById('coord-content');
+  if (!content) return;
+  content.innerHTML =
+    `<iframe src="https://flyclean-mapa.vercel.app" title="${t('coord.mapa.title')}" loading="lazy" `
+    + `style="width:100%;height:calc(100dvh - 150px);border:0;display:block" `
+    + `sandbox="allow-scripts allow-same-origin allow-popups"></iframe>`;
+}
 
 async function renderCoordProspeccion() {
   const content = document.getElementById('coord-content');
