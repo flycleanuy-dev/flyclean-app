@@ -2411,6 +2411,9 @@ const TRANSLATIONS = {
     'coord.cli.seccion.sinrespuesta': '😶 Sin respuesta',
     'coord.cli.seccion.rechazados': '❌ Rechazados',
     'coord.cli.mant.meses': 'hace {n} meses del último servicio',
+    'coord.cli.contactado': 'Contactado',
+    'coord.cli.recontactado': 'Recontactado — no reaparece por ahora',
+    'wa.msg.cliente': 'Hola{n}, te escribimos de FlyClean 🚁 ¿Coordinamos una limpieza de fachada, vidrios o paneles? Estamos a las órdenes.',
     'prosp.empty': 'Sin prospectos en este momento.',
     'prosp.error': 'Error al cargar prospección.',
     'prosp.section.descartados': '❌ Descartados',
@@ -3149,6 +3152,9 @@ const TRANSLATIONS = {
     'coord.cli.seccion.sinrespuesta': '😶 Sem resposta',
     'coord.cli.seccion.rechazados': '❌ Recusados',
     'coord.cli.mant.meses': 'há {n} meses do último serviço',
+    'coord.cli.contactado': 'Contatado',
+    'coord.cli.recontactado': 'Recontatado — não reaparece por ora',
+    'wa.msg.cliente': 'Olá{n}, falamos da FlyClean 🚁 Vamos combinar uma limpeza de fachada, vidros ou painéis? Estamos à disposição.',
     'prosp.empty': 'Nenhum prospecto no momento.',
     'prosp.error': 'Erro ao carregar prospecção.',
     'prosp.section.descartados': '❌ Descartados',
@@ -6227,7 +6233,7 @@ function setCoordTab(tab, skipRender) {
   // Blindaje: Ventas solo puede tener activas Prospección, Mapa o Propuestas (ver+seguimiento,
   // decisión Diego 2026-07-05), aunque se invoque setCoordTab a mano (consola/otro código) con
   // cualquier otro valor — nunca debe ver cartera/servicios/finanzas.
-  if (!['prospeccion', 'mapa', 'propuestas'].includes(tab) && esVentas()) return;
+  if (!['prospeccion', 'mapa', 'propuestas', 'contactos'].includes(tab) && esVentas()) return;
   activeCoordTab = tab;
   markUserActive();
   // Servicios/Relevamientos/Pruebas comparten UNA tab de arriba ('📋 Servicios') + un control
@@ -9497,7 +9503,7 @@ async function loadCoordinator() {
   // 🗺️ Mapa y 💼 Propuestas (ver+seguimiento — 'propuestas' ya NO está en este array) y arranca en
   // Prospección — nunca ve Servicios/Clientes de cartera/Pedidos/Mensajes. Para Coordinador/
   // Dirección esto es un no-op (queda todo visible igual que antes).
-  ['inicio', 'resumen', 'servicios', 'pruebas', 'relevamientos', 'contactos', 'pedidos', 'comunicaciones'].forEach(tb => {
+  ['inicio', 'resumen', 'servicios', 'pruebas', 'relevamientos', 'pedidos', 'comunicaciones'].forEach(tb => {
     const el = document.getElementById('ctab-' + tb);
     if (el) el.style.display = esVentas() ? 'none' : '';
   });
@@ -12930,7 +12936,11 @@ function computeClienteSecciones(contacts, propuestas, servicios) {
       const diasDesde = ultimaFecha ? Math.floor((hoy - new Date(ultimaFecha).getTime()) / 86400000) : null;
       const hayMasNuevo = svcsCliente.some(s => svcFecha(s) > ultimaFecha);
       const propAbierta = propsCliente.some(p => !PROP_ESTADOS_TERMINALES.includes(propEstado(p)));
-      if (diasDesde != null && diasDesde >= MANTENIMIENTO_DIAS && !hayMasNuevo && !propAbierta) { c._mantMeses = Math.round(diasDesde / 30.4); mantenimiento.push(c); return; }
+      // Recontactado hace poco (Ventas marcó "📞 Contactado" → 'Próximo contacto' futuro): sale de
+      // "para recontactar" ese período para no pisarse el equipo; vuelve solo cuando la fecha vence.
+      const proxC = (c.properties?.['Próximo contacto']?.date?.start || '').split('T')[0];
+      const recontactadoReciente = proxC && proxC > new Date().toISOString().split('T')[0];
+      if (diasDesde != null && diasDesde >= MANTENIMIENTO_DIAS && !hayMasNuevo && !propAbierta && !recontactadoReciente) { c._mantMeses = Math.round(diasDesde / 30.4); mantenimiento.push(c); return; }
       activa.push(c);
       return;
     }
@@ -13332,7 +13342,9 @@ async function renderClientesView(containerId) {
 }
 
 async function renderCoordContactos() {
-  if (esVentas()) return; // blindaje: Ventas no ve la cartera activa de Clientes, solo Prospección
+  // Ventas VE la cartera desde 2026-07-06 (consulta + recontactar): datos de contacto y "para
+  // recontactar" (mantenimiento), SIN la plata (la ficha ya es read-only sin 360 para Ventas). NO crea
+  // ni edita clientes (el coord agrega manual). Botones de recontactar en la card (solo Ventas).
   _contactsContainerId = 'coord-content';
   const content = document.getElementById('coord-content');
   content.innerHTML = '<div style="text-align:center;padding:40px 0"><div class="spinner" style="margin:0 auto"></div></div>';
@@ -13344,7 +13356,10 @@ async function renderCoordContactos() {
     const data = await callNotion(`databases/${CONTACTOS_DB_ID}/query`, 'POST', queryBody);
     if (activeCoordTab !== myTab) return;
     _coordAllContacts = (data.results || []).filter(c => !esArchivado(c));
-    await loadClienteSecciones(); // best-effort: si falla, renderContactList cae a la lista plana
+    // Ventas NO lee servicios (encierro) → no puede computar las secciones (mantenimiento cruza con
+    // servicios). Salta el fetch (evita un 403) y cae a la lista plana con búsqueda; el destacado de
+    // "para recontactar" se computa solo para coord/CEO. (Habilitarlo a Ventas = darle lectura de servicios.)
+    if (!esVentas()) await loadClienteSecciones(); // best-effort: si falla, renderContactList cae a la lista plana
     if (activeCoordTab !== myTab) return; // el tab pudo cambiar durante el await de arriba
     renderContactList(_coordAllContacts);
   } catch (e) {
@@ -13364,7 +13379,7 @@ function renderContactList(contacts, keepLimit) {
     return nombre.includes(searchVal) || ciudad.includes(searchVal);
   };
   const searchWrap = `<div class="contact-search-wrap"><input class="contact-search" id="contact-search-input" type="text" placeholder="${t('coord.search.contacts.placeholder')}" oninput="filterContacts(this.value)" value="${searchVal}"/></div>`;
-  const newBtn = `<div style="padding:10px 16px 0"><button class="nueva-prop-btn" onclick="openNewContactSheet()">${t('coord.new.contact')}</button></div>`;
+  const newBtn = esVentas() ? '' : `<div style="padding:10px 16px 0"><button class="nueva-prop-btn" onclick="openNewContactSheet()">${t('coord.new.contact')}</button></div>`;
   const cargarMasBtn = remaining => `<div class="cargar-mas-wrap"><button class="cargar-mas-btn" onclick="cargarMasContactos()">↓ ${t('coord.cargar.mas').replace('{n}', Math.min(COORD_PAGE_SIZE, remaining))} · ${t('coord.restantes').replace('{n}', remaining)}</button></div>`;
 
   // Buscando (o sin datos para clasificar en secciones): lista plana de siempre, sin agrupar —
@@ -13417,6 +13432,38 @@ function filterContacts(val) {
   renderContactList(_coordAllContacts, true);
 }
 
+// Rol Ventas — WhatsApp a un cliente de la cartera (2026-07-06): solo ABRE el canal (no marca nada).
+function abrirWhatsAppCliente(id) {
+  const c = (_coordAllContacts || []).find(x => x.id === id);
+  if (!c) return;
+  const props = c.properties || {};
+  const tel = props['Teléfono / WhatsApp']?.phone_number || '';
+  const pais = props['País']?.select?.name || '';
+  const persona = props['Interlocutor']?.rich_text?.[0]?.plain_text || '';
+  abrirWhatsApp(tel, pais, t('wa.msg.cliente').replace('{n}', persona ? ' ' + persona : ''));
+}
+
+// Rol Ventas — "📞 Contactado" en un cliente de la cartera: MANUAL y separado del WhatsApp (se marca solo
+// cuando de verdad se habló/envió). Escribe 'Próximo contacto' = hoy + MANT_SNOOZE_DIAS → el cliente SALE
+// de "para recontactar" ese período (computeClienteSecciones lo respeta) y el equipo ve que ya fue
+// contactado (no se pisan). Optimista: muta en memoria + re-clasifica; revierte si el write falla.
+const MANT_SNOOZE_DIAS = 60;
+async function marcarClienteContactado(id) {
+  const btn = document.getElementById('cli-cont-btn-' + id);
+  if (btn) { if (btn.disabled) return; btn.disabled = true; btn.textContent = '⏳'; }
+  try {
+    const prox = new Date(Date.now() + MANT_SNOOZE_DIAS * 86400000).toISOString().split('T')[0];
+    await callNotion('pages/' + id, 'PATCH', { properties: { 'Próximo contacto': { date: { start: prox } } } });
+    if (typeof syncAfterWrite === 'function') { try { syncAfterWrite(id, 'clientes'); } catch (_) {} }
+    const c = (_coordAllContacts || []).find(x => x.id === id);
+    if (c) { c.properties = c.properties || {}; c.properties['Próximo contacto'] = { date: { start: prox } }; }
+    renderContactList(_coordAllContacts, true); // re-render optimista (muestra "✓ recontactado")
+  } catch (e) {
+    if (btn) { btn.disabled = false; btn.textContent = '📞 ' + t('coord.cli.contactado'); }
+    alert(t('sheet.alert.save.error2') + e.message);
+  }
+}
+
 function coordContactCard(c) {
   const props = c.properties || {};
   const nombreRaw = props['Nombre / Empresa']?.title?.[0]?.plain_text;
@@ -13435,6 +13482,15 @@ function coordContactCard(c) {
   const email = props['Email']?.email || '';
   const servicios = (props['Servicio de interés']?.multi_select || []).map(s => s.name).join(' · ');
   const estadoClass = estado.includes('activo') ? 'activo' : estado.includes('Inactivo') ? 'inactivo' : '';
+  const proxContacto = (props['Próximo contacto']?.date?.start || '').split('T')[0];
+  const recontactadoReciente = proxContacto && proxContacto > new Date().toISOString().split('T')[0];
+  // Botones de recontactar SOLO para Ventas (es su trabajo). 💬 solo ABRE el canal; 📞 Contactado es
+  // MANUAL y separado (se marca cuando de verdad se habló/envió — no al abrir WhatsApp). stopPropagation
+  // para no abrir la ficha al tocarlos.
+  const botonesVentas = (esVentas() && tel) ? `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">
+      <button class="estado-btn" style="color:#25D366;border-color:#25D366" onclick="event.stopPropagation();abrirWhatsAppCliente('${esc(c.id)}')">💬 WhatsApp</button>
+      <button class="estado-btn" id="cli-cont-btn-${esc(c.id)}" onclick="event.stopPropagation();marcarClienteContactado('${esc(c.id)}')">📞 ${t('coord.cli.contactado')}</button>
+    </div>` : '';
   return `<div class="contact-card" onclick="openContactSheet('${esc(c.id)}')">
     <div class="contact-name">${nombreHTML}</div>
     <div class="contact-badges">
@@ -13446,6 +13502,8 @@ function coordContactCard(c) {
     ${tel ? `<div class="contact-detail">📞 ${esc(tel)}</div>` : ''}
     ${email ? `<div class="contact-detail">✉️ ${esc(email)}</div>` : ''}
     ${Number.isFinite(c._mantMeses) ? `<div class="contact-detail" style="color:var(--red);font-weight:600">🔴 ${t('coord.cli.mant.meses').replace('{n}', c._mantMeses)}</div>` : ''}
+    ${recontactadoReciente ? `<div class="contact-detail" style="color:var(--green);font-weight:600">✓ ${t('coord.cli.recontactado')}</div>` : ''}
+    ${botonesVentas}
   </div>`;
 }
 
@@ -14472,7 +14530,8 @@ async function loadAlerts(role, bannerId) {
 
     // Clientes para ofrecer mantenimiento (9+ meses sin trabajo, spec 2026-07-02) — coord + CEO.
     // Reusa el mismo cruce clientes×propuestas×servicios de la tab Clientes (computeClienteSecciones);
-    // fetch propio (no depende de que la tab Clientes ya haya cargado _coordAllContacts).
+    // fetch propio (no depende de que la tab Clientes ya haya cargado _coordAllContacts). Ventas NO entra:
+    // el cruce lee servicios, que Ventas no puede (encierro) → quedaría un 403 silencioso. (Ver nota en renderCoordContactos.)
     if (isCoord || isCEO) {
       // Try/catch propio: es una alerta informativa, nunca debe tumbar las que vienen después
       // (Solicitud de compras, Documentos) si algo de este cruce falla.
@@ -14485,7 +14544,7 @@ async function loadAlerts(role, bannerId) {
           contactos = (contactos || []).filter(c => !esArchivado(c));
           const secciones = computeClienteSecciones(contactos, propuestas, servicios);
           if (secciones && secciones.mantenimiento.length) {
-            const cf = isCoord ? getCountryFilter() : getCEOFilter();
+            const cf = isCEO ? getCEOFilter() : getCountryFilter();
             const notionVal = cf?.select?.equals || null;
             const mant = notionVal ? secciones.mantenimiento.filter(c => (c.properties?.['País']?.select?.name || '') === notionVal) : secciones.mantenimiento;
             if (mant.length) {

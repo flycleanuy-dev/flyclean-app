@@ -139,7 +139,11 @@
 // "Ver fotos" que agrandaba la card. Carga lazy + chica; tocarla abre la foto; "+N" si hay más.
 // v131: la miniatura va a la DERECHA (order:2) — con solo algunas cards con foto, así el texto queda
 // alineado entre cards con y sin foto (el coord escanea por nombre/estado; la foto es complemento).
-const CACHE = 'flyclean-v131';
+// v132: rol Ventas ve la tab 👥 Clientes (consulta + recontactar): ve la cartera (datos, sin plata, ficha
+// read-only), botón 💬 WhatsApp (solo abre) + 📞 Contactado MANUAL y separado (escribe 'Próximo contacto'
+// = hoy+60d → el equipo ve que ya se contactó). NO crea/edita. El destacado de "para recontactar"
+// (mantenimiento) NO se le muestra aún porque cruza con servicios (que Ventas no lee) — pendiente decisión.
+const CACHE = 'flyclean-v132';
 const SHELL = [
   '/',
   '/index.html',
