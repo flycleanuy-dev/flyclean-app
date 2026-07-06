@@ -135,9 +135,11 @@
 // Propuestas, Prospectos y Clientes con menos padding/aire; coord junta 📍lugar+👤operario en 1 línea y
 // quita "toca para editar" de propuestas; se QUITA la tira de días (week-strip, queda el ‹ mes ›); la
 // fecha pasa a ENCABEZADO de grupo por día (groupServicesByDay: 📍 Hoy·8 jul / 9 jul…) en operario y coord.
-// v130: la foto del servicio pasa a MINIATURA a la izquierda de la card del coord (coordCardThumb) en vez
-// del desplegable "Ver fotos" que agrandaba la card. Carga lazy + chica; tocarla abre la foto; "+N" si hay más.
-const CACHE = 'flyclean-v130';
+// v130: la foto del servicio pasa a MINIATURA en la card del coord (coordCardThumb) en vez del desplegable
+// "Ver fotos" que agrandaba la card. Carga lazy + chica; tocarla abre la foto; "+N" si hay más.
+// v131: la miniatura va a la DERECHA (order:2) — con solo algunas cards con foto, así el texto queda
+// alineado entre cards con y sin foto (el coord escanea por nombre/estado; la foto es complemento).
+const CACHE = 'flyclean-v131';
 const SHELL = [
   '/',
   '/index.html',

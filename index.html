@@ -589,11 +589,12 @@ body::before {
   .coord-service-meta { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
   .coord-tag { font-size: 11px; color: var(--text3); background: var(--bg); padding: 2px 7px; border-radius: 5px; }
   .coord-ops { font-size: 11px; color: var(--text2); margin-top: 4px; }
-  /* Foto del servicio como MINIATURA a la izquierda (no agranda la card): la card se vuelve flex
-     horizontal [thumb | contenido]; la miniatura se estira al alto del contenido con object-fit:cover. */
+  /* Foto del servicio como MINIATURA a la DERECHA (no agranda la card): la card se vuelve flex
+     horizontal [contenido | thumb] (el thumb va con order:2). El nombre/estado queda alineado al mismo
+     margen entre cards con y sin foto (el coord escanea por texto; la foto es complemento). object-fit:cover. */
   .coord-service-card.has-thumb { display: flex; gap: 10px; align-items: stretch; }
   .coord-card-body { flex: 1 1 auto; min-width: 0; }
-  .coord-card-thumb { flex: 0 0 auto; width: 54px; min-height: 54px; align-self: stretch; position: relative; border-radius: 8px; overflow: hidden; border: 1px solid var(--border); background: var(--bg); }
+  .coord-card-thumb { order: 2; flex: 0 0 auto; width: 54px; min-height: 54px; align-self: stretch; position: relative; border-radius: 8px; overflow: hidden; border: 1px solid var(--border); background: var(--bg); }
   .coord-card-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
   .coord-card-thumb .thumb-more { position: absolute; bottom: 3px; right: 3px; background: rgba(0,0,0,0.68); color: #fff; font-size: 10px; font-weight: 700; padding: 1px 5px; border-radius: 8px; }
   /* Tablero (Kanban) de servicios — Tarea 1 (vista base, sin arrastre) */
@@ -10122,8 +10123,9 @@ function renderPhotoGallery(props) {
     `</div>`;
 }
 
-// Miniatura de la primera foto a la IZQUIERDA de la card (2026-07-06, pedido Diego): en vez del
+// Miniatura de la primera foto a la DERECHA de la card (2026-07-06, pedido Diego): en vez del
 // desplegable "Ver fotos" que agrandaba la card, una miniatura del alto de la card (NO la agranda).
+// A la derecha (order:2 en CSS) para que el texto de todas las cards quede alineado (con y sin foto).
 // Carga lazy (solo las visibles) y chica → no enlentece la lista. Tocarla abre la foto en pestaña
 // nueva; "+N" si hay más (el resto se ve al abrir el servicio). Reemplaza renderPhotoGallery en las cards.
 function coordCardThumb(props) {
