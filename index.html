@@ -589,6 +589,13 @@ body::before {
   .coord-service-meta { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
   .coord-tag { font-size: 11px; color: var(--text3); background: var(--bg); padding: 2px 7px; border-radius: 5px; }
   .coord-ops { font-size: 11px; color: var(--text2); margin-top: 4px; }
+  /* Foto del servicio como MINIATURA a la izquierda (no agranda la card): la card se vuelve flex
+     horizontal [thumb | contenido]; la miniatura se estira al alto del contenido con object-fit:cover. */
+  .coord-service-card.has-thumb { display: flex; gap: 10px; align-items: stretch; }
+  .coord-card-body { flex: 1 1 auto; min-width: 0; }
+  .coord-card-thumb { flex: 0 0 auto; width: 54px; min-height: 54px; align-self: stretch; position: relative; border-radius: 8px; overflow: hidden; border: 1px solid var(--border); background: var(--bg); }
+  .coord-card-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .coord-card-thumb .thumb-more { position: absolute; bottom: 3px; right: 3px; background: rgba(0,0,0,0.68); color: #fff; font-size: 10px; font-weight: 700; padding: 1px 5px; border-radius: 8px; }
   /* Tablero (Kanban) de servicios — Tarea 1 (vista base, sin arrastre) */
   .coord-view-toggle { display: flex; gap: 6px; padding: 8px 16px 4px; background: var(--bg); }
   .coord-view-toggle button { flex: 1; padding: 7px 10px; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text2); font-size: 12px; font-weight: 600; cursor: pointer; font-family: 'Exo 2', sans-serif; transition: all 0.15s; }
@@ -10115,6 +10122,19 @@ function renderPhotoGallery(props) {
     `</div>`;
 }
 
+// Miniatura de la primera foto a la IZQUIERDA de la card (2026-07-06, pedido Diego): en vez del
+// desplegable "Ver fotos" que agrandaba la card, una miniatura del alto de la card (NO la agranda).
+// Carga lazy (solo las visibles) y chica → no enlentece la lista. Tocarla abre la foto en pestaña
+// nueva; "+N" si hay más (el resto se ve al abrir el servicio). Reemplaza renderPhotoGallery en las cards.
+function coordCardThumb(props) {
+  const files = extractServiceFiles(props);
+  const all = [...files.pre, ...files.post, ...files.relevamiento];
+  if (!all.length) return '';
+  const first = '/api/img?u=' + encodeURIComponent(all[0]);
+  const more = all.length > 1 ? `<span class="thumb-more">+${all.length - 1}</span>` : '';
+  return `<a class="coord-card-thumb" href="${first}" target="_blank" rel="noopener" onclick="event.stopPropagation()"><img loading="lazy" src="${first}" alt="">${more}</a>`;
+}
+
 function togglePhotos(btn, ev) {
   ev.stopPropagation(); ev.preventDefault();
   const g = btn.nextElementSibling;
@@ -10190,11 +10210,14 @@ function coordServiceCard(s) {
   const estadoDisplay = (esJornada && jornadaN != null && estado.includes('Completado')) ? t('estado.jornada.completada').replace('{n}', jornadaN) : estado;
   // Badge "Servicio completo": el trabajo entero (grupo de jornadas) llegó al 100% (calculado agrupando).
   const jobDone = jobCompleto(s, _coordAllServices);
-  return `<div class="coord-service-card" style="cursor:pointer" onclick="openEditSheet('${esc(s.id)}')">
+  const thumb = coordCardThumb(props);
+  return `<div class="coord-service-card${thumb ? ' has-thumb' : ''}" style="cursor:pointer" onclick="openEditSheet('${esc(s.id)}')">
+    ${thumb}
+    <div class="coord-card-body">
     <div class="coord-service-name">${tipoChip}${esPrueba ? `<span class="service-prueba-badge">${t('prueba.badge')}</span>` : ''}${nombreHTML}${esJornada && jornadaN != null ? ` <span style="color:var(--purple);font-size:12px">J${jornadaN}</span>` : ''}</div>
     <div class="coord-service-meta"><span class="service-estado ${estadoClass}">${esc(estadoDisplay)}</span>${fueraDeFecha ? `<span class="coord-tag" style="background:var(--amber-dark,#7c5300);color:var(--amber,#f59e0b)">${t('badge.fueradefecha').replace('{d}', fPlanFmt)}</span>` : ''}${(esJornada && typeof pctAvance === 'number') ? `<span class="coord-tag">${Math.round(pctAvance)}%</span>` : ''}${jobDone ? `<span class="coord-tag" style="background:var(--green-dark,#14532d);color:var(--green,#22c55e)">${t('badge.servicio.completo')}</span>` : ''}${horaFmt ? `<span class="coord-tag">🕐 ${esc(horaFmt)}</span>` : ''}${tipo ? `<span class="coord-tag">${esc(tipo)}</span>` : ''}${(() => { const c = servicioContinua(s); return c.continua ? `<span class="coord-tag" style="background:var(--amber-dark,#7c5300);color:var(--amber,#f59e0b)">${t('badge.continua').replace('{h}', c.hechos).replace('{t}', c.total)}</span>` : ''; })()}</div>
     <div class="coord-ops">${lugar ? `📍 ${esc(lugar)} · ` : ''}👤 ${ops}</div>
-    ${renderPhotoGallery(props)}
+    </div>
   </div>`;
 }
 
