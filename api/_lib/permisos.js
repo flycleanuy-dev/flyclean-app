@@ -65,7 +65,9 @@
 //       solo-lectura aplica a CEO, no a Finanzas; dudoso pero incluido).
 //
 // 🧲 Ventas: NO está en esta matriz. Su backstop dedicado en api/notion.js (esVentas) corta primero
-//   y gobierna TODO su acceso (solo Clientes/Contactos, incluido pages/{id}). No tocar.
+//   y gobierna TODO su acceso, incluido pages/{id}. Desde 2026-07-05 (ver+seguimiento): Clientes/
+//   Contactos (como siempre) + LEER Propuestas + PATCH de propuestas restringido a la property
+//   'Última interacción'. En /api/db: resources 'clientes' y 'propuestas'. No tocar acá.
 //
 // search: el cliente NUNCA llama search directo (grep: cero callNotion('search'...) en index.html).
 //   El fallback multi-data-source de la DB Servicios usa search SERVER-SIDE dentro del propio proxy

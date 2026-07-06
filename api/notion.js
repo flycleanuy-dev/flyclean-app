@@ -26,8 +26,11 @@ const ALLOWED_ENDPOINTS = [
 const ALLOWED_METHODS = ['GET', 'POST', 'PATCH'];
 
 // Backstop server-side del rol Ventas (ver docs/superpowers/specs/2026-07-03-backstop-ventas-serverside-design.md):
-// Ventas solo puede tocar la DB de Clientes/Contactos. Ids de Notion vienen con o sin guiones → normalizar.
+// Ventas puede tocar la DB de Clientes/Contactos y — desde 2026-07-05 (ver+seguimiento) — LEER la DB
+// de Propuestas + PATCHear en ellas SOLO 'Última interacción' (el botón 📞 Contactado). Nada más.
+// Ids de Notion vienen con o sin guiones → normalizar.
 const CONTACTOS_NORM = '250115612de74e0582366549bbe5e389';
+const PROPUESTAS_NORM = '2c0a4257f4294941b994dfebc1098633';
 const norm = s => String(s || '').replace(/-/g, '').toLowerCase();
 
 // Margen amplio para que los reintentos no choquen con el límite de duración de la función.
@@ -117,22 +120,38 @@ export default async function handler(req, res) {
     const mQuery = endpointNorm.match(/^databases\/([a-f0-9-]{32,36})(\/query)?$/);
     const mPage = endpointNorm.match(/^pages\/([a-f0-9-]{32,36})$/);
     if (mQuery) {
-      if (norm(mQuery[1]) !== CONTACTOS_NORM) return res.status(403).json({ error: 'forbidden: rol Ventas solo accede a clientes' });
+      if (![CONTACTOS_NORM, PROPUESTAS_NORM].includes(norm(mQuery[1]))) return res.status(403).json({ error: 'forbidden: rol Ventas solo accede a clientes y propuestas' });
     } else if (endpointNorm === 'pages') {
       // crear página: solo Contactos por database_id, y SIN data_source_id (evita smuggling a otra base)
       const p = body?.parent || {};
       if (norm(p.database_id) !== CONTACTOS_NORM || p.data_source_id) return res.status(403).json({ error: 'forbidden: rol Ventas solo crea clientes' });
     } else if (mPage) {
-      // leer/editar una página por id: verificar server-side que ES un contacto (su parent es la base
-      // Contactos). Sin esto, Ventas podía cosechar ids de servicios/propuestas/ingresos desde la
-      // relación del contacto y leerlos/editarlos por pages/{id} (hallazgo del review adversarial).
+      // leer/editar una página por id: verificar server-side el parent real de la página. Sin esto,
+      // Ventas podía cosechar ids de servicios/ingresos desde relaciones y leerlos/editarlos por
+      // pages/{id} (hallazgo del review adversarial). Contactos: GET/PATCH como siempre.
+      // Propuestas (2026-07-05): GET libre; PATCH SOLO si el body escribe únicamente la property
+      // 'Última interacción' (marcarPropContactada) — cualquier otra key (properties ajenas,
+      // in_trash, archived, icon...) se rechaza.
       try {
         const metaRes = await notionFetch(`https://api.notion.com/v1/pages/${mPage[1]}`, {
           method: 'GET',
           headers: { Authorization: `Bearer ${token}`, 'Notion-Version': '2022-06-28' },
         });
         const meta = await metaRes.json();
-        if (norm(meta?.parent?.database_id) !== CONTACTOS_NORM) return res.status(403).json({ error: 'forbidden: rol Ventas solo clientes' });
+        const parentNorm = norm(meta?.parent?.database_id);
+        if (parentNorm === CONTACTOS_NORM) {
+          // ok — comportamiento original
+        } else if (parentNorm === PROPUESTAS_NORM) {
+          if (httpMethod === 'PATCH') {
+            const topKeys = Object.keys(body || {});
+            const propKeys = Object.keys(body?.properties || {});
+            const soloSeguimiento = topKeys.length === 1 && topKeys[0] === 'properties'
+              && propKeys.length === 1 && propKeys[0] === 'Última interacción';
+            if (!soloSeguimiento) return res.status(403).json({ error: 'forbidden: rol Ventas solo registra seguimiento en propuestas' });
+          }
+        } else {
+          return res.status(403).json({ error: 'forbidden: rol Ventas solo clientes y propuestas' });
+        }
       } catch (e) { return res.status(403).json({ error: 'forbidden' }); }
     } else if (endpointNorm === 'search') {
       return res.status(403).json({ error: 'forbidden: rol Ventas' });

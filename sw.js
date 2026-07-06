@@ -122,7 +122,12 @@
 // v125: Tipo de servicio MÚLTIPLE — la property Notion pasó a multi_select (un trabajo puede ser Fachada + Vidrios + Paneles, cualquier combinación). Botones toggle en el sheet edit del coord y en "＋ Nuevo trabajo"; lector único tipoServicioList/Str (defensivo con el select legacy) en cards/operario/CEO/PDF/historial; las jornadas heredan todos los tipos; el PDF muestra "Limpieza de fachada + Limpieza de vidrios"; espejo notion-map defensivo.
 // v126: tab 🗺️ Mapa embebido en el rol Ventas — iframe al mapa de prospección "TOP 1000 objetivos"
 // (flyclean-mapa.vercel.app, sitio estático aparte). Solo Ventas ve/activa la tab; CSP con frame-src al dominio.
-const CACHE = 'flyclean-v126';
+// v127: Ventas VE propuestas (ver+seguimiento, decisión Diego 05/07) — tab 💼 país-scopeada + "A contactar
+// hoy" + 📞 Contactado; sheet solo-lectura (sin guardar/eliminar/crear); backstops ampliados (notion.js:
+// query Propuestas + PATCH solo 'Última interacción'; db.js: resource propuestas). + WhatsApp manual asistido
+// (C-Fase 1): botón 💬 wa.me con mensaje pre-armado es/pt en "A contactar hoy", sheet de propuesta y card
+// de prospecto (telToWa normaliza a E.164 por país del cliente). El bot automático es fase 2 (diferida).
+const CACHE = 'flyclean-v127';
 const SHELL = [
   '/',
   '/index.html',

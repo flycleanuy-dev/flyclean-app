@@ -2046,6 +2046,10 @@ const TRANSLATIONS = {
     'coord.tab.prospeccion': '🎯 Prospección',
     'coord.tab.mapa': '🗺️ Mapa',
     'coord.mapa.title': 'Mapa de objetivos',
+    'wa.btn': 'Abrir WhatsApp',
+    'wa.sin.tel': 'Este cliente no tiene teléfono cargado en su ficha',
+    'wa.msg.prop': 'Hola{n}, te escribimos de FlyClean por el presupuesto "{prop}". ¿Pudiste verlo? Cualquier duda estamos a las órdenes 🚁',
+    'wa.msg.prospecto': 'Hola{n}, somos FlyClean: limpieza de fachadas, vidrios y paneles con drones. ¿Podemos contarte cómo trabajamos? 🚁',
     'coord.tab.pedidos': '📦 Pedidos',
     'coord.tab.mensajes': '💬 Mensajes',
     'pedido.title': '📦 Pedir insumo',
@@ -2778,6 +2782,10 @@ const TRANSLATIONS = {
     'coord.tab.prospeccion': '🎯 Prospecção',
     'coord.tab.mapa': '🗺️ Mapa',
     'coord.mapa.title': 'Mapa de alvos',
+    'wa.btn': 'Abrir WhatsApp',
+    'wa.sin.tel': 'Este cliente não tem telefone cadastrado na ficha',
+    'wa.msg.prop': 'Olá{n}, falamos da FlyClean sobre o orçamento "{prop}". Conseguiu dar uma olhada? Qualquer dúvida estamos à disposição 🚁',
+    'wa.msg.prospecto': 'Olá{n}, somos a FlyClean: limpeza de fachadas, vidros e painéis com drones. Podemos te contar como trabalhamos? 🚁',
     'coord.tab.pedidos': '📦 Pedidos',
     'coord.tab.mensajes': '💬 Mensagens',
     'pedido.title': '📦 Pedir insumo',
@@ -6198,9 +6206,10 @@ function renderServiciosSubtabBar(active) {
 function setCoordTab(tab, skipRender) {
   if (tab === 'limpieza' && !esDireccion()) return;
   if (tab === 'mapa' && !esVentas()) return;
-  // Blindaje: Ventas solo puede tener activas las tabs Prospección o Mapa, aunque se invoque setCoordTab
-  // a mano (consola/otro código) con cualquier otro valor — nunca debe ver cartera/servicios/finanzas.
-  if (tab !== 'prospeccion' && tab !== 'mapa' && esVentas()) return;
+  // Blindaje: Ventas solo puede tener activas Prospección, Mapa o Propuestas (ver+seguimiento,
+  // decisión Diego 2026-07-05), aunque se invoque setCoordTab a mano (consola/otro código) con
+  // cualquier otro valor — nunca debe ver cartera/servicios/finanzas.
+  if (!['prospeccion', 'mapa', 'propuestas'].includes(tab) && esVentas()) return;
   activeCoordTab = tab;
   markUserActive();
   // Servicios/Relevamientos/Pruebas comparten UNA tab de arriba ('📋 Servicios') + un control
@@ -9431,10 +9440,11 @@ async function loadCoordinator() {
   // ocultar-para-Ventas de abajo; se muestra explícitamente solo si esVentas().
   const mapaTab = document.getElementById('ctab-mapa');
   if (mapaTab) mapaTab.style.display = esVentas() ? '' : 'none';
-  // Rol 🧲 Ventas (spec 2026-07-02 B2): oculta TODA la tab bar salvo 🎯 Prospección y arranca ahí
-  // directo — nunca ve Servicios/Propuestas/Clientes de cartera/Pedidos/Mensajes. Para Coordinador/
+  // Rol 🧲 Ventas (spec 2026-07-02 B2 + apertura 2026-07-05): oculta la tab bar salvo 🎯 Prospección,
+  // 🗺️ Mapa y 💼 Propuestas (ver+seguimiento — 'propuestas' ya NO está en este array) y arranca en
+  // Prospección — nunca ve Servicios/Clientes de cartera/Pedidos/Mensajes. Para Coordinador/
   // Dirección esto es un no-op (queda todo visible igual que antes).
-  ['inicio', 'resumen', 'servicios', 'pruebas', 'relevamientos', 'propuestas', 'contactos', 'pedidos', 'comunicaciones'].forEach(tb => {
+  ['inicio', 'resumen', 'servicios', 'pruebas', 'relevamientos', 'contactos', 'pedidos', 'comunicaciones'].forEach(tb => {
     const el = document.getElementById('ctab-' + tb);
     if (el) el.style.display = esVentas() ? 'none' : '';
   });
@@ -12189,6 +12199,7 @@ function openPropSheet(pageId) {
 
   document.getElementById('prop-sheet-body').innerHTML =
     propClienteSectionHTML() +
+    `<div class="edit-section" style="padding-bottom:0"><button class="estado-btn" data-wa-btn="1" style="width:100%;color:#25D366;border-color:#25D366" onclick="abrirWhatsAppProp('${pageId}')">💬 ${t('wa.btn')}</button></div>` +
     btnGroup(t('sheet.prop.section.estado'), 'estado', PIPELINE) +
     btnGroup(t('sheet.prop.section.pais'), 'pais', PAISES) +
     btnGroup(t('sheet.prop.section.tipo'), 'tipo', TIPOS) +
@@ -12223,20 +12234,43 @@ function openPropSheet(pageId) {
   // Los botones aparecen/desaparecen según el estado pipeline (reactivo a cambios dentro del sheet)
   updateCreateSvcBtnVisibility();
 
+  // Rol 🧲 Ventas — propuestas en modo VER + SEGUIMIENTO (decisión Diego 2026-07-05): lee todo y
+  // puede abrir WhatsApp (data-wa-btn queda activo), pero NO edita campos ni crea/elimina. Mismo
+  // patrón soloLectura que la ficha de contacto (openContactSheet). El backstop del proxy además
+  // solo le acepta PATCH de 'Última interacción' — esto es la capa UI.
+  const propSoloLectura = esVentas();
+  if (propSoloLectura) {
+    const bodyEl = document.getElementById('prop-sheet-body');
+    bodyEl.querySelectorAll('input, select, textarea').forEach(el => { el.disabled = true; });
+    bodyEl.querySelectorAll('.estado-btn').forEach(el => {
+      if (el.dataset.waBtn) return; // el botón 💬 WhatsApp es acción de seguimiento, no edición
+      el.style.pointerEvents = 'none'; el.style.opacity = '0.6';
+    });
+    // Sin selector de cartera (no cargar todos los clientes como <option> para Ventas)
+    const cliSel = document.getElementById('prop-cliente-select');
+    const cliSec = cliSel && cliSel.closest('.edit-section');
+    if (cliSec) cliSec.style.display = 'none';
+    ['create-relev-section', 'create-prueba-section', 'create-svc-section', 'prop-ubicacion-override-box'].forEach(sid => {
+      const s = document.getElementById(sid); if (s) s.style.display = 'none';
+    });
+  }
+
   const btn = document.getElementById('prop-save-btn');
   btn.textContent = t('btn.save.notion');
   btn.disabled = false;
+  btn.style.display = propSoloLectura ? 'none' : '';
   const delPropBtn = document.getElementById('delete-prop-btn');
   if (delPropBtn) {
-    delPropBtn.style.display = '';
+    delPropBtn.style.display = propSoloLectura ? 'none' : '';
     delPropBtn.textContent = '🗑️ ' + t('sheet.prop.delete');
     delPropBtn.disabled = false;
   }
   document.getElementById('prop-overlay').classList.add('open');
-  loadPropContactos();
+  if (!propSoloLectura) loadPropContactos();
 }
 
 async function deletePropuesta() {
+  if (esVentas()) return; // Ventas: solo lectura + seguimiento — nunca elimina
   if (!editingProp) return;
   const props = editingProp.properties || {};
   const nombre = props['Nombre de propuesta']?.title?.[0]?.plain_text || t('common.sinnombre');
@@ -12686,6 +12720,7 @@ async function promoteClienteIfAceptada(clienteId, estadoPipeline) {
 }
 
 async function savePropEdit() {
+  if (esVentas()) return; // Ventas: solo lectura + seguimiento — nunca guarda ediciones
   const btn = document.getElementById('prop-save-btn');
   btn.textContent = t('btn.saving'); btn.disabled = true;
   try {
@@ -13021,10 +13056,12 @@ function prospectoCard(c) {
 
   const esDescartado = estado === '❌ Descartado';
   // "→ Crear propuesta" solo Coordinador/Dirección (decisión del dueño del producto: Ventas junta y
-  // madura, el coord cotiza — Ventas nunca ve/crea propuestas, ver esVentas() + renderCoordPropuestas).
+  // madura, el coord cotiza — desde 2026-07-05 Ventas VE propuestas para seguimiento, pero no las crea).
   const puedeCrearProp = !esVentas() && (esDireccion() || (currentUser?.role || '').includes('Coordinador'));
+  const telProsp = props['Teléfono / WhatsApp']?.phone_number || '';
 
   const acciones = esDescartado ? '' : `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">
+      ${telProsp ? `<button class="estado-btn" style="color:#25D366;border-color:#25D366" onclick="event.stopPropagation();abrirWhatsAppProspecto('${esc(id)}')">💬 WhatsApp</button>` : ''}
       <button class="estado-btn" onclick="event.stopPropagation();prospAccion('${esc(id)}','contactado')">${t('prosp.action.contactado')}</button>
       <button class="estado-btn" onclick="event.stopPropagation();prospAccion('${esc(id)}','interesado')">${t('prosp.action.interesado')}</button>
       <button class="estado-btn" style="color:var(--red,#e5484d)" onclick="event.stopPropagation();prospAccion('${esc(id)}','descartar')">${t('prosp.action.descartar')}</button>
@@ -13924,7 +13961,9 @@ async function openHistoryItem(type, id) {
 }
 
 async function renderCoordPropuestas() {
-  if (esVentas()) return; // blindaje: Ventas no crea/ve propuestas (decisión del dueño del producto)
+  // Ventas SÍ ve propuestas desde 2026-07-05 (ver+seguimiento): lista país-scopeada + "A contactar
+  // hoy" + marcarPropContactada. Lo que NO puede: crear/editar/eliminar (guards en openPropSheet/
+  // savePropEdit/deletePropuesta + backstop del proxy que solo le acepta PATCH de 'Última interacción').
   const content = document.getElementById('coord-content');
   content.innerHTML = '<div style="text-align:center;padding:40px 0"><div class="spinner" style="margin:0 auto"></div></div>';
   const myTab = 'propuestas';
@@ -13974,16 +14013,17 @@ function renderCoordPropuestasList(keepLimit) {
   // "📞 A contactar hoy" — se computa desde _coordAllProps (país-scoped, YA fetcheado) sin importar
   // los filtros de búsqueda/estado activos: es una lista de pendientes, no un resultado filtrado.
   const contactarHoyHTML = renderContactarHoyHTML();
+  // Ventas no crea propuestas (el coord cotiza) → sin botón de alta.
+  const nuevaPropBtnHTML = esVentas() ? '' :
+    `<div style="padding:12px 16px 0"><button class="nueva-prop-btn" onclick="openNewPropSheet()">${t('coord.new.prop')}</button></div>`;
   if (!_coordAllProps.length) {
-    content.innerHTML = contactarHoyHTML +
-      `<div style="padding:12px 16px 0"><button class="nueva-prop-btn" onclick="openNewPropSheet()">${t('coord.new.prop')}</button></div>` +
+    content.innerHTML = contactarHoyHTML + nuevaPropBtnHTML +
       `<div class="coord-empty">${t('coord.empty.props')}</div>`;
     return;
   }
   const filteredAll = applyCoordFilters(_coordAllProps, { isProps: true });
   if (!filteredAll.length) {
-    content.innerHTML = contactarHoyHTML +
-      `<div style="padding:12px 16px 0"><button class="nueva-prop-btn" onclick="openNewPropSheet()">${t('coord.new.prop')}</button></div>` +
+    content.innerHTML = contactarHoyHTML + nuevaPropBtnHTML +
       `<div class="coord-empty">${getActiveFilterCount() ? '🔎 Sin propuestas para los filtros actuales' : t('coord.empty.props')}</div>`;
     return;
   }
@@ -14025,8 +14065,7 @@ function renderCoordPropuestasList(keepLimit) {
       <div style="font-size:11px;color:var(--text3);margin-top:4px">${t('coord.prop.tap.edit')}</div>
     </div>`;
   }).join('');
-  content.innerHTML = contactarHoyHTML +
-    `<div style="padding:12px 16px 0"><button class="nueva-prop-btn" onclick="openNewPropSheet()">${t('coord.new.prop')}</button></div>` +
+  content.innerHTML = contactarHoyHTML + nuevaPropBtnHTML +
     '<div style="height:8px"></div>' + cards + renderCargarMasButton(remaining);
 }
 
@@ -14079,7 +14118,10 @@ function renderContactarHoyHTML() {
     return `<div class="prop-card compact${vencido ? ' vencer' : ''}">
       <div class="prop-nombre">${esc(nombre)}</div>
       <div class="prop-dias alert${vencido ? ' vencer' : ''}"><span class="prop-estado ${estadoClass}">${esc(estado)}</span> · ${dias}${t('coord.prop.days.suffix')}${extraLinea}</div>
-      <button class="estado-btn active prop-compact-btn" id="contactar-btn-${idAttr}" onclick="marcarPropContactada('${idAttr}')">${t('coord.prop.contactar.btn')}</button>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <button class="estado-btn prop-compact-btn" style="color:#25D366;border-color:#25D366" onclick="abrirWhatsAppProp('${idAttr}')">💬 WhatsApp</button>
+        <button class="estado-btn active prop-compact-btn" id="contactar-btn-${idAttr}" onclick="marcarPropContactada('${idAttr}')">${t('coord.prop.contactar.btn')}</button>
+      </div>
     </div>`;
   }).join('');
   const countSuffix = ' (' + items.length + ')' + (vencerCount ? ' · ' + vencerCount + ' ⚠️' : '');
@@ -14132,6 +14174,63 @@ async function marcarPropContactada(id) {
     btn.textContent = prevText;
     alert(t('sheet.alert.save.error2') + e.message);
   }
+}
+
+// ── WhatsApp manual asistido (C-Fase 1 del plan comercial 2026-07-05) ──────
+// Primer wa.me de la app: el HUMANO manda el mensaje con un toque (el bot automático es fase 2).
+// telToWa normaliza 'Teléfono / WhatsApp' (formatos mixtos) a dígitos wa.me: respeta +CC explícito;
+// si es local, antepone el código del país del cliente (default UY 598) y saca el 0 inicial (09x→9x).
+function telToWa(tel, pais) {
+  let d = String(tel || '').trim();
+  if (!d) return null;
+  const conPlus = d.startsWith('+');
+  d = d.replace(/\D/g, '');
+  if (!d) return null;
+  if (conPlus) return d;
+  d = d.replace(/^00/, '');
+  const p = String(pais || '');
+  const cc = p.includes('Brasil') ? '55' : p.includes('Panamá') ? '507' : p.includes('Guatemala') ? '502' : p.includes('México') ? '52' : '598';
+  if (d.startsWith(cc)) return d;
+  if (d.startsWith('0')) d = d.replace(/^0+/, '');
+  return cc + d;
+}
+function abrirWhatsApp(tel, pais, msg) {
+  const wa = telToWa(tel, pais);
+  if (!wa) { alert(t('wa.sin.tel')); return false; }
+  window.open('https://wa.me/' + wa + (msg ? '?text=' + encodeURIComponent(msg) : ''), '_blank', 'noopener');
+  return true;
+}
+// Desde una propuesta ("A contactar hoy" o el sheet): resuelve el teléfono vía la relación Contacto
+// (1 fetch por contacto, cacheado en memoria). Para Ventas el backstop del proxy permite el GET
+// (pages/{id} de un contacto). El saludo usa el Interlocutor de la ficha si existe.
+const _waContactCache = {};
+async function abrirWhatsAppProp(propId) {
+  const p = (_coordAllProps || []).find(x => x.id === propId) || (editingProp && editingProp.id === propId ? editingProp : null);
+  if (!p) return;
+  const props = p.properties || {};
+  const contactId = props['Contacto']?.relation?.[0]?.id;
+  const propNombre = props['Nombre de propuesta']?.title?.[0]?.plain_text || '';
+  if (!contactId) { alert(t('wa.sin.tel')); return; }
+  try {
+    if (!_waContactCache[contactId]) _waContactCache[contactId] = await callNotion('pages/' + contactId, 'GET');
+    const c = _waContactCache[contactId];
+    const tel = c?.properties?.['Teléfono / WhatsApp']?.phone_number || '';
+    const pais = c?.properties?.['País']?.select?.name || props['País']?.select?.name || '';
+    const persona = c?.properties?.['Interlocutor']?.rich_text?.[0]?.plain_text || '';
+    const msg = t('wa.msg.prop').replace('{n}', persona ? ' ' + persona : '').replace('{prop}', () => propNombre);
+    abrirWhatsApp(tel, pais, msg);
+  } catch (e) { alert(t('wa.sin.tel')); }
+}
+// Desde la card de prospecto (tab Prospección): el teléfono está en la propia ficha.
+function abrirWhatsAppProspecto(id) {
+  const c = (_coordAllProspectos || []).find(x => x.id === id);
+  if (!c) return;
+  const props = c.properties || {};
+  const tel = props['Teléfono / WhatsApp']?.phone_number || '';
+  const pais = props['País']?.select?.name || '';
+  const persona = props['Contacto (persona)']?.rich_text?.[0]?.plain_text || '';
+  const msg = t('wa.msg.prospecto').replace('{n}', persona ? ' ' + persona : '');
+  abrirWhatsApp(tel, pais, msg);
 }
 
 // ─────────────────────────────────────────────
@@ -14208,8 +14307,10 @@ function toggleAlertsList(id, header) {
 
 async function loadAlerts(role, bannerId) {
   if (!currentUser) { const el = document.getElementById(bannerId); if (el) el.innerHTML = ''; return; }
-  // Ventas solo ve su tab de prospección: sin banner de alertas (documentos/mantenimiento/pipeline).
-  if (esVentas()) { const el = document.getElementById(bannerId); if (el) el.innerHTML = ''; return; }
+  // Ventas (apertura 2026-07-05): banner reducido — ve SOLO la alerta "propuestas para re-contactar"
+  // (su trabajo de seguimiento). Equipos se saltea abajo con esVentasRol; el resto de bloques
+  // (servicios/mantenimiento clientes/compras/documentos) ya excluyen a Ventas vía isCoord/isCEO.
+  const esVentasRol = esVentas();
   const alerts = [];
   const today = new Date().toISOString().split('T')[0];
   const warnDate = new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0];
@@ -14227,13 +14328,12 @@ async function loadAlerts(role, bannerId) {
   // 📑 Documentos & Certificados (más abajo, dentro del try).
 
   try {
-    // Equipment maintenance alerts (all roles)
-    const pastDueFilter = { and: [
-      ...(actFilter ? [actFilter] : []),
-      { property: 'Próximo mantenimiento', date: { on_or_before: warnDate } }
-    ]};
-    const actData = await callNotion(`databases/${ACTIVOS_DB_ID}/query`, 'POST', {
-      filter: pastDueFilter
+    // Equipment maintenance alerts (all roles menos Ventas — no gestiona equipos)
+    const actData = esVentasRol ? { results: [] } : await callNotion(`databases/${ACTIVOS_DB_ID}/query`, 'POST', {
+      filter: { and: [
+        ...(actFilter ? [actFilter] : []),
+        { property: 'Próximo mantenimiento', date: { on_or_before: warnDate } }
+      ]}
     });
     (actData.results || []).forEach(r => {
       const nombre = r.properties?.['Activo']?.title?.[0]?.plain_text || 'Equipo';
@@ -14275,8 +14375,9 @@ async function loadAlerts(role, bannerId) {
     }
 
     // Pipeline: propuestas para re-contactar (esperando respuesta del cliente, +15 días) — coord + CEO
-    if (isCoord || isCEO) {
-      const cf = isCoord ? getCountryFilter() : getCEOFilter();
+    // + Ventas (2026-07-05: es SU alerta de trabajo; getCountryFilter la scopea a su país).
+    if (isCoord || isCEO || esVentasRol) {
+      const cf = isCEO ? getCEOFilter() : getCountryFilter();
       // Mismos estados "esperando respuesta" que usa el cron diario (api/cron-pipeline.js).
       const ESPERANDO = ['📞 Contactado', '📤 Enviada al cliente', '🤝 Negociando'];
       const propFilter = { and: [

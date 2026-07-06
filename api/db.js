@@ -86,11 +86,11 @@ export default async function handler(req, res) {
   const table = RESOURCES[resource];
   if (!table) return res.status(400).json({ error: 'resource inválido' });
 
-  // Backstop server-side del rol Ventas: solo puede leer Clientes/Contactos (ver
-  // docs/superpowers/specs/2026-07-03-backstop-ventas-serverside-design.md). Con el asiento
-  // ventas-uy ya en users.js, u deja de ser null para Ventas → este check explícito es el que
-  // efectivamente cierra el acceso a servicios/propuestas/ingresos/gastos.
-  if (esVentas(u) && resource !== 'clientes') return res.status(403).json({ error: 'forbidden: rol Ventas solo clientes' });
+  // Backstop server-side del rol Ventas: puede leer Clientes/Contactos y — desde 2026-07-05
+  // (ver+seguimiento) — Propuestas (la tab 💼 lee del espejo con dbFlag('propuestas'); la RLS de
+  // propuestas ya la scopea por país). Sigue cerrado: servicios/ingresos/gastos.
+  // (ver docs/superpowers/specs/2026-07-03-backstop-ventas-serverside-design.md)
+  if (esVentas(u) && !['clientes', 'propuestas'].includes(resource)) return res.status(403).json({ error: 'forbidden: rol Ventas solo clientes y propuestas' });
 
   if (!SUPABASE_URL || !SERVICE_KEY) return res.status(500).json({ error: 'db no configurada' });
 
