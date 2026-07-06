@@ -704,5 +704,10 @@ se restauraron desde el espejo Supabase tras el reset de la conversión vía API
 - ⚠️ Lección de la conversión: PATCH del schema select→multi_select vía API **borra opciones y valores**
   (la UI de Notion los preserva; la API no) → siempre respaldar valores ANTES (acá salvó el espejo).
 
+## Listas compactas para el celular (v129, pedido Diego 2026-07-06)
+- **Cards más densas** (menos padding/aire): `.service-card` (operario), `.coord-service-card`, `.prop-card`, `.contact-card` (prospectos + Clientes). El coord junta **📍 lugar + 👤 operario en UNA línea** (`coordServiceCard`); se quita la línea "toca para editar" de las propuestas. Objetivo/resultado: de ~2-3 a **~5-6 cards por pantalla**.
+- **Se quitó la tira de cuadraditos de días** (`#coord-week-strip`): los 5 puntos que la re-mostraban ahora la fuerzan a `none` (`renderCoordInicio`/`Servicios`/`Pruebas`/`Relevamientos` + `renderCoordServiciosView`). Queda el navegador de mes ‹ › (`#coord-month-nav`). El **calendario sigue disponible** en el Inicio (vista Calendario del toggle). `renderWeekStrip` se sigue llamando solo para setear el label del mes (pinta sobre un contenedor oculto — inocuo).
+- **Fecha como ENCABEZADO de grupo por día exacto**: helper **`groupServicesByDay(list)`** (junto a `renderServices`) agrupa por `Fecha programada` con label `📍 Hoy · 8 jul` / `⏭ Mañana · 9 jul` / `10 jul` / `⚠️ Sin fecha` (al final); preserva el orden que ya dio el sort. Reemplaza los **buckets semánticos** del coordinador (`renderCoordList`) y **es nuevo en el operario** (`renderServices`, antes lista plana; la card ahora muestra solo la 🕐 hora porque la fecha está en el header). i18n `day.hoy`/`day.manana`/`day.sinfecha` (es/pt). El operario usa un `idxOf` Map para que `openService(i)` siga apuntando al índice global correcto de `window._services`.
+
 ---
 _Generado automáticamente del código (workflow `inventario-funcionalidades`). Si algo no coincide con el código, gana el código → regenerar._
