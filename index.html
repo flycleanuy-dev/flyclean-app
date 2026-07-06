@@ -12953,10 +12953,48 @@ function renderCoordMapa() {
   if (!esVentas()) return;
   const content = document.getElementById('coord-content');
   if (!content) return;
+  ensureMapaBridge();
   content.innerHTML =
-    `<iframe src="https://flyclean-mapa.vercel.app" title="${t('coord.mapa.title')}" loading="lazy" `
+    `<iframe id="mapa-iframe" src="https://flyclean-mapa.vercel.app" title="${t('coord.mapa.title')}" loading="lazy" `
     + `style="width:100%;height:calc(100dvh - 150px);border:0;display:block" `
     + `sandbox="allow-scripts allow-same-origin allow-popups"></iframe>`;
+}
+
+// ── Bridge del tick "contactado" compartido del mapa (Bloque B, 2026-07-05) ──
+// El iframe del mapa NO tiene el token de sesión (otro origen): pide/avisa por postMessage y es la
+// APP la que llama autenticada a /api/mapa-estado (KV compartido). El token nunca entra al iframe.
+// Mensajes: {type:'fc-mapa-get'} → responde {type:'fc-mapa-estado', estado} ·
+//           {type:'fc-mapa-set', id, contactado} → escribe y responde el estado actualizado.
+const MAPA_ORIGIN = 'https://flyclean-mapa.vercel.app';
+let _mapaBridgeOn = false;
+function ensureMapaBridge() {
+  if (_mapaBridgeOn) return;
+  _mapaBridgeOn = true;
+  window.addEventListener('message', async (ev) => {
+    if (ev.origin !== MAPA_ORIGIN) return;
+    const d = ev.data || {};
+    if (d.type !== 'fc-mapa-get' && d.type !== 'fc-mapa-set') return;
+    const iframe = document.getElementById('mapa-iframe');
+    const reply = (msg) => { try { iframe && iframe.contentWindow && iframe.contentWindow.postMessage(msg, MAPA_ORIGIN); } catch (_) {} };
+    try {
+      let r;
+      if (d.type === 'fc-mapa-set' && d.id) {
+        r = await fetch('/api/mapa-estado', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (localStorage.getItem('fc_token') || '') },
+          body: JSON.stringify({ id: d.id, contactado: !!d.contactado })
+        });
+      } else {
+        r = await fetch('/api/mapa-estado', {
+          headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('fc_token') || '') }
+        });
+      }
+      if (!r.ok) return; // sin red/sesión el mapa sigue con su localStorage — degradación silenciosa
+      captureRenewedToken(r);
+      const j = await r.json();
+      reply({ type: 'fc-mapa-estado', estado: j.estado || {} });
+    } catch (_) { /* offline: el mapa queda con su caché local */ }
+  });
 }
 
 async function renderCoordProspeccion() {

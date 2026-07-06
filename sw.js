@@ -127,7 +127,11 @@
 // query Propuestas + PATCH solo 'Última interacción'; db.js: resource propuestas). + WhatsApp manual asistido
 // (C-Fase 1): botón 💬 wa.me con mensaje pre-armado es/pt en "A contactar hoy", sheet de propuesta y card
 // de prospecto (telToWa normaliza a E.164 por país del cliente). El bot automático es fase 2 (diferida).
-const CACHE = 'flyclean-v127';
+// v128: tick "ya contactado" COMPARTIDO en el mapa de prospección (Bloque B) — el iframe habla por
+// postMessage con la app (ensureMapaBridge) y la app pega autenticada a /api/mapa-estado (KV Upstash,
+// hash HSET/HGETALL por objetivo: {por, fecha}); el token nunca entra al iframe. /api/mapa-estado NO
+// se cachea (cae en el bypass de /api/* que no son notion/db).
+const CACHE = 'flyclean-v128';
 const SHELL = [
   '/',
   '/index.html',
