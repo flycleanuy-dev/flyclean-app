@@ -131,7 +131,11 @@
 // postMessage con la app (ensureMapaBridge) y la app pega autenticada a /api/mapa-estado (KV Upstash,
 // hash HSET/HGETALL por objetivo: {por, fecha}); el token nunca entra al iframe. /api/mapa-estado NO
 // se cachea (cae en el bypass de /api/* que no son notion/db).
-const CACHE = 'flyclean-v128';
+// v129: listas más compactas para el celular (pedido Diego 06/07) — cards de Servicios (operario+coord),
+// Propuestas, Prospectos y Clientes con menos padding/aire; coord junta 📍lugar+👤operario en 1 línea y
+// quita "toca para editar" de propuestas; se QUITA la tira de días (week-strip, queda el ‹ mes ›); la
+// fecha pasa a ENCABEZADO de grupo por día (groupServicesByDay: 📍 Hoy·8 jul / 9 jul…) en operario y coord.
+const CACHE = 'flyclean-v129';
 const SHELL = [
   '/',
   '/index.html',

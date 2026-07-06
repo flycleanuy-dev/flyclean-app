@@ -173,11 +173,15 @@ body::before {
   .services-header { padding: 20px 20px 8px; }
   .services-title { font-size: 20px; font-weight: 700; }
   .services-sub { font-size: 13px; color: var(--text3); margin-top: 4px; }
-  .services-list { padding: 8px 16px 32px; display: flex; flex-direction: column; gap: 10px; }
+  .services-list { padding: 8px 16px 32px; display: flex; flex-direction: column; gap: 7px; }
+  /* Agrupación por fecha del operario: el services-list ya da el padding lateral, así que acá el
+     day-group va sin margen lateral y con su propio gap para separar las cards del día. */
+  .services-list .day-group { display: flex; flex-direction: column; gap: 7px; margin: 12px 0 0; }
+  .services-list .day-group:first-child { margin-top: 0; }
 
   .service-card {
     background: var(--card); border: 1px solid var(--border);
-    border-radius: var(--radius); padding: 16px;
+    border-radius: var(--radius); padding: 11px 12px;
     cursor: pointer; transition: border-color 0.15s;
     position: relative;
   }
@@ -187,14 +191,14 @@ body::before {
   .service-estado {
     display: inline-flex; align-items: center;
     padding: 3px 10px; border-radius: 20px;
-    font-size: 11px; font-weight: 600; margin-bottom: 10px;
+    font-size: 11px; font-weight: 600; margin-bottom: 5px;
   }
   .estado-pendiente { background: rgba(85,85,85,0.2); color: #888; }
   .estado-asignado { background: rgba(59,130,246,0.15); color: var(--blue); }
   .estado-en-curso { background: rgba(167,139,250,0.15); color: var(--purple); }
   .estado-completado { background: rgba(34,197,94,0.15); color: var(--green); }
 
-  .service-nombre { font-size: 15px; font-weight: 600; margin-bottom: 10px; line-height: 1.3; }
+  .service-nombre { font-size: 14px; font-weight: 600; margin-bottom: 5px; line-height: 1.3; }
   .service-meta { display: flex; flex-wrap: wrap; gap: 8px; }
   .service-tag {
     font-size: 11px; color: var(--text3);
@@ -580,11 +584,11 @@ body::before {
   .day-group { margin: 16px 16px 0; }
   .day-label { font-size: 11px; font-weight: 700; color: var(--text3); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 8px; padding: 0 4px; }
   .day-label.today { color: var(--green); }
-  .coord-service-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px 14px; margin-bottom: 8px; }
-  .coord-service-name { font-size: 14px; font-weight: 600; margin-bottom: 6px; }
+  .coord-service-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 9px 11px; margin-bottom: 6px; }
+  .coord-service-name { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
   .coord-service-meta { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
   .coord-tag { font-size: 11px; color: var(--text3); background: var(--bg); padding: 2px 7px; border-radius: 5px; }
-  .coord-ops { font-size: 11px; color: var(--text2); margin-top: 6px; }
+  .coord-ops { font-size: 11px; color: var(--text2); margin-top: 4px; }
   /* Tablero (Kanban) de servicios — Tarea 1 (vista base, sin arrastre) */
   .coord-view-toggle { display: flex; gap: 6px; padding: 8px 16px 4px; background: var(--bg); }
   .coord-view-toggle button { flex: 1; padding: 7px 10px; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text2); font-size: 12px; font-weight: 600; cursor: pointer; font-family: 'Exo 2', sans-serif; transition: all 0.15s; }
@@ -630,19 +634,19 @@ body::before {
   .contact-search-wrap { padding: 10px 16px 0; }
   .contact-search { width: 100%; padding: 10px 14px; background: var(--card); border: 1px solid var(--border2); border-radius: var(--radius-sm); color: var(--text); font-size: 14px; font-family: 'Exo 2', sans-serif; outline: none; }
   .contact-search:focus { border-color: var(--green); }
-  .contact-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 14px; margin: 8px 16px 0; cursor: pointer; }
+  .contact-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 12px; margin: 6px 16px 0; cursor: pointer; }
   .contact-card:active { border-color: var(--green); }
   .contact-name { font-size: 14px; font-weight: 600; margin-bottom: 6px; }
   .contact-badges { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 6px; }
   .contact-estado { font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 20px; background: rgba(59,130,246,0.12); color: var(--blue); }
   .contact-estado.activo { background: rgba(34,197,94,0.12); color: var(--green); }
   .contact-estado.inactivo { background: rgba(85,85,85,0.3); color: var(--text3); }
-  .contact-detail { font-size: 12px; color: var(--text2); margin-top:3px; }
+  .contact-detail { font-size: 12px; color: var(--text2); margin-top:2px; }
   .multi-toggle-grid { display: flex; flex-wrap: wrap; gap: 7px; }
   .multi-toggle-btn { padding: 8px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border); font-size: 12px; font-weight: 500; cursor: pointer; background: var(--bg); color: var(--text2); font-family: 'Exo 2', sans-serif; transition: all 0.15s; }
   .multi-toggle-btn.active { background: var(--green-dark); border-color: var(--green); color: var(--green); }
-  .prop-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 14px; margin: 8px 16px 0; }
-  .prop-nombre { font-size: 14px; font-weight: 600; margin-bottom: 6px; }
+  .prop-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 12px; margin: 6px 16px 0; }
+  .prop-nombre { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
   .prop-meta { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 4px; }
   .prop-estado { font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 20px; background: rgba(59,130,246,0.15); color: var(--blue); }
   .prop-estado.aceptada { background: rgba(34,197,94,0.15); color: var(--green); }
@@ -2112,6 +2116,9 @@ const TRANSLATIONS = {
     'coord.day.today': '📅 HOY — ',
     'coord.unscheduled': '📅 Sin programar',
     'coord.day.all': 'TODO',
+    'day.hoy': 'Hoy',
+    'day.manana': 'Mañana',
+    'day.sinfecha': 'Sin fecha',
     'coord.unassigned': '— sin asignar',
     'coord.search.contacts.placeholder': '🔍  Buscar contacto...',
     'coord.new.contact': '+ Nuevo Contacto',
@@ -2848,6 +2855,9 @@ const TRANSLATIONS = {
     'coord.day.today': '📅 HOJE — ',
     'coord.unscheduled': '📅 Sem agendamento',
     'coord.day.all': 'TUDO',
+    'day.hoy': 'Hoje',
+    'day.manana': 'Amanhã',
+    'day.sinfecha': 'Sem data',
     'coord.unassigned': '— sem atribuir',
     'coord.search.contacts.placeholder': '🔍  Buscar contato...',
     'coord.new.contact': '+ Novo Contato',
@@ -6577,6 +6587,40 @@ function getEstadoClass(estado) {
   return 'estado-pendiente';
 }
 
+// Agrupa una lista de servicios (YA ordenada por el caller) por día exacto de 'Fecha programada',
+// con encabezado de fecha por grupo (📍 Hoy · mar 8 jul / ⏭ Mañana · mié 9 jul / jue 10 jul / ⚠️ Sin
+// fecha al final). Reusado por el operario (renderServices) y el coordinador (renderCoordList). Preserva
+// el orden de entrada (asc o desc); "sin fecha" siempre al final. Devuelve [{ key, label, isHoy, items }].
+function groupServicesByDay(list) {
+  const dateLocale = currentLang === 'pt-BR' ? 'pt-BR' : 'es-UY';
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const todayISO = today.toISOString().split('T')[0];
+  const tomorrowISO = new Date(today.getTime() + 86400000).toISOString().split('T')[0];
+  const fmt = (iso) => {
+    const d = new Date(iso + 'T00:00:00').toLocaleDateString(dateLocale, { weekday: 'short', day: 'numeric', month: 'short' });
+    return d.charAt(0).toUpperCase() + d.slice(1);
+  };
+  const byKey = {};
+  const groups = [];
+  list.forEach(s => {
+    const f = s.properties?.['Fecha programada']?.date?.start || '';
+    const key = f || '__sinfecha__';
+    if (!byKey[key]) {
+      let label, isHoy = false;
+      if (!f) label = '⚠️ ' + t('day.sinfecha');
+      else if (f === todayISO) { label = '📍 ' + t('day.hoy') + ' · ' + fmt(f); isHoy = true; }
+      else if (f === tomorrowISO) label = '⏭ ' + t('day.manana') + ' · ' + fmt(f);
+      else label = fmt(f);
+      byKey[key] = { key, label, isHoy, items: [] };
+      groups.push(byKey[key]);
+    }
+    byKey[key].items.push(s);
+  });
+  const conFecha = groups.filter(g => g.key !== '__sinfecha__');
+  const sinFecha = groups.filter(g => g.key === '__sinfecha__');
+  return [...conFecha, ...sinFecha];
+}
+
 function renderServices(services) {
   _allServices = services;
   services = _allServices.filter(s => {
@@ -6620,11 +6664,16 @@ function renderServices(services) {
     return hA.localeCompare(hB);
   });
 
-  list.innerHTML = services.map((s, i) => {
+  // Store services globally for access (openService usa el índice sobre esta lista ordenada)
+  window._services = services;
+  const idxOf = new Map(services.map((s, i) => [s, i]));
+
+  // La FECHA va como encabezado de grupo (groupServicesByDay); dentro de la card queda solo la hora
+  // (no se duplica la fecha). Card por índice GLOBAL para que openService(i) siga apuntando bien.
+  const cardHTML = (s, i) => {
     const props = s.properties;
     const nombre = props['Nombre del servicio']?.title?.[0]?.plain_text || t('common.sinnombre');
     const estado = props['Estado']?.select?.name || '📋 Pendiente';
-    const fecha = props['Fecha programada']?.date?.start || '';
     const horaInicio = props['Hora Inicio']?.date?.start || '';
     const tipo = tipoServicioStr(props);
     const pais = props['País']?.select?.name || '';
@@ -6632,18 +6681,14 @@ function renderServices(services) {
     const jornadaN = props['Jornada N°']?.number;
     const isJornada = tipoReg.includes('Jornada');
     const isPrueba = tipoReg.includes('Prueba');
-
-    const dateLocale = currentLang === 'pt-BR' ? 'pt-BR' : 'es-UY';
-    const fechaFmt = fecha ? new Date(fecha + 'T00:00:00').toLocaleDateString(dateLocale, { day: 'numeric', month: 'short' }) : '';
     const horaFmt = (horaInicio && horaInicio.includes('T')) ? new Date(horaInicio).toTimeString().slice(0, 5) : '';
     const lugar = props['Lugar']?.rich_text?.[0]?.plain_text || '';
-
     return `
-      <div class="service-card ${estado.includes('Pendiente') ? '' : ''}" onclick="openService(${i})" data-idx="${i}">
+      <div class="service-card" onclick="openService(${i})" data-idx="${i}">
         <div class="service-estado ${getEstadoClass(estado)}">${estado}</div>
         <div class="service-nombre">${isPrueba ? `<span class="service-prueba-badge">${t('prueba.badge')}</span>` : ''}${nombre}</div>
         <div class="service-meta">
-          ${fechaFmt ? `<span class="service-tag">📅 ${fechaFmt}${horaFmt ? ' · ' + horaFmt : ''}</span>` : ''}
+          ${horaFmt ? `<span class="service-tag">🕐 ${horaFmt}</span>` : ''}
           ${lugar ? `<span class="service-tag">📍 ${esc(lugar)}</span>` : ''}
           ${tipo ? `<span class="service-tag">${tipo}</span>` : ''}
           ${pais ? `<span class="service-tag">${pais}</span>` : ''}
@@ -6651,10 +6696,10 @@ function renderServices(services) {
         ${isJornada && jornadaN ? `<div class="service-jornada-badge">📅 ${t('jornada.badge')} ${jornadaN}</div>` : ''}
         ${(() => { const c = servicioContinua(s); return c.continua ? `<span class="coord-tag" style="background:var(--amber-dark,#7c5300);color:var(--amber,#f59e0b)">${t('badge.continua').replace('{h}', c.hechos).replace('{t}', c.total)}</span>` : ''; })()}
       </div>`;
-  }).join('');
-
-  // Store services globally for access
-  window._services = services;
+  };
+  list.innerHTML = groupServicesByDay(services).map(g =>
+    `<div class="day-group"><div class="day-label ${g.isHoy ? 'today' : ''}">${g.label} (${g.items.length})</div>${g.items.map(s => cardHTML(s, idxOf.get(s))).join('')}</div>`
+  ).join('');
 }
 
 // ─────────────────────────────────────────────
@@ -9568,9 +9613,10 @@ function renderCoordServiciosView() {
       `<button class="${_coordView === 'board' ? 'active' : ''}" onclick="setCoordView('board')">▣ Tablero</button>` +
       `<button class="${_coordView === 'calendar' ? 'active' : ''}" onclick="setCoordView('calendar')">📅 Calendario</button>`;
   }
-  // El week-strip duplica info del calendario → lo ocultamos en esa vista; lo restauramos en list/board.
+  // La tira de días (week-strip) se quitó (2026-07-06): en todas las vistas la referencia temporal
+  // es la agrupación por fecha (headers Hoy/8 jul…) + el navegador de mes ‹ ›. La ocultamos siempre.
   const strip = document.getElementById('coord-week-strip');
-  if (strip) strip.style.display = _coordView === 'calendar' ? 'none' : 'flex';
+  if (strip) strip.style.display = 'none';
   if (_coordView === 'board') renderCoordKanban();
   else if (_coordView === 'calendar') renderCoordCalendar();
   else renderCoordList();
@@ -10029,55 +10075,17 @@ function renderCoordList(keepLimit) {
   const filtered = filteredAll.slice(0, _coordVisibleLimit);
   const remaining = total - filtered.length;
 
-  // Para sort cronológico (date-asc / date-desc) agrupamos en buckets temporales con headers
-  // semánticos. Para sort alfabético mostramos una lista plana — los headers no aportan.
+  // La FECHA agrupa las cards (encabezado por día exacto: 📍 Hoy · 8 jul / ⏭ Mañana · 9 jul / 10 jul…)
+  // cuando el sort es cronológico. Con sort alfabético = lista plana sin headers. El orden (asc/desc) ya
+  // lo aplicó applyCoordFilters, así que groupServicesByDay solo agrupa preservándolo; "sin fecha" al final.
   const isChronological = coordFilters.sort === 'date-asc' || coordFilters.sort === 'date-desc';
   if (!isChronological) {
     content.innerHTML = nuevoTrabajoBtn + '<div class="day-group">' + filtered.map(coordServiceCard).join('') + '</div>' + renderCargarMasButton(remaining);
     return;
   }
-
-  const today = new Date(); today.setHours(0,0,0,0);
-  const todayISO = today.toISOString().split('T')[0];
-  const tomorrow = new Date(today.getTime() + 86400000);
-  const tomorrowISO = tomorrow.toISOString().split('T')[0];
-  // Fin de semana (domingo, índice 0) — sumar (7 - hoy.getDay()) días
-  const daysToEndOfWeek = 6 - today.getDay() + 1;
-  const endOfWeek = new Date(today.getTime() + daysToEndOfWeek * 86400000);
-  const endOfWeekISO = endOfWeek.toISOString().split('T')[0];
-
-  const bucketsOrder = ['pasados', 'hoy', 'mañana', 'semana', 'proximos', 'sinfecha'];
-  const bucketLabels = {
-    pasados: '⏪ Pasados',
-    hoy: '📍 Hoy',
-    mañana: '⏭ Mañana',
-    semana: '🗓 Esta semana',
-    proximos: '📅 Próximos',
-    sinfecha: '⚠️ Sin fecha'
-  };
-  const buckets = { pasados: [], hoy: [], mañana: [], semana: [], proximos: [], sinfecha: [] };
-
-  filtered.forEach(s => {
-    const f = s.properties?.['Fecha programada']?.date?.start || '';
-    if (!f) { buckets.sinfecha.push(s); return; }
-    if (f === todayISO) buckets.hoy.push(s);
-    else if (f === tomorrowISO) buckets.mañana.push(s);
-    else if (f < todayISO) buckets.pasados.push(s);
-    else if (f <= endOfWeekISO) buckets.semana.push(s);
-    else buckets.proximos.push(s);
-  });
-
-  // Para date-desc invertir el orden de los buckets de futuro (más lejano arriba)
-  const order = coordFilters.sort === 'date-desc'
-    ? ['proximos', 'semana', 'mañana', 'hoy', 'pasados', 'sinfecha']
-    : bucketsOrder;
-
-  const html = order.map(b => {
-    const items = buckets[b];
-    if (!items.length) return '';
-    const isHoy = b === 'hoy';
-    return `<div class="day-group"><div class="day-label ${isHoy ? 'today' : ''}">${bucketLabels[b]} (${items.length})</div>${items.map(coordServiceCard).join('')}</div>`;
-  }).filter(Boolean).join('');
+  const html = groupServicesByDay(filtered).map(g =>
+    `<div class="day-group"><div class="day-label ${g.isHoy ? 'today' : ''}">${g.label} (${g.items.length})</div>${g.items.map(coordServiceCard).join('')}</div>`
+  ).join('');
   content.innerHTML = nuevoTrabajoBtn + (html || `<div class="coord-empty">${t(emptyMonthKey)}</div>`) + renderCargarMasButton(remaining);
 }
 
@@ -10185,8 +10193,7 @@ function coordServiceCard(s) {
   return `<div class="coord-service-card" style="cursor:pointer" onclick="openEditSheet('${esc(s.id)}')">
     <div class="coord-service-name">${tipoChip}${esPrueba ? `<span class="service-prueba-badge">${t('prueba.badge')}</span>` : ''}${nombreHTML}${esJornada && jornadaN != null ? ` <span style="color:var(--purple);font-size:12px">J${jornadaN}</span>` : ''}</div>
     <div class="coord-service-meta"><span class="service-estado ${estadoClass}">${esc(estadoDisplay)}</span>${fueraDeFecha ? `<span class="coord-tag" style="background:var(--amber-dark,#7c5300);color:var(--amber,#f59e0b)">${t('badge.fueradefecha').replace('{d}', fPlanFmt)}</span>` : ''}${(esJornada && typeof pctAvance === 'number') ? `<span class="coord-tag">${Math.round(pctAvance)}%</span>` : ''}${jobDone ? `<span class="coord-tag" style="background:var(--green-dark,#14532d);color:var(--green,#22c55e)">${t('badge.servicio.completo')}</span>` : ''}${horaFmt ? `<span class="coord-tag">🕐 ${esc(horaFmt)}</span>` : ''}${tipo ? `<span class="coord-tag">${esc(tipo)}</span>` : ''}${(() => { const c = servicioContinua(s); return c.continua ? `<span class="coord-tag" style="background:var(--amber-dark,#7c5300);color:var(--amber,#f59e0b)">${t('badge.continua').replace('{h}', c.hechos).replace('{t}', c.total)}</span>` : ''; })()}</div>
-    ${lugar ? `<div class="coord-ops" style="color:var(--text3)">📍 ${esc(lugar)}</div>` : ''}
-    <div class="coord-ops">👤 ${ops}</div>
+    <div class="coord-ops">${lugar ? `📍 ${esc(lugar)} · ` : ''}👤 ${ops}</div>
     ${renderPhotoGallery(props)}
   </div>`;
 }
@@ -11944,7 +11951,7 @@ async function renderCoordInicio() {
   if (esVentas()) return; // blindaje: Ventas no ve Inicio, ni por un llamado directo
   const content = document.getElementById('coord-content');
   content.innerHTML = '<div style="text-align:center;padding:40px 0"><div class="spinner" style="margin:0 auto"></div></div>';
-  document.getElementById('coord-week-strip').style.display = 'flex';
+  document.getElementById('coord-week-strip').style.display = 'none'; // tira de días quitada (2026-07-06): se usa la agrupación por fecha + el ‹ mes ›
   // Guard de race condition: si el usuario cambia de tab mientras este fetch está en vuelo,
   // cuando termine NO sobrescribir el content del tab nuevo.
   const myTab = 'inicio';
@@ -11967,7 +11974,7 @@ async function renderCoordServicios() {
   if (esVentas()) return; // blindaje: Ventas no ve Servicios, ni por un llamado directo
   const content = document.getElementById('coord-content');
   content.innerHTML = '<div style="text-align:center;padding:40px 0"><div class="spinner" style="margin:0 auto"></div></div>';
-  document.getElementById('coord-week-strip').style.display = 'flex';
+  document.getElementById('coord-week-strip').style.display = 'none'; // tira de días quitada (2026-07-06): se usa la agrupación por fecha + el ‹ mes ›
   document.getElementById('coord-view-toggle').style.display = 'none'; // toggle Lista/Tablero solo en Inicio
   // Guard de race condition: si el usuario cambia de tab mientras este fetch está en vuelo,
   // cuando termine NO sobrescribir el content del tab nuevo.
@@ -11995,7 +12002,7 @@ async function renderCoordPruebas() {
   if (esVentas()) return; // blindaje: Ventas no ve Pruebas, ni por un llamado directo
   const content = document.getElementById('coord-content');
   content.innerHTML = '<div style="text-align:center;padding:40px 0"><div class="spinner" style="margin:0 auto"></div></div>';
-  document.getElementById('coord-week-strip').style.display = 'flex';
+  document.getElementById('coord-week-strip').style.display = 'none'; // tira de días quitada (2026-07-06): se usa la agrupación por fecha + el ‹ mes ›
   document.getElementById('coord-view-toggle').style.display = 'none'; // toggle Lista/Tablero solo en Inicio
   const myTab = 'pruebas';
   try {
@@ -12020,7 +12027,7 @@ async function renderCoordRelevamientos() {
   if (esVentas()) return; // blindaje: Ventas no ve Relevamientos, ni por un llamado directo
   const content = document.getElementById('coord-content');
   content.innerHTML = '<div style="text-align:center;padding:40px 0"><div class="spinner" style="margin:0 auto"></div></div>';
-  document.getElementById('coord-week-strip').style.display = 'flex';
+  document.getElementById('coord-week-strip').style.display = 'none'; // tira de días quitada (2026-07-06): se usa la agrupación por fecha + el ‹ mes ›
   document.getElementById('coord-view-toggle').style.display = 'none'; // toggle Lista/Tablero solo en Inicio
   const myTab = 'relevamientos';
   try {
@@ -14100,7 +14107,6 @@ function renderCoordPropuestasList(keepLimit) {
       <div class="prop-dias ${dias != null && dias > 14 ? 'alert' : ''}">
         ${ultimaFmt ? `${t('coord.prop.lastint.prefix')}${ultimaFmt}` : ''}${dias != null ? ` · ${dias}${t('coord.prop.days.suffix')}` : ''}
       </div>
-      <div style="font-size:11px;color:var(--text3);margin-top:4px">${t('coord.prop.tap.edit')}</div>
     </div>`;
   }).join('');
   content.innerHTML = contactarHoyHTML + nuevaPropBtnHTML +
