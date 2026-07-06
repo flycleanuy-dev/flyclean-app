@@ -141,9 +141,11 @@
 // alineado entre cards con y sin foto (el coord escanea por nombre/estado; la foto es complemento).
 // v132: rol Ventas ve la tab 👥 Clientes (consulta + recontactar): ve la cartera (datos, sin plata, ficha
 // read-only), botón 💬 WhatsApp (solo abre) + 📞 Contactado MANUAL y separado (escribe 'Próximo contacto'
-// = hoy+60d → el equipo ve que ya se contactó). NO crea/edita. El destacado de "para recontactar"
-// (mantenimiento) NO se le muestra aún porque cruza con servicios (que Ventas no lee) — pendiente decisión.
-const CACHE = 'flyclean-v132';
+// = hoy+60d → el equipo ve que ya se contactó). NO crea/edita.
+// v133: Ventas también ve el destacado "🔁 para recontactar" (mantenimiento 9m) + su alerta. Requirió darle
+// LECTURA de servicios (backstop: api/db.js resource 'servicios' + api/notion.js query SERVICIOS_NORM) —
+// solo la lista para el cruce; NO abre servicios individuales (pages/{id} sigue bloqueado), no edita, sin plata.
+const CACHE = 'flyclean-v133';
 const SHELL = [
   '/',
   '/index.html',

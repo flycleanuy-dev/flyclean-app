@@ -31,6 +31,10 @@ const ALLOWED_METHODS = ['GET', 'POST', 'PATCH'];
 // Ids de Notion vienen con o sin guiones → normalizar.
 const CONTACTOS_NORM = '250115612de74e0582366549bbe5e389';
 const PROPUESTAS_NORM = '2c0a4257f4294941b994dfebc1098633';
+// Servicios: SOLO query (lista) para Ventas — para el cruce "clientes para recontactar"/mantenimiento.
+// pages/{id} de un servicio sigue bloqueado (no está en la rama de pages más abajo). El camino real de
+// lectura es el espejo (/api/db resource 'servicios'); este es el fallback si cae a Notion.
+const SERVICIOS_NORM = 'ccaf276c7f6a460caeb3d2800deab2e5';
 const norm = s => String(s || '').replace(/-/g, '').toLowerCase();
 
 // Margen amplio para que los reintentos no choquen con el límite de duración de la función.
@@ -120,7 +124,7 @@ export default async function handler(req, res) {
     const mQuery = endpointNorm.match(/^databases\/([a-f0-9-]{32,36})(\/query)?$/);
     const mPage = endpointNorm.match(/^pages\/([a-f0-9-]{32,36})$/);
     if (mQuery) {
-      if (![CONTACTOS_NORM, PROPUESTAS_NORM].includes(norm(mQuery[1]))) return res.status(403).json({ error: 'forbidden: rol Ventas solo accede a clientes y propuestas' });
+      if (![CONTACTOS_NORM, PROPUESTAS_NORM, SERVICIOS_NORM].includes(norm(mQuery[1]))) return res.status(403).json({ error: 'forbidden: rol Ventas solo accede a clientes, propuestas y servicios' });
     } else if (endpointNorm === 'pages') {
       // crear página: solo Contactos por database_id, y SIN data_source_id (evita smuggling a otra base)
       const p = body?.parent || {};

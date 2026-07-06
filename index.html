@@ -13356,10 +13356,9 @@ async function renderCoordContactos() {
     const data = await callNotion(`databases/${CONTACTOS_DB_ID}/query`, 'POST', queryBody);
     if (activeCoordTab !== myTab) return;
     _coordAllContacts = (data.results || []).filter(c => !esArchivado(c));
-    // Ventas NO lee servicios (encierro) → no puede computar las secciones (mantenimiento cruza con
-    // servicios). Salta el fetch (evita un 403) y cae a la lista plana con búsqueda; el destacado de
-    // "para recontactar" se computa solo para coord/CEO. (Habilitarlo a Ventas = darle lectura de servicios.)
-    if (!esVentas()) await loadClienteSecciones(); // best-effort: si falla, renderContactList cae a la lista plana
+    // Ventas también computa las secciones desde 2026-07-06 (tiene lectura de servicios → ve el destacado
+    // "🔁 para recontactar"). best-effort: si falla, renderContactList cae a la lista plana.
+    await loadClienteSecciones();
     if (activeCoordTab !== myTab) return; // el tab pudo cambiar durante el await de arriba
     renderContactList(_coordAllContacts);
   } catch (e) {
@@ -13457,7 +13456,8 @@ async function marcarClienteContactado(id) {
     if (typeof syncAfterWrite === 'function') { try { syncAfterWrite(id, 'clientes'); } catch (_) {} }
     const c = (_coordAllContacts || []).find(x => x.id === id);
     if (c) { c.properties = c.properties || {}; c.properties['Próximo contacto'] = { date: { start: prox } }; }
-    renderContactList(_coordAllContacts, true); // re-render optimista (muestra "✓ recontactado")
+    await loadClienteSecciones(); // recomputa: el cliente sale de "🔁 para recontactar" (Próximo contacto futuro)
+    renderContactList(_coordAllContacts, true);
   } catch (e) {
     if (btn) { btn.disabled = false; btn.textContent = '📞 ' + t('coord.cli.contactado'); }
     alert(t('sheet.alert.save.error2') + e.message);
@@ -14528,11 +14528,11 @@ async function loadAlerts(role, bannerId) {
       }
     }
 
-    // Clientes para ofrecer mantenimiento (9+ meses sin trabajo, spec 2026-07-02) — coord + CEO.
+    // Clientes para ofrecer mantenimiento (9+ meses sin trabajo, spec 2026-07-02) — coord + CEO + Ventas.
     // Reusa el mismo cruce clientes×propuestas×servicios de la tab Clientes (computeClienteSecciones);
-    // fetch propio (no depende de que la tab Clientes ya haya cargado _coordAllContacts). Ventas NO entra:
-    // el cruce lee servicios, que Ventas no puede (encierro) → quedaría un 403 silencioso. (Ver nota en renderCoordContactos.)
-    if (isCoord || isCEO) {
+    // fetch propio (no depende de que la tab Clientes ya haya cargado _coordAllContacts). Ventas la ve
+    // (2026-07-06): es su lista de clientes para recontactar (país-scoped, deep-link a la tab Clientes).
+    if (isCoord || isCEO || esVentasRol) {
       // Try/catch propio: es una alerta informativa, nunca debe tumbar las que vienen después
       // (Solicitud de compras, Documentos) si algo de este cruce falla.
       try {

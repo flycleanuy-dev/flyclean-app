@@ -86,11 +86,11 @@ export default async function handler(req, res) {
   const table = RESOURCES[resource];
   if (!table) return res.status(400).json({ error: 'resource inválido' });
 
-  // Backstop server-side del rol Ventas: puede leer Clientes/Contactos y — desde 2026-07-05
-  // (ver+seguimiento) — Propuestas (la tab 💼 lee del espejo con dbFlag('propuestas'); la RLS de
-  // propuestas ya la scopea por país). Sigue cerrado: servicios/ingresos/gastos.
+  // Backstop server-side del rol Ventas (LECTURA): Clientes/Contactos + Propuestas (v127) +
+  // Servicios (2026-07-06, solo-lectura para el cruce de "clientes para recontactar"/mantenimiento —
+  // NO ve la operativa ni edita; los servicios no tienen plata). Sigue cerrado: ingresos/gastos.
   // (ver docs/superpowers/specs/2026-07-03-backstop-ventas-serverside-design.md)
-  if (esVentas(u) && !['clientes', 'propuestas'].includes(resource)) return res.status(403).json({ error: 'forbidden: rol Ventas solo clientes y propuestas' });
+  if (esVentas(u) && !['clientes', 'propuestas', 'servicios'].includes(resource)) return res.status(403).json({ error: 'forbidden: rol Ventas solo clientes, propuestas y servicios (lectura)' });
 
   if (!SUPABASE_URL || !SERVICE_KEY) return res.status(500).json({ error: 'db no configurada' });
 
