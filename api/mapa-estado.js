@@ -81,7 +81,7 @@ export default async function handler(req, res) {
     const id = String(body.id || '');
     if (!ID_RE.test(id)) return res.status(400).json({ error: 'id inválido' });
     if (body.contactado) {
-      const val = JSON.stringify({ por: u.name || session.id, fecha: new Date().toISOString().split('T')[0] });
+      const val = JSON.stringify({ por: u.nombre || session.id, fecha: new Date().toISOString().split('T')[0] });
       await kvCmd(['HSET', KEY, id, val]);
     } else {
       await kvCmd(['HDEL', KEY, id]);

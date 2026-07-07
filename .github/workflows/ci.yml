@@ -33,3 +33,11 @@ jobs:
 
       - name: Syntax check index.html inline JS
         run: npm run check
+
+      # smoke (app viva) + permisos por rol. Los casos autenticados de permisos.mjs solo corren si
+      # CRON_SECRET está cargado como secret del repo (Settings → Secrets → Actions); sin él, se saltean
+      # (no rompen el CI). Con él, validan la matriz real (Ventas/Gastos 403, operario solo sus servicios, etc.).
+      - name: Tests (smoke + permisos por rol)
+        run: npm test
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}

@@ -46,15 +46,18 @@ async function kvCmd(cmd) {
   return (await r.json()).result;
 }
 
+// Límite por-instancia (débil: no se comparte entre instancias serverless) — respaldo cuando KV no está
+// o falla. Mejor que fail-open total: acota el gasto de créditos Anthropic dentro de cada instancia.
+function rateLimitInMemory() {
+  const now = Date.now();
+  while (rlBuffer.length && rlBuffer[0] < now - RL_WINDOW_MS) rlBuffer.shift();
+  if (rlBuffer.length >= RL_MAX_CALLS) return false;
+  rlBuffer.push(now);
+  return true;
+}
+
 async function rateLimitCheck() {
-  // Sin KV → fallback in-memory por instancia (mismo comportamiento de antes).
-  if (!(KV_URL && KV_TOKEN)) {
-    const now = Date.now();
-    while (rlBuffer.length && rlBuffer[0] < now - RL_WINDOW_MS) rlBuffer.shift();
-    if (rlBuffer.length >= RL_MAX_CALLS) return false;
-    rlBuffer.push(now);
-    return true;
-  }
+  if (!(KV_URL && KV_TOKEN)) return rateLimitInMemory(); // KV no configurado → in-memory
   try {
     const bucket = Math.floor(Date.now() / RL_WINDOW_MS); // ventana fija de 1h, compartida entre instancias
     const key = `rl:ocr:${bucket}`;
@@ -62,7 +65,8 @@ async function rateLimitCheck() {
     if (count === 1) { try { await kvCmd(['EXPIRE', key, Math.ceil(RL_WINDOW_MS / 1000) + 60]); } catch (_) {} }
     return !(Number.isFinite(count) && count > RL_MAX_CALLS);
   } catch (_) {
-    return true; // KV caído → no bloquear el OCR (la sesión ya es requisito).
+    // KV caído → NO fail-open: degradar al límite in-memory (acotado) en vez de permitir todo.
+    return rateLimitInMemory();
   }
 }
 

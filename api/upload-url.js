@@ -171,19 +171,18 @@ export default async function handler(req, res) {
   if (!ALLOWED_FOTO_TYPES.has(fotoType)) {
     return res.status(400).json({ error: 'Invalid fotoType' });
   }
-  // Tope de tamaño: si el cliente declara bytes, se validan y se FIRMAN (un PUT con otro tamaño
-  // falla la firma). Clientes con shell viejo (PWA sin actualizar) no lo mandan → transición:
-  // se presigna sin firma de tamaño y se loguea; cuando el shell viejo muera, volverlo obligatorio.
-  let sizeToSign = null;
-  if (contentLength != null) {
-    const n = Number(contentLength);
-    if (!Number.isFinite(n) || n <= 0 || n > MAX_UPLOAD_BYTES) {
-      return res.status(400).json({ error: 'archivo demasiado grande (máx 15MB)' });
-    }
-    sizeToSign = Math.round(n);
-  } else {
-    console.warn('[upload] presign legacy sin contentLength (shell viejo)');
+  // Tope de tamaño OBLIGATORIO (2026-07-07, cierre de la transición): el cliente DEBE declarar los bytes;
+  // se validan y se FIRMAN en el presign (un PUT con otro tamaño falla la firma → no hay fail-open del
+  // tope de 15MB). El front manda contentLength en ambas rutas desde hace varias versiones
+  // (index.html fotos + recibos); un shell PWA muy viejo cacheado recibe 400 con instrucción de recargar.
+  const n = Number(contentLength);
+  if (contentLength == null || !Number.isFinite(n) || n <= 0) {
+    return res.status(400).json({ error: 'falta el tamaño del archivo — actualizá la app (recargala) e intentá de nuevo' });
   }
+  if (n > MAX_UPLOAD_BYTES) {
+    return res.status(400).json({ error: 'archivo demasiado grande (máx 15MB)' });
+  }
+  const sizeToSign = Math.round(n);
   if (!filename || typeof filename !== 'string' || filename.length > 200) {
     return res.status(400).json({ error: 'Invalid filename' });
   }

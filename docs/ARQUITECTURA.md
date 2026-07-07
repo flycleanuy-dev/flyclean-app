@@ -2,8 +2,9 @@
 
 App **PWA mobile-first sin framework ni build step**. Todo el frontend vive en un único
 `index.html` (HTML + CSS + JS + i18n). El backend son **funciones serverless** en `api/`
-(Vercel). No hay base de datos propia: los datos viven en **Notion**, las fotos en
-**Cloudflare R2**.
+(Vercel). Los datos se **escriben en Notion** (fuente de verdad) y se **leen de un espejo
+Supabase/Postgres** (RLS por país; sync Notion→Supabase por cron cada 10 min) para
+clientes/servicios/propuestas; las fotos en **Cloudflare R2**. (Ver `db/README.md` para el estado de la migración.)
 
 ## Flujo de datos
 

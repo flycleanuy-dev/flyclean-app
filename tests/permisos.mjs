@@ -99,15 +99,21 @@ await test('sin token → /api/notion 401', async () => {
   }
 }
 
-// (2) Ventas: su backstop dedicado YA está en enforce → Servicios 403, Contactos 200.
+// (2) Ventas: su backstop dedicado YA está en enforce. Desde v133 (2026-07-06) puede LEER la lista de
+// Servicios (para el destacado "clientes para recontactar"), además de Contactos y Propuestas. Pero
+// NO ve finanzas: Gastos/Ingresos → 403.
 const tVentas = signSession({ id: 'ventas-uy' });
-await test('ventas-uy → query Servicios 403 (backstop Ventas)', async () => {
+await test('ventas-uy → query Servicios 200 (lectura para el destacado de recontactar, v133)', async () => {
   const r = await queryDb(DBS.servicios, 3, tVentas);
-  assert.equal(r.status, 403, 'esperaba 403, vino ' + r.status);
+  assert.equal(r.status, 200, 'esperaba 200 (Ventas lee servicios desde v133), vino ' + r.status);
 });
 await test('ventas-uy → query Contactos 200', async () => {
   const r = await queryDb(DBS.contactos, 4, tVentas);
   assert.equal(r.status, 200, 'esperaba 200, vino ' + r.status + ' (¿CRON_SECRET local ≠ prod?)');
+});
+await test('ventas-uy → query Gastos 403 (backstop Ventas: sin finanzas)', async () => {
+  const r = await queryDb(DBS.gastos, 3, tVentas);
+  assert.equal(r.status, 403, 'esperaba 403 (Ventas no ve Gastos), vino ' + r.status);
 });
 
 // (3) Operario: Servicios permitido por matriz. Gastos TAMBIÉN está permitido (inventario:

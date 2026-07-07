@@ -35,11 +35,14 @@ con la **service key** → bypassea RLS (necesita escribir todo). Las apps usan 
 4. **Verificar el espejo:** comparar conteos por tabla Supabase vs Notion (que cuadren) y probar RLS (un usuario de
    Brasil NO puede leer filas de Uruguay ni con query directa).
 
-## Qué NO cambia todavía (Fase 1)
-La app en producción **sigue leyendo/escribiendo en Notion** vía `/api/notion`. Esta base corre en paralelo. Recién
-en **Fase 2** el proxy empieza a leer de Supabase. Todo reversible: si se aborta, se borra el proyecto Supabase.
+## Estado actual (ACTUALIZADO 2026-07-07): Fase 2.4 — las lecturas YA salen de Supabase
+La app **ESCRIBE en Notion** (sigue siendo la fuente de verdad) y **LEE de Supabase** para
+clientes/servicios/propuestas vía `/api/db` (flags `DB_FLAGS` en `index.html`, todos en `true`; sw v78-v81).
+El cron `cron-db-sync` refleja Notion→Supabase cada 10 min + `syncAfterWrite` tras cada guardado. RLS por país
+activa (`db/policies.sql`); si `SUPABASE_JWT_SECRET`+`SUPABASE_ANON_KEY` están, mintea un JWT por usuario y la RLS
+filtra; si no (o el JWT falla), cae a service_role con filtro país server-side. Reversible: apagar los `DB_FLAGS`
+vuelve las lecturas a Notion.
 
 ## Pendiente (próximas fases)
-- Fase 2: el proxy lee de Supabase + escribe en ambos; policies de INSERT/UPDATE/DELETE.
-- Fase 3: Supabase = fuente; Notion como respaldo/panel de carga.
+- Fase 3: Supabase = fuente de escritura; Notion como respaldo/panel de carga (hoy Notion sigue siendo la fuente).
 - Fase 4: multi-tenant (columna `tenant_id` + predicado por tenant) para franquicias.
