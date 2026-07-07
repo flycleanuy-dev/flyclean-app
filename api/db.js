@@ -44,6 +44,16 @@ function paisQuery(u) {
   return '&pais=eq.' + encodeURIComponent(u.pais);
 }
 
+// Predicado de operario de la RLS de servicios (db/policies.sql: `operario_app = app_nombre()`): un operario
+// solo ve los servicios donde figura como 'Operario App'. Los caminos service_role (fallback/global) NO
+// aplican la RLS → sin esto un operario que cae al fallback recibiría el `raw` de TODOS los servicios de su
+// país (la UI re-filtra, pero el JSON viaja — hallazgo Codex #3, 2026-07-07). Replica la RLS para que el
+// fallback sea consistente con el camino jwt-rls. Solo aplica a servicios + rol Operario.
+function operarioFilterServicios(u, resource) {
+  if (resource !== 'servicios' || !(u.rol || '').includes('Operario')) return '';
+  return '&operario_app=eq.' + encodeURIComponent(u.nombre);
+}
+
 // PostgREST cappea las respuestas sin Range explícito (típicamente 1000 filas) → truncado silencioso
 // a medida que las tablas crecen. Pagina de a 1000 con Range/Range-Unit hasta que una página vuelve
 // corta, concatenando. Misma URL y headers en cada página; solo cambia el Range.
@@ -110,14 +120,14 @@ export default async function handler(req, res) {
       } catch (e) {
         console.error('[db] jwt-rls falló (' + String(e.message || e).slice(0, 60) + ') → service fallback');
         authPath = 'service-fallback';
-        rows = await fetchPaged(`${SUPABASE_URL}/rest/v1/${table}?select=notion_id,raw${paisQuery(u)}`, {
+        rows = await fetchPaged(`${SUPABASE_URL}/rest/v1/${table}?select=notion_id,raw${paisQuery(u)}${operarioFilterServicios(u, resource)}`, {
           apikey: SERVICE_KEY, Authorization: 'Bearer ' + SERVICE_KEY,
         });
       }
     } else {
-      // Usuario global: service_role + filtro por país server-side.
+      // Usuario global (o sin JWT config): service_role + filtro país + (si operario) filtro por operario.
       authPath = 'service';
-      rows = await fetchPaged(`${SUPABASE_URL}/rest/v1/${table}?select=notion_id,raw${paisQuery(u)}`, {
+      rows = await fetchPaged(`${SUPABASE_URL}/rest/v1/${table}?select=notion_id,raw${paisQuery(u)}${operarioFilterServicios(u, resource)}`, {
         apikey: SERVICE_KEY, Authorization: 'Bearer ' + SERVICE_KEY,
       });
     }

@@ -167,6 +167,30 @@ export default async function handler(req, res) {
   // La matriz gobierna solo queries por DB, schema por DB, creates por parent y search directo;
   // pages/{id} GET/PATCH quedan fuera (residual documentado en permisos.js).
   if (!esVentas(u)) {
+    // PATCH pages/{id} — control de escritura cruzada (hallazgo Codex #2, 2026-07-07). El query/create por
+    // base ya lo cubre la matriz de abajo; acá tapamos el PATCH de una página individual a una base AJENA
+    // (cosechando su UUID desde una relación). Verificamos el parent REAL de la página (GET meta) y checamos
+    // permiso de escritura (tipo 'create'). Como el resto de la matriz: MONITOR loguea, ENFORCE 403. El GET
+    // de una página individual queda como residual menor (leer, no escribir; y controlarlo duplicaría lecturas).
+    if (httpMethod === 'PATCH') {
+      const mPagePatch = endpointNorm.match(/^pages\/([a-f0-9-]{32,36})$/);
+      if (mPagePatch) {
+        try {
+          const metaRes = await notionFetch(`https://api.notion.com/v1/pages/${mPagePatch[1]}`, {
+            method: 'GET', headers: { Authorization: `Bearer ${token}`, 'Notion-Version': '2022-06-28' },
+          });
+          const parentDb = norm((await metaRes.json())?.parent?.database_id);
+          if (parentDb) {
+            const perm = checkPermiso(u, { tipo: 'create', dbId: parentDb });
+            if (!perm.ok) {
+              console.warn('[perms] DENEGARÍA', JSON.stringify({ rol: u?.rol, id: session?.id, tipo: 'page-patch', db: parentDb, endpoint: endpointNorm, motivo: perm.motivo }));
+              if (ENFORCE_PERMS) return res.status(403).json({ error: 'forbidden: tu rol no puede editar esa base' });
+            }
+          }
+        } catch (e) { if (ENFORCE_PERMS) return res.status(403).json({ error: 'forbidden: no verificable' }); }
+      }
+    }
+
     let tipo = null, dbId = '';
     const mQuery = endpointNorm.match(/^databases\/([a-f0-9-]{32,36})\/query$/);
     const mSchema = endpointNorm.match(/^databases\/([a-f0-9-]{32,36})$/);
