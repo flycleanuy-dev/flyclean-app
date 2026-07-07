@@ -93,12 +93,18 @@ inventario completo de accesos y el "si pasa X → hacé Y".
 Desde sw v124, `/api/notion` evalúa cada request contra `api/_lib/permisos.js` (matriz rol→bases).
 Con **`ENFORCE_PERMS = false`** (api/notion.js) solo LOGUEA lo que denegaría, sin bloquear.
 
-**Para prender el candado (v125):**
+**Ampliado 2026-07-07 (auditoría Codex, main 999da29):** el modo monitor ahora cubre TAMBIÉN `PATCH pages/{id}`
+para roles no-Ventas (antes quedaba fuera de la matriz — hueco residual del hallazgo Codex #2): verifica el
+parent real de la página y checa permiso de escritura, logueando `[perms] DENEGARÍA` con `tipo: 'page-patch'`.
+Igual que la matriz de query: en monitor solo loguea. (El GET de una página individual sigue como residual menor.)
+
+**Para prender el candado (PENDIENTE — Fase 3, tras 2-3 días de observación desde el 2026-07-07):**
 1. Con uso real del equipo (mínimo 2-3 días hábiles), revisar los logs:
    `vercel -Q ~/.config/vercel-flyclean logs flyclean-app | grep '\[perms\] DENEGARÍA'`
+   Mirar en especial los `tipo: 'page-patch'` (flujos legítimos de edición que la matriz no contemple).
 2. Cada warn = un flujo real que la matriz no contempló → agregarlo a `api/_lib/permisos.js` (con
    evidencia función→DB en la cabecera, como el resto).
-3. Cuando haya 0 warns con uso normal → `ENFORCE_PERMS = true` + bump sw + deploy.
+3. Cuando haya 0 warns con uso normal → `ENFORCE_PERMS = true` + deploy.
 4. Rollback instantáneo: volver el flag a `false` (sin tocar la matriz).
 
 **Tests de permisos**: `npm test` incluye `tests/permisos.mjs` (sin token→401 + backstop Ventas +
