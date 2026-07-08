@@ -7,6 +7,7 @@
 // gracias a que el sync guardó `raw` = las properties tal cual de Notion. Así el render de la app NO cambia.
 import { verifySession, tokenFromReq, maybeRenewSession } from './_lib/session.js';
 import { userById, esGlobal, esVentas } from './_lib/users.js';
+import { checkPermiso, DB } from './_lib/permisos.js';
 import crypto from 'node:crypto';
 
 const ALLOWED_ORIGINS = [
@@ -101,6 +102,21 @@ export default async function handler(req, res) {
   // NO ve la operativa ni edita; los servicios no tienen plata). Sigue cerrado: ingresos/gastos.
   // (ver docs/superpowers/specs/2026-07-03-backstop-ventas-serverside-design.md)
   if (esVentas(u) && !['clientes', 'propuestas', 'servicios'].includes(resource)) return res.status(403).json({ error: 'forbidden: rol Ventas solo clientes, propuestas y servicios (lectura)' });
+
+  // Matriz de permisos por rol — la MISMA de /api/notion (api/_lib/permisos.js), acá en ENFORCE directo
+  // (2026-07-07, hallazgo Codex R2 #1: /api/db servía ingresos/gastos a cualquier autenticado y la RLS
+  // solo filtra país). Es seguro enforcear sin período monitor: la matriz está calibrada al inventario
+  // real de pantallas y /api/db sirve exactamente esas pantallas — y los resources SIN flujo legítimo por
+  // acá (ingresos/gastos: DB_FLAGS del front no los incluye) son justamente la fuga financiera a cerrar.
+  // Ventas no pasa por acá (su backstop corta primero). Rollback: comentar este bloque.
+  const RESOURCE_DB = { clientes: DB.contactos, servicios: DB.serviciosDb, propuestas: DB.propuestas, ingresos: DB.ingresosDb, gastos: DB.gastosDb };
+  if (!esVentas(u)) {
+    const perm = checkPermiso(u, { tipo: 'query', dbId: RESOURCE_DB[resource] });
+    if (!perm.ok) {
+      console.warn('[perms] DENEGADO /api/db', JSON.stringify({ rol: u?.rol, id: session.id, resource, motivo: perm.motivo }));
+      return res.status(403).json({ error: 'forbidden: tu rol no accede a esa base' });
+    }
+  }
 
   if (!SUPABASE_URL || !SERVICE_KEY) return res.status(500).json({ error: 'db no configurada' });
 

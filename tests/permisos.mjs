@@ -71,6 +71,14 @@ async function queryDb(dbId, pageSize, token) {
   });
 }
 
+// Lectura del ESPEJO Supabase (/api/db) — matriz de roles en ENFORCE directo desde 2026-07-07
+// (hallazgo Codex R2 #1: servía ingresos/gastos a cualquier autenticado).
+async function queryEspejo(resource, token) {
+  const headers = {};
+  if (token) headers['Authorization'] = 'Bearer ' + token;
+  return fetch(BASE + '/api/db?resource=' + encodeURIComponent(resource), { headers });
+}
+
 let pass = 0, fail = 0;
 async function test(name, fn) {
   try { await fn(); console.log('  ✓', name); pass++; }
@@ -114,6 +122,30 @@ await test('ventas-uy → query Contactos 200', async () => {
 await test('ventas-uy → query Gastos 403 (backstop Ventas: sin finanzas)', async () => {
   const r = await queryDb(DBS.gastos, 3, tVentas);
   assert.equal(r.status, 403, 'esperaba 403 (Ventas no ve Gastos), vino ' + r.status);
+});
+
+// (2b) ESPEJO /api/db — matriz en ENFORCE directo (2026-07-07): la fuga financiera era que
+// ingresos/gastos se servían a cualquier autenticado (la RLS solo filtra país).
+const tOperarioEspejo = signSession({ id: 'juan-pablo' });
+await test('espejo: juan-pablo (operario) → /api/db?resource=ingresos 403 (matriz enforce)', async () => {
+  const r = await queryEspejo('ingresos', tOperarioEspejo);
+  assert.equal(r.status, 403, 'esperaba 403 (operario sin ingresos en la matriz), vino ' + r.status);
+});
+await test('espejo: juan-pablo (operario) → /api/db?resource=servicios 200', async () => {
+  const r = await queryEspejo('servicios', tOperarioEspejo);
+  assert.equal(r.status, 200, 'esperaba 200, vino ' + r.status);
+});
+await test('espejo: ventas-uy → /api/db?resource=gastos 403 (backstop Ventas)', async () => {
+  const r = await queryEspejo('gastos', tVentas);
+  assert.equal(r.status, 403, 'esperaba 403, vino ' + r.status);
+});
+await test('espejo: ventas-uy → /api/db?resource=servicios 200 (lectura v133)', async () => {
+  const r = await queryEspejo('servicios', tVentas);
+  assert.equal(r.status, 200, 'esperaba 200, vino ' + r.status);
+});
+await test('espejo: federico-maciel (coordinador) → /api/db?resource=ingresos 200 (Por cobrar)', async () => {
+  const r = await queryEspejo('ingresos', signSession({ id: 'federico-maciel' }));
+  assert.equal(r.status, 200, 'esperaba 200 (coord tiene ingresos en la matriz), vino ' + r.status);
 });
 
 // (3) Operario: Servicios permitido por matriz. Gastos TAMBIÉN está permitido (inventario:

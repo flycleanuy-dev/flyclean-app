@@ -1,5 +1,5 @@
 import { verifySession, tokenFromReq, maybeRenewSession } from './_lib/session.js';
-import { userById, esVentas } from './_lib/users.js';
+import { userById, esVentas, esGlobal } from './_lib/users.js';
 import { checkPermiso } from './_lib/permisos.js';
 
 // Auth del proxy (#1). MONITOR (false): valida el token y lo reporta en X-Auth, pero NO rechaza.
@@ -179,12 +179,30 @@ export default async function handler(req, res) {
           const metaRes = await notionFetch(`https://api.notion.com/v1/pages/${mPagePatch[1]}`, {
             method: 'GET', headers: { Authorization: `Bearer ${token}`, 'Notion-Version': '2022-06-28' },
           });
-          const parentDb = norm((await metaRes.json())?.parent?.database_id);
+          const meta = await metaRes.json();
+          const parentDb = norm(meta?.parent?.database_id);
           if (parentDb) {
             const perm = checkPermiso(u, { tipo: 'create', dbId: parentDb });
             if (!perm.ok) {
               console.warn('[perms] DENEGARÍA', JSON.stringify({ rol: u?.rol, id: session?.id, tipo: 'page-patch', db: parentDb, endpoint: endpointNorm, motivo: perm.motivo }));
               if (ENFORCE_PERMS) return res.status(403).json({ error: 'forbidden: tu rol no puede editar esa base' });
+            }
+            // Nivel PÁGINA (Codex R2 #2, 2026-07-07) — el meta ya está descargado, los checks son gratis:
+            // (a) PAÍS: un rol no-global no debería editar una página de otro país. Acompaña el flag
+            //     monitor/enforce como el resto de la matriz.
+            // (b) OWNERSHIP operario en Servicios: solo LOG por ahora (sin enforce ni con el flag) —
+            //     ayudantes/jornadas pueden tener ediciones legítimas; se decide en la Fase 3 con los logs.
+            const pProps = meta?.properties || {};
+            const paisPagina = pProps['País']?.select?.name || '';
+            if (!esGlobal(u) && paisPagina && u?.pais && !paisPagina.includes(u.pais)) {
+              console.warn('[perms] DENEGARÍA', JSON.stringify({ rol: u?.rol, id: session?.id, tipo: 'page-patch-pais', db: parentDb, paisPagina, paisUser: u.pais }));
+              if (ENFORCE_PERMS) return res.status(403).json({ error: 'forbidden: página de otro país' });
+            }
+            if ((u?.rol || '').includes('Operario') && parentDb === SERVICIOS_NORM) {
+              const owner = pProps['Operario App']?.select?.name || '';
+              if (owner && owner !== u.nombre) {
+                console.warn('[perms] DENEGARÍA', JSON.stringify({ rol: u?.rol, id: session?.id, tipo: 'page-patch-owner', db: parentDb, owner }));
+              }
             }
           }
         } catch (e) { if (ENFORCE_PERMS) return res.status(403).json({ error: 'forbidden: no verificable' }); }

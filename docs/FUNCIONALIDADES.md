@@ -337,7 +337,7 @@
   - `api/cron-pipeline.js:23-81 (handler)`
 - **cron-report.js - Resumen automático para CEO** — Cron programable (default: viernes 21:00 UTC, lunes 11:00 UTC). Viernes: servicios completados, equipo de la semana (piloto+ayudantes tally), propuestas viejas. Lunes: próximos servicios, sin operario, para re-contactar. Email autosuficiente con HTML formateado. Soporta override ?tipo=viernes|lunes ?to=
   - `api/cron-report.js:53-115 (handler + svcCard + section)`
-- **session.js - Tokens HMAC stateless (v1)** — Token firmado HMAC-SHA256 sin base/KV. Payload: {id, exp: +30 días}. Clave derivada de CRON_SECRET (si rota, usuarios reingresan). Devuelve null si inválido/expirado (fail-safe). Extrae de 'Authorization: Bearer <token>'
+- **session.js - Tokens HMAC stateless** — Token firmado HMAC-SHA256 sin base/KV. Payload: {id, exp: **+7 días** con **renovación silenciosa** (v122: header `X-Session-Renew` cuando queda <mitad de vida → el equipo activo nunca re-tipea el PIN; un dispositivo perdido muere en ≤7d)}. Clave derivada de CRON_SECRET (si rota, usuarios reingresan). Devuelve null si inválido/expirado (fail-safe). Extrae de 'Authorization: Bearer <token>'
   - `api/_lib/session.js:12-49 (signSession + verifySession + tokenFromReq)`
 - **pins.js - Store de PINs custom en Upstash KV** — Hash scrypt s2 (salteado 16B, derivación 32B). KV storage via Upstash REST API. Si KV no disponible, degrada a USER_PINS env (nadie queda trancado). getUserPinHash retorna null si no existe, verify usa timingSafeEqual
   - `api/_lib/pins.js:25-49 (hashPin + verifyPinHash + getUserPinHash + setUserPinHash)`
@@ -676,8 +676,8 @@ Auditoría externa (Codex, 2026-07-04) — 7 hallazgos verificados como reales, 
 - **v123 upload blindado**: `checkServiceOwnership` en `api/upload-url.js` — el servicio debe existir,
   no estar archivado, y quien sube debe tener derecho (operario en alguno de los 4 roles; gestión
   no-global con país coincidente; recibos = rol ≠ Ventas). Tope de **15MB firmado** en el presign
-  (`contentLength` del cliente; legacy sin el campo → presign sin firma + warn, endurecer después).
-  Cache positivo 5 min. Fail-closed 503.
+  (`contentLength` **OBLIGATORIO** desde 2026-07-07 — sin el campo → 400 "actualizá la app"; cerró
+  el fail-open del período de transición). Cache positivo 5 min. Fail-closed 503.
 - **v124 matriz de permisos por rol — MODO MONITOR**: `api/_lib/permisos.js` (matriz rol→bases con la
   evidencia función→DB en la cabecera) + evaluación en `api/notion.js` con **`ENFORCE_PERMS = false`**:
   loguea `[perms] DENEGARÍA {rol,id,tipo,db,endpoint,motivo}` sin rechazar. Dirección/CEO = `'*'`;

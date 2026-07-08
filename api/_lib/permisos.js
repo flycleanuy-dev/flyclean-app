@@ -78,7 +78,7 @@ const norm = (s) => String(s || '').replace(/-/g, '').toLowerCase();
 
 // IDs normalizados (sin guiones, lowercase). db = database_id · ds = data_source_id (los creates
 // de servicios/gastos/ingresos/solicitudes van por data_source_id; el resto por database_id).
-const DB = {
+export const DB = {
   serviciosDb:   'ccaf276c7f6a460caeb3d2800deab2e5',
   serviciosDs:   '2fbc8a035c4f445c851671dd9b2eea78',
   gastosDb:      '1e20cdabad5d41528d070ed2f6e9dad3',
