@@ -98,6 +98,13 @@ para roles no-Ventas (antes quedaba fuera de la matriz — hueco residual del ha
 parent real de la página y checa permiso de escritura, logueando `[perms] DENEGARÍA` con `tipo: 'page-patch'`.
 Igual que la matriz de query: en monitor solo loguea. (El GET de una página individual sigue como residual menor.)
 
+**Ronda 2 (main 8ee6c4d):** (a) **`/api/db` aplica la matriz en ENFORCE DIRECTO** (sin monitor — cerró la fuga
+de ingresos/gastos a cualquier autenticado; log `[perms] DENEGADO /api/db` al bloquear; rollback = comentar el
+bloque `RESOURCE_DB` en `api/db.js`). (b) El PATCH pages/{id} agrega checks de **página**: `page-patch-pais`
+(país de la página vs usuario — 403 bajo enforce) y `page-patch-owner` (operario que edita un servicio ajeno —
+SOLO log, decidir en el flip si se enforcea; puede haber ayudantes legítimos). (c) `tests/permisos.mjs` cubre
+`/api/db` (queryEspejo). Al revisar los logs para el flip, mirar los 3 tipos: `page-patch`, `page-patch-pais`, `page-patch-owner`.
+
 **Para prender el candado (PENDIENTE — Fase 3, tras 2-3 días de observación desde el 2026-07-07):**
 1. Con uso real del equipo (mínimo 2-3 días hábiles), revisar los logs:
    `vercel -Q ~/.config/vercel-flyclean logs flyclean-app | grep '\[perms\] DENEGARÍA'`
