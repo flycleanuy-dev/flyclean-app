@@ -1744,7 +1744,7 @@ body::before {
 // Versionado web/APK. Cuando cambie funcionalidad significativa de la web,
 // bump APP_VERSION. Cuando algo requiera versión mínima de APK, bump MIN_APK_VERSION_REQUIRED.
 // La app instalada (TWA) compara su versión nativa contra MIN_APK_VERSION_REQUIRED.
-const APP_VERSION = '1.2.5';
+const APP_VERSION = '1.2.6';
 const MIN_APK_VERSION_REQUIRED = '1.0.0';
 
 // Helper semver simple para comparar "x.y.z" (devuelve <0, 0, >0).
@@ -4373,6 +4373,51 @@ async function enqueueWrite(pageId, properties) {
   }
 }
 
+// Encola un CREATE (crear página en Notion) en la misma writeQueue, con un discriminador type:'create'
+// (auditoría 2026-07-09 — "seguir otro día" sin señal). `dedup` = { rootId, jornadaN } permite chequear
+// antes del POST si la ficha ya existe (idempotencia entre reintentos). Las properties se CONGELAN al
+// encolar (snapshot del servicio padre); processQueue las postea tal cual al reconectar.
+async function enqueueCreate(dsId, properties, dedup) {
+  try {
+    const db = await openOfflineDB();
+    return await new Promise((resolve, reject) => {
+      const tx = db.transaction(OFFLINE_STORE, 'readwrite');
+      tx.objectStore(OFFLINE_STORE).add({ type: 'create', dsId, properties, dedup: dedup || null, queuedAt: Date.now(), retries: 0 });
+      tx.oncomplete = () => { renderOfflineBadge(); resolve(true); };
+      tx.onerror = () => reject(tx.error);
+    });
+  } catch (e) { console.warn('[offline] enqueueCreate falló', e); return false; }
+}
+
+// Dedup client-side de una jornada J+1 antes de crearla. Devuelve true si ya existe una ficha con esa
+// Orden madre + Jornada N°. LANZA si la query falla → processQueue reintenta (nunca crea a ciegas).
+// ⚠️ CRÍTICO: pegamos DIRECTO al proxy Notion (la FUENTE), NO por callNotion — callNotion rutea las
+// lecturas de Servicios al espejo Supabase, que se sincroniza cada ~10 min y por ende NUNCA reflejaría la
+// J+1 recién creada dentro de la ventana de reintentos (30s) → daría false-negative → ficha DUPLICADA en el
+// caso "POST OK pero respuesta perdida". El índice de Notion tiene lag de segundos (<< 30s) → sí la ve.
+// Orden last_edited_time desc: la página recién creada/editada entra en la primera página (mitiga el tope 100).
+async function jornadaYaExiste(dedup) {
+  if (!dedup || !dedup.rootId || dedup.jornadaN == null) return false;
+  const resp = await fetch('/api/notion', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (localStorage.getItem('fc_token') || '') },
+    body: JSON.stringify({ endpoint: `databases/${DB_ID}/query`, method: 'POST', body: { page_size: 100, sorts: [{ timestamp: 'last_edited_time', direction: 'descending' }] } })
+  });
+  if (!resp.ok) throw new Error('API error ' + resp.status); // red/servidor → reintentar, no crear a ciegas
+  const d = await resp.json();
+  const pool = d.results || [];
+  // Un pool VACÍO = "no sé" (el search-fallback puede devolver [] bajo carga/rate-limit), NO "no existe":
+  // Servicios nunca está legítimamente vacío. Tratarlo como "no existe" crearía a ciegas → duplicado.
+  if (!pool.length) throw new Error('pool vacío — reintentar');
+  const nrm = id => (id || '').replace(/-/g, '');
+  const root = nrm(dedup.rootId);
+  return pool.some(s => {
+    const om = s.properties?.['Orden madre']?.relation?.[0]?.id;
+    const jn = s.properties?.['Jornada N°']?.number;
+    return om && nrm(om) === root && jn === dedup.jornadaN;
+  });
+}
+
 async function getQueueItems() {
   try {
     const db = await openOfflineDB();
@@ -4433,7 +4478,16 @@ async function processQueue() {
       if (item.processing && (ahora - item.processing) < 90000) continue;
       await updateQueueItem(item.id, { processing: ahora });
       try {
-        await callNotion(`pages/${item.pageId}`, 'PATCH', { properties: item.properties });
+        if (item.type === 'create') {
+          // Dedup ANTES de crear → idempotente entre reintentos (ej. si el POST se ejecutó pero se
+          // perdió la respuesta): si la J+1 ya existe en Notion, no la re-creamos. jornadaYaExiste lanza
+          // si la query falla por red → cae al catch y se reintenta (nunca crea a ciegas).
+          if (!(await jornadaYaExiste(item.dedup))) {
+            await callNotion('pages', 'POST', { parent: { type: 'data_source_id', data_source_id: item.dsId }, properties: item.properties });
+          }
+        } else {
+          await callNotion(`pages/${item.pageId}`, 'PATCH', { properties: item.properties });
+        }
         await removeQueueItem(item.id);
       } catch (e) {
         // Si falla, liberar (processing:null) e incrementar retries; si excede 10, descartar.
@@ -7823,7 +7877,8 @@ async function cerrarServicio() {
   const esTrabajo = !tipoReg.includes('Prueba') && !tipoReg.includes('Relevamiento');
   if (esTrabajo && !servicioTieneSectores()) {
     if (serviceState.finalizacion === 'continua') {
-      if (!navigator.onLine) { alert(t('close.jornada.need.online')); return; }
+      // Sin señal YA NO bloquea (auditoría 2026-07-09): el cierre-continuación se encola y la ficha del
+      // día siguiente se crea al reconectar (con dedup anti-duplicado). Ver _ejecutarCierre + processQueue.
       const pct = parseInt(serviceState.avance, 10);
       if (isNaN(pct) || pct <= 0 || pct >= 100) {
         alert(pct >= 100 ? t('close.jornada.pct.is100') : t('close.jornada.need.pct'));
@@ -7945,10 +8000,21 @@ async function _ejecutarCierre(modo) {
       const fecha = man.toISOString().split('T')[0];
       const curN = currentService?.properties?.['Jornada N°']?.number;
       const siguienteN = (typeof curN === 'number' ? curN : 1) + 1;
-      try {
-        await crearJornadaSiguiente(currentService, siguienteN, fecha);
-      } catch (e) {
-        alert(t('close.jornada.next.error'));
+      if (result?.queued || !navigator.onLine) {
+        // Sin señal: el cierre ya se encoló → encolar también el CREATE de la J+1 (se crea al reconectar,
+        // con dedup). Congelamos props+rootId ahora (snapshot del padre). Auditoría 2026-07-09.
+        const { properties: jProps, rootId } = buildJornadaSiguienteProps(currentService, siguienteN, fecha);
+        await enqueueCreate(SERVICIOS_DS_ID, jProps, { rootId, jornadaN: siguienteN });
+      } else {
+        try {
+          await crearJornadaSiguiente(currentService, siguienteN, fecha);
+        } catch (e) {
+          // Si fue por red, encolar (no perder la J+1); otro error → avisar (se guardó el día, falta la ficha).
+          if (isNetworkError(e)) {
+            const { properties: jProps, rootId } = buildJornadaSiguienteProps(currentService, siguienteN, fecha);
+            await enqueueCreate(SERVICIOS_DS_ID, jProps, { rootId, jornadaN: siguienteN });
+          } else alert(t('close.jornada.next.error'));
+        }
       }
     }
     showDoneScreen(modo === 'continuar');
@@ -11293,7 +11359,10 @@ async function submitCreateJornada() {
 // La usa el cierre del operario cuando un servicio de trabajo SIN sectores "sigue otro día".
 // A diferencia de submitCreateJornada (manual, del coord), no lee del DOM y hereda además
 // ayudantes/lugar/mapa, arranca 🔄 Asignado si hay piloto, y vincula la Orden madre (raíz).
-async function crearJornadaSiguiente(parentService, numero, fecha) {
+// Arma las properties de la ficha "Jornada siguiente" (J+1) desde el servicio padre. Extraído para
+// reusarlo ONLINE (crearJornadaSiguiente) y OFFLINE (se congela + encola; ver _ejecutarCierre + processQueue).
+// Devuelve { properties, rootId } — rootId = Orden madre (raíz del trabajo multi-día), clave del dedup.
+function buildJornadaSiguienteProps(parentService, numero, fecha) {
   const p = parentService.properties || {};
   const nombreOriginal = p['Nombre del servicio']?.title?.[0]?.plain_text || 'Servicio';
   const nombreLimpio = nombreOriginal.replace(/—\s*Jornada\s*\d+\s*$/, '').trim();
@@ -11346,7 +11415,11 @@ async function crearJornadaSiguiente(parentService, numero, fecha) {
       .filter(f => f.external.url);
     if (preFiles.length) properties['📸 Fotos pre-servicio'] = { files: preFiles };
   }
+  return { properties, rootId };
+}
 
+async function crearJornadaSiguiente(parentService, numero, fecha) {
+  const { properties } = buildJornadaSiguienteProps(parentService, numero, fecha);
   await callNotion('pages', 'POST', {
     parent: { type: 'data_source_id', data_source_id: SERVICIOS_DS_ID },
     properties
