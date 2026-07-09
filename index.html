@@ -1635,8 +1635,8 @@ body::before {
     <div class="ceo-tab active" id="ceotab-metricas" data-i18n="ceo.tab.metricas" onclick="setCEOTab('metricas')">📊 Métricas</div>
     <div class="ceo-tab" id="ceotab-servicios" data-i18n="ceo.tab.servicios" onclick="setCEOTab('servicios')">📋 Servicios</div>
     <div class="ceo-tab" id="ceotab-finanzas" data-i18n="ceo.tab.finanzas" onclick="setCEOTab('finanzas')">💰 Finanzas</div>
-    <div class="ceo-tab" id="ceotab-porcobrar" onclick="setCEOTab('porcobrar')">💰 Por cobrar</div>
-    <div class="ceo-tab" id="ceotab-clientes" onclick="setCEOTab('clientes')">👥 Clientes</div>
+    <div class="ceo-tab" id="ceotab-porcobrar" data-i18n="tab.porcobrar" onclick="setCEOTab('porcobrar')">💰 Por cobrar</div>
+    <div class="ceo-tab" id="ceotab-clientes" data-i18n="tab.clientes" onclick="setCEOTab('clientes')">👥 Clientes</div>
     <div class="ceo-tab" id="ceotab-equipo" data-i18n="ceo.tab.equipo" onclick="setCEOTab('equipo')">👥 Equipo</div>
   </div>
   <div id="alerts-banner-ceo"></div>
@@ -1657,12 +1657,12 @@ body::before {
     </div>
   </div>
   <div class="ceo-tab-bar">
-    <div class="ceo-tab active" id="ftab-resumen" onclick="setFinanzasTab('resumen')">📊 Resumen</div>
-    <div class="ceo-tab" id="ftab-porcobrar" onclick="setFinanzasTab('porcobrar')">💰 Por cobrar</div>
-    <div class="ceo-tab" id="ftab-clientes" onclick="setFinanzasTab('clientes')">👥 Clientes</div>
+    <div class="ceo-tab active" id="ftab-resumen" data-i18n="finanzas.tab.resumen" onclick="setFinanzasTab('resumen')">📊 Resumen</div>
+    <div class="ceo-tab" id="ftab-porcobrar" data-i18n="tab.porcobrar" onclick="setFinanzasTab('porcobrar')">💰 Por cobrar</div>
+    <div class="ceo-tab" id="ftab-clientes" data-i18n="tab.clientes" onclick="setFinanzasTab('clientes')">👥 Clientes</div>
     <div class="ceo-tab" id="ftab-gastos" data-i18n="finanzas.tab.gastos" onclick="setFinanzasTab('gastos')">💸 Gastos</div>
     <div class="ceo-tab" id="ftab-ingresos" data-i18n="finanzas.tab.ingresos" onclick="setFinanzasTab('ingresos')">💵 Ingresos</div>
-    <div class="ceo-tab" id="ftab-reportes" onclick="setFinanzasTab('reportes')">📊 Reportes</div>
+    <div class="ceo-tab" id="ftab-reportes" data-i18n="finanzas.tab.reportes" onclick="setFinanzasTab('reportes')">📊 Reportes</div>
   </div>
   <div class="ceo-content" id="finanzas-content">
     <div style="text-align:center;padding:40px 0"><div class="spinner" style="margin:0 auto"></div></div>
@@ -1744,7 +1744,7 @@ body::before {
 // Versionado web/APK. Cuando cambie funcionalidad significativa de la web,
 // bump APP_VERSION. Cuando algo requiera versión mínima de APK, bump MIN_APK_VERSION_REQUIRED.
 // La app instalada (TWA) compara su versión nativa contra MIN_APK_VERSION_REQUIRED.
-const APP_VERSION = '1.2.4';
+const APP_VERSION = '1.2.5';
 const MIN_APK_VERSION_REQUIRED = '1.0.0';
 
 // Helper semver simple para comparar "x.y.z" (devuelve <0, 0, >0).
@@ -2140,6 +2140,10 @@ const TRANSLATIONS = {
     'role.finanzas': '📊 Administración',
     'finanzas.tab.gastos': '💸 Gastos',
     'finanzas.tab.ingresos': '💵 Ingresos',
+    'finanzas.tab.resumen': '📊 Resumen',
+    'finanzas.tab.reportes': '📊 Reportes',
+    'tab.porcobrar': '💰 Por cobrar',
+    'tab.clientes': '👥 Clientes',
     'finanzas.tab.reportes': '📊 Reportes',
     'finanzas.gastos.empty': '💸 Cargá un gasto con la foto del recibo — la IA (Claude) extrae los datos automáticamente.',
     'finanzas.ingresos.empty': '💵 Tab Ingresos — lista de cobros del mes (pronto).',
@@ -2885,6 +2889,10 @@ const TRANSLATIONS = {
     'role.finanzas': '📊 Administração',
     'finanzas.tab.gastos': '💸 Despesas',
     'finanzas.tab.ingresos': '💵 Receitas',
+    'finanzas.tab.resumen': '📊 Resumo',
+    'finanzas.tab.reportes': '📊 Relatórios',
+    'tab.porcobrar': '💰 A cobrar',
+    'tab.clientes': '👥 Clientes',
     'finanzas.tab.reportes': '📊 Relatórios',
     'finanzas.gastos.empty': '💸 Registre uma despesa com a foto do recibo — a IA (Claude) extrai os dados automaticamente.',
     'finanzas.ingresos.empty': '💵 Tab Receitas — lista de cobranças do mês (em breve).',
@@ -6464,6 +6472,7 @@ function setCoordTab(tab, skipRender) {
   // decisión Diego 2026-07-05), aunque se invoque setCoordTab a mano (consola/otro código) con
   // cualquier otro valor — nunca debe ver cartera/servicios/finanzas.
   if (!['prospeccion', 'mapa', 'propuestas', 'contactos'].includes(tab) && esVentas()) return;
+  const _prevCoordTabForFilters = activeCoordTab; // para decidir si resetear filtros (solo al cambiar de dominio)
   activeCoordTab = tab;
   markUserActive();
   // Servicios/Relevamientos/Pruebas comparten UNA tab de arriba ('📋 Servicios') + un control
@@ -6474,14 +6483,19 @@ function setCoordTab(tab, skipRender) {
     const el = document.getElementById('ctab-' + t);
     if (el) el.classList.toggle('active', t === tab || (t === 'servicios' && SERV_SUBTABS.includes(tab)));
   });
-  // Reset de filtros al cambiar de tab (search/estado/etc no se aplican entre dominios distintos).
-  coordFilters.search = '';
-  coordFilters.estado = [];
-  coordFilters.pais = [];
-  coordFilters.operario = [];
-  coordFilters.dateFrom = '';
-  coordFilters.dateTo = '';
-  _coordFiltersPanelOpen = false;
+  // Reset de filtros SOLO al cambiar de DOMINIO (auditoría 2026-07-09): antes se borraban en CADA
+  // setCoordTab → perdías el filtro al togglear sub-tabs de Servicios o al volver a la misma tab (ej.
+  // tras cerrar un sheet). Servicios/Relevamientos/Pruebas comparten dominio de filtros.
+  const _domFilt = tt => SERV_SUBTABS.includes(tt) ? 'servicios' : tt;
+  if (_domFilt(tab) !== _domFilt(_prevCoordTabForFilters)) {
+    coordFilters.search = '';
+    coordFilters.estado = [];
+    coordFilters.pais = [];
+    coordFilters.operario = [];
+    coordFilters.dateFrom = '';
+    coordFilters.dateTo = '';
+    _coordFiltersPanelOpen = false;
+  }
   showCoordToolbar(tab);
 
   // Week-strip queda escondido por default; el coordinador ahora trabaja con la lista cronológica.
@@ -7549,28 +7563,14 @@ function timeNow() { return new Date().toLocaleTimeString('es-UY', { hour: '2-di
 function requestUserLocationWithConsent(timeoutMs = 10000) {
   return new Promise((resolve) => {
     if (!navigator.geolocation) return resolve(null);
-    // Modal de Aviso Simplificado
+    // Recordar el consentimiento (auditoría 2026-07-09): antes se mostraba el Aviso Simplificado en CADA
+    // inicio de servicio. Si el operario ya dio OK una vez, saltamos el modal y localizamos directo. El
+    // consentimiento queda REGISTRADO (auditable) en localStorage con su timestamp — cumple el aviso previo.
     const overlay = document.createElement('div');
     overlay.className = 'gps-overlay';
-    overlay.innerHTML = `
-      <div class="gps-modal">
-        <div class="gps-emoji">📍</div>
-        <div class="gps-title">Compartir ubicación</div>
-        <div class="gps-body">FlyClean usa tu ubicación GPS sólo para registrar dónde se realiza el servicio. La info queda en el registro del servicio (no se comparte con terceros, no se usa para rastreo).</div>
-        <div class="gps-actions">
-          <button class="gps-btn gps-btn-skip" id="gps-skip">Omitir</button>
-          <button class="gps-btn gps-btn-allow" id="gps-allow">Permitir</button>
-        </div>
-        <div class="gps-fineprint">Podés cambiar esta decisión luego en los ajustes del sistema.<br>Ver <a href="/privacy" target="_blank" rel="noopener">Política de Privacidad</a>.</div>
-      </div>
-    `;
-    document.body.appendChild(overlay);
     const cleanup = () => { try { document.body.removeChild(overlay); } catch (_) {} };
-    document.getElementById('gps-skip').onclick = () => { cleanup(); resolve(null); };
-    document.getElementById('gps-allow').onclick = () => {
-      // En vez de cleanup inmediato, mostramos un spinner mientras el browser
-      // resuelve la ubicación (puede tardar varios segundos en redes lentas
-      // o GPS frío). Sin esto el operario ve la pantalla "colgada".
+    // Localiza mostrando el spinner (el GPS frío puede tardar varios segundos → sin esto la pantalla "cuelga").
+    const locate = () => {
       const modal = overlay.querySelector('.gps-modal');
       if (modal) {
         modal.innerHTML = `
@@ -7585,6 +7585,35 @@ function requestUserLocationWithConsent(timeoutMs = 10000) {
         err => { cleanup(); console.warn('[gps] denied or failed:', err.message); resolve(null); },
         { enableHighAccuracy: true, timeout: timeoutMs, maximumAge: 60000 }
       );
+    };
+
+    // Ya consintió antes → sin re-preguntar: solo spinner + localizar.
+    if (localStorage.getItem('fc_gps_consent') === 'allow') {
+      overlay.innerHTML = `<div class="gps-modal"></div>`;
+      document.body.appendChild(overlay);
+      locate();
+      return;
+    }
+
+    // Primera vez (o nunca aceptó) → Aviso Simplificado.
+    overlay.innerHTML = `
+      <div class="gps-modal">
+        <div class="gps-emoji">📍</div>
+        <div class="gps-title">Compartir ubicación</div>
+        <div class="gps-body">FlyClean usa tu ubicación GPS sólo para registrar dónde se realiza el servicio. La info queda en el registro del servicio (no se comparte con terceros, no se usa para rastreo).</div>
+        <div class="gps-actions">
+          <button class="gps-btn gps-btn-skip" id="gps-skip">Omitir</button>
+          <button class="gps-btn gps-btn-allow" id="gps-allow">Permitir</button>
+        </div>
+        <div class="gps-fineprint">Podés cambiar esta decisión luego en los ajustes del sistema.<br>Ver <a href="/privacy" target="_blank" rel="noopener">Política de Privacidad</a>.</div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+    document.getElementById('gps-skip').onclick = () => { cleanup(); resolve(null); };
+    document.getElementById('gps-allow').onclick = () => {
+      // Registrar el consentimiento (auditable) → no volver a preguntar en los próximos servicios.
+      try { localStorage.setItem('fc_gps_consent', 'allow'); localStorage.setItem('fc_gps_consent_ts', new Date().toISOString()); } catch (_) {}
+      locate();
     };
   });
 }
@@ -14783,9 +14812,14 @@ async function loadAlerts(role, bannerId) {
         return sinOp || sinFecha;                                 // "por gestionar" = le falta algo
       });
       if (pend.length) {
-        alerts.push({ level: 'warn', icon: '📋',
-          message: pend.length + ' servicio' + (pend.length > 1 ? 's' : '') + ' pendiente' + (pend.length > 1 ? 's' : '') + ' por gestionar (falta fecha u operario)' });
+        const gestAlert = { level: 'warn', icon: '📋',
+          message: pend.length + ' servicio' + (pend.length > 1 ? 's' : '') + ' pendiente' + (pend.length > 1 ? 's' : '') + ' por gestionar (falta fecha u operario)' };
+        // Deep-link (auditoría 2026-07-09): tocar la alerta lleva a la lista de Servicios para gestionarlos.
+        if (bannerId === 'alerts-banner-coord') gestAlert.onclick = "setCoordTab('servicios')";
+        else if (bannerId === 'alerts-banner-ceo') gestAlert.onclick = "setCEOTab('servicios')";
+        alerts.push(gestAlert);
       }
+
     }
 
     // Pipeline: propuestas para re-contactar (esperando respuesta del cliente, +15 días) — coord + CEO
