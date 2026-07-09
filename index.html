@@ -699,6 +699,9 @@ body::before {
   .edit-sheet-sub { font-size: 12px; color: var(--text3); margin-top: 3px; }
   .edit-section { padding: 16px 20px 0; }
   .edit-section-label { font-size: 11px; font-weight: 700; color: var(--text3); letter-spacing: 1px; margin-bottom: 10px; }
+  /* Header de secciones colapsables dentro del sheet de edición (reusa toggleCeoAcc + .ceo-acc-body). */
+  .edit-acc-head { font-family: inherit; padding: 14px 20px; font-size: 12px; letter-spacing: 1px; color: var(--text2); border-top: 1px solid var(--border); border-bottom: none; margin-top: 6px; }
+  .edit-acc-head .fin-arrow { font-size: 11px; }
   .role-cols { display: flex; gap: 12px; align-items: flex-start; }
   .role-col { flex: 1 1 0; min-width: 0; }
   /* En pantallas muy angostas (<360px) apilar para que los nombres no se corten */
@@ -1334,13 +1337,15 @@ body::before {
       <div class="edit-section-hint" data-i18n="sheet.edit.section.participantes.hint" style="font-size:11px;color:var(--text3);margin-bottom:8px">Marcá a los que estuvieron en el campo además del piloto. Cada uno suma 1 jornal.</div>
       <div class="operario-btns" id="edit-participantes-btns"></div>
     </div>
-    <div class="edit-section">
-      <div class="edit-section-label" data-i18n="sheet.edit.section.sectores">🏢 SECTORES DE ESTE TRABAJO</div>
-      <div class="edit-section-hint" data-i18n="sheet.edit.section.sectores.hint" style="font-size:11px;color:var(--text3);margin-bottom:8px">Elegí los edificios/zonas del cliente que se trabajan en este servicio.</div>
-      <div class="operario-btns" id="edit-sectores-btns"></div>
-      <div style="display:flex;gap:8px;margin-top:8px">
-        <input type="text" id="edit-sector-input" class="edit-date-input" style="flex:1;margin-bottom:0" placeholder="Nuevo sector (se guarda al cliente)" onkeydown="if(event.key==='Enter'){event.preventDefault();editAddSector();}"/>
-        <button type="button" class="estado-btn" style="white-space:nowrap" onclick="editAddSector()" data-i18n="sheet.edit.sectores.add">+ Agregar</button>
+    <button type="button" class="ceo-acc-head edit-acc-head" onclick="toggleCeoAcc(this)"><span data-i18n="sheet.edit.section.sectores">🏢 SECTORES DE ESTE TRABAJO</span><span class="fin-arrow">▾</span></button>
+    <div class="ceo-acc-body" style="display:none">
+      <div class="edit-section">
+        <div class="edit-section-hint" data-i18n="sheet.edit.section.sectores.hint" style="font-size:11px;color:var(--text3);margin-bottom:8px">Elegí los edificios/zonas del cliente que se trabajan en este servicio.</div>
+        <div class="operario-btns" id="edit-sectores-btns"></div>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <input type="text" id="edit-sector-input" class="edit-date-input" style="flex:1;margin-bottom:0" placeholder="Nuevo sector (se guarda al cliente)" onkeydown="if(event.key==='Enter'){event.preventDefault();editAddSector();}"/>
+          <button type="button" class="estado-btn" style="white-space:nowrap" onclick="editAddSector()" data-i18n="sheet.edit.sectores.add">+ Agregar</button>
+        </div>
       </div>
     </div>
     <div class="edit-section">
@@ -1359,15 +1364,18 @@ body::before {
       <div class="edit-section-label" data-i18n="sheet.edit.section.tiposervicio">TIPO DE SERVICIO</div>
       <div class="estado-btns" id="edit-tiposervicio-btns"></div>
     </div>
-    <div class="edit-section">
-      <div class="edit-section-label" data-i18n="sheet.edit.section.notaspre">📝 NOTAS PARA EL OPERARIO (antes del trabajo)</div>
-      <textarea class="edit-date-input" id="edit-notaspre" rows="3" style="resize:none;height:70px" oninput="editState.notasPreServicio=this.value"></textarea>
+    <button type="button" class="ceo-acc-head edit-acc-head" onclick="toggleCeoAcc(this)"><span data-i18n="sheet.edit.acc.notas">📝 NOTAS, OBSERVACIÓN Y CLIENTE</span><span class="fin-arrow">▾</span></button>
+    <div class="ceo-acc-body" style="display:none">
+      <div class="edit-section">
+        <div class="edit-section-label" data-i18n="sheet.edit.section.notaspre">📝 NOTAS PARA EL OPERARIO (antes del trabajo)</div>
+        <textarea class="edit-date-input" id="edit-notaspre" rows="3" style="resize:none;height:70px" oninput="editState.notasPreServicio=this.value"></textarea>
+      </div>
+      <div class="edit-section">
+        <div class="edit-section-label" data-i18n="sheet.edit.section.obscliente">🗒️ OBSERVACIÓN PARA EL CLIENTE (va en el PDF)</div>
+        <textarea class="edit-date-input" id="edit-obscliente" rows="3" style="resize:none;height:70px" oninput="editState.observacionCliente=this.value"></textarea>
+      </div>
+      <div class="edit-section" id="edit-cliente-ubicacion"></div>
     </div>
-    <div class="edit-section">
-      <div class="edit-section-label" data-i18n="sheet.edit.section.obscliente">🗒️ OBSERVACIÓN PARA EL CLIENTE (va en el PDF)</div>
-      <textarea class="edit-date-input" id="edit-obscliente" rows="3" style="resize:none;height:70px" oninput="editState.observacionCliente=this.value"></textarea>
-    </div>
-    <div class="edit-section" id="edit-cliente-ubicacion"></div>
     <button class="edit-save-btn" id="edit-save-btn" data-i18n="btn.save.notion" onclick="saveServiceEdit()">💾 Guardar</button>
     <button class="report-pdf-btn" id="report-pdf-btn" onclick="openReportStep(editingService)" style="display:none">📄 Generar reporte</button>
     <div class="edit-section jornada-cta-wrap" id="edit-jornada-cta" style="display:none">
@@ -1744,7 +1752,7 @@ body::before {
 // Versionado web/APK. Cuando cambie funcionalidad significativa de la web,
 // bump APP_VERSION. Cuando algo requiera versión mínima de APK, bump MIN_APK_VERSION_REQUIRED.
 // La app instalada (TWA) compara su versión nativa contra MIN_APK_VERSION_REQUIRED.
-const APP_VERSION = '1.2.7';
+const APP_VERSION = '1.2.8';
 const MIN_APK_VERSION_REQUIRED = '1.0.0';
 
 // Helper semver simple para comparar "x.y.z" (devuelve <0, 0, >0).
@@ -2380,6 +2388,7 @@ const TRANSLATIONS = {
     'coord.new.servicio': '＋ Nuevo servicio',
     'sheet.contact.new.servicio': '＋ Nuevo servicio para este cliente',
     'sheet.edit.section.tiposervicio': 'TIPO DE SERVICIO',
+    'sheet.edit.acc.notas': '📝 NOTAS, OBSERVACIÓN Y CLIENTE',
     'sheet.edit.section.notaspre': '📝 NOTAS PARA EL OPERARIO (antes del trabajo)',
     'sheet.edit.section.obscliente': '🗒️ OBSERVACIÓN PARA EL CLIENTE (va en el PDF)',
     'sheet.contact.sectores.empty': 'Sin sectores aún.',
@@ -3130,6 +3139,7 @@ const TRANSLATIONS = {
     'coord.new.servicio': '＋ Novo serviço',
     'sheet.contact.new.servicio': '＋ Novo serviço para este cliente',
     'sheet.edit.section.tiposervicio': 'TIPO DE SERVIÇO',
+    'sheet.edit.acc.notas': '📝 NOTAS, OBSERVAÇÃO E CLIENTE',
     'sheet.edit.section.notaspre': '📝 NOTAS PARA O OPERÁRIO (antes do trabalho)',
     'sheet.edit.section.obscliente': '🗒️ OBSERVAÇÃO PARA O CLIENTE (vai no PDF)',
     'sheet.contact.sectores.empty': 'Sem setores ainda.',
