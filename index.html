@@ -1743,7 +1743,7 @@ body::before {
 // Versionado web/APK. Cuando cambie funcionalidad significativa de la web,
 // bump APP_VERSION. Cuando algo requiera versión mínima de APK, bump MIN_APK_VERSION_REQUIRED.
 // La app instalada (TWA) compara su versión nativa contra MIN_APK_VERSION_REQUIRED.
-const APP_VERSION = '1.2.0';
+const APP_VERSION = '1.2.1';
 const MIN_APK_VERSION_REQUIRED = '1.0.0';
 
 // Helper semver simple para comparar "x.y.z" (devuelve <0, 0, >0).
@@ -11188,7 +11188,12 @@ async function saveServiceEdit() {
     closeEditSheet();
     if (_fromPC && _porCobrarCtx) { await renderPorCobrar(_porCobrarCtx.containerId, _porCobrarCtx.opts); }
     else {
-      await renderCoordServicios();
+      // Refrescar la tab donde está parado el coord (Inicio/Servicios/Pruebas/Relevamientos). Antes
+      // hardcodeaba renderCoordServicios: si editó desde 🏠 Inicio, el race-guard de esa función
+      // abortaba y dejaba el spinner colgado (auditoría 2026-07-09). Cada render pasa su propio guard
+      // porque activeCoordTab coincide.
+      const rf = { inicio: renderCoordInicio, servicios: renderCoordServicios, pruebas: renderCoordPruebas, relevamientos: renderCoordRelevamientos }[activeCoordTab] || renderCoordServicios;
+      await rf();
       if (Array.isArray(_coordAllServices) && _saved?.id && !_coordAllServices.some(s => s.id === _saved.id)) {
         _coordAllServices.unshift(_saved);
         if (typeof renderCoordList === 'function') renderCoordList();
@@ -12613,11 +12618,17 @@ async function createPruebaFromPropuesta(propPageId) {
     });
 
     closePropSheet();
-    if (typeof setCoordTab === 'function') setCoordTab('pruebas');
+    // Un solo render de la tab correcta + update optimista + editingService poblado (mismo patrón que
+    // submitNewService). Antes: doble render + el sheet no abría porque el registro no estaba en memoria
+    // (auditoría 2026-07-09).
+    if (typeof setCoordTab === 'function') setCoordTab('pruebas', true);
     await renderCoordPruebas();
-    setTimeout(() => {
-      if (typeof openEditSheet === 'function') openEditSheet(created.id);
-    }, 400);
+    if (Array.isArray(_coordAllServices) && !_coordAllServices.some(x => x.id === created.id)) {
+      _coordAllServices.unshift(created);
+      if (typeof renderCoordList === 'function') renderCoordList();
+    }
+    editingService = created; _editFromPorCobrar = false;
+    if (typeof openEditSheet === 'function') openEditSheet(created.id);
   } catch (e) {
     if (btn) { btn.textContent = '🧪 ' + t('sheet.prop.pedir.prueba'); btn.disabled = false; }
     alert(t('sheet.prop.create.error') + ' ' + e.message);
@@ -12654,11 +12665,17 @@ async function createRelevamientoFromPropuesta(propPageId) {
     });
 
     closePropSheet();
-    if (typeof setCoordTab === 'function') setCoordTab('servicios');
-    await renderCoordServicios();
-    setTimeout(() => {
-      if (typeof openEditSheet === 'function') openEditSheet(created.id);
-    }, 400);
+    // BUG arreglado (auditoría 2026-07-09): iba a la tab 'servicios' (que FILTRA afuera los
+    // relevamientos) y no poblaba el registro → el relevamiento no aparecía y el sheet no abría.
+    // Ahora: tab 'relevamientos' + un solo render + optimista + editingService (patrón submitNewService).
+    if (typeof setCoordTab === 'function') setCoordTab('relevamientos', true);
+    await renderCoordRelevamientos();
+    if (Array.isArray(_coordAllServices) && !_coordAllServices.some(x => x.id === created.id)) {
+      _coordAllServices.unshift(created);
+      if (typeof renderCoordList === 'function') renderCoordList();
+    }
+    editingService = created; _editFromPorCobrar = false;
+    if (typeof openEditSheet === 'function') openEditSheet(created.id);
   } catch (e) {
     if (btn) { btn.textContent = '🔍 ' + t('sheet.prop.pedir.relev'); btn.disabled = false; }
     alert(t('sheet.prop.create.error') + ' ' + e.message);
@@ -14799,9 +14816,74 @@ async function init() {
 
 init();
 
+// --- Service Worker + aviso de versión nueva (auditoría 2026-07-09) ---
+// Antes el registro era fire-and-forget: nadie se enteraba de un deploy nuevo hasta cerrar la app del
+// todo. Ahora, cuando entra un SW nuevo y ya había uno controlando la pestaña, mostramos un banner
+// "Nueva versión — Actualizar" que recarga cuando el usuario decide (nunca en medio de su trabajo).
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/sw.js').catch(() => {});
+  let _swReloading = false;
+  window.__flycleanReload = () => { _swReloading = true; location.reload(); };
+  navigator.serviceWorker.register('/sw.js').then(reg => {
+    reg.addEventListener('updatefound', () => {
+      const nw = reg.installing;
+      if (!nw) return;
+      nw.addEventListener('statechange', () => {
+        // 'installed' + ya hay controller = ACTUALIZACIÓN (no la primera instalación).
+        if (nw.state === 'installed' && navigator.serviceWorker.controller) showUpdateBanner();
+      });
+    });
+    // Al volver el foco a la app, chequear si salió un deploy (sin recargar nada).
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) reg.update().catch(() => {}); });
+  }).catch(() => {});
+  // El SW nuevo hace skipWaiting()+claim → dispara controllerchange. Solo recargamos si el usuario
+  // pidió actualizar (evita recargas sorpresa mientras un operario sube fotos, etc.).
+  navigator.serviceWorker.addEventListener('controllerchange', () => { if (_swReloading) location.reload(); });
 }
+
+function showUpdateBanner() {
+  if (document.getElementById('sw-update-banner')) return;
+  const pt = currentLang === 'pt-BR';
+  const b = document.createElement('div');
+  b.id = 'sw-update-banner';
+  b.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);bottom:calc(74px + env(safe-area-inset-bottom));z-index:9999;background:#00C98D;color:#04150f;font-family:inherit;font-weight:700;font-size:14px;padding:11px 15px;border-radius:14px;box-shadow:0 6px 20px rgba(0,0,0,.35);display:flex;align-items:center;gap:12px;max-width:calc(100% - 24px)';
+  const txt = document.createElement('span');
+  txt.textContent = pt ? '🔄 Nova versão disponível' : '🔄 Nueva versión disponible';
+  const btn = document.createElement('button');
+  btn.textContent = pt ? 'Atualizar' : 'Actualizar';
+  btn.style.cssText = 'background:#04150f;color:#fff;border:0;border-radius:9px;padding:7px 13px;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit;flex:0 0 auto';
+  btn.onclick = () => (window.__flycleanReload ? window.__flycleanReload() : location.reload());
+  b.appendChild(txt); b.appendChild(btn);
+  document.body.appendChild(b);
+}
+
+// --- Botón atrás del teléfono cierra el sheet abierto, en vez de salir de la app (auditoría 2026-07-09) ---
+// Casi todos los sheets comparten .edit-overlay y abren con .open. Cuando se abre uno empujamos UN
+// estado "colchón" al historial; el "atrás" lo consume cerrando el sheet (clic en su × real, que corre
+// el cleanup propio de cada cierre). Si el sheet se cierra con la ×, devolvemos el colchón para no
+// dejar basura en el historial. La app no usaba history → no hay colisión.
+(function backClosesSheets() {
+  const anyOpenSheet = () => document.querySelector('.edit-overlay.open, #pin-change-overlay.open');
+  let guardActive = false;
+  const obs = new MutationObserver((muts) => {
+    // Solo miramos cambios de clase en los propios overlays (barato: ignora los toggles de tabs/cards).
+    if (!muts.some(m => m.target && m.target.classList &&
+        (m.target.classList.contains('edit-overlay') || m.target.id === 'pin-change-overlay'))) return;
+    const open = !!anyOpenSheet();
+    if (open && !guardActive) { guardActive = true; try { history.pushState({ fcSheet: 1 }, ''); } catch (_) {} }
+    else if (!open && guardActive) {
+      guardActive = false;
+      if (history.state && history.state.fcSheet) { try { history.back(); } catch (_) {} }
+    }
+  });
+  obs.observe(document.body, { subtree: true, attributes: true, attributeFilter: ['class'] });
+  window.addEventListener('popstate', () => {
+    const open = anyOpenSheet();
+    if (!open) return;
+    guardActive = false; // este popstate ya consumió el colchón
+    const closeBtn = open.querySelector('[onclick^="close"]');
+    if (closeBtn) closeBtn.click(); else open.classList.remove('open');
+  });
+})();
 </script>
 </body>
 </html>
