@@ -483,6 +483,7 @@ body::before {
   .photo-thumb.status-done { border-color: var(--green); }
   .photo-thumb.status-error { border-color: var(--red); }
   .photo-thumb.status-uploading { opacity: 0.7; }
+  .photo-thumb.status-queued { border-color: var(--amber); }
   .photo-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 4px; color: #fff; font-size: 11px; padding: 6px; text-align: center; }
   .photo-overlay-error { background: rgba(220, 38, 38, 0.85); font-size: 18px; }
   .photo-error-text { font-size: 10px; line-height: 1.2; word-break: break-word; }
@@ -1743,7 +1744,7 @@ body::before {
 // Versionado web/APK. Cuando cambie funcionalidad significativa de la web,
 // bump APP_VERSION. Cuando algo requiera versión mínima de APK, bump MIN_APK_VERSION_REQUIRED.
 // La app instalada (TWA) compara su versión nativa contra MIN_APK_VERSION_REQUIRED.
-const APP_VERSION = '1.2.1';
+const APP_VERSION = '1.2.2';
 const MIN_APK_VERSION_REQUIRED = '1.0.0';
 
 // Helper semver simple para comparar "x.y.z" (devuelve <0, 0, >0).
@@ -2466,6 +2467,7 @@ const TRANSLATIONS = {
     'photos.uploaded.one': 'foto subida',
     'photos.uploaded.many': 'fotos subidas',
     'photos.retry': 'Reintentar',
+    'photos.queued': 'sin subir (se suben con señal)',
     'photos.empty.gallery': 'Sin fotos aún',
     'photos.gallery.title': 'Fotos del servicio',
     'photos.wait.uploading': 'Esperá que terminen de subir las fotos antes de finalizar el servicio.',
@@ -3208,6 +3210,7 @@ const TRANSLATIONS = {
     'photos.uploaded.one': 'foto enviada',
     'photos.uploaded.many': 'fotos enviadas',
     'photos.retry': 'Tentar novamente',
+    'photos.queued': 'sem enviar (envia com sinal)',
     'photos.empty.gallery': 'Sem fotos ainda',
     'photos.gallery.title': 'Fotos do serviço',
     'photos.wait.uploading': 'Aguarde as fotos terminarem de enviar antes de finalizar o serviço.',
@@ -3774,6 +3777,31 @@ function hydrateServiceStateFromLocal(id) {
     if (!serviceState.horaCierreEfectivo && ls.horaCierreEfectivo) serviceState.horaCierreEfectivo = ls.horaCierreEfectivo;
     if (!serviceState.metodoTrabajo && ls.metodoTrabajo) serviceState.metodoTrabajo = ls.metodoTrabajo;
     if (!serviceState.herramientaManual && ls.herramientaManual) serviceState.herramientaManual = ls.herramientaManual;
+
+    // Rehidratar FOTOS desde localStorage (auditoría 2026-07-09): hydrateServiceStateFromNotion corrió
+    // antes y trae solo las 'done' ya commiteadas a Notion. Una foto recién subida cuyo flush (debounce 3s)
+    // no llegó, o una 'queued' offline, viven solo en localStorage → sin esto se perdían de la vista aunque
+    // la publicUrl fuera válida. Merge dedup por publicUrl (done) o por id (resto). El previewUrl guardado
+    // es un blob: de la sesión anterior (muerto tras recargar) → descartarlo y usar la publicUrl del CDN.
+    // 'uploading' zombie (su subida murió con la sesión, sin binario en cola) → 'error' para que se re-tome.
+    if (ls.photos && typeof ls.photos === 'object') {
+      ['pre', 'post', 'relevamiento'].forEach(ft => {
+        const local = Array.isArray(ls.photos[ft]) ? ls.photos[ft] : [];
+        if (!local.length) return;
+        ensurePhotosBucket(ft);
+        const existing = serviceState.photos[ft];
+        const urls = new Set(existing.map(p => p.publicUrl).filter(Boolean));
+        const ids = new Set(existing.map(p => p.id));
+        local.forEach(lp => {
+          if (!lp || (lp.publicUrl && urls.has(lp.publicUrl)) || ids.has(lp.id)) return;
+          const base = { ...lp, previewUrl: lp.publicUrl || null };
+          const photo = lp.status === 'uploading' ? { ...base, status: 'error', error: 'Se cortó la subida — reintentá' } : base;
+          existing.push(photo);
+          if (photo.publicUrl) urls.add(photo.publicUrl);
+          ids.add(photo.id);
+        });
+      });
+    }
     return true;
   } catch (e) { return false; }
 }
@@ -3836,6 +3864,32 @@ function ensurePhotosBucket(fotoType) {
   if (!serviceState.photos[fotoType]) serviceState.photos[fotoType] = [];
 }
 
+// Una foto cuenta como "tomada" si está subida ('done') o encolada offline ('queued'): en ambos casos
+// el operario YA la sacó y se subirá al reconectar. Los gates de avance usan esto para NO trabar el
+// trabajo sin señal. photosToNotionFiles sigue exigiendo 'done' (solo lo subido va a Notion).
+function fotoTomada(p) { return p && (p.status === 'done' || p.status === 'queued'); }
+
+// ¿El error vino de la red (sin señal / fetch caído) y no del servidor (4xx/validación)?
+function isNetworkError(e) {
+  const m = String(e && e.message || '');
+  return (e instanceof TypeError) || /Failed to fetch|NetworkError|Network request failed|Load failed/i.test(m);
+}
+
+// Presign + PUT del binario a R2. Reusado por uploadPhoto (online) y processPhotoQueue (reconexión).
+// Devuelve la publicUrl. Lanza en error (network o server) para que el llamador decida encolar vs marcar error.
+async function putPhotoToR2(serviceId, fotoType, blob, mime, filename) {
+  const resp = await fetch('/api/upload-url', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (localStorage.getItem('fc_token') || '') },
+    body: JSON.stringify({ serviceId, fotoType, filename, contentType: mime, contentLength: blob.size })
+  });
+  if (!resp.ok) { const data = await resp.json().catch(() => ({})); throw new Error(data.error || ('Backend ' + resp.status)); }
+  const { uploadUrl, publicUrl } = await resp.json();
+  const putResp = await fetch(uploadUrl, { method: 'PUT', headers: { 'Content-Type': mime }, body: blob });
+  if (!putResp.ok) throw new Error('Upload ' + putResp.status);
+  return publicUrl;
+}
+
 async function handlePhotoSelect(inputEl, fotoType, sectorId) {
   const files = Array.from(inputEl.files || []);
   inputEl.value = ''; // reset para permitir re-seleccionar la misma foto
@@ -3876,38 +3930,30 @@ async function uploadPhoto(file, fotoType, sectorId) {
   // el PUT a R2. Si al volver currentService es otro, no mutamos el state
   // visible — la foto queda guardada al servicio original via persistServiceState.
   const targetServiceId = currentService?.id;
+  if (!targetServiceId) { finalizePhotoUpload(targetServiceId, fotoType, id, { status: 'error', error: 'Sin servicio activo' }); return; }
+
+  const queueItem = { id, serviceId: targetServiceId, fotoType, sectorId: sectorId || null, filename: file.name, contentType: mime, blob: file };
+
+  // Sin conexión → encolar el binario directo y marcar 'queued' (NO se pierde; se sube al reconectar).
+  // Si el encolado FALLA (cuota IDB, modo privado) → marcar 'error', no 'queued': una foto marcada
+  // "encolada" sin binario sería una pérdida silenciosa con falsa tranquilidad.
+  if (!navigator.onLine) {
+    const ok = await enqueuePhoto(queueItem);
+    finalizePhotoUpload(targetServiceId, fotoType, id, ok ? { status: 'queued' } : { status: 'error', error: 'No se pudo guardar offline' });
+    return;
+  }
+
   try {
-    if (!targetServiceId) throw new Error('Sin servicio activo');
-
-    // 1. Pedir URL presignada
-    const resp = await fetch('/api/upload-url', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (localStorage.getItem('fc_token') || '') },
-      body: JSON.stringify({
-        serviceId: targetServiceId,
-        fotoType,
-        filename: file.name,
-        contentType: mime,
-        contentLength: file.size // se firma en el presign (tope 15MB server-side)
-      })
-    });
-    if (!resp.ok) {
-      const data = await resp.json().catch(() => ({}));
-      throw new Error(data.error || ('Backend ' + resp.status));
-    }
-    const { uploadUrl, publicUrl } = await resp.json();
-
-    // 2. PUT directo a R2
-    const putResp = await fetch(uploadUrl, {
-      method: 'PUT',
-      headers: { 'Content-Type': mime },
-      body: file
-    });
-    if (!putResp.ok) throw new Error('Upload ' + putResp.status);
-
+    const publicUrl = await putPhotoToR2(targetServiceId, fotoType, file, mime, file.name);
     finalizePhotoUpload(targetServiceId, fotoType, id, { status: 'done', publicUrl });
   } catch (e) {
-    finalizePhotoUpload(targetServiceId, fotoType, id, { status: 'error', error: e.message || 'Error' });
+    if (isNetworkError(e)) {
+      // La señal se cayó a mitad del upload → encolar en vez de perder la foto (mismo guard que arriba).
+      const ok = await enqueuePhoto(queueItem);
+      finalizePhotoUpload(targetServiceId, fotoType, id, ok ? { status: 'queued' } : { status: 'error', error: 'No se pudo guardar offline' });
+    } else {
+      finalizePhotoUpload(targetServiceId, fotoType, id, { status: 'error', error: e.message || 'Error' });
+    }
   }
 }
 
@@ -3955,6 +4001,8 @@ function removePhoto(fotoType, photoId) {
   if (!serviceState.photos?.[fotoType]) return;
   const p = serviceState.photos[fotoType].find(x => x.id === photoId);
   if (p?.previewUrl) URL.revokeObjectURL(p.previewUrl);
+  // Si estaba encolada offline, sacar también el binario de IndexedDB (evita que se suba una foto borrada).
+  if (p?.status === 'queued') removePhotoQueueItem(photoId).catch(() => {});
   serviceState.photos[fotoType] = serviceState.photos[fotoType].filter(x => x.id !== photoId);
   persistServiceState();
   renderStep();
@@ -3964,18 +4012,21 @@ function removePhoto(fotoType, photoId) {
 function renderPhotoUploader(fotoType, minPhotos) {
   const photos = serviceState.photos?.[fotoType] || [];
   const doneCount = photos.filter(p => p.status === 'done').length;
+  const queuedCount = photos.filter(p => p.status === 'queued').length;
   const minLabel = minPhotos ? ` (mínimo ${minPhotos})` : '';
+  const queuedLabel = queuedCount ? ` · ${queuedCount} ⏳ ${t('photos.queued')}` : '';
   return `
     <div class="photo-uploader">
       <input type="file" accept="image/*" capture="environment" multiple id="photo-input-${fotoType}" onchange="handlePhotoSelect(this, '${fotoType}')" style="display:none">
       <button type="button" class="photo-add-btn" onclick="document.getElementById('photo-input-${fotoType}').click()">📷 ${t('photos.add')}</button>
-      <div class="photo-count">${doneCount} ${doneCount === 1 ? t('photos.uploaded.one') : t('photos.uploaded.many')}${minLabel}</div>
+      <div class="photo-count">${doneCount} ${doneCount === 1 ? t('photos.uploaded.one') : t('photos.uploaded.many')}${minLabel}${queuedLabel}</div>
       <div class="photo-grid">
         ${photos.map(p => `
           <div class="photo-thumb status-${p.status}">
             ${p.previewUrl || p.publicUrl ? `<img src="${p.previewUrl || p.publicUrl}" alt="">` : '<div class="photo-thumb-empty">📷</div>'}
             ${p.status === 'uploading' ? '<div class="photo-overlay"><div class="spinner-sm"></div></div>' : ''}
             ${p.status === 'done' ? '<div class="photo-badge photo-badge-ok">✓</div>' : ''}
+            ${p.status === 'queued' ? `<div class="photo-badge" style="background:var(--amber)" title="${t('photos.queued')}">⏳</div>` : ''}
             ${p.status === 'error' ? `<div class="photo-overlay photo-overlay-error" title="${p.error || ''}">⚠️<div class="photo-error-text">${p.error || 'Error'}</div></div>` : ''}
             ${p.status !== 'uploading' ? `<button type="button" class="photo-remove" onclick="removePhoto('${fotoType}','${p.id}')">×</button>` : ''}
             ${p.status === 'error' ? `<button type="button" class="photo-retry" onclick="retryPhoto('${fotoType}','${p.id}')">${t('photos.retry')}</button>` : ''}
@@ -3996,19 +4047,22 @@ function sectorFotos(sectorId, fotoType) {
 function renderSectorPhotoUploader(sectorId, fotoType, minPhotos) {
   const photos = sectorFotos(sectorId, fotoType);
   const doneCount = photos.filter(p => p.status === 'done').length;
+  const queuedCount = photos.filter(p => p.status === 'queued').length;
   const minLabel = minPhotos ? ` (mínimo ${minPhotos})` : '';
+  const queuedLabel = queuedCount ? ` · ${queuedCount} ⏳ ${t('photos.queued')}` : '';
   const inputId = `photo-input-${fotoType}-${sectorId}`;
   return `
     <div class="photo-uploader">
       <input type="file" accept="image/*" capture="environment" multiple id="${inputId}" onchange="handlePhotoSelect(this, '${fotoType}', '${escAttrEdit(sectorId)}')" style="display:none">
       <button type="button" class="photo-add-btn" onclick="document.getElementById('${inputId}').click()">📷 ${t('photos.add')}</button>
-      <div class="photo-count">${doneCount} ${doneCount === 1 ? t('photos.uploaded.one') : t('photos.uploaded.many')}${minLabel}</div>
+      <div class="photo-count">${doneCount} ${doneCount === 1 ? t('photos.uploaded.one') : t('photos.uploaded.many')}${minLabel}${queuedLabel}</div>
       <div class="photo-grid">
         ${photos.map(p => `
           <div class="photo-thumb status-${p.status}">
             ${p.previewUrl || p.publicUrl ? `<img src="${p.previewUrl || p.publicUrl}" alt="">` : '<div class="photo-thumb-empty">📷</div>'}
             ${p.status === 'uploading' ? '<div class="photo-overlay"><div class="spinner-sm"></div></div>' : ''}
             ${p.status === 'done' ? '<div class="photo-badge photo-badge-ok">✓</div>' : ''}
+            ${p.status === 'queued' ? `<div class="photo-badge" style="background:var(--amber)" title="${t('photos.queued')}">⏳</div>` : ''}
             ${p.status === 'error' ? `<div class="photo-overlay photo-overlay-error" title="${p.error || ''}">⚠️<div class="photo-error-text">${p.error || 'Error'}</div></div>` : ''}
             ${p.status !== 'uploading' ? `<button type="button" class="photo-remove" onclick="removePhoto('${fotoType}','${p.id}')">×</button>` : ''}
             ${p.status === 'error' ? `<button type="button" class="photo-retry" onclick="retryPhoto('${fotoType}','${p.id}')">${t('photos.retry')}</button>` : ''}
@@ -4207,24 +4261,87 @@ async function updateServiceProps(pageId, properties) {
 // la conexión. Esto evita perder marcas de hora, checklist o cierre de servicio.
 //
 // Reads siguen yendo por sw.js con stale-while-revalidate. Solo writes son la queue.
-// Fotos NO se encolan en esta versión — quedan en localStorage + se commitean al
-// reconectar vía hydrateServiceState + flushPendingPhotos (ya implementado).
+// FOTOS (auditoría 2026-07-09): antes se perdían sin señal (el File no se guardaba). Ahora el
+// BINARIO se encola en el store `photoQueue` (IndexedDB) y se sube al reconectar (processPhotoQueue),
+// escribiendo la publicUrl a Notion. La metadata de la foto vive también en localStorage (rehidratada
+// al reabrir); el binario en IDB sobrevive a recargas.
 // ─────────────────────────────────────────────
 const OFFLINE_DB_NAME = 'fc-offline-v1';
 const OFFLINE_STORE = 'writeQueue';
+const PHOTO_STORE = 'photoQueue';
 
 function openOfflineDB() {
   return new Promise((resolve, reject) => {
-    const req = indexedDB.open(OFFLINE_DB_NAME, 1);
+    // v2: agrega el store de fotos offline. onupgradeneeded corre también para clientes que abrieron v1.
+    const req = indexedDB.open(OFFLINE_DB_NAME, 2);
     req.onupgradeneeded = e => {
       const db = e.target.result;
       if (!db.objectStoreNames.contains(OFFLINE_STORE)) {
         db.createObjectStore(OFFLINE_STORE, { keyPath: 'id', autoIncrement: true });
       }
+      // keyPath 'id' = el id string de la foto (mismo que en serviceState.photos), así se localiza/borra por id.
+      if (!db.objectStoreNames.contains(PHOTO_STORE)) {
+        db.createObjectStore(PHOTO_STORE, { keyPath: 'id' });
+      }
     };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
   });
+}
+
+// ── Cola de FOTOS offline (binarios) ──
+async function enqueuePhoto(item) {
+  // item: { id, serviceId, fotoType, sectorId, filename, contentType, blob }
+  try {
+    const db = await openOfflineDB();
+    return await new Promise((resolve, reject) => {
+      const tx = db.transaction(PHOTO_STORE, 'readwrite');
+      tx.objectStore(PHOTO_STORE).put({ ...item, queuedAt: Date.now(), retries: 0 });
+      tx.oncomplete = () => { renderOfflineBadge(); resolve(true); };
+      tx.onerror = () => reject(tx.error);
+    });
+  } catch (e) { console.warn('[offline] enqueuePhoto falló', e); return false; }
+}
+
+async function getPhotoQueueItems() {
+  try {
+    const db = await openOfflineDB();
+    return await new Promise((resolve, reject) => {
+      const req = db.transaction(PHOTO_STORE, 'readonly').objectStore(PHOTO_STORE).getAll();
+      req.onsuccess = () => resolve(req.result || []);
+      req.onerror = () => reject(req.error);
+    });
+  } catch (e) { return []; }
+}
+
+async function removePhotoQueueItem(id) {
+  try {
+    const db = await openOfflineDB();
+    return await new Promise((resolve, reject) => {
+      const tx = db.transaction(PHOTO_STORE, 'readwrite');
+      tx.objectStore(PHOTO_STORE).delete(id);
+      tx.oncomplete = () => { renderOfflineBadge(); resolve(true); };
+      tx.onerror = () => reject(tx.error);
+    });
+  } catch (e) { console.warn('[offline] removePhotoQueueItem falló', e); return false; }
+}
+
+async function updatePhotoQueueItem(id, patch) {
+  try {
+    const db = await openOfflineDB();
+    return await new Promise((resolve) => {
+      const store = db.transaction(PHOTO_STORE, 'readwrite').objectStore(PHOTO_STORE);
+      const getReq = store.get(id);
+      getReq.onsuccess = () => {
+        const cur = getReq.result;
+        if (!cur) return resolve(false);
+        Object.assign(cur, patch);
+        store.put(cur);
+        resolve(true);
+      };
+      getReq.onerror = () => resolve(false);
+    });
+  } catch (e) { return false; }
 }
 
 async function enqueueWrite(pageId, properties) {
@@ -4326,24 +4443,27 @@ async function processQueue() {
 }
 
 async function renderOfflineBadge() {
-  const items = await getQueueItems();
+  const [items, photos] = await Promise.all([getQueueItems(), getPhotoQueueItems()]);
+  const total = items.length + photos.length;
   let badge = document.getElementById('offline-badge');
-  if (!items.length && !badge) return;
+  if (!total && !badge) return;
   if (!badge) {
     badge = document.createElement('div');
     badge.id = 'offline-badge';
     badge.className = 'offline-badge';
     document.body.appendChild(badge);
   }
-  if (!items.length) {
+  if (!total) {
     badge.style.display = 'none';
     return;
   }
   badge.style.display = 'flex';
   const isOnline = navigator.onLine;
+  // Detallar las fotos aparte (lo que más le importa al operario: "no perdí mis fotos").
+  const label = photos.length ? `${total} pendiente${total > 1 ? 's' : ''} (${photos.length} 📷)` : `${total} pendiente${total > 1 ? 's' : ''}`;
   badge.innerHTML = isOnline
-    ? `<span class="offline-badge-dot" style="background:var(--amber)"></span><span>🔄 ${items.length} sincronizando…</span>`
-    : `<span class="offline-badge-dot" style="background:#ff6b6b"></span><span>📴 ${items.length} pendiente${items.length > 1 ? 's' : ''} sin conexión</span>`;
+    ? `<span class="offline-badge-dot" style="background:var(--amber)"></span><span>🔄 ${label} sincronizando…</span>`
+    : `<span class="offline-badge-dot" style="background:#ff6b6b"></span><span>📴 ${label} sin conexión</span>`;
 }
 
 // Wrapper que prueba escribir directo; si falla por red, encola.
@@ -4366,10 +4486,90 @@ async function queueableUpdateServiceProps(pageId, properties) {
   }
 }
 
-// Auto-process al recuperar conexión + cada 30s mientras haya items.
-window.addEventListener('online', () => { processQueue(); renderOfflineBadge(); });
+// Drena la cola de fotos en DOS FASES para no perder ni duplicar (auditoría 2026-07-09):
+//   Fase 1 — subir cada binario a R2 UNA vez y guardar su publicUrl en el propio item (el reintento NO
+//            re-sube → no genera URLs nuevas ni duplicados en Notion).
+//   Fase 2 — escribir a Notion (append que preserva lo existente) agrupado por servicio; el item se borra
+//            SOLO si el write CONFIRMA. Si el GET/PATCH falla, el item queda encolado y se reintenta.
+let _photoQueueProcessing = false;
+async function processPhotoQueue() {
+  if (_photoQueueProcessing || !navigator.onLine) return;
+  _photoQueueProcessing = true;
+  try {
+    // ── Fase 1: R2 ──
+    let items = await getPhotoQueueItems();
+    for (const it of items) {
+      if (!navigator.onLine) break;
+      if (it.publicUrl) continue;                                   // ya subido a R2 en una corrida previa
+      if (!it.blob) { await removePhotoQueueItem(it.id); continue; } // defensivo: item sin binario
+      try {
+        const publicUrl = await putPhotoToR2(it.serviceId, it.fotoType, it.blob, it.contentType, it.filename);
+        finalizePhotoUpload(it.serviceId, it.fotoType, it.id, { status: 'done', publicUrl }); // refresca la vista si el servicio está abierto
+        await updatePhotoQueueItem(it.id, { publicUrl });           // persistir la URL: no re-subir en el reintento
+      } catch (e) {
+        if (isNetworkError(e)) break;                               // se cayó la señal → reintentar en la próxima
+        const r = (it.retries || 0) + 1;                           // error permanente (4xx/validación)
+        if (r > 5) { finalizePhotoUpload(it.serviceId, it.fotoType, it.id, { status: 'error', error: 'No se pudo subir' }); await removePhotoQueueItem(it.id); }
+        else await updatePhotoQueueItem(it.id, { retries: r });
+      }
+    }
+    // ── Fase 2: Notion ── (solo los que ya tienen publicUrl; agrupados por servicio)
+    items = await getPhotoQueueItems();
+    const byService = {};
+    for (const it of items) { if (it.publicUrl) (byService[it.serviceId] = byService[it.serviceId] || []).push(it); }
+    for (const [sid, its] of Object.entries(byService)) {
+      if (!navigator.onLine) break;
+      try {
+        await appendPhotosToNotion(sid, its.map(it => ({ fotoType: it.fotoType, filename: it.filename, sectorId: it.sectorId || null, publicUrl: it.publicUrl })));
+        for (const it of its) await removePhotoQueueItem(it.id);    // recién ahora: Notion confirmó
+      } catch (e) {
+        if (isNetworkError(e)) continue;                           // sin señal → reintentar sin gastar reintentos
+        for (const it of its) {                                    // Notion rechaza persistentemente (¿página borrada?)
+          const r = (it.retries || 0) + 1;
+          if (r > 8) { finalizePhotoUpload(it.serviceId, it.fotoType, it.id, { status: 'error', error: 'No se pudo adjuntar' }); await removePhotoQueueItem(it.id); }
+          else await updatePhotoQueueItem(it.id, { retries: r });
+        }
+      }
+    }
+  } finally {
+    _photoQueueProcessing = false;
+    renderOfflineBadge();
+  }
+}
+
+// Escribe a Notion las fotos recién subidas de un servicio, AGREGÁNDOLAS a las que ya están en la página
+// (lee los files actuales y hace union por URL). NO pisa fotos existentes. Si el GET falla (red o server
+// 429/5xx/401) LANZA: sin conocer el estado actual, un replace con existing=[] borraría fotos previas →
+// mejor abortar y reintentar (el llamador mantiene los items encolados).
+async function appendPhotosToNotion(serviceId, uploads) {
+  const PROP = { pre: '📸 Fotos pre-servicio', post: '📸 Fotos post-servicio', relevamiento: '📸 Fotos relevamiento' };
+  const page = await callNotion('pages/' + serviceId, 'GET'); // lanza ante cualquier error → no escribir a ciegas
+  const props = {};
+  ['pre', 'post', 'relevamiento'].forEach(ft => {
+    const ups = uploads.filter(u => u.fotoType === ft && u.publicUrl);
+    if (!ups.length) return;
+    // Normalizamos los files existentes de Notion a formato external con su URL (todas nuestras fotos son external).
+    const existing = ((page && page.properties && page.properties[PROP[ft]] && page.properties[PROP[ft]].files) || [])
+      .map(f => ({ type: 'external', name: f.name || 'foto.jpg', external: { url: f.external?.url || f.file?.url || '' } }))
+      .filter(f => f.external.url);
+    const urls = new Set(existing.map(f => f.external.url));
+    const additions = [];
+    ups.forEach(u => {
+      if (urls.has(u.publicUrl)) return; // ya está en Notion → no duplicar
+      urls.add(u.publicUrl);
+      const ext = (u.filename?.split('.').pop() || 'jpg').toLowerCase();
+      const name = `${u.sectorId ? u.sectorId + '__' : ''}${ft}-${existing.length + additions.length + 1}.${ext}`;
+      additions.push({ type: 'external', name, external: { url: u.publicUrl } });
+    });
+    if (additions.length) props[PROP[ft]] = { files: [...existing, ...additions] };
+  });
+  if (Object.keys(props).length) await queueableUpdateServiceProps(serviceId, props);
+}
+
+// Auto-process al recuperar conexión + cada 30s mientras haya items (writes y fotos).
+window.addEventListener('online', () => { processQueue(); processPhotoQueue(); renderOfflineBadge(); });
 window.addEventListener('offline', () => { renderOfflineBadge(); });
-let _processQueueIntervalId = setInterval(() => { if (navigator.onLine) processQueue(); }, 30000);
+let _processQueueIntervalId = setInterval(() => { if (navigator.onLine) { processQueue(); processPhotoQueue(); } }, 30000);
 
 // ─────────────────────────────────────────────
 // SCREENS
@@ -7266,7 +7466,7 @@ function renderStep() {
 
     if (isRelev) {
       const r = serviceState.relevamiento;
-      const fotosCount = (serviceState.photos?.relevamiento || []).filter(p => p.status === 'done').length;
+      const fotosCount = (serviceState.photos?.relevamiento || []).filter(fotoTomada).length;
       summaryRows = `
         <div class="summary-row"><span class="summary-key">📐 ${t('relev.m2.label')}</span><span class="summary-val">${r.m2 ? r.m2 + ' m²' : '—'}</span></div>
         <div class="summary-row"><span class="summary-key">${t('relev.altura.label')}</span><span class="summary-val">${r.altura || '—'}</span></div>
@@ -11403,8 +11603,8 @@ function renderSectorOverlay() {
   if (!sec) { closeSectorOverlay(); return; }
   document.getElementById('sector-overlay-title').textContent = '🏢 ' + sec.nombre;
   document.getElementById('sector-overlay-sub').textContent = t('sector.overlay.sub');
-  const preOk = sectorFotos(sec.id, 'pre').filter(p => p.status === 'done').length;
-  const postOk = sectorFotos(sec.id, 'post').filter(p => p.status === 'done').length;
+  const preOk = sectorFotos(sec.id, 'pre').filter(fotoTomada).length;
+  const postOk = sectorFotos(sec.id, 'post').filter(fotoTomada).length;
   const puedeCerrar = preOk >= 1 && postOk >= 1;
   document.getElementById('sector-overlay-body').innerHTML = `
     <div class="form-label">${t('sector.fotos.antes')}</div>
@@ -11421,8 +11621,8 @@ function marcarSectorHecho() {
   if (!st) return;
   const sec = (serviceState.sectores || []).find(s => s.id === st.sectorId);
   if (!sec) return;
-  const preOk = sectorFotos(sec.id, 'pre').filter(p => p.status === 'done').length;
-  const postOk = sectorFotos(sec.id, 'post').filter(p => p.status === 'done').length;
+  const preOk = sectorFotos(sec.id, 'pre').filter(fotoTomada).length;
+  const postOk = sectorFotos(sec.id, 'post').filter(fotoTomada).length;
   if (preOk < 1 || postOk < 1) { alert(t('sector.fotos.min')); return; }
   sec.estado = 'hecho';
   persistServiceState();
@@ -14772,9 +14972,9 @@ async function init() {
   applyTranslations();
   renderVersionLabel();
   checkConsent();
-  // Si hay writes pendientes de una sesión anterior, mostrar badge y procesar.
+  // Si hay writes o fotos pendientes de una sesión anterior, mostrar badge y procesar.
   renderOfflineBadge();
-  if (navigator.onLine) processQueue();
+  if (navigator.onLine) { processQueue(); processPhotoQueue(); }
   const savedCountry = localStorage.getItem('fc_country');
   if (savedCountry) {
     selectedCountry = savedCountry;
