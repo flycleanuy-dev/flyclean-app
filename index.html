@@ -1744,7 +1744,7 @@ body::before {
 // Versionado web/APK. Cuando cambie funcionalidad significativa de la web,
 // bump APP_VERSION. Cuando algo requiera versión mínima de APK, bump MIN_APK_VERSION_REQUIRED.
 // La app instalada (TWA) compara su versión nativa contra MIN_APK_VERSION_REQUIRED.
-const APP_VERSION = '1.2.6';
+const APP_VERSION = '1.2.7';
 const MIN_APK_VERSION_REQUIRED = '1.0.0';
 
 // Helper semver simple para comparar "x.y.z" (devuelve <0, 0, >0).
@@ -1921,6 +1921,7 @@ const TRANSLATIONS = {
     'step.pre.title': '✅ Checklist PRE-vuelo',
     'step.pre.sub': 'Completá cada ítem ANTES de despegar',
     'step.pre.hint': '🟢 Los 16 ítems son obligatorios antes de iniciar vuelo.',
+    'checklist.pre.incomplete.confirm': '⚠️ Faltan {n} ítems del checklist sin marcar. ¿Seguir igual?',
     'step.post.title': '✅ Checklist POST-servicio',
     'step.post.sub': 'No te vayas sin completar todos los ítems',
     'step.post.hint': '🔵 Completá cada ítem ANTES de retirarte del lugar.',
@@ -2670,6 +2671,7 @@ const TRANSLATIONS = {
     'step.pre.title': '✅ Checklist PRÉ-voo',
     'step.pre.sub': 'Marque cada item ANTES de decolar',
     'step.pre.hint': '🟢 Os 16 itens são obrigatórios antes de iniciar o voo.',
+    'checklist.pre.incomplete.confirm': '⚠️ Faltam {n} itens do checklist sem marcar. Continuar mesmo assim?',
     'step.post.title': '✅ Checklist PÓS-serviço',
     'step.post.sub': 'Não saia sem completar todos os itens',
     'step.post.hint': '🔵 Marque cada item ANTES de sair do local.',
@@ -7153,6 +7155,16 @@ function nextStep() {
   }
 }
 
+// Continuar desde el checklist PRE de vuelo (decisión Diego 2026-07-09 — "advertir pero dejar seguir"):
+// el texto dice que los 16 ítems son obligatorios, pero antes se podía avanzar sin marcarlos y sin aviso.
+// Ahora, si faltan ítems, se pide confirmación explícita; el operario decide (no lo bloqueamos en el campo).
+function checklistPreContinue() {
+  const total = CHECKLIST_PRE.length;
+  const done = Object.values(serviceState.checklistPre || {}).filter(Boolean).length;
+  if (done < total && !confirm(t('checklist.pre.incomplete.confirm').replace('{n}', total - done))) return;
+  nextStep();
+}
+
 // Renderiza el banner de "Cancelar inicio" cuando el operario inició el servicio
 // pero todavía no apretó "Inicio efectivo" (la ventana donde des-iniciar es seguro).
 function renderCancelarBanner() {
@@ -7254,7 +7266,7 @@ function renderStep() {
     `;
     bar.innerHTML = `
       <button class="btn-secondary" onclick="goToStep(currentStep - 1)">${t('btn.back')}</button>
-      <button class="btn-main btn-green" onclick="nextStep()">${t('btn.continue')}</button>
+      <button class="btn-main btn-green" onclick="checklistPreContinue()">${t('btn.continue')}</button>
     `;
   }
 
