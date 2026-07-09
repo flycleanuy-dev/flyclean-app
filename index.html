@@ -1744,7 +1744,7 @@ body::before {
 // Versionado web/APK. Cuando cambie funcionalidad significativa de la web,
 // bump APP_VERSION. Cuando algo requiera versión mínima de APK, bump MIN_APK_VERSION_REQUIRED.
 // La app instalada (TWA) compara su versión nativa contra MIN_APK_VERSION_REQUIRED.
-const APP_VERSION = '1.2.3';
+const APP_VERSION = '1.2.4';
 const MIN_APK_VERSION_REQUIRED = '1.0.0';
 
 // Helper semver simple para comparar "x.y.z" (devuelve <0, 0, >0).
@@ -2472,6 +2472,8 @@ const TRANSLATIONS = {
     'photos.gallery.title': 'Fotos del servicio',
     'photos.wait.uploading': 'Esperá que terminen de subir las fotos antes de finalizar el servicio.',
     'sheet.prop.create.svc': 'Crear servicio desde esta propuesta',
+    'sheet.prop.aceptada.offer': '🎉 Propuesta aceptada. ¿Creás el servicio ahora?',
+    'coord.prop.falta.svc': 'Aceptada — falta crear el servicio',
     'sheet.prop.create.another.svc': 'Crear otro servicio',
     'sheet.prop.svc.already': 'servicio(s) ya creado(s)',
     'sheet.prop.creating.svc': 'Creando servicio...',
@@ -3215,6 +3217,8 @@ const TRANSLATIONS = {
     'photos.gallery.title': 'Fotos do serviço',
     'photos.wait.uploading': 'Aguarde as fotos terminarem de enviar antes de finalizar o serviço.',
     'sheet.prop.create.svc': 'Criar serviço a partir desta proposta',
+    'sheet.prop.aceptada.offer': '🎉 Proposta aceita. Criar o serviço agora?',
+    'coord.prop.falta.svc': 'Aceita — falta criar o serviço',
     'sheet.prop.create.another.svc': 'Criar outro serviço',
     'sheet.prop.svc.already': 'serviço(s) já criado(s)',
     'sheet.prop.creating.svc': 'Criando serviço...',
@@ -4578,6 +4582,32 @@ function showScreen(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById('screen-' + id).classList.add('active');
 }
+
+// Auto-refresco al volver a la app (auditoría 2026-07-09): antes, si el coordinador asignaba/movía algo,
+// el operario no lo veía hasta recargar a mano (y viceversa). Al volver el foco tras >25s oculta, se
+// re-fetch de la pantalla ACTIVA. Guards: nunca con un sheet abierto (perdería la edición) ni en las
+// pantallas de trabajo del operario (detail/done). El SW (stale-while-revalidate) hace el refetch casi
+// instantáneo. Solo lista/paneles, no re-abre nada.
+let _hiddenSince = 0;
+function refreshCurrentScreen() {
+  if (document.querySelector('.edit-overlay.open, #pin-change-overlay.open')) return; // sheet abierto → no tocar
+  const scr = (document.querySelector('.screen.active') || {}).id || '';
+  try {
+    if (scr === 'screen-services') { if (typeof loadServices === 'function') loadServices(); }
+    else if (scr === 'screen-coordinator') {
+      // Solo las tabs de listas que sincronizan coord↔operario (asignaciones/propuestas); el resto se salta.
+      const rf = { inicio: renderCoordInicio, servicios: renderCoordServicios, pruebas: renderCoordPruebas, relevamientos: renderCoordRelevamientos, propuestas: renderCoordPropuestas }[typeof activeCoordTab !== 'undefined' ? activeCoordTab : ''];
+      if (typeof rf === 'function') rf();
+    }
+    else if (scr === 'screen-ceo') { if (typeof loadCEO === 'function') loadCEO(); }
+    else if (scr === 'screen-finanzas') { if (typeof loadFinanzas === 'function') loadFinanzas(); }
+  } catch (_) { /* un refresh que falla nunca debe romper la vista actual */ }
+}
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) { _hiddenSince = Date.now(); return; }
+  if (_hiddenSince && (Date.now() - _hiddenSince) > 25000) refreshCurrentScreen();
+  _hiddenSince = 0;
+});
 
 function showSaving() {
   const bar = document.getElementById('savingBar');
@@ -11357,6 +11387,15 @@ async function saveServiceEdit() {
     // Notion ignora la key silenciosamente sin romper el resto del PATCH.
     const participantes = Array.isArray(editState.participantes) ? editState.participantes : [];
     props['Operarios participantes'] = { multi_select: participantes.map(name => ({ name })) };
+    // Al asignar un operario, si el servicio seguía Pendiente, moverlo a 🔄 Asignado (auditoría 2026-07-09):
+    // antes el coord tenía que cambiar el estado a mano y a veces quedaba Pendiente con piloto puesto. Solo
+    // promovemos Pendiente→Asignado; NO tocamos En curso/Completado/Cancelado (estados fijados a propósito).
+    {
+      const _estadoActual = editState.estado || (editingService.properties?.['Estado']?.select?.name || '');
+      if (editState.operario && (!_estadoActual || _estadoActual.includes('Pendiente'))) {
+        props['Estado'] = { select: { name: '🔄 Asignado' } };
+      }
+    }
     {
       const secs = (Array.isArray(editState.sectores) ? editState.sectores : [])
         .map(x => ({ id: x.id, nombre: String(x.nombre || '').trim(), estado: x.estado || 'pendiente' }))
@@ -12766,6 +12805,9 @@ async function createServicioFromPropuesta(propPageId) {
       parent: { type: 'data_source_id', data_source_id: SERVICIOS_DS_ID },
       properties
     });
+    // Refrescar el espejo del lado propuesta (su relación Servicios) para que el badge "falta crear el
+    // servicio" se apague pronto y una futura oferta no lea 0 servicios stale (auditoría 2026-07-09).
+    if (typeof syncAfterWrite === 'function') { try { syncAfterWrite(propPageId, 'propuestas'); syncAfterWrite(created.id, 'servicios'); } catch (_) {} }
 
     closePropSheet();
     // Cambiar a tab Servicios y refrescar
@@ -13023,6 +13065,9 @@ async function savePropEdit() {
       }
       _propContactos = null;
     }
+    // Relación Servicios FRESCA del PATCH (Notion autoritativo) para la guardia anti-duplicado de la
+    // oferta #4: leerla del espejo Supabase (_coordAllProps) puede venir stale y ofrecer crear un 2º servicio.
+    let _freshServiciosLen = null;
     if (propSheetMode === 'create') {
       const props = { 'Nombre de propuesta': { title: [{ text: { content: propEditState.nombre.trim() } }] } };
       if (propEditState.estado) props['Estado pipeline'] = { select: { name: propEditState.estado } };
@@ -13067,13 +13112,26 @@ async function savePropEdit() {
       props['Observaciones'] = { rich_text: propEditState.obs ? [{ text: { content: propEditState.obs } }] : [] };
       props['Mapa'] = { url: (propEditState.mapa && propEditState.mapa.trim()) ? propEditState.mapa.trim() : null };
       if (clienteId) props['Contacto'] = { relation: [{ id: clienteId }] };
-      await updateServiceProps(editingProp.id, props);
+      const _updatedProp = await updateServiceProps(editingProp.id, props);
+      _freshServiciosLen = (_updatedProp?.properties?.['Servicios']?.relation || editingProp?.properties?.['Servicios']?.relation || []).length;
       // En edición el cliente puede venir del selector (clienteId) o del vínculo previo de la propuesta.
       const clienteVinculado = clienteId || editingProp?.properties?.['Contacto']?.relation?.[0]?.id || editingProp?.properties?.['Contactos']?.relation?.[0]?.id || null;
       await promoteClienteIfAceptada(clienteVinculado, propEditState.estado);
     }
+    // #4 (auditoría 2026-07-09): al ACEPTAR una propuesta que todavía no tiene servicio, ofrecer crearlo en
+    // el acto (antes había que abrir la propuesta y buscar el botón). Solo en la TRANSICIÓN a Aceptada (no
+    // re-ofrece si se re-guarda una ya aceptada; el badge de la card cubre ese recordatorio persistente).
+    const _svcLen = (_freshServiciosLen != null) ? _freshServiciosLen : (editingProp?.properties?.['Servicios']?.relation || []).length;
+    const _ofrecerSvcId = (propSheetMode !== 'create'
+      && /Aceptada/.test(propEditState.estado || '')
+      && !/Aceptada/.test(editingProp?.properties?.['Estado pipeline']?.select?.name || '')
+      && _svcLen === 0)
+      ? editingProp.id : null;
     closePropSheet();
     await renderCoordPropuestas();
+    if (_ofrecerSvcId && confirm(t('sheet.prop.aceptada.offer'))) {
+      await createServicioFromPropuesta(_ofrecerSvcId);
+    }
   } catch (e) {
     btn.textContent = propSheetMode === 'create' ? t('btn.create.notion') : t('btn.save.notion');
     btn.disabled = false;
@@ -14051,10 +14109,11 @@ async function loadContactHistory(contactId) {
     { property: 'Contacto', relation: { contains: contactId } },
     { property: 'Tipo de registro', select: { equals: '🔍 Relevamiento' } }
   ]};
+  // Sin filtro de Estado (auditoría 2026-07-09): el historial del cliente mostraba SOLO Completados y
+  // escondía lo agendado (Pendiente/Asignado/En curso). Traemos la orden de trabajo en cualquier estado.
   const svcCompletoFilter = { and: [
     { property: 'Contacto', relation: { contains: contactId } },
-    { property: 'Tipo de registro', select: { equals: '📋 Orden de trabajo' } },
-    { property: 'Estado', select: { equals: '✅ Completado' } }
+    { property: 'Tipo de registro', select: { equals: '📋 Orden de trabajo' } }
   ]};
   const ingresoFilter = { property: 'Cuenta', relation: { contains: contactId } };
 
@@ -14082,7 +14141,8 @@ async function loadContactHistory(contactId) {
       // Datos viejos: registros sin Tipo de registro cargado cuentan como Orden de trabajo normal
       // (nunca como Jornada/Relevamiento/Prueba, que exigen su propio tipo explícito más abajo).
       const esOrdenOSinTipo = !tipoReg || tipoReg.includes('Orden de trabajo');
-      return esOrdenOSinTipo && estado.includes('Completado') && contactos.some(r => r.id === contactId) && recEnPaisNotion(s);
+      // Cualquier estado (agendado + completado) MENOS Cancelado, excluyendo papelera. El render muestra el estado.
+      return esOrdenOSinTipo && !estado.includes('Cancelado') && !esArchivado(s) && contactos.some(r => r.id === contactId) && recEnPaisNotion(s);
     });
     // Fase B: las jornadas (📅 Jornada) del cliente, en CUALQUIER estado. El render (renderContactHistory)
     // las agrupa por "trabajo madre" (Orden madre) en un desplegable. Salen del mismo svcRes (search-fallback).
@@ -14129,6 +14189,9 @@ function renderContactHistory(items) {
     else if (it.type === 'propuesta') { presupUSD += it.data.properties?.['Importe estimado']?.number || 0; }
   });
   const nServ = items.filter(it => it.type === 'servicio').length;
+  // Conteo de COMPLETADOS aparte (auditoría 2026-07-09): desde que el historial incluye lo agendado,
+  // la fila "Servicios completados" debe contar solo los completados, no todos los servicios.
+  const nServCompl = items.filter(it => it.type === 'servicio' && /Completado/.test(it.data.properties?.['Estado']?.select?.name || '')).length;
   const propItems = items.filter(it => it.type === 'propuesta');
   const nProps = propItems.length;
   const nPropsAcc = propItems.filter(it => /Aceptada/.test(it.data.properties?.['Estado pipeline']?.select?.name || '')).length;
@@ -14160,7 +14223,7 @@ function renderContactHistory(items) {
   const summaryHTML = countHeader +
     `<div class="ec-saldo" style="margin-bottom:6px;font-size:13px"><span>💵 Cobrado</span><span style="color:var(--green);font-weight:700">${cobStr}</span></div>` +
     (presupUSD ? `<div class="ec-row" style="font-size:12px;margin-bottom:4px"><span>📄 Presupuestado</span><span>${fmtMoneda(presupUSD, '🇺🇸 USD')}</span></div>` : '') +
-    (nServ ? `<div class="ec-row" style="font-size:12px;margin-bottom:8px"><span>🛠️ Servicios completados</span><span>${nServ}</span></div>` : '') +
+    (nServCompl ? `<div class="ec-row" style="font-size:12px;margin-bottom:8px"><span>🛠️ Servicios completados</span><span>${nServCompl}</span></div>` : '') +
     contratoHTML;
 
   // Fase B: agrupar las jornadas (📅 Jornada) de un mismo trabajo por Orden madre → un desplegable.
@@ -14206,11 +14269,15 @@ function renderContactHistory(items) {
     if (item.type === 'servicio') {
       const nombre = p['Nombre del servicio']?.title?.[0]?.plain_text || '—';
       const tipo = tipoServicioStr(p);
+      // Mostrar el estado (auditoría 2026-07-09): el historial ahora incluye lo agendado, no solo lo
+      // completado → el ícono y el texto distinguen agendado (📅) / en curso (✈️) / completado (✅).
+      const estado = p['Estado']?.select?.name || '';
+      const icon = estado.includes('Completado') ? '✅' : (estado.includes('En curso') ? '✈️' : '📅');
       return `<div class="history-item" onclick="openHistoryItem('servicio','${id}')">
-        <div class="history-icon">🛠️</div>
+        <div class="history-icon">${icon}</div>
         <div class="history-content">
           <div class="history-title">${t('contact.history.servicio')}: ${nombre}</div>
-          <div class="history-meta">${tipo ? tipo + ' · ' : ''}${fecha}</div>
+          <div class="history-meta">${estado ? esc(estado) + ' · ' : ''}${tipo ? tipo + ' · ' : ''}${fecha}</div>
         </div>
       </div>`;
     }
@@ -14396,6 +14463,8 @@ function renderCoordPropuestasList(keepLimit) {
     const estadoClass = estado.includes('Aceptada') ? 'aceptada' :
       estado.includes('Negociando') ? 'negociando' :
       estado.toLowerCase().includes('enviada') ? 'enviada' : '';
+    // Badge recordatorio (auditoría 2026-07-09): propuesta Aceptada que todavía NO generó servicio.
+    const aceptadaSinSvc = estado.includes('Aceptada') && (props['Servicios']?.relation || []).length === 0;
 
     return `<div class="prop-card" style="cursor:pointer" onclick="openPropSheet('${esc(p.id)}')">
       <div class="prop-nombre">${nombreHTML}</div>
@@ -14407,6 +14476,7 @@ function renderCoordPropuestasList(keepLimit) {
       <div class="prop-dias ${dias != null && dias > 14 ? 'alert' : ''}">
         ${ultimaFmt ? `${t('coord.prop.lastint.prefix')}${ultimaFmt}` : ''}${dias != null ? ` · ${dias}${t('coord.prop.days.suffix')}` : ''}
       </div>
+      ${aceptadaSinSvc ? `<div style="margin-top:5px;font-size:11px;font-weight:700;color:var(--amber)">⚠️ ${t('coord.prop.falta.svc')}</div>` : ''}
     </div>`;
   }).join('');
   content.innerHTML = contactarHoyHTML + nuevaPropBtnHTML +
