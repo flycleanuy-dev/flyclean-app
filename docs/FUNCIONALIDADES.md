@@ -5,7 +5,7 @@
 > **ANTES de construir/proponer algo: buscalo acá + grep del código. Reusar > reconstruir** (ya
 > duplicamos 2 veces: Clientes/Contactos y PINs). Mantenerlo: actualizar este archivo tras cada feature
 > (junto al bump de `sw.js`). Complementa a `ARQUITECTURA.md` (cómo está construido), `NOTION.md`
-> (datos) y `RUNBOOK.md` (operar/deploy). **Última actualización: 2026-07-07, sw v133** — el detalle de cada
+> (datos) y `RUNBOOK.md` (operar/deploy). **Última actualización: 2026-07-09, sw v135** — el detalle de cada
 > release está en las secciones fechadas al final (llegan hasta v133). Hito documentado de **sectores** (sw v93):
 > fix del selector "Operario manual" (botón +nuevo + el piloto aparece) + lista reusable de **sectores** en la
 > ficha del cliente (CRUD) y **selección de sectores** en el servicio/prueba/relevamiento. **Fase 2**: el operario
@@ -116,7 +116,8 @@
 - Método seguro para guardar cambios: si hay conexión, envía directo; si no, encola para después
 - Service worker que cachea todo offline: HTML/CSS/JS al instante, datos de Notion refresca en background
 - Token de sesión guardado en el navegador que se manda en cada request a la API
-- Base de datos local (IndexedDB) que guarda pendientes offline: qué actualización, cuándo, cuántos reintentos
+- Base de datos local (IndexedDB, DB `fc-offline-v1` v2) que guarda pendientes offline: 2 stores — `writeQueue` (cambios de propiedades) y `photoQueue` (binarios de fotos)
+- **Fotos offline (sw v135)**: una foto sacada sin señal se encola como binario en `photoQueue` (no se pierde) y se sube al reconectar en 2 fases — R2 (guarda la publicUrl en el item, no re-sube en reintentos) → Notion (append que preserva las fotos ya presentes; el item se borra solo tras confirmar). Se rehidratan las fotos de localStorage al reabrir un servicio. Funciones: `uploadPhoto`/`enqueuePhoto`/`processPhotoQueue`/`appendPhotosToNotion`/`fotoTomada`
 - Solo estos dominios pueden acceder a los endpoints (previene requests desde otros sitios)
 - Máximo 8 intentos de PIN por minuto por usuario, para prevenir fuerza bruta
 - Máximo 60 análisis de recibos por hora global para que no exploten costos de IA
