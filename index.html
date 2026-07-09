@@ -1452,7 +1452,7 @@ body::before {
     <button class="sheet-close-btn" type="button" aria-label="Cerrar" onclick="closeContactSheet()">×</button>
     <div class="edit-sheet-handle"></div>
     <div class="edit-sheet-header">
-      <div class="edit-sheet-title" id="contact-sheet-title" data-i18n="sheet.contact.title.default">Contacto</div>
+      <div class="edit-sheet-title" id="contact-sheet-title" data-i18n="sheet.contact.title.default">Cliente</div>
       <div class="edit-sheet-sub" id="contact-sheet-sub"></div>
     </div>
     <div id="contact-sheet-body"></div>
@@ -1477,7 +1477,7 @@ body::before {
   </div>
 </div>
 
-<!-- Modal: Nuevo trabajo suelto (crear servicio/relevamiento/prueba sin propuesta) —
+<!-- Modal: Nuevo servicio suelto (crear servicio/relevamiento/prueba sin propuesta) —
      sibling de body: se dispara desde la tab Servicios del coord Y desde la ficha del
      cliente (que también se abre desde Por cobrar en Finanzas/CEO). Dentro de una .screen
      con display:none quedaría invisible aunque sea position:fixed. -->
@@ -1486,7 +1486,7 @@ body::before {
     <button class="sheet-close-btn" type="button" aria-label="Cerrar" onclick="closeNewServiceSheet()">×</button>
     <div class="edit-sheet-handle"></div>
     <div class="edit-sheet-header">
-      <div class="edit-sheet-title" id="new-service-sheet-title" data-i18n="sheet.newsvc.title">Nuevo trabajo</div>
+      <div class="edit-sheet-title" id="new-service-sheet-title" data-i18n="sheet.newsvc.title">Nuevo servicio</div>
       <div class="edit-sheet-sub" id="new-service-sheet-sub" data-i18n="sheet.newsvc.sub"></div>
     </div>
     <div id="new-service-sheet-body"></div>
@@ -1744,7 +1744,7 @@ body::before {
 // Versionado web/APK. Cuando cambie funcionalidad significativa de la web,
 // bump APP_VERSION. Cuando algo requiera versión mínima de APK, bump MIN_APK_VERSION_REQUIRED.
 // La app instalada (TWA) compara su versión nativa contra MIN_APK_VERSION_REQUIRED.
-const APP_VERSION = '1.2.2';
+const APP_VERSION = '1.2.3';
 const MIN_APK_VERSION_REQUIRED = '1.0.0';
 
 // Helper semver simple para comparar "x.y.z" (devuelve <0, 0, >0).
@@ -2339,8 +2339,8 @@ const TRANSLATIONS = {
     'sheet.prop.section.obs': 'OBSERVACIONES',
     'sheet.prop.obs.placeholder': 'Notas sobre la propuesta...',
     'sheet.prop.error.nombre': 'El nombre de la propuesta es obligatorio.',
-    'sheet.contact.title.default': 'Contacto',
-    'sheet.contact.title.nuevo': 'Nuevo Contacto',
+    'sheet.contact.title.default': 'Cliente',
+    'sheet.contact.title.nuevo': 'Nuevo cliente',
     'sheet.contact.subtitle.nuevo': 'Se creará al guardar',
     'sheet.contact.section.nombre': 'NOMBRE / EMPRESA *',
     'sheet.contact.nombre.placeholder': 'Ej: Torre del Parque',
@@ -2363,7 +2363,7 @@ const TRANSLATIONS = {
     'sheet.contact.sectores.hint': 'Edificios/zonas reusables de este cliente. Se ofrecen al crear un servicio.',
     'sheet.contact.sectores.placeholder': 'Nombre del sector (ej. Edificio 1)',
     'sheet.contact.sectores.add': '+ Agregar',
-    'sheet.newsvc.title': 'Nuevo trabajo',
+    'sheet.newsvc.title': 'Nuevo servicio',
     'sheet.newsvc.sub': 'Servicio / relevamiento / prueba (sin propuesta)',
     'sheet.newsvc.section.tipo': 'TIPO',
     'sheet.newsvc.section.nombre': 'NOMBRE DEL TRABAJO *',
@@ -2372,8 +2372,8 @@ const TRANSLATIONS = {
     'sheet.newsvc.section.fecha': 'FECHA PROGRAMADA',
     'sheet.newsvc.error.nombre': 'Poné un nombre para el trabajo.',
     'sheet.newsvc.error.cliente': 'Elegí un cliente o cargá uno nuevo.',
-    'coord.new.servicio': '＋ Nuevo trabajo',
-    'sheet.contact.new.servicio': '＋ Nuevo trabajo para este cliente',
+    'coord.new.servicio': '＋ Nuevo servicio',
+    'sheet.contact.new.servicio': '＋ Nuevo servicio para este cliente',
     'sheet.edit.section.tiposervicio': 'TIPO DE SERVICIO',
     'sheet.edit.section.notaspre': '📝 NOTAS PARA EL OPERARIO (antes del trabajo)',
     'sheet.edit.section.obscliente': '🗒️ OBSERVACIÓN PARA EL CLIENTE (va en el PDF)',
@@ -3082,8 +3082,8 @@ const TRANSLATIONS = {
     'sheet.prop.section.obs': 'OBSERVAÇÕES',
     'sheet.prop.obs.placeholder': 'Notas sobre a proposta...',
     'sheet.prop.error.nombre': 'O nome da proposta é obrigatório.',
-    'sheet.contact.title.default': 'Contato',
-    'sheet.contact.title.nuevo': 'Novo Contato',
+    'sheet.contact.title.default': 'Cliente',
+    'sheet.contact.title.nuevo': 'Novo cliente',
     'sheet.contact.subtitle.nuevo': 'Será criado ao salvar',
     'sheet.contact.section.nombre': 'NOME / EMPRESA *',
     'sheet.contact.nombre.placeholder': 'Ex: Torre do Parque',
@@ -3106,7 +3106,7 @@ const TRANSLATIONS = {
     'sheet.contact.sectores.hint': 'Edifícios/zonas reutilizáveis deste cliente. Aparecem ao criar um serviço.',
     'sheet.contact.sectores.placeholder': 'Nome do setor (ex. Edifício 1)',
     'sheet.contact.sectores.add': '+ Adicionar',
-    'sheet.newsvc.title': 'Novo trabalho',
+    'sheet.newsvc.title': 'Novo serviço',
     'sheet.newsvc.sub': 'Serviço / levantamento / teste (sem proposta)',
     'sheet.newsvc.section.tipo': 'TIPO',
     'sheet.newsvc.section.nombre': 'NOME DO TRABALHO *',
@@ -3115,8 +3115,8 @@ const TRANSLATIONS = {
     'sheet.newsvc.section.fecha': 'DATA PROGRAMADA',
     'sheet.newsvc.error.nombre': 'Coloque um nome para o trabalho.',
     'sheet.newsvc.error.cliente': 'Escolha um cliente ou cadastre um novo.',
-    'coord.new.servicio': '＋ Novo trabalho',
-    'sheet.contact.new.servicio': '＋ Novo trabalho para este cliente',
+    'coord.new.servicio': '＋ Novo serviço',
+    'sheet.contact.new.servicio': '＋ Novo serviço para este cliente',
     'sheet.edit.section.tiposervicio': 'TIPO DE SERVIÇO',
     'sheet.edit.section.notaspre': '📝 NOTAS PARA O OPERÁRIO (antes do trabalho)',
     'sheet.edit.section.obscliente': '🗒️ OBSERVAÇÃO PARA O CLIENTE (vai no PDF)',
