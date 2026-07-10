@@ -116,3 +116,19 @@ export function mapRow(resource, page) {
   if (!fn) return null;
   return fn(page.properties || {}, page);
 }
+
+// ── Inverso: derivar el `resource` de una página (para el mirror inline del proxy — 3a.1) ──────────────
+// Solo las 5 tablas espejadas. La app crea servicios/gastos/ingresos por data_source_id (multi-data-source),
+// así que la página devuelta puede reportar el parent como database_id O como data_source_id → cubrimos ambos.
+const _norm = (s) => String(s || '').replace(/-/g, '').toLowerCase();
+const _MIRRORED = ['clientes', 'propuestas', 'servicios', 'ingresos', 'gastos'];
+export const RESOURCE_BY_DB = Object.fromEntries(_MIRRORED.map(r => [_norm(DBS[r]), r]));
+const RESOURCE_BY_DS = {
+  [_norm('2fbc8a03-5c4f-445c-8516-71dd9b2eea78')]: 'servicios',
+  [_norm('58fd9475-9baf-4d0e-9128-486185bf7ed8')]: 'gastos',
+  [_norm('6bb3da36-1865-4668-9d43-cc6bb9966784')]: 'ingresos',
+};
+export function resourceFromPage(page) {
+  const par = page?.parent || {};
+  return RESOURCE_BY_DB[_norm(par.database_id)] || RESOURCE_BY_DS[_norm(par.data_source_id)] || null;
+}

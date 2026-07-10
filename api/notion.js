@@ -1,6 +1,14 @@
 import { verifySession, tokenFromReq, maybeRenewSession } from './_lib/session.js';
 import { userById, resolveUser, esVentas, esGlobal } from './_lib/users.js';
 import { checkPermiso } from './_lib/permisos.js';
+import { resourceFromPage } from './_lib/notion-map.js';
+import { mirrorPage } from './_lib/mirror.js';
+
+// Fase 3a.1 — espejo garantizado: tras un PATCH/POST EXITOSO a Notion, reflejar esa página en Supabase desde
+// el proxy (cierra los huecos de syncAfterWrite: operario, gastos, drain offline, creates). await inline con
+// timeout, best-effort: NUNCA afecta la respuesta ni el guardado en Notion. Flag env (rollback = borrar el env).
+const MIRROR_ON_WRITE = process.env.MIRROR_ON_WRITE === '1';
+const MIRROR_TIMEOUT_MS = 2500;
 
 // Auth del proxy (#1). MONITOR (false): valida el token y lo reporta en X-Auth, pero NO rechaza.
 // ENFORCE (true): rechaza con 401 los pedidos sin token válido → CIERRA el agujero.
@@ -286,6 +294,25 @@ export default async function handler(req, res) {
       // devolvemos has_more=true para que el cliente sepa que la lista está truncada.
       if (truncated) console.warn('[notion-proxy] fallback search reached 2000 cap for db', dbId);
       return res.status(200).json({ object: 'list', results: allResults, has_more: truncated });
+    }
+
+    // Fase 3a.1 — espejo garantizado (best-effort, NO altera la respuesta ni el guardado en Notion):
+    // tras un PATCH pages/{id} o un POST pages EXITOSO, reflejar la página devuelta (COMPLETA) en Supabase.
+    if (MIRROR_ON_WRITE && session && response.status >= 200 && response.status < 300 && data?.id && data?.properties) {
+      const isWrite = (httpMethod === 'PATCH' && /^pages\/[a-f0-9-]{32,36}$/.test(endpointNorm))
+        || (httpMethod === 'POST' && endpointNorm === 'pages');
+      if (isWrite) {
+        let tid;
+        try { // TODO adentro del try (resourceFromPage incluido): un throw acá JAMÁS debe volver 502 al usuario.
+          const resource = resourceFromPage(data);
+          if (resource) {
+            const to = new Promise(r => { tid = setTimeout(() => r({ ok: false, status: 0, reason: 'timeout' }), MIRROR_TIMEOUT_MS); });
+            const r = await Promise.race([mirrorPage(resource, data), to]);
+            if (!r?.ok) console.warn('[mirror] fail', { id: data.id, resource, status: r?.status, reason: r?.reason });
+          }
+        } catch (e) { console.warn('[mirror] error', { id: data?.id, msg: String(e?.message || e).slice(0, 120) }); }
+        finally { if (tid) clearTimeout(tid); }
+      }
     }
 
     return res.status(response.status).json(data);

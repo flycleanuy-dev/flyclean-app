@@ -10,6 +10,7 @@
 import { verifySession, tokenFromReq } from './_lib/session.js';
 import { userById, esGlobal } from './_lib/users.js';
 import { mapRow } from './_lib/notion-map.js';
+import { upsertRow } from './_lib/mirror.js';
 
 const ALLOWED_ORIGINS = [
   'https://flyclean.app',
@@ -85,19 +86,11 @@ export default async function handler(req, res) {
       }
     }
 
-    // 3) Upsert idempotente por notion_id (no duplica; mirror queda 1:1 con Notion).
-    const ur = await fetch(`${SUPABASE_URL}/rest/v1/${table}?on_conflict=notion_id`, {
-      method: 'POST',
-      headers: {
-        apikey: SERVICE_KEY, Authorization: 'Bearer ' + SERVICE_KEY,
-        'Content-Type': 'application/json', Prefer: 'resolution=merge-duplicates,return=minimal',
-      },
-      body: JSON.stringify([row]),
-    });
-    if (!ur.ok) {
-      const tx = await ur.text().catch(() => '');
-      console.error('[db-sync] supabase upsert', { notion_id: notionId, resource, status: ur.status, detail: tx.slice(0, 200) });
-      return res.status(502).json({ error: 'supabase upsert', detail: String(tx).slice(0, 120) });
+    // 3) Upsert idempotente por notion_id (no duplica; mirror queda 1:1 con Notion). Reusa mirror.js.
+    const { ok, status, detail } = await upsertRow(table, row);
+    if (!ok) {
+      console.error('[db-sync] supabase upsert', { notion_id: notionId, resource, status, detail });
+      return res.status(502).json({ error: 'supabase upsert', detail: String(detail || status).slice(0, 120) });
     }
     res.setHeader('Cache-Control', 'no-store');
     return res.status(200).json({ ok: true, resource }); // respuesta mínima (no devuelve datos del registro)
