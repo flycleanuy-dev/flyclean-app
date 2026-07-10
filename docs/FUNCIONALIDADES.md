@@ -5,7 +5,8 @@
 > **ANTES de construir/proponer algo: buscalo acá + grep del código. Reusar > reconstruir** (ya
 > duplicamos 2 veces: Clientes/Contactos y PINs). Mantenerlo: actualizar este archivo tras cada feature
 > (junto al bump de `sw.js`). Complementa a `ARQUITECTURA.md` (cómo está construido), `NOTION.md`
-> (datos) y `RUNBOOK.md` (operar/deploy). **Última actualización: 2026-07-09, sw v135** — el detalle de cada
+> (datos) y `RUNBOOK.md` (operar/deploy). **Última actualización: 2026-07-10, sw v147** (CRM interconectado:
+> cliente↔servicio↔propuesta + intermediarios — sección al final) — el detalle de cada
 > release está en las secciones fechadas al final (llegan hasta v133). Hito documentado de **sectores** (sw v93):
 > fix del selector "Operario manual" (botón +nuevo + el piloto aparece) + lista reusable de **sectores** en la
 > ficha del cliente (CRUD) y **selección de sectores** en el servicio/prueba/relevamiento. **Fase 2**: el operario
@@ -712,6 +713,27 @@ se restauraron desde el espejo Supabase tras el reset de la conversión vía API
 - **Fecha como ENCABEZADO de grupo por día exacto**: helper **`groupServicesByDay(list)`** (junto a `renderServices`) agrupa por `Fecha programada` con label `📍 Hoy · 8 jul` / `⏭ Mañana · 9 jul` / `10 jul` / `⚠️ Sin fecha` (al final); preserva el orden que ya dio el sort. Reemplaza los **buckets semánticos** del coordinador (`renderCoordList`) y **es nuevo en el operario** (`renderServices`, antes lista plana; la card ahora muestra solo la 🕐 hora porque la fecha está en el header). i18n `day.hoy`/`day.manana`/`day.sinfecha` (es/pt). El operario usa un `idxOf` Map para que `openService(i)` siga apuntando al índice global correcto de `window._services`.
 - **Foto del servicio como MINIATURA a la izquierda (v130)**: en la card del coord, la primera foto va como thumbnail 54px a la izquierda (`coordCardThumb`, layout flex `.has-thumb`) en vez del desplegable "📷 Ver fotos (N)" que agrandaba la card. Lazy (`loading="lazy"`) + chica vía `/api/img`; tocarla abre la foto en pestaña nueva; badge "+N" si hay más (el resto se ve al abrir el servicio). `renderPhotoGallery` quedó sin uso en la card. **v131**: la miniatura va a la DERECHA (`order:2`) para que el texto quede alineado entre cards con y sin foto.
 - **Rol Ventas ve la tab 👥 Clientes — consulta + recontactar (v132)**: se abre la cartera al vendedor en modo lectura (gating en `loadCoordinator`/`setCoordTab`/`renderCoordContactos`). Ve datos de contacto, la ficha sigue read-only sin 360 financiero (v112), NO crea (se oculta "＋ nuevo cliente") ni edita. Cards de cliente para Ventas: **💬 WhatsApp** (`abrirWhatsAppCliente`, solo ABRE) + **📞 Contactado** (`marcarClienteContactado`) MANUAL y separado → escribe `Próximo contacto` = hoy+`MANT_SNOOZE_DIAS`(60) y muestra "✓ recontactado"; `computeClienteSecciones` saca de "para recontactar" a los con `Próximo contacto` futuro (mejora también coord/CEO). Matriz del rol Ventas: 🎯 Prospectos=trabaja todo · 💼 Propuestas=ve+recontacta (v127) · 👥 Clientes=ve+recontacta (v132) · 💰/operativa=nunca. **v133**: Ventas también ve el **destacado "🔁 para recontactar" (mantenimiento 9m) + su alerta** — requirió darle **LECTURA de servicios** (backstop `api/db.js` resource `servicios` + `api/notion.js` query `SERVICIOS_NORM`): solo la LISTA para el cruce de mantenimiento; `pages/{id}` de un servicio sigue bloqueado, no edita, sin plata (los servicios no tienen importe; está en Propuestas/Finanzas).
+
+## CRM interconectado — cliente ↔ servicio ↔ propuesta + intermediarios (sw v147)
+
+Todo front, sin cambios de API/schema (reusa el modelo que ya existía: relación `Contacto` en servicios,
+`openContactSheet`, self-relation `Intermediario`↔`Clientes traídos` en Clientes).
+- **Mapa id→nombre de clientes** (`ensureClienteNombres`/`clienteNombreDe`/`setClienteNombre`, cerca de `callDb`):
+  carga una vez del espejo (fallback Notion), cacheado en `_clienteNombreById`; resuelve el nombre en las cards sin
+  fetchear por card. Disparado en `renderCoordList` (guard `_clienteNombresLoading`) y `await` en `renderCEOServicios`.
+- **Cliente visible en el servicio**: card coord (`coordServiceCard`, línea 🏢), card CEO (`renderCEOServicios`),
+  detalle operario (step inicio, `serviceState.clienteNombre`), y sheet (`renderSvcClienteUbicacion`). Placeholder
+  "⚠️ Sin cliente — asignar" cuando falta.
+- **Asignar/cambiar cliente desde el servicio** (solo coord/Dirección, `puedeAsignarCliente`): botón "✏️ Cambiar
+  cliente" revela un selector (`editClienteSectionHTML`/`editClienteChanged`/`loadEditContactos`, `editState.clienteForm`
+  + `_clienteDirty`). Write en `saveServiceEdit` vía `resolveOrCreateClienteId` → setea `Contacto` **solo si hay id**
+  (nunca lo borra). Finanzas/CEO ven read-only + navegación.
+- **Navegación 1-toque** (patrón cerrar-overlay→delay→abrir, id capturado antes de cerrar): servicio→cliente
+  (`verClienteDesdeServicio`), servicio→propuesta (`verPropuestaDesdeServicio`), propuesta→cliente
+  (`verClienteDesdePropuesta`), cliente→cliente (`verClienteDesdeContacto`).
+- **Intermediarios bidireccional** (gateado a no-Ventas): en la carta del intermediario "🤝 Clientes traídos (N)"
+  (relación inversa `Clientes traídos`, fallback page-GET si el espejo no la trae) + "🤝 Traído por X" en el cliente
+  + chip "🤝 vía X" en la card (`renderIntermediarioVistas`, `coordContactCard`). Comisiones = fuera (futuro).
 
 ---
 _Generado automáticamente del código (workflow `inventario-funcionalidades`). Si algo no coincide con el código, gana el código → regenerar._
