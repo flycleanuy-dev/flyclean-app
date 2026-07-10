@@ -11,6 +11,7 @@ import { verifySession, tokenFromReq } from './_lib/session.js';
 import { userById, esGlobal } from './_lib/users.js';
 import { mapRow } from './_lib/notion-map.js';
 import { upsertRow } from './_lib/mirror.js';
+import { supafirstSet } from './_lib/supafirst.js';
 
 const ALLOWED_ORIGINS = [
   'https://flyclean.app',
@@ -55,6 +56,14 @@ export default async function handler(req, res) {
   const table = RESOURCES[resource];
   if (!table) return res.status(400).json({ error: 'resource inválido' });
   if (!isNotionId(notionId)) return res.status(400).json({ error: 'notion_id inválido' });
+
+  // Fase 3a.2 (defensa en profundidad): una tabla Supabase-first NUNCA se re-sincroniza desde Notion (está
+  // atrasado; pisaría el espejo autoritativo). Aun si el flag client-side `writesync` quedara prendido por
+  // error, este no-op server-side lo hace inofensivo. Con SUPAFIRST_TABLES vacío no cambia nada.
+  if (supafirstSet().has(table)) {
+    res.setHeader('Cache-Control', 'no-store');
+    return res.status(200).json({ ok: true, resource, skipped: 'supafirst' });
+  }
 
   if (!SUPABASE_URL || !SERVICE_KEY || !NOTION_TOKEN) return res.status(500).json({ error: 'no configurado' });
 

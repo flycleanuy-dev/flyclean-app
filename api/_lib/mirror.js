@@ -34,3 +34,13 @@ export async function mirrorPage(resource, page) {
   if (!row) return { ok: false, status: 0, reason: 'map' };
   return upsertRow(resource, row);
 }
+
+// Borra la fila del espejo (para páginas mandadas a la papelera/archivadas: el espejo no debe re-servirlas).
+export async function deleteRowByNotionId(table, notionId) {
+  if (!mirrorConfigured() || !table || !notionId) return { ok: false, status: 0 };
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}?notion_id=eq.${encodeURIComponent(notionId)}`, {
+    method: 'DELETE',
+    headers: { apikey: SERVICE_KEY, Authorization: 'Bearer ' + SERVICE_KEY, Prefer: 'return=minimal' },
+  });
+  return { ok: r.ok, status: r.status };
+}

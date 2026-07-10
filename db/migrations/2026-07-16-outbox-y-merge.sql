@@ -43,6 +43,7 @@ create or replace function merge_props(p_table text, p_notion_id text, p_patch j
 returns jsonb
 language plpgsql
 security definer
+set search_path = public
 as $$
 declare
   v_raw  jsonb;
@@ -90,22 +91,37 @@ end;
 $$;
 
 -- 3) CLAIM ATÓMICO DE LA COLA (para el worker; evita doble-procesamiento entre corridas) ------------------
+-- ORDEN POR PÁGINA (fix review #6): si una página tiene CUALQUIER fila pendiente diferida (en backoff,
+-- next_attempt_at futuro), NO se reclama NINGUNA fila de esa página — así un payload viejo jamás se aplica
+-- a Notion después de uno más nuevo de la misma página (last-writer-wins preservado entre corridas).
 create or replace function claim_outbox(p_limit int)
 returns setof outbox_notion
 language plpgsql
 security definer
+set search_path = public
 as $$
 begin
   return query
   update outbox_notion o
      set status = 'processing', updated_at = now()
    where o.id in (
-     select id from outbox_notion
-      where status = 'pending' and next_attempt_at <= now()
-      order by created_at
+     select ob.id from outbox_notion ob
+      where ob.status = 'pending' and ob.next_attempt_at <= now()
+        and not exists (
+          select 1 from outbox_notion d
+           where d.notion_id = ob.notion_id and d.status = 'pending' and d.next_attempt_at > now()
+        )
+      order by ob.created_at
       limit p_limit
       for update skip locked
    )
   returning o.*;
 end;
 $$;
+
+-- 4) PERMISOS (fix review #7): las dos funciones son SECURITY DEFINER (bypasean RLS) → solo el server
+-- (service_role) puede ejecutarlas. Revocar el EXECUTE default de PUBLIC/anon/authenticated + search_path fijo.
+revoke execute on function merge_props(text, text, jsonb) from public, anon, authenticated;
+revoke execute on function claim_outbox(int) from public, anon, authenticated;
+grant execute on function merge_props(text, text, jsonb) to service_role;
+grant execute on function claim_outbox(int) to service_role;

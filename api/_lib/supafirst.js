@@ -34,3 +34,30 @@ export async function enqueueOutbox(notionId, resource, patch) {
   });
   return { ok: r.ok, status: r.status };
 }
+
+// Lee el `raw` de una página desde el espejo, probando las tablas flipeadas (fix review #2: bajo Supabase-first
+// las lecturas por id también salen del espejo — la MISMA fuente que ve la app — para que ningún
+// read-modify-write del front, como el de fotos, se base en un Notion atrasado). Devuelve { resource, raw } o null.
+export async function getMirrorRaw(tables, notionId) {
+  if (!supafirstConfigured() || !notionId) return null;
+  for (const t of tables) {
+    try {
+      const r = await fetch(`${SUPABASE_URL}/rest/v1/${t}?notion_id=eq.${encodeURIComponent(notionId)}&select=raw&limit=1`, { headers: _H() });
+      if (!r.ok) continue;
+      const rows = await r.json().catch(() => []);
+      if (Array.isArray(rows) && rows.length && rows[0].raw) return { resource: t, raw: rows[0].raw };
+    } catch (_) { /* probar la siguiente tabla */ }
+  }
+  return null;
+}
+
+// Cancela las filas pendientes del outbox de una página (fix review #3: la página se mandó a la papelera →
+// propagar sus patches viejos a Notion fallaría con 400 y quedarían envenenadas; mejor cancelarlas).
+export async function cancelOutboxForPage(notionId) {
+  if (!supafirstConfigured() || !notionId) return { ok: false };
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/outbox_notion?notion_id=eq.${encodeURIComponent(notionId)}&status=in.(pending,processing)`, {
+    method: 'PATCH', headers: { ..._H(), Prefer: 'return=minimal' },
+    body: JSON.stringify({ status: 'done', last_error: 'cancelada: página archivada/borrada' }),
+  });
+  return { ok: r.ok, status: r.status };
+}
