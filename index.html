@@ -9530,7 +9530,8 @@ let _ceoEquipoCache = null;
 function isAppAdmin() { return ['diego-laxalt', 'eduardo-cabral'].includes(currentUser?.id); }
 
 // Admin: setear/resetear el PIN de un usuario (escribe en KV vía endpoint). No pide el PIN anterior.
-async function adminSetPin(targetId, nombre) {
+async function adminSetPin(targetId) {
+  const nombre = _userName(targetId);
   const newPin = prompt('Nuevo PIN para ' + nombre + ' (4 o 6 dígitos):');
   if (newPin == null) return;
   if (!/^(\d{4}|\d{6})$/.test(newPin.trim())) { alert('El PIN debe ser de 4 o 6 dígitos.'); return; }
@@ -9598,10 +9599,97 @@ async function adminNewUser() {
   finally { window._creatingUser = false; }
 }
 
+// Ciclo de vida del usuario (baja suave / reactivar / borrado definitivo) — todo vía /api/admin-user-status.
+// Resuelve el nombre visible desde el id (así los onclick pasan SOLO el id, charset seguro → sin XSS ni escaping frágil).
+function _userName(id) {
+  const a = Array.isArray(USERS) && USERS.find(u => u.id === id);
+  if (a) return a.name;
+  return (window._bajaUsers && window._bajaUsers[id]) || id;
+}
+async function _userStatusCall(body) {
+  const tok = localStorage.getItem('fc_token') || '';
+  const r = await fetch('/api/admin-user-status', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + tok },
+    body: JSON.stringify(body)
+  });
+  return { r, j: await r.json().catch(() => ({})) };
+}
+
+// BAJA suave: sale del login y pierde el PIN, pero la ficha y su historial QUEDAN → se puede reactivar.
+async function adminBajaUser(id) {
+  const nombre = _userName(id);
+  if (!confirm('Dar de baja a ' + nombre + '.\n\nSale del login y se le corta el acceso, pero su ficha e historial quedan guardados. Podés reactivarlo cuando vuelva.\n\n¿Continuar?')) return;
+  try {
+    const { r, j } = await _userStatusCall({ id, activo: false });
+    if (!j.ok) { alert('❌ No se pudo: ' + (j.error || ('error ' + r.status))); return; }
+    alert('✅ ' + nombre + ' quedó dado de baja (guardado en «Dados de baja»).');
+    await loadRoster(); renderCEOEquipo();
+  } catch (e) { alert('❌ Error: ' + e.message); }
+}
+
+// REACTIVAR un usuario dado de baja: vuelve activo + se le pone un PIN nuevo (la baja se lo había borrado).
+async function adminReactivarUser(id) {
+  const nombre = _userName(id);
+  if (!confirm('Reactivar a ' + nombre + ' con toda su información previa.\n\n¿Continuar?')) return;
+  try {
+    const { r, j } = await _userStatusCall({ id, activo: true });
+    if (!j.ok) { alert('❌ No se pudo: ' + (j.error || ('error ' + r.status))); return; }
+    const tok = localStorage.getItem('fc_token') || '';
+    const pin = prompt('✅ ' + nombre + ' reactivado. Poné su PIN de 4 o 6 dígitos:');
+    if (pin != null && /^(\d{4}|\d{6})$/.test(pin.trim())) {
+      const rp = await fetch('/api/admin-set-pin', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + tok }, body: JSON.stringify({ targetId: id, newPin: pin.trim() }) });
+      const jp = await rp.json().catch(() => ({}));
+      if (!jp.ok) alert('⚠️ Reactivado, pero el PIN falló (' + (jp.error || rp.status) + '). Ponelo con el botón 🔑.');
+    } else {
+      alert('⚠️ Reactivado SIN PIN. No puede entrar hasta que le pongas uno con el botón 🔑.');
+    }
+    await loadRoster(); renderCEOEquipo();
+  } catch (e) { alert('❌ Error: ' + e.message); }
+}
+
+// BORRADO DEFINITIVO (solo para basura/pruebas — NO empleados reales, se pierde todo).
+async function adminHardDeleteUser(id) {
+  const nombre = _userName(id);
+  if (!confirm('⚠️ ELIMINAR DEFINITIVAMENTE a ' + nombre + '.\n\nSe borra la ficha por completo, sin vuelta atrás. Usar solo para usuarios de prueba/basura. Para un empleado real usá «Baja» (conserva el historial).\n\n¿Eliminar para siempre?')) return;
+  try {
+    const { r, j } = await _userStatusCall({ id, hard: true });
+    if (!j.ok) { alert('❌ No se pudo: ' + (j.error || ('error ' + r.status))); return; }
+    alert('✅ ' + nombre + ' eliminado definitivamente.');
+    await loadRoster(); renderCEOEquipo();
+  } catch (e) { alert('❌ Error: ' + e.message); }
+}
+
+// Carga los usuarios dados de baja (inactivos) y los pinta en la sección «Dados de baja» del panel admin.
+async function loadInactiveUsers() {
+  const box = document.getElementById('baja-users-section');
+  if (!box) return;
+  try {
+    const tok = localStorage.getItem('fc_token') || '';
+    const r = await fetch('/api/admin-list-users', { headers: { 'Authorization': 'Bearer ' + tok } });
+    if (!r.ok) return; // sin permiso / base caída → no mostramos la sección (silencioso)
+    const j = await r.json();
+    const inactivos = (j.users || []).filter(u => u.activo === false);
+    window._bajaUsers = Object.fromEntries(inactivos.map(u => [u.id, u.nombre || u.id])); // _userName lee de acá
+    if (!inactivos.length) { box.innerHTML = ''; return; }
+    let h = '<div class="ceo-section-title" style="margin-top:14px">🗂️ Dados de baja (' + inactivos.length + ')</div>';
+    inactivos.forEach(u => {
+      h += '<div class="equipo-card" style="opacity:.72">' +
+        '<div class="equipo-emoji">' + esc(u.emoji || '👤') + '</div>' +
+        '<div style="flex:1;min-width:0"><div class="equipo-name">' + esc(u.nombre || u.id) + '</div><div class="equipo-role">' + esc(translateRole(u.rol) || '') + ' · ' + esc(u.pais || '') + '</div></div>' +
+        '<button class="fin-svc-link" style="white-space:nowrap;color:var(--accent,#00C98D)" onclick="adminReactivarUser(\'' + esc(u.id) + '\')">♻️ Reactivar</button>' +
+        '<button class="fin-svc-link" style="white-space:nowrap;color:#e5484d" onclick="adminHardDeleteUser(\'' + esc(u.id) + '\')">🗑️</button>' +
+        '</div>';
+    });
+    box.innerHTML = h;
+  } catch (_) { /* silencioso */ }
+}
+
 // Sección admin (solo admins): cuentas de acceso (login) por país, con botón Set/Reset PIN.
 // Se arma desde USERS (que tienen el id de login + PIN), no desde el roster de Notion.
 function adminAccountsHTML() {
   if (!isAppAdmin()) return '';
+  const ADMIN_IDS_UI = ['diego-laxalt', 'eduardo-cabral']; // no se pueden eliminar (anti-lockout de los dueños)
   const flagByCountry = { 'Uruguay': '🇺🇾', 'Brasil': '🇧🇷', 'Panamá': '🇵🇦', 'Guatemala': '🇬🇹', 'México': '🇲🇽' };
   const isGlobal = ceoViewCountry === 'all';
   const scoped = isGlobal ? USERS : USERS.filter(u => u.country === ceoViewCountry);
@@ -9627,14 +9715,17 @@ function adminAccountsHTML() {
   for (const [c, list] of Object.entries(byC)) {
     h += '<div style="font-size:11px;color:var(--text3);padding:2px 16px 4px">' + (flagByCountry[c] || '') + ' ' + esc(c) + '</div>';
     list.forEach(u => {
+      const isAdm = ADMIN_IDS_UI.includes(u.id);
       h += '<div class="equipo-card">' +
-        '<div class="equipo-emoji">' + (u.emoji || '👤') + '</div>' +
+        '<div class="equipo-emoji">' + esc(u.emoji || '👤') + '</div>' +
         '<div style="flex:1;min-width:0"><div class="equipo-name">' + esc(u.name) + '</div><div class="equipo-role">' + esc(translateRole(u.role)) + '</div></div>' +
-        '<button class="fin-svc-link" style="white-space:nowrap" onclick="adminSetPin(\'' + esc(u.id) + '\', \'' + esc(u.name).replace(/'/g, "\\'") + '\')">🔑 PIN</button>' +
+        '<button class="fin-svc-link" style="white-space:nowrap" onclick="adminSetPin(\'' + esc(u.id) + '\')">🔑 PIN</button>' +
+        (isAdm ? '' : '<button class="fin-svc-link" style="white-space:nowrap;color:#e5484d" onclick="adminBajaUser(\'' + esc(u.id) + '\')">Baja</button>') +
         '</div>';
     });
   }
-  return h + '<div style="height:16px"></div>';
+  // Contenedor para "Dados de baja" (se llena async con loadInactiveUsers tras renderizar el panel).
+  return h + '<div id="baja-users-section" style="padding:0 16px"></div><div style="height:16px"></div>';
 }
 
 async function renderCEOEquipo() {
@@ -9671,6 +9762,7 @@ async function renderCEOEquipo() {
       }
     }
     content.innerHTML = adminAccountsHTML() + html;
+    if (isAppAdmin()) loadInactiveUsers();
   } catch (e) {
     console.warn('[ceo] equipo Notion fetch falló, uso lista local:', e.message);
     renderCEOEquipoLocal();
@@ -9698,6 +9790,7 @@ function renderCEOEquipoLocal() {
     }
   }
   content.innerHTML = adminAccountsHTML() + html;
+  if (isAppAdmin()) loadInactiveUsers();
 }
 
 // ─────────────────────────────────────────────

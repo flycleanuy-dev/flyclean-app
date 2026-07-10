@@ -47,3 +47,17 @@ export async function getUserPinHash(id) {
 export async function setUserPinHash(id, hash) {
   return kvCmd(['SET', `pin:${id}`, hash]);
 }
+
+// Borra el PIN custom del usuario (para el borrado DEFINITIVO). Best-effort: si KV no está, nada que borrar.
+export async function deleteUserPin(id) {
+  if (!kvConfigured()) return null;
+  return kvCmd(['DEL', `pin:${id}`]);
+}
+
+// BLOQUEA el acceso (baja suave): escribe un centinela no-hash. verify-pin prioriza el valor de KV sobre el
+// default de USER_PINS, y `verifyPinHash(pin,'blocked')` devuelve false para CUALQUIER pin (no es formato s2$…)
+// → el usuario dado de baja NO puede entrar, ni siquiera con el PIN por defecto del env. Reactivar/🔑 lo pisan.
+export async function blockUserPin(id) {
+  if (!kvConfigured()) return null;
+  return kvCmd(['SET', `pin:${id}`, 'blocked']);
+}
