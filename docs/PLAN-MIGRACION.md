@@ -1,7 +1,7 @@
 # Plan de Migración FlyClean — Notion → Supabase/Postgres + RLS
 
-> **Plan OFICIAL** (confirmado con Diego, 2026-06-27). Fuente de verdad de la migración.
-> Razonamiento y comparación: [`ARQUITECTURA-HOY-VS-TOP.md`](ARQUITECTURA-HOY-VS-TOP.md).
+> **Plan OFICIAL** (confirmado con Diego, 2026-06-27; **fechas de Fase 3 aprobadas 2026-07-09**).
+> Fuente de verdad de la migración. Razonamiento: [`ARQUITECTURA-HOY-VS-TOP.md`](ARQUITECTURA-HOY-VS-TOP.md).
 
 ## Objetivo
 Pasar la base de **Notion** a **Postgres/Supabase con RLS** (seguridad por fila, inviolable), escala y multi-tenant
@@ -46,22 +46,40 @@ Base nueva levantada en paralelo: `db/schema.sql` (14 tablas; cada fila con `not
 `db/policies.sql` (RLS por país/rol), `scripts/sync-notion-supabase.mjs` (sync idempotente). Supabase poblado
 (**817 filas**), RLS verificada (clave pública = 0 filas, service_role = todo). Ver `db/README.md`.
 
-### Fase 2 — la app LEE de Supabase (EN CURSO)
-- **Endpoint `api/db.js`** (server-side): valida sesión, resuelve país/rol del usuario, lee de Supabase y devuelve
-  los datos en **formato Notion** (gracias a `raw`) → el render de la app **no cambia**, solo la fuente.
-- **Pantalla por pantalla**, detrás de un **flag** (localStorage), con **fallback a Notion**:
-  1. **Clientes** (piloto) → 2. Servicios → 3. Propuestas → 4. Por cobrar/Finanzas → 5. el resto.
-- Cada pantalla: construir → **verificar** (lee de Supabase, mismos datos, aislada por país, 0 errores) → prender el
-  flag → expandir. La **config por país** se respeta en la lectura.
+### Fase 2 — ✅ HECHA (2026-07-01/02): la app LEE de Supabase
+- `api/db.js` valida sesión, resuelve país/rol, lee de Supabase y devuelve **formato Notion** (gracias a `raw`)
+  → el render no cambió. `DB_FLAGS` on para **clientes / servicios / propuestas** + `writesync` (espejo al
+  toque tras cada guardado) + cron cada 10 min. **Fallback a Notion** si el espejo falla (blindaje
+  "espejo vacío → throw"). RLS por país verificada en producción.
 
-### Fase 3 — la app ESCRIBE en Supabase
-- **Doble escritura:** cada guardado va a Notion (actual) **Y** a Supabase. Policies de INSERT/UPDATE/DELETE.
-- Se formaliza el modelo de **gastos**: IA (solo UY) vs **manual** (Finanzas, todos los países).
-- Cuando todo cuadre → **Supabase pasa a ser la fuente**; Notion queda como respaldo / panel de carga interno.
+### Fase 3 — la app ESCRIBE en Supabase (**fechas aprobadas 2026-07-09** — sacar Notion del camino crítico)
+
+> Objetivo: que ningún guardado de la app dependa de que Notion responda. Notion NO muere: queda como **vista
+> sincronizada** (back-office del equipo, se actualiza sola), canal del **cowork de Finanzas** (append-only,
+> el sync existente lo trae) y wiki/hub. Cada etapa detrás de **flag reversible**. Detalle de la decisión y
+> el razonamiento: plan de sesión 2026-07-09.
+
+- **Etapa 3.0 (10-11/07)** — Candado `ENFORCE_PERMS` + **usuarios sin deploy**: identidad (id/nombre/rol/país/
+  activo) a una tabla `usuarios` en Supabase con **fallback duro al array hardcodeado** (anti-lockout). PINs
+  no cambian (KV). Alta de usuario sin deploy.
+- **Etapa 3a (16-19/07, post-TOP)** — **Ediciones (PATCH) Supabase-first** detrás de flag: se reruta EN EL
+  SERVIDOR (`api/notion.js`, gate único — los ~30 call sites del front no cambian). La fila se escribe en
+  Supabase (fuente) y se **propaga a Notion async** (cola/reintento). Sin rediseño de IDs (la fila ya existe
+  con `notion_id`). Es el ~95% del volumen de escritura.
+- **Etapa 3.M (19-24/07)** — **PARTIR EL CÓDIGO** (profesionalización): build Vite + `index.html` → módulos
+  (api-client, auth, colas offline, i18n, vista por rol + componentes). Refactor SIN features, comportamiento
+  idéntico verificado pantalla por pantalla. Va entre 3a y 3b porque 3b toca muchos flujos del front.
+- **Etapa 3b (24/07 → ~08/08)** — **Creates + relaciones** Supabase-first: id propio (UUID), insert en
+  Supabase, propagación async crea la página Notion y guarda el mapeo. Toca flujos optimistas y relaciones
+  (hoy por ids de página Notion) → el grueso del trabajo. Tabla por tabla; **Gastos/Ingresos AL FINAL,
+  coordinado con el cowork** (actualizar su `CONTRATO-NOTION.md`). ⚠️ Semana 28-31/07 (entrega a socios):
+  congelado lo financiero. Crons a Supabase al final.
+- **Cierre (~08-10/08)** — App 100% Supabase con código modular. Con esto la app queda en condiciones reales
+  de **100+ usuarios**; el modelo de gastos por país (IA solo UY) se formaliza en esta fase.
 
 ### Fase 4 — Config por país + multi-tenant (franquicias)
 - Config por país formalizada en la base (editable sin deploy).
-- **Multi-tenant** (`tenant_id` + RLS por tenant) para franquicias.
+- **Multi-tenant** (`tenant_id` + RLS por tenant) para franquicias — sobre la base que deja la Fase 3.
 
 ---
 
@@ -74,5 +92,7 @@ Base nueva levantada en paralelo: `db/schema.sql` (14 tablas; cada fila con `not
 - Cada paso detrás de flag, reversible, con Notion de respaldo. **Los writes siguen en Notion hasta la Fase 3.**
 - No se toca **El Parrillero**. Nada de lo del **31/7** se rompe. Secretos solo en `.env.local`/Vercel, nunca en el repo.
 
-## Estado actual
-- Fase 1: ✅ completa · Fase 2: **piloto Clientes en construcción** · Fases 3-4: futuras.
+## Estado actual (2026-07-09)
+- Fase 1: ✅ completa (27/06) · Fase 2: ✅ completa (01-02/07, lecturas + writesync + RLS en prod) ·
+  **Fase 3: APROBADA con fechas** (3.0 el 10-11/07 · 3a el 16-19/07 · 3.M el 19-24/07 · 3b hasta ~08/08) ·
+  Fase 4: tras el cierre de Fase 3.
