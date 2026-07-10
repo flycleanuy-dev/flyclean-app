@@ -76,7 +76,11 @@ export default async function handler(req, res) {
     const propsEsp = await queryAll(PROPUESTAS_DB, {
       filter: { or: ESTADOS_ESPERANDO.map(s => ({ property: 'Estado pipeline', select: { equals: s } })) },
     }).catch(() => []);
-    const recontactar = propsEsp.map(p => ({ nombre: propTitle(p.properties || {}), dias: propDias(p.properties || {}) }))
+    const recontactar = propsEsp.filter(p => {
+        // Snooze por registro ('Posponer aviso hasta' futuro): pausada → no aparece en el email tampoco.
+        const posp = (p.properties?.['Posponer aviso hasta']?.date?.start || '').split('T')[0];
+        return !(posp && posp > today);
+      }).map(p => ({ nombre: propTitle(p.properties || {}), dias: propDias(p.properties || {}) }))
       .filter(r => r.dias != null && r.dias >= 15).sort((a, b) => b.dias - a.dias);
     const recHtml = recontactar.length
       ? `<ul style="margin:6px 0;padding-left:18px">${recontactar.slice(0, 20).map(r => `<li style="margin:3px 0;color:#cfe0d9"><b>${esc(r.nombre)}</b> — ${r.dias} días</li>`).join('')}</ul>`

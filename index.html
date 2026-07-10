@@ -2441,6 +2441,14 @@ const TRANSLATIONS = {
     'coord.cli.contactado': 'Contactado',
     'coord.cli.recontactado': 'Recontactado — no reaparece por ahora',
     'coord.cli.crearprop': 'Crear propuesta',
+    'coord.cli.recontactar.btn': 'Recontactar a partir de…',
+    'coord.cli.recontactar.desde': 'Recontactar a partir del {f}',
+    'coord.cli.recontactar.invalida': 'Elegí una fecha futura.',
+    'sheet.contact.section.recontacto': '🔁 RECONTACTAR A PARTIR DE',
+    'sheet.contact.recontacto.hint': 'Hasta esta fecha el cliente no aparece en "para recontactar" ni en las alertas. Vacío = ciclo normal (9 meses).',
+    'sheet.prop.section.posponer': '⏸ POSPONER AVISO HASTA',
+    'sheet.prop.posponer.hint': 'Hasta esta fecha la propuesta no aparece en "A contactar hoy" ni la mueve el robot. Vacío = ciclo normal (15/45 días).',
+    'coord.prop.pospuesta': 'Avisos pospuestos hasta el {f}',
     'wa.msg.cliente': 'Hola{n}, te escribimos de FlyClean 🚁 ¿Coordinamos una limpieza de fachada, vidrios o paneles? Estamos a las órdenes.',
     'prosp.empty': 'Sin prospectos en este momento.',
     'prosp.error': 'Error al cargar prospección.',
@@ -3204,6 +3212,14 @@ const TRANSLATIONS = {
     'coord.cli.contactado': 'Contatado',
     'coord.cli.recontactado': 'Recontatado — não reaparece por ora',
     'coord.cli.crearprop': 'Criar proposta',
+    'coord.cli.recontactar.btn': 'Recontatar a partir de…',
+    'coord.cli.recontactar.desde': 'Recontatar a partir de {f}',
+    'coord.cli.recontactar.invalida': 'Escolha uma data futura.',
+    'sheet.contact.section.recontacto': '🔁 RECONTATAR A PARTIR DE',
+    'sheet.contact.recontacto.hint': 'Até esta data o cliente não aparece em "para recontatar" nem nos alertas. Vazio = ciclo normal (9 meses).',
+    'sheet.prop.section.posponer': '⏸ ADIAR AVISO ATÉ',
+    'sheet.prop.posponer.hint': 'Até esta data a proposta não aparece em "Contatar hoje" nem é movida pelo robô. Vazio = ciclo normal (15/45 dias).',
+    'coord.prop.pospuesta': 'Avisos adiados até {f}',
     'wa.msg.cliente': 'Olá{n}, falamos da FlyClean 🚁 Vamos combinar uma limpeza de fachada, vidros ou painéis? Estamos à disposição.',
     'prosp.empty': 'Nenhum prospecto no momento.',
     'prosp.error': 'Erro ao carregar prospecção.',
@@ -13017,8 +13033,13 @@ function openPropSheet(pageId) {
   const comision = props['Comisión %']?.number ?? '';
   const clienteSel = props['Contacto']?.relation?.[0]?.id || '__new__';
   const mapaProp = props['Mapa']?.url || '';
+  // El campo se muestra SOLO si la property ya existe en el esquema (las páginas de Notion traen TODAS las
+  // properties del schema, aunque estén vacías) → si falta la clave, esconder el input evita un PATCH con
+  // property desconocida (Notion rechazaría el guardado ENTERO con 400). Al crearla, aparece solo.
+  const posponerExiste = ('Posponer aviso hasta' in props);
+  const posponerHasta = (props['Posponer aviso hasta']?.date?.start || '').split('T')[0];
 
-  propEditState = { estado, pais, tipo, aprobacion, importe, fechaEnvio, ultimaInt, obs, serviciosAnio, comision, clienteSel, nombreCliente: '', tel: '', email: '', mapa: mapaProp };
+  propEditState = { estado, pais, tipo, aprobacion, importe, fechaEnvio, ultimaInt, obs, serviciosAnio, comision, clienteSel, nombreCliente: '', tel: '', email: '', mapa: mapaProp, posponerHasta, _posponerHastaOrig: posponerHasta };
 
   document.getElementById('prop-sheet-title').textContent = nombre;
   document.getElementById('prop-sheet-sub').textContent = pais || t('sheet.prop.subtitle.default');
@@ -13053,6 +13074,9 @@ function openPropSheet(pageId) {
       <input type="date" class="edit-date-input" value="${fechaEnvio}" onchange="propEditState.fechaEnvio=this.value"/></div>` +
     `<div class="edit-section"><div class="edit-section-label">${t('sheet.prop.section.ultimaint')}</div>
       <input type="date" id="prop-ultimaint-input" class="edit-date-input" value="${ultimaInt}" onchange="propEditState.ultimaInt=this.value"/></div>` +
+    (posponerExiste ? `<div class="edit-section"><div class="edit-section-label">${t('sheet.prop.section.posponer')}</div>
+      <div class="edit-section-hint" style="font-size:11px;color:var(--text3);margin-bottom:6px">${t('sheet.prop.posponer.hint')}</div>
+      <input type="date" class="edit-date-input" value="${posponerHasta}" onchange="propEditState.posponerHasta=this.value"/></div>` : '') +
     `<div class="edit-section"><div class="edit-section-label">${t('sheet.prop.section.obs')}</div>
       <textarea class="edit-date-input" rows="3" style="resize:none;height:80px" placeholder="${t('sheet.prop.obs.placeholder')}" oninput="propEditState.obs=this.value">${obs}</textarea></div>` +
     `<div class="edit-section" id="prop-ubicacion-override-box" data-override="${mapaProp ? '1' : '0'}">
@@ -13670,6 +13694,9 @@ async function savePropEdit() {
         props['Fecha de envío'] = { date: { start: hoyISO } };
       }
       if (propEditState.ultimaInt) props['Última interacción'] = { date: { start: propEditState.ultimaInt } };
+      // Posponer aviso: escribir SOLO si cambió (defensivo: si la property no existe en Notion aún, no se manda).
+      if (propEditState.posponerHasta !== propEditState._posponerHastaOrig)
+        props['Posponer aviso hasta'] = propEditState.posponerHasta ? { date: { start: propEditState.posponerHasta } } : { date: null };
       props['Observaciones'] = { rich_text: propEditState.obs ? [{ text: { content: propEditState.obs } }] : [] };
       props['Mapa'] = { url: (propEditState.mapa && propEditState.mapa.trim()) ? propEditState.mapa.trim() : null };
       if (clienteId) props['Contacto'] = { relation: [{ id: clienteId }] };
@@ -14286,19 +14313,43 @@ function abrirWhatsAppCliente(id) {
 // de "para recontactar" ese período (computeClienteSecciones lo respeta) y el equipo ve que ya fue
 // contactado (no se pisan). Optimista: muta en memoria + re-clasifica; revierte si el write falla.
 const MANT_SNOOZE_DIAS = 60;
+// Núcleo único de escritura del snooze: PATCH 'Próximo contacto' + espejo + optimista + re-clasificación.
+// Lo usan el "📞 Contactado" de Ventas (hoy+60 fijo) y el "📅 Recontactar a partir de…" del coord (fecha libre).
+async function setProximoContacto(id, fechaISO) {
+  await callNotion('pages/' + id, 'PATCH', { properties: { 'Próximo contacto': { date: { start: fechaISO } } } });
+  if (typeof syncAfterWrite === 'function') { try { syncAfterWrite(id, 'clientes'); } catch (_) {} }
+  const c = (_coordAllContacts || []).find(x => x.id === id);
+  if (c) { c.properties = c.properties || {}; c.properties['Próximo contacto'] = { date: { start: fechaISO } }; }
+  await loadClienteSecciones(); // recomputa: el cliente sale de "🔁 para recontactar" (Próximo contacto futuro)
+  renderContactList(_coordAllContacts, true);
+}
 async function marcarClienteContactado(id) {
   const btn = document.getElementById('cli-cont-btn-' + id);
   if (btn) { if (btn.disabled) return; btn.disabled = true; btn.textContent = '⏳'; }
   try {
     const prox = new Date(Date.now() + MANT_SNOOZE_DIAS * 86400000).toISOString().split('T')[0];
-    await callNotion('pages/' + id, 'PATCH', { properties: { 'Próximo contacto': { date: { start: prox } } } });
-    if (typeof syncAfterWrite === 'function') { try { syncAfterWrite(id, 'clientes'); } catch (_) {} }
-    const c = (_coordAllContacts || []).find(x => x.id === id);
-    if (c) { c.properties = c.properties || {}; c.properties['Próximo contacto'] = { date: { start: prox } }; }
-    await loadClienteSecciones(); // recomputa: el cliente sale de "🔁 para recontactar" (Próximo contacto futuro)
-    renderContactList(_coordAllContacts, true);
+    await setProximoContacto(id, prox);
   } catch (e) {
     if (btn) { btn.disabled = false; btn.textContent = '📞 ' + t('coord.cli.contactado'); }
+    alert(t('sheet.alert.save.error2') + e.message);
+  }
+}
+// "📅 Recontactar a partir de…" (coord/Dirección): muestra el date-picker inline en la card de mantenimiento.
+function toggleRecontactarFecha(id) {
+  const box = document.getElementById('recont-fecha-' + id);
+  if (box) box.style.display = box.style.display === 'none' ? 'flex' : 'none';
+}
+async function confirmarRecontactarFecha(id) {
+  const inp = document.getElementById('recont-fecha-input-' + id);
+  const fecha = (inp?.value || '').trim();
+  const hoy = new Date().toISOString().split('T')[0];
+  if (!fecha || fecha <= hoy) { alert(t('coord.cli.recontactar.invalida')); return; }
+  const btn = document.getElementById('recont-fecha-ok-' + id);
+  if (btn) { if (btn.disabled) return; btn.disabled = true; btn.textContent = '⏳'; }
+  try {
+    await setProximoContacto(id, fecha);
+  } catch (e) {
+    if (btn) { btn.disabled = false; btn.textContent = 'OK'; }
     alert(t('sheet.alert.save.error2') + e.message);
   }
 }
@@ -14342,9 +14393,19 @@ function coordContactCard(c) {
   // Botón "→ Crear propuesta" para el COORD en clientes de mantenimiento (9 meses sin trabajo): abre una
   // propuesta nueva ya asociada al cliente. Al guardarla, el cliente sale SOLO de la sección (la lógica
   // !propAbierta de computeClienteSecciones lo pasa a "Cartera activa"). Comercial 2026-07-09.
-  const botonCoordMant = (!esVentas() && Number.isFinite(c._mantMeses)) ? `<div style="margin-top:8px">
-      <button class="estado-btn" style="color:var(--green);border-color:var(--green)" onclick="event.stopPropagation();openNewPropSheet('${esc(c.id)}')">→ ${t('coord.cli.crearprop')}</button>
+  // Coord/Dirección en clientes de mantenimiento: "→ Crear propuesta" + "📅 Recontactar a partir de…"
+  // (posponer con fecha libre — ej. el vidrio sigue limpio y no tiene sentido vender a los 9 meses).
+  const mananaISO = new Date(Date.now() + 86400000).toISOString().split('T')[0];
+  const botonCoordMant = (!esVentas() && Number.isFinite(c._mantMeses)) ? `<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap" onclick="event.stopPropagation()">
+      <button class="estado-btn" style="color:var(--green);border-color:var(--green)" onclick="openNewPropSheet('${esc(c.id)}')">→ ${t('coord.cli.crearprop')}</button>
+      <button class="estado-btn" onclick="toggleRecontactarFecha('${esc(c.id)}')">📅 ${t('coord.cli.recontactar.btn')}</button>
+    </div>
+    <div id="recont-fecha-${esc(c.id)}" style="display:none;gap:6px;align-items:center;margin-top:6px" onclick="event.stopPropagation()">
+      <input type="date" id="recont-fecha-input-${esc(c.id)}" class="edit-date-input" style="flex:1;margin:0" min="${mananaISO}"/>
+      <button class="estado-btn" id="recont-fecha-ok-${esc(c.id)}" onclick="confirmarRecontactarFecha('${esc(c.id)}')">OK</button>
     </div>` : '';
+  // Badge del snooze CON la fecha: se ve hasta cuándo está pospuesto (antes decía solo "Recontactado").
+  const proxFmt = recontactadoReciente ? `${proxContacto.slice(8, 10)}/${proxContacto.slice(5, 7)}/${proxContacto.slice(0, 4)}` : '';
   return `<div class="contact-card" onclick="openContactSheet('${esc(c.id)}')">
     <div class="contact-name">${nombreHTML}</div>
     <div class="contact-badges">
@@ -14357,7 +14418,7 @@ function coordContactCard(c) {
     ${tel ? `<div class="contact-detail">📞 ${esc(tel)}</div>` : ''}
     ${email ? `<div class="contact-detail">✉️ ${esc(email)}</div>` : ''}
     ${Number.isFinite(c._mantMeses) ? `<div class="contact-detail" style="color:var(--red);font-weight:600">🔴 ${t('coord.cli.mant.meses').replace('{n}', c._mantMeses)}</div>` : ''}
-    ${recontactadoReciente ? `<div class="contact-detail" style="color:var(--green);font-weight:600">✓ ${t('coord.cli.recontactado')}</div>` : ''}
+    ${recontactadoReciente ? `<div class="contact-detail" style="color:var(--green);font-weight:600">⏸ ${t('coord.cli.recontactar.desde').replace('{f}', proxFmt)}</div>` : ''}
     ${botonesVentas}
     ${botonCoordMant}
   </div>`;
@@ -14403,7 +14464,10 @@ function buildContactSheetBody(mode) {
         <button type="button" class="estado-btn" style="white-space:nowrap" onclick="contactOpenMapa()">${t('sheet.contact.mapa.abrir')}</button>
       </div></div>` +
     (mode === 'edit'
-      ? `<div class="edit-section"><div class="edit-section-label">${t('sheet.contact.section.intermediario')}</div>
+      ? `<div class="edit-section"><div class="edit-section-label">${t('sheet.contact.section.recontacto')}</div>
+          <div class="edit-section-hint" style="font-size:11px;color:var(--text3);margin-bottom:6px">${t('sheet.contact.recontacto.hint')}</div>
+          <input type="date" class="edit-date-input" value="${esc(s.proximoContacto || '')}" onchange="contactEditState.proximoContacto=this.value"/></div>
+         <div class="edit-section"><div class="edit-section-label">${t('sheet.contact.section.intermediario')}</div>
           <div id="contact-traidopor-row"></div>
           <select id="contact-intermediario-select" class="edit-date-input" onchange="contactIntermediarioChanged(this.value)">
             <option value="">${t('sheet.contact.intermediario.none')}</option>
@@ -14454,6 +14518,8 @@ async function openContactSheet(pageId) {
     notas: props['Notas']?.rich_text?.[0]?.plain_text || '',
     mapa: props['Mapa']?.url || '',
     intermediario: props['Intermediario']?.relation?.[0]?.id || '',
+    proximoContacto: (props['Próximo contacto']?.date?.start || '').split('T')[0],
+    _proximoContactoOrig: (props['Próximo contacto']?.date?.start || '').split('T')[0], // para escribir solo si cambió
     sectores: (() => { try { return JSON.parse(props['Sectores']?.rich_text?.[0]?.plain_text || '[]'); } catch (_) { return []; } })()
   };
   const nombre = props['Nombre / Empresa']?.title?.[0]?.plain_text || t('common.sinnombre');
@@ -14661,6 +14727,9 @@ async function saveContactEdit() {
     props['Mapa'] = { url: s.mapa && s.mapa.trim() ? s.mapa.trim() : null };
     if (contactSheetMode !== 'create')
       props['Intermediario'] = { relation: s.intermediario ? [{ id: s.intermediario }] : [] };
+    // Recontacto: escribir SOLO si el usuario lo cambió (así no pisamos el snooze de Ventas sin querer).
+    if (contactSheetMode !== 'create' && s.proximoContacto !== s._proximoContactoOrig)
+      props['Próximo contacto'] = s.proximoContacto ? { date: { start: s.proximoContacto } } : { date: null };
     props['Interlocutor'] = { rich_text: s.interlocutor ? [{ text: { content: s.interlocutor } }] : [] };
     props['Notas'] = { rich_text: s.notas ? [{ text: { content: s.notas } }] : [] };
     {
@@ -15079,6 +15148,12 @@ function renderCoordPropuestasList(keepLimit) {
       estado.toLowerCase().includes('enviada') ? 'enviada' : '';
     // Badge recordatorio (auditoría 2026-07-09): propuesta Aceptada que todavía NO generó servicio.
     const aceptadaSinSvc = estado.includes('Aceptada') && (props['Servicios']?.relation || []).length === 0;
+    // Snooze por registro: pospuesta hasta una fecha futura → badge para entender por qué no avisa.
+    const _pospProp = (props['Posponer aviso hasta']?.date?.start || '').split('T')[0];
+    const _hoyProp = new Date().toISOString().split('T')[0];
+    const pospuestaBadge = (_pospProp && _pospProp > _hoyProp)
+      ? `<div style="margin-top:5px;font-size:11px;font-weight:600;color:var(--text3)">⏸ ${t('coord.prop.pospuesta').replace('{f}', `${_pospProp.slice(8,10)}/${_pospProp.slice(5,7)}/${_pospProp.slice(0,4)}`)}</div>`
+      : '';
 
     return `<div class="prop-card" style="cursor:pointer" onclick="openPropSheet('${esc(p.id)}')">
       <div class="prop-nombre">${nombreHTML}</div>
@@ -15090,6 +15165,7 @@ function renderCoordPropuestasList(keepLimit) {
       <div class="prop-dias ${dias != null && dias > 14 ? 'alert' : ''}">
         ${ultimaFmt ? `${t('coord.prop.lastint.prefix')}${ultimaFmt}` : ''}${dias != null ? ` · ${dias}${t('coord.prop.days.suffix')}` : ''}
       </div>
+      ${pospuestaBadge}
       ${aceptadaSinSvc ? `<div style="margin-top:5px;font-size:11px;font-weight:700;color:var(--amber)">⚠️ ${t('coord.prop.falta.svc')}</div>` : ''}
     </div>`;
   }).join('');
@@ -15103,10 +15179,14 @@ function renderCoordPropuestasList(keepLimit) {
 // Devuelve '' si no hay ninguna (no se renderiza bloque vacío).
 function renderContactarHoyHTML() {
   const ESPERANDO = ['📞 Contactado', '📤 Enviada al cliente', '🤝 Negociando'];
+  const hoyISO = new Date().toISOString().split('T')[0];
   const items = (_coordAllProps || []).filter(p => {
     const props = p.properties || {};
     const estado = props['Estado pipeline']?.select?.name || '';
     const dias = props['Días sin respuesta']?.formula?.number;
+    // Snooze por registro: 'Posponer aviso hasta' futuro = no molestar hasta esa fecha (vuelve sola al vencer).
+    const posp = (props['Posponer aviso hasta']?.date?.start || '').split('T')[0];
+    if (posp && posp > hoyISO) return false;
     return ESPERANDO.includes(estado) && dias != null && dias >= 15;
   }).sort((a, b) => (b.properties?.['Días sin respuesta']?.formula?.number || 0) - (a.properties?.['Días sin respuesta']?.formula?.number || 0));
   if (!items.length) return '';
@@ -15444,8 +15524,12 @@ async function loadAlerts(role, bannerId) {
         { or: ESPERANDO.map(s => ({ property: 'Estado pipeline', select: { equals: s } })) }
       ]};
       const propData = await callNotion(`databases/${PROPUESTAS_DB_ID}/query`, 'POST', { filter: propFilter });
+      const hoyISOProp = new Date().toISOString().split('T')[0];
       const vencidas = (propData.results || []).filter(r => {
         const dias = r.properties?.['Días sin respuesta']?.formula?.number;
+        // Snooze por registro (mismo criterio que "A contactar hoy" y el cron): pospuesta = no cuenta.
+        const posp = (r.properties?.['Posponer aviso hasta']?.date?.start || '').split('T')[0];
+        if (posp && posp > hoyISOProp) return false;
         return dias != null && dias >= 15;
       });
       if (vencidas.length) {

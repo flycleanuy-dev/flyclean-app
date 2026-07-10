@@ -63,6 +63,16 @@ export default async function handler(req, res) {
       const nombre = titleOf(pr);
       const yaAvisado = !!pr['Aviso re-contacto']?.date?.start;
 
+      // Snooze por registro ('Posponer aviso hasta', date): mientras la fecha sea futura, esta propuesta
+      // queda PAUSADA — ni marcador de 15d ni auto-move de 45d. Al vencer la fecha, retoma sola el ciclo
+      // normal. Defensivo: si la property no existe, posp queda '' y no pausa nada.
+      const posp = (pr['Posponer aviso hasta']?.date?.start || '').split('T')[0];
+      if (posp && posp > today) {
+        // Si ya tenía el marcador de aviso, limpiarlo: al vencer el snooze reavisa FRESCO (email incluido).
+        if (yaAvisado && !dryRun) await updatePage(p.id, { 'Aviso re-contacto': { date: null } });
+        continue;
+      }
+
       // Reloj de VIDA: Negociando usa 'dias' (regla actual, sin cambios); Contactado/Enviada usan
       // días desde 'Fecha de envío' (fallback created_time) — un contacto nuestro ya no la revive.
       const diasVida = esNegociando ? dias : diasDeVida(p, pr);
