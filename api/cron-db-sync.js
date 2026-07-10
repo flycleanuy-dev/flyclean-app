@@ -17,8 +17,13 @@ export default async function handler(req, res) {
   }
   // ?dry=1 → cuenta filas sin escribir.
   const dry = ['1', 'true', 'yes'].includes(String(req.query?.dry || '').toLowerCase());
+  // Fase 3a.2: una tabla Supabase-first NO se re-sincroniza desde Notion (Notion pasó a ser downstream; el cron
+  // pisaría la fila fresca del espejo con la versión vieja de Notion → data-loss). Mismo env que api/notion.js.
+  // Con SUPAFIRST_TABLES vacío, `tables` === TABLES (comportamiento idéntico a hoy).
+  const supafirst = new Set((process.env.SUPAFIRST_TABLES || '').split(',').map(s => s.trim()).filter(Boolean));
+  const tables = TABLES.filter(t => !supafirst.has(t));
   try {
-    const result = await syncTables(TABLES, { dry });
+    const result = await syncTables(tables, { dry });
     console.log('cron-db-sync', JSON.stringify(result));
     return res.status(200).json(result);
   } catch (e) {

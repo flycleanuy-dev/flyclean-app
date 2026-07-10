@@ -3,6 +3,7 @@ import { userById, resolveUser, esVentas, esGlobal } from './_lib/users.js';
 import { checkPermiso } from './_lib/permisos.js';
 import { resourceFromPage } from './_lib/notion-map.js';
 import { mirrorPage } from './_lib/mirror.js';
+import { mergeProps, enqueueOutbox, supafirstSet } from './_lib/supafirst.js';
 
 // Fase 3a.1 — espejo garantizado: tras un PATCH/POST EXITOSO a Notion, reflejar esa página en Supabase desde
 // el proxy (cierra los huecos de syncAfterWrite: operario, gastos, drain offline, creates). await inline con
@@ -10,6 +11,11 @@ import { mirrorPage } from './_lib/mirror.js';
 const MIRROR_ON_WRITE = process.env.MIRROR_ON_WRITE === '1';
 const MIRROR_VERBOSE = process.env.MIRROR_VERBOSE === '1'; // loguea también los OK (para verificar el rollout)
 const MIRROR_TIMEOUT_MS = 2500;
+
+// Fase 3a.2 — Supabase-first para EDICIONES por tabla (env SUPAFIRST_TABLES, CSV). VACÍO = inerte (nunca entra
+// al branch → comportamiento idéntico a 3a.1). Prender una tabla: setear el env + correr la migración +
+// sacar la tabla del cron-db-sync. Rollback = sacar la tabla del CSV.
+const SUPAFIRST = supafirstSet();
 
 // Auth del proxy (#1). MONITOR (false): valida el token y lo reporta en X-Auth, pero NO rechaza.
 // ENFORCE (true): rechaza con 401 los pedidos sin token válido → CIERRA el agujero.
@@ -130,6 +136,9 @@ export default async function handler(req, res) {
   // Backstop server-side del rol Ventas: restringe a la DB de Clientes/Contactos.
   // Solo entra si hay sesión Y esVentas(u) → cero cambio de comportamiento para cualquier otro rol.
   const u = session ? await resolveUser(session.id) : null; // DB-backed con rescate + fallback duro (Fase 3.0)
+  // Fase 3a.2: la meta (página COMPLETA antes del PATCH) que descargan los checks de permisos se reusa para
+  // derivar el resource del branch Supabase-first (evita un 2º GET). Se setea en los dos GET meta de abajo.
+  let patchMeta = null;
   if (esVentas(u)) {
     const mQuery = endpointNorm.match(/^databases\/([a-f0-9-]{32,36})(\/query)?$/);
     const mPage = endpointNorm.match(/^pages\/([a-f0-9-]{32,36})$/);
@@ -152,6 +161,7 @@ export default async function handler(req, res) {
           headers: { Authorization: `Bearer ${token}`, 'Notion-Version': '2022-06-28' },
         });
         const meta = await metaRes.json();
+        patchMeta = meta;
         const parentNorm = norm(meta?.parent?.database_id);
         if (parentNorm === CONTACTOS_NORM) {
           // ok — comportamiento original
@@ -190,6 +200,7 @@ export default async function handler(req, res) {
             method: 'GET', headers: { Authorization: `Bearer ${token}`, 'Notion-Version': '2022-06-28' },
           });
           const meta = await metaRes.json();
+          patchMeta = meta;
           const parentDb = norm(meta?.parent?.database_id);
           if (parentDb) {
             const perm = checkPermiso(u, { tipo: 'create', dbId: parentDb });
@@ -237,6 +248,34 @@ export default async function handler(req, res) {
       if (!perm.ok) {
         console.warn('[perms] DENEGARÍA', JSON.stringify({ rol: u?.rol, id: session?.id, tipo, db: norm(dbId), endpoint: endpointNorm, motivo: perm.motivo }));
         if (ENFORCE_PERMS) return res.status(403).json({ error: 'forbidden: tu rol no accede a esa base' });
+      }
+    }
+  }
+
+  // Fase 3a.2 — Supabase-first para las tablas flipeadas (SUPAFIRST): escribe en el espejo (merge atómico) +
+  // encola la propagación a Notion, y responde SIN llamar a Notion. Solo RETORNA si TODO salió bien (merge +
+  // enqueue); ante cualquier duda (fila no espejada, RPC/enqueue falla, error) NO retorna → cae al path
+  // Notion-first de abajo (+ mirror 3a.1), que deja Notion y el espejo consistentes. INERTE con SUPAFIRST vacío.
+  if (SUPAFIRST.size && httpMethod === 'PATCH' && patchMeta && body?.properties) {
+    const mId = endpointNorm.match(/^pages\/([a-f0-9-]{32,36})$/);
+    const resource = resourceFromPage(patchMeta);
+    if (mId && resource && SUPAFIRST.has(resource)) {
+      try {
+        const mp = await mergeProps(resource, mId[1], body.properties);
+        if (mp.ok && mp.found) {
+          const eq = await enqueueOutbox(mId[1], resource, body.properties);
+          if (eq.ok) {
+            // Respuesta con forma de página (raw mergeado) para no romper los call sites que leen updated.properties.
+            return res.status(200).json({ object: 'page', id: mId[1], properties: mp.raw, _source: 'supabase-first' });
+          }
+          console.warn('[supafirst] enqueue fail → Notion-first', { id: mId[1], resource, status: eq.status });
+        } else if (mp.ok && !mp.found) {
+          console.warn('[supafirst] fila no espejada → Notion-first', { id: mId[1], resource });
+        } else {
+          console.warn('[supafirst] merge fail → Notion-first', { id: mId[1], resource, status: mp.status });
+        }
+      } catch (e) {
+        console.warn('[supafirst] error → Notion-first', { id: mId[1], resource, msg: String(e?.message || e).slice(0, 120) });
       }
     }
   }
