@@ -4740,15 +4740,46 @@ function backToLogin() {
   showScreen('login');
 }
 
+// Fase 3.0 (login sin deploy): pobla el array USERS desde /api/users-roster (la base), preservando emoji y
+// notionId del array embebido por id (la DB no los trae). FALLBACK DURO: si el fetch falla/timeout o vuelve
+// vacío, se mantiene el array embebido → la pantalla de login NUNCA queda sin usuarios. Con el flag del server
+// apagado, el endpoint devuelve los 23 hardcodeados → reemplaza por los mismos (sin cambio visible). Devuelve
+// true si reemplazó el array. No bloquea el arranque (se llama en background desde init).
+async function loadRoster() {
+  try {
+    const ctrl = new AbortController();
+    const to = setTimeout(() => ctrl.abort(), 3500);
+    let r;
+    try { r = await fetch('/api/users-roster', { cache: 'no-store', signal: ctrl.signal }); }
+    finally { clearTimeout(to); }
+    if (!r.ok) return false;
+    const data = await r.json();
+    // Con el flag OFF (o Supabase caído) el endpoint sirve el hardcoded del SERVER → NO pisamos el array
+    // embebido del cliente: ese embebido es el piso anti-lockout hasta que se prenda el modo base (source='db').
+    if (data.source !== 'db') return false;
+    if (!Array.isArray(data.users) || !data.users.length) return false;
+    const prev = Object.fromEntries(USERS.map(u => [u.id, u]));
+    const firstTok = s => String(s || '').trim().split(/\s+/)[0] || '👤';
+    const mapped = data.users.map(u => ({
+      id: u.id, name: u.nombre, role: u.rol, country: u.pais,
+      emoji: prev[u.id]?.emoji || u.emoji || firstTok(u.rol),
+      notionId: prev[u.id]?.notionId || null,
+    })).filter(u => u.id && u.name && u.role && u.country);
+    if (!mapped.length) return false;
+    USERS.length = 0; USERS.push(...mapped);
+    return true;
+  } catch (_) { return false; }
+}
+
 function renderLogin() {
   const list = document.getElementById('users-list');
   const countryUsers = USERS.filter(u => u.country === selectedCountry);
   list.innerHTML = countryUsers.map(u => `
-    <div class="user-card" onclick="selectUser('${u.id}')">
-      <span class="user-avatar">${u.emoji}</span>
+    <div class="user-card" onclick="selectUser('${esc(u.id)}')">
+      <span class="user-avatar">${esc(u.emoji)}</span>
       <div>
-        <div class="user-name">${u.name}</div>
-        <div class="user-role">${translateRole(u.role)}</div>
+        <div class="user-name">${esc(u.name)}</div>
+        <div class="user-role">${esc(translateRole(u.role))}</div>
       </div>
       <span class="user-arrow">→</span>
     </div>
@@ -9515,6 +9546,58 @@ async function adminSetPin(targetId, nombre) {
   } catch (e) { alert('❌ Error: ' + e.message); }
 }
 
+// Alta de usuario sin deploy: escribe la tabla `usuarios` (Supabase) vía /api/admin-set-user + le pone PIN.
+function toggleNewUserForm() {
+  const f = document.getElementById('new-user-form');
+  if (f) f.style.display = f.style.display === 'none' ? 'block' : 'none';
+}
+function nuSlug(s) {
+  return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60);
+}
+function nuSyncId() {
+  const idEl = document.getElementById('nu-id');
+  if (!idEl || idEl.dataset.touched) return; // no pisar si el admin editó el id a mano
+  idEl.value = nuSlug(document.getElementById('nu-nombre')?.value);
+}
+async function adminNewUser() {
+  const nombre = (document.getElementById('nu-nombre')?.value || '').trim();
+  const id = (document.getElementById('nu-id')?.value || '').trim();
+  const rol = document.getElementById('nu-rol')?.value;
+  const pais = document.getElementById('nu-pais')?.value;
+  if (!nombre || !id || !rol || !pais) { alert('Completá nombre, id, rol y país.'); return; }
+  if (!/^[a-z0-9-]{2,60}$/.test(id)) { alert('El id debe ser minúsculas, números y guiones (2–60).'); return; }
+  if (window._creatingUser) return; // anti doble-submit
+  window._creatingUser = true;
+  const tok = localStorage.getItem('fc_token') || '';
+  try {
+    const r = await fetch('/api/admin-set-user', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + tok },
+      body: JSON.stringify({ id, nombre, rol, pais, activo: true })
+    });
+    const j = await r.json().catch(() => ({}));
+    if (!j.ok) { alert('❌ No se pudo crear: ' + (j.error || ('error ' + r.status))); return; }
+    // Sin PIN no puede entrar aunque exista en la tabla → lo pedimos en el acto.
+    const pin = prompt('✅ ' + nombre + ' creado. Poné su PIN de 4 o 6 dígitos:');
+    if (pin != null && /^(\d{4}|\d{6})$/.test(pin.trim())) {
+      const rp = await fetch('/api/admin-set-pin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + tok },
+        body: JSON.stringify({ targetId: id, newPin: pin.trim() })
+      });
+      const jp = await rp.json().catch(() => ({}));
+      if (!jp.ok) alert('⚠️ Usuario creado, pero el PIN falló (' + (jp.error || rp.status) + '). Ponelo con el botón 🔑.');
+      else alert('✅ Listo. ' + nombre + ' ya puede entrar (aparece en el login con el modo base activo).');
+    } else {
+      alert('⚠️ Usuario creado SIN PIN. No puede entrar hasta que le pongas uno con el botón 🔑.');
+    }
+    await loadRoster();   // refresca el array local del login (solo aplica si el modo base está activo)
+    renderCEOEquipo();    // re-render del panel (adminAccountsHTML)
+  } catch (e) { alert('❌ Error: ' + e.message); }
+  finally { window._creatingUser = false; }
+}
+
 // Sección admin (solo admins): cuentas de acceso (login) por país, con botón Set/Reset PIN.
 // Se arma desde USERS (que tienen el id de login + PIN), no desde el roster de Notion.
 function adminAccountsHTML() {
@@ -9525,6 +9608,22 @@ function adminAccountsHTML() {
   const byC = {};
   scoped.forEach(u => { (byC[u.country] = byC[u.country] || []).push(u); });
   let h = '<div class="ceo-section-title">🔑 Cuentas de acceso (PINs)</div>';
+  // Alta de usuario SIN deploy: escribe la tabla `usuarios` de Supabase. Aplica al login cuando USERS_FROM_DB=1.
+  const ROLES_UI = ['🎯 Dirección', '🔧 Coordinador', '🛠️ Operario', '👔 CEO', '📊 Administración', '🧲 Ventas'];
+  const PAISES_UI = ['Uruguay', 'Brasil', 'Panamá', 'Guatemala', 'México'];
+  const defPais = isGlobal ? 'Uruguay' : ceoViewCountry;
+  const _inp = 'width:100%;box-sizing:border-box;padding:9px 11px;margin-bottom:7px;border:1px solid var(--border);border-radius:9px;background:var(--bg);color:var(--text);font-size:14px';
+  h += '<div style="padding:0 16px 10px">' +
+    '<button class="fin-svc-link" onclick="toggleNewUserForm()">➕ Agregar usuario</button>' +
+    '<div id="new-user-form" style="display:none;margin-top:8px;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px">' +
+      '<input id="nu-nombre" placeholder="Nombre y apellido" oninput="nuSyncId()" style="' + _inp + '">' +
+      '<input id="nu-id" placeholder="id de login (se genera solo)" oninput="this.dataset.touched=1" style="' + _inp + '">' +
+      '<select id="nu-rol" style="' + _inp + '"><option value="" disabled selected>Elegí el rol…</option>' + ROLES_UI.map(r => '<option>' + r + '</option>').join('') + '</select>' +
+      '<select id="nu-pais" style="' + _inp + '">' + PAISES_UI.map(p => '<option' + (p === defPais ? ' selected' : '') + '>' + p + '</option>').join('') + '</select>' +
+      '<div style="font-size:11px;color:var(--text3);margin:2px 0 8px">Se crea el usuario y te pide un PIN. Aparece en el login cuando el modo base esté activo.</div>' +
+      '<button onclick="adminNewUser()" style="width:100%;padding:11px;border:none;border-radius:10px;background:var(--accent,#00C98D);color:#03231a;font-weight:700;font-size:14px">Crear usuario + poner PIN</button>' +
+    '</div>' +
+  '</div>';
   for (const [c, list] of Object.entries(byC)) {
     h += '<div style="font-size:11px;color:var(--text3);padding:2px 16px 4px">' + (flagByCountry[c] || '') + ' ' + esc(c) + '</div>';
     list.forEach(u => {
@@ -15219,6 +15318,10 @@ async function init() {
   applyTranslations();
   renderVersionLabel();
   checkConsent();
+  // Fase 3.0 (login sin deploy): pobla el roster de usuarios desde la base EN BACKGROUND (fallback al array
+  // embebido). NO bloquea el arranque — el fast-path del operario (sesión fresca) usa el embebido y entra al
+  // instante. Al terminar, si estamos en la pantalla de login, la re-renderiza para que aparezcan usuarios nuevos.
+  loadRoster().then(changed => { if (changed && document.getElementById('screen-login')?.classList.contains('active')) renderLogin(); });
   // Si hay writes o fotos pendientes de una sesión anterior, mostrar badge y procesar.
   renderOfflineBadge();
   if (navigator.onLine) { processQueue(); processPhotoQueue(); }
