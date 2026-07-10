@@ -8,8 +8,8 @@
 //
 // Estado actual: ENFORCE_AUTH = true (sin token → 401), backstop Ventas = enforce (403),
 // matriz por rol = MONITOR (loguea DENEGARÍA server-side pero responde 200).
-// Cuando se prenda ENFORCE_PERMS en api/notion.js → flipear EXPECT_ENFORCE a true acá.
-const EXPECT_ENFORCE = false;
+// ENFORCE_PERMS PRENDIDO en prod 2026-07-10 (env ENFORCE_PERMS=1). Los casos de cruce esperan 403.
+const EXPECT_ENFORCE = true;
 
 import assert from 'node:assert';
 import crypto from 'node:crypto';
