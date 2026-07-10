@@ -5,8 +5,8 @@
 > **ANTES de construir/proponer algo: buscalo acá + grep del código. Reusar > reconstruir** (ya
 > duplicamos 2 veces: Clientes/Contactos y PINs). Mantenerlo: actualizar este archivo tras cada feature
 > (junto al bump de `sw.js`). Complementa a `ARQUITECTURA.md` (cómo está construido), `NOTION.md`
-> (datos) y `RUNBOOK.md` (operar/deploy). **Última actualización: 2026-07-10, sw v147** (CRM interconectado:
-> cliente↔servicio↔propuesta + intermediarios — sección al final) — el detalle de cada
+> (datos) y `RUNBOOK.md` (operar/deploy). **Última actualización: 2026-07-10, sw v151** (CRM interconectado
+> v147 + snooze de recontacto por fecha v151 — secciones al final) — el detalle de cada
 > release está en las secciones fechadas al final (llegan hasta v133). Hito documentado de **sectores** (sw v93):
 > fix del selector "Operario manual" (botón +nuevo + el piloto aparece) + lista reusable de **sectores** en la
 > ficha del cliente (CRUD) y **selección de sectores** en el servicio/prueba/relevamiento. **Fase 2**: el operario
@@ -734,6 +734,20 @@ Todo front, sin cambios de API/schema (reusa el modelo que ya existía: relació
 - **Intermediarios bidireccional** (gateado a no-Ventas): en la carta del intermediario "🤝 Clientes traídos (N)"
   (relación inversa `Clientes traídos`, fallback page-GET si el espejo no la trae) + "🤝 Traído por X" en el cliente
   + chip "🤝 vía X" en la card (`renderIntermediarioVistas`, `coordContactCard`). Comisiones = fuera (futuro).
+
+## Snooze de recontacto por fecha (sw v151)
+
+- **Clientes** (reusa `Próximo contacto`, que `computeClienteSecciones` ya respetaba): botón "📅 Recontactar a
+  partir de…" en la card de mantenimiento (coord/Dirección; date-picker inline, `setProximoContacto`) + campo
+  date en la ficha (`contactEditState.proximoContacto`, escribe solo si cambió) + badge "⏸ Recontactar a partir
+  del {fecha}". Ventas conserva "📞 Contactado" (+60d, ahora vía `setProximoContacto`).
+- **Propuestas** (property `Posponer aviso hasta`, date — el campo del sheet solo se muestra si la property
+  existe en el esquema): excluida de "📞 A contactar hoy" (`renderContactarHoyHTML`), de la alerta del panel
+  (`loadAlerts`), del email semanal (`api/cron-report.js`) y del cron diario (`api/cron-pipeline.js`: pausa el
+  marcador 15d y el auto-move 45d; al posponer limpia `Aviso re-contacto` para reavisar fresco al vencer).
+  Badge "⏸ pospuesta hasta {fecha}" en la card de propuesta.
+- Panorama: los 4 avisos por tiempo quedan config/posponibles por registro (clientes ✓, propuestas ✓,
+  Documentos `Días de aviso` ✓, Activos `Próximo mantenimiento` ✓).
 
 ---
 _Generado automáticamente del código (workflow `inventario-funcionalidades`). Si algo no coincide con el código, gana el código → regenerar._
