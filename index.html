@@ -2401,6 +2401,16 @@ const TRANSLATIONS = {
     'sheet.contact.count.props.accepted': 'aceptadas',
     'sheet.contact.count.svcs': 'servicios',
     'sheet.svc.cliente.label': 'Cliente',
+    'svc.cliente.placeholder': '⚠️ Sin cliente — asignar',
+    'step.info.cliente': '🏢 Cliente',
+    'sheet.svc.vercliente': 'Ver ficha del cliente',
+    'sheet.svc.verpropuesta': '📄 Ver propuesta',
+    'sheet.edit.cliente.cambiar': '✏️ Cambiar cliente',
+    'sheet.prop.vercliente': '👤 Ver ficha del cliente',
+    'sheet.prop.vercliente.none': 'Elegí un cliente primero.',
+    'sheet.contact.traidopor': 'Traído por',
+    'sheet.contact.traidos.title': 'Clientes traídos',
+    'sheet.contact.via': 'vía',
     'sheet.svc.ubicacion.btn': '📍 Ubicación',
     'sheet.svc.ubicacion.none': 'Sin ubicación cargada',
     'sheet.svc.ubicacion.override': 'usar otra ubicación para este servicio',
@@ -3155,6 +3165,16 @@ const TRANSLATIONS = {
     'sheet.contact.count.props.accepted': 'aceitas',
     'sheet.contact.count.svcs': 'serviços',
     'sheet.svc.cliente.label': 'Cliente',
+    'svc.cliente.placeholder': '⚠️ Sem cliente — atribuir',
+    'step.info.cliente': '🏢 Cliente',
+    'sheet.svc.vercliente': 'Ver ficha do cliente',
+    'sheet.svc.verpropuesta': '📄 Ver proposta',
+    'sheet.edit.cliente.cambiar': '✏️ Trocar cliente',
+    'sheet.prop.vercliente': '👤 Ver ficha do cliente',
+    'sheet.prop.vercliente.none': 'Escolha um cliente primeiro.',
+    'sheet.contact.traidopor': 'Trazido por',
+    'sheet.contact.traidos.title': 'Clientes trazidos',
+    'sheet.contact.via': 'via',
     'sheet.svc.ubicacion.btn': '📍 Localização',
     'sheet.svc.ubicacion.none': 'Sem localização carregada',
     'sheet.svc.ubicacion.override': 'usar outra localização para este serviço',
@@ -4205,6 +4225,37 @@ function syncAfterWrite(notionId, resource) {
       body: JSON.stringify({ resource, notion_id: notionId }),
     }).catch(() => {});
   } catch (_) {}
+}
+
+// ── Mapa id→nombre de clientes (CRM interconectado) ────────────────────────────────────────────────
+// Cargado UNA vez y cacheado en módulo, para pintar el cliente en las cards de servicios y resolver los
+// intermediarios SIN fetchear por card. Lee del espejo (callNotion rutea a /api/db con fallback a Notion),
+// con el scope de país que aplique la RLS. `clienteNombreDe` distingue "id sin resolver" (undefined) de
+// "sin id" (el caller decide el placeholder).
+let _clienteNombreById = null;
+let _clienteNombresLoading = false;
+async function ensureClienteNombres() {
+  if (_clienteNombreById) return _clienteNombreById;
+  try {
+    const d = await callNotion(`databases/${CONTACTOS_DB_ID}/query`, 'POST', {});
+    const norm = x => (x || '').replace(/-/g, '');
+    const map = {};
+    for (const c of (d.results || [])) {
+      const nm = c.properties?.['Nombre / Empresa']?.title?.[0]?.plain_text;
+      if (nm) map[norm(c.id)] = nm;
+    }
+    _clienteNombreById = map;
+  } catch (_) { return {}; } // no cacheamos el fallo → reintenta la próxima
+  return _clienteNombreById;
+}
+function clienteNombreDe(id) {
+  if (!id || !_clienteNombreById) return undefined;
+  return _clienteNombreById[(id || '').replace(/-/g, '')];
+}
+function setClienteNombre(id, nombre) { // update optimista tras crear/asignar
+  if (!id || !nombre) return;
+  if (!_clienteNombreById) _clienteNombreById = {};
+  _clienteNombreById[(id || '').replace(/-/g, '')] = nombre;
 }
 
 // Igual que callNotion pero PAGINA (sigue next_cursor) y junta todos los resultados.
@@ -7143,7 +7194,7 @@ async function openService(idx) {
     await Promise.all([
       contactoId
         ? callNotion('pages/' + contactoId, 'GET')
-            .then(c => { if (currentService?.id === svcId) serviceState.clienteMapa = c?.properties?.['Mapa']?.url || ''; })
+            .then(c => { if (currentService?.id === svcId) { serviceState.clienteMapa = c?.properties?.['Mapa']?.url || ''; serviceState.clienteNombre = clienteNombre(c) || ''; } })
             .catch(() => {})
         : Promise.resolve(),
       propId
@@ -7259,6 +7310,7 @@ function renderStep() {
       <div class="hint hint-blue">${t('step.inicio.hint')}</div>
       <div class="info-block">
         <div class="info-row"><span class="info-label">${t('step.info.nombre')}</span><span class="info-val">${esc(nombre)}</span></div>
+        ${serviceState.clienteNombre ? `<div class="info-row"><span class="info-label">${t('step.info.cliente')}</span><span class="info-val">🏢 ${esc(serviceState.clienteNombre)}</span></div>` : ''}
         <div class="info-row"><span class="info-label">${t('step.info.fecha')}</span><span class="info-val">${fechaFmt}${horaFmt ? ' · ' + horaFmt : ''}</span></div>
         ${lugar ? `<div class="info-row"><span class="info-label">${t('step.info.lugar')}</span><span class="info-val">${esc(lugar)}</span></div>` : ''}
         <div class="info-row"><span class="info-label">${t('step.info.tipo')}</span><span class="info-val">${esc(tipo)}</span></div>
@@ -8708,6 +8760,7 @@ async function renderCEOServicios() {
     const paiFlag = { '🇺🇾 Uruguay': '🇺🇾', '🇧🇷 Brasil': '🇧🇷', '🇵🇦 Panamá': '🇵🇦', '🇬🇹 Guatemala': '🇬🇹', '🇲🇽 México': '🇲🇽' };
     const dateLocaleCeo = currentLang === 'pt-BR' ? 'pt-BR' : 'es-UY';
     _ceoServiciosCache = results;
+    await ensureClienteNombres(); // el CEO ve 'all' → el mapa resuelve el cliente de cualquier país
     content.innerHTML = `<div class="ceo-section-title">${t('ceo.servicios.title')}</div>` + results.map(s => {
       const props = s.properties || {};
       const nombre = props['Nombre del servicio']?.title?.[0]?.plain_text || t('common.sinnombre');
@@ -8717,8 +8770,14 @@ async function renderCEOServicios() {
       const pais = props['País']?.select?.name || '';
       const operario = props['Operario App']?.select?.name || (props['Operario(s)']?.people?.[0]?.name || '');
       const fechaFmt = fecha ? new Date(fecha + 'T00:00:00').toLocaleDateString(dateLocaleCeo, { day:'numeric', month:'short' }) : '';
+      const _contactoId = props['Contacto']?.relation?.[0]?.id || props['Contactos']?.relation?.[0]?.id || '';
+      const _cliN = clienteNombreDe(_contactoId);
+      const cliLine = _contactoId
+        ? (_cliN ? `<div style="font-size:12px;color:var(--text2);margin-top:2px">🏢 ${esc(_cliN)}</div>` : '')
+        : `<div style="font-size:12px;color:var(--amber,#f59e0b);margin-top:2px">${t('svc.cliente.placeholder')}</div>`;
       return `<div class="ceo-service-card">
         <div class="ceo-service-name">${nombre} ${paiFlag[pais] || ''}</div>
+        ${cliLine}
         <div class="ceo-service-meta">
           <span class="service-estado ${ESTADO_CLASS[estado] || 'estado-pendiente'}">${estado}</span>
           ${jobCompleto(s, _ceoServiciosCache) ? `<span class="coord-tag" style="background:var(--green-dark,#14532d);color:var(--green,#22c55e)">${t('badge.servicio.completo')}</span>` : ''}
@@ -10639,6 +10698,13 @@ document.addEventListener('pointerdown', kbOnPointerDown, true);
 
 function renderCoordList(keepLimit) {
   if (!keepLimit) _coordVisibleLimit = COORD_PAGE_SIZE;
+  // El nombre del cliente en las cards sale del mapa id→nombre (una carga, cacheada). Si aún no está,
+  // lo pedimos y re-renderizamos cuando llega (fire-and-forget; reintenta en el próximo render si falla).
+  if (!_clienteNombreById && !_clienteNombresLoading) {
+    _clienteNombresLoading = true;
+    // re-render con keepLimit=true → no colapsa el "cargar más" que el usuario haya expandido mientras cargaba.
+    ensureClienteNombres().finally(() => { _clienteNombresLoading = false; if (_clienteNombreById) renderCoordList(true); });
+  }
   const content = document.getElementById('coord-content');
   const dateLocale = currentLang === 'pt-BR' ? 'pt-BR' : 'es-UY';
   const isRelevTab = activeCoordTab === 'relevamientos';
@@ -10788,10 +10854,17 @@ function coordServiceCard(s) {
   // Badge "Servicio completo": el trabajo entero (grupo de jornadas) llegó al 100% (calculado agrupando).
   const jobDone = jobCompleto(s, _coordAllServices);
   const thumb = coordCardThumb(props);
+  // Cliente: id sin resolver (mapa aún cargando) → blanco (no mentir "sin cliente"); sin id → placeholder.
+  const contactoId = props['Contacto']?.relation?.[0]?.id || props['Contactos']?.relation?.[0]?.id || '';
+  const _cli = clienteNombreDe(contactoId);
+  const cliLine = contactoId
+    ? (_cli ? `<div class="coord-cliente" style="font-size:12px;color:var(--text2);margin-top:1px">🏢 ${esc(_cli)}</div>` : '')
+    : `<div class="coord-cliente" style="font-size:12px;color:var(--amber,#f59e0b);margin-top:1px">${t('svc.cliente.placeholder')}</div>`;
   return `<div class="coord-service-card${thumb ? ' has-thumb' : ''}" style="cursor:pointer" onclick="openEditSheet('${esc(s.id)}')">
     ${thumb}
     <div class="coord-card-body">
     <div class="coord-service-name">${tipoChip}${esPrueba ? `<span class="service-prueba-badge">${t('prueba.badge')}</span>` : ''}${nombreHTML}${esJornada && jornadaN != null ? ` <span style="color:var(--purple);font-size:12px">J${jornadaN}</span>` : ''}</div>
+    ${cliLine}
     <div class="coord-service-meta"><span class="service-estado ${estadoClass}">${esc(estadoDisplay)}</span>${fueraDeFecha ? `<span class="coord-tag" style="background:var(--amber-dark,#7c5300);color:var(--amber,#f59e0b)">${t('badge.fueradefecha').replace('{d}', fPlanFmt)}</span>` : ''}${(esJornada && typeof pctAvance === 'number') ? `<span class="coord-tag">${Math.round(pctAvance)}%</span>` : ''}${jobDone ? `<span class="coord-tag" style="background:var(--green-dark,#14532d);color:var(--green,#22c55e)">${t('badge.servicio.completo')}</span>` : ''}${horaFmt ? `<span class="coord-tag">🕐 ${esc(horaFmt)}</span>` : ''}${tipo ? `<span class="coord-tag">${esc(tipo)}</span>` : ''}${(() => { const c = servicioContinua(s); return c.continua ? `<span class="coord-tag" style="background:var(--amber-dark,#7c5300);color:var(--amber,#f59e0b)">${t('badge.continua').replace('{h}', c.hechos).replace('{t}', c.total)}</span>` : ''; })()}</div>
     <div class="coord-ops">${lugar ? `📍 ${esc(lugar)} · ` : ''}👤 ${ops}</div>
     </div>
@@ -11068,8 +11141,12 @@ async function openEditSheet(pageId) {
   const lugar = props['Lugar']?.rich_text?.[0]?.plain_text || '';
   const mapa = props['Mapa']?.url || '';
   const contactoId = props['Contacto']?.relation?.[0]?.id || props['Contactos']?.relation?.[0]?.id || '';
+  const propuestaId = props['Propuesta']?.relation?.[0]?.id || '';
   editState = { estado: estadoActual, operario: operarioActual, operarioManual: operarioManualActual, piloto: pilotoActual, fecha, hora, lugar, mapa, participantes: participantesActuales, pais: props['País']?.select?.name || '', nombre,
-    contactoId, clienteNombre: '', clienteMapa: '', propMapa: '',
+    contactoId, propuestaId, clienteNombre: '', clienteMapa: '', propMapa: '',
+    // R2 (asignar/cambiar cliente): sub-form reusado del alta de servicio suelto. _clienteDirty gatilla el write.
+    clienteForm: { clienteSel: contactoId || '__new__', nombreCliente: '', tel: '', email: '', pais: props['País']?.select?.name || '' },
+    _clienteDirty: false,
     sectoresCliente: [],
     sectores: (() => { try { return JSON.parse(props['Estado sectores']?.rich_text?.[0]?.plain_text || '[]'); } catch (_) { return []; } })(),
     _sectoresClienteDirty: false, _sectoresClienteLoaded: false,
@@ -11214,23 +11291,111 @@ function renderSvcClienteUbicacion() {
   const box = document.getElementById('edit-cliente-ubicacion');
   if (!box) return;
   const url = resolveMapsUrl({ svcMapa: editState.mapa, propMapa: editState.propMapa, clienteMapa: editState.clienteMapa });
-  const nombre = editState.clienteNombre || '';
-  const hasOverride = !!(editState.mapa && editState.mapa.trim());
-  const overrideShown = box.getAttribute('data-override') === '1' || hasOverride;
-  const clienteRow = nombre
-    ? `<div class="info-row" style="margin-bottom:8px"><span class="info-label">${t('sheet.svc.cliente.label')}:</span> <span class="info-val">${esc(nombre)}</span></div>`
-    : '';
+  const cid = editState.contactoId || '';
+  const nombre = editState.clienteNombre || clienteNombreDe(cid) || '';
+  const puedeAsignar = puedeAsignarCliente();
+  // Fila del cliente: nombre clickeable → su ficha 360; sin cliente → placeholder (abre el selector si puede asignar).
+  let clienteRow;
+  if (cid) {
+    const label = nombre ? esc(nombre) : t('sheet.svc.vercliente');
+    clienteRow = `<div class="info-row" style="margin-bottom:6px"><span class="info-label">${t('sheet.svc.cliente.label')}:</span> <span class="info-val" style="text-decoration:underline;cursor:pointer" onclick="verClienteDesdeServicio('${esc(cid)}')">🏢 ${label} ↗</span></div>`;
+  } else {
+    const ph = `<span class="info-val" style="color:var(--amber,#f59e0b)${puedeAsignar ? ';cursor:pointer' : ''}"${puedeAsignar ? ' onclick="toggleEditClienteSelector(true)"' : ''}>${t('svc.cliente.placeholder')}</span>`;
+    clienteRow = `<div class="info-row" style="margin-bottom:6px">${ph}</div>`;
+  }
+  // Acciones solo para coord/Dirección: cambiar cliente + ver propuesta vinculada.
+  let actions = '';
+  if (puedeAsignar) {
+    const cambiarBtn = `<button type="button" onclick="toggleEditClienteSelector()" style="background:none;border:none;color:var(--accent,#00C98D);font-size:12px;text-decoration:underline;cursor:pointer;padding:4px 0">${t('sheet.edit.cliente.cambiar')}</button>`;
+    const verPropBtn = editState.propuestaId
+      ? `<button type="button" onclick="verPropuestaDesdeServicio('${esc(editState.propuestaId)}')" style="background:none;border:none;color:var(--text3);font-size:12px;text-decoration:underline;cursor:pointer;padding:4px 0;margin-left:14px">${t('sheet.svc.verpropuesta')}</button>`
+      : '';
+    actions = `<div style="margin-bottom:6px">${cambiarBtn}${verPropBtn}</div>`;
+  }
+  const selectorBox = puedeAsignar ? `<div id="edit-cliente-selector" style="display:none;margin:8px 0">${editClienteSectionHTML()}</div>` : '';
   const ubicBtn = url
     ? `<button type="button" class="estado-btn" onclick="openSvcUbicacion()">${t('sheet.svc.ubicacion.btn')}</button>`
     : `<button type="button" class="estado-btn" disabled style="opacity:.5">${t('sheet.svc.ubicacion.btn')}</button>
        <div style="font-size:11px;color:var(--text3);margin-top:4px">${t('sheet.svc.ubicacion.none')}</div>`;
+  const hasOverride = !!(editState.mapa && editState.mapa.trim());
+  const overrideShown = box.getAttribute('data-override') === '1' || hasOverride;
   const overrideLink = `<button type="button" onclick="toggleSvcUbicacionOverride()" style="background:none;border:none;color:var(--text3);font-size:11px;text-decoration:underline;cursor:pointer;padding:6px 0">${t('sheet.svc.ubicacion.override')}</button>`;
   const overrideInput = overrideShown
     ? `<div class="edit-section-label" style="margin-top:8px">${t('sheet.svc.ubicacion.override.label')}</div>
        <div class="edit-section-hint" style="font-size:11px;color:var(--text3);margin-bottom:6px">${t('sheet.svc.ubicacion.override.hint')}</div>
        <input type="url" class="edit-date-input" placeholder="https://maps.app.goo.gl/..." value="${esc(editState.mapa || '')}" oninput="editState.mapa=this.value"/>`
     : '';
-  box.innerHTML = clienteRow + ubicBtn + ' ' + overrideLink + overrideInput;
+  box.innerHTML = clienteRow + actions + selectorBox + ubicBtn + ' ' + overrideLink + overrideInput;
+}
+
+// ── R2/R3: cliente en el sheet del servicio (asignar/cambiar + navegar) ─────────────────────────────
+function puedeAsignarCliente() { const r = currentUser?.role || ''; return r.includes('Coordinador') || r.includes('Dirección'); }
+function toggleEditClienteSelector(forceOpen) {
+  const box = document.getElementById('edit-cliente-selector');
+  if (!box) return;
+  const open = forceOpen === true ? true : box.style.display === 'none';
+  box.style.display = open ? 'block' : 'none';
+  if (open) loadEditContactos();
+}
+function editClienteInputsHTML() {
+  const s = editState.clienteForm || (editState.clienteForm = { clienteSel: '__new__', nombreCliente: '', tel: '', email: '', pais: editState.pais || '' });
+  const esNuevo = !s.clienteSel || s.clienteSel === '__new__';
+  const inp = (ph, key, type) => `<input type="${type}" class="edit-date-input" style="margin-top:6px" placeholder="${ph}" value="${esc(s[key] || '')}" oninput="editState.clienteForm.${key}=this.value; editState._clienteDirty=true"/>`;
+  return (esNuevo ? inp('Nombre del cliente', 'nombreCliente', 'text') : '') + inp('📞 Teléfono / WhatsApp', 'tel', 'tel') + inp('✉️ Email', 'email', 'email');
+}
+function editClienteSectionHTML() {
+  return `<div class="edit-section" style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px">
+    <div class="edit-section-label">👤 ${t('sheet.svc.cliente.label')}</div>
+    <select id="edit-cliente-select" class="edit-date-input" onchange="editClienteChanged(this.value)">
+      <option value="__new__">➕ Nuevo cliente</option>
+      <option value="" disabled>cargando clientes…</option>
+    </select>
+    <div id="edit-cliente-fields">${editClienteInputsHTML()}</div></div>`;
+}
+function editClienteChanged(val) {
+  const s = editState.clienteForm;
+  s.clienteSel = val || '__new__';
+  editState._clienteDirty = true;
+  if (val && val !== '__new__') {
+    const c = (_propContactos || _coordAllContacts || []).find(x => x.id === val);
+    if (c) {
+      s.nombreCliente = c.properties?.['Nombre / Empresa']?.title?.[0]?.plain_text || '';
+      s.tel = c.properties?.['Teléfono / WhatsApp']?.phone_number || '';
+      s.email = c.properties?.['Email']?.email || '';
+    }
+  } else { s.nombreCliente = ''; s.tel = ''; s.email = ''; }
+  const w = document.getElementById('edit-cliente-fields');
+  if (w) w.innerHTML = editClienteInputsHTML();
+}
+async function loadEditContactos() {
+  try {
+    if (!_propContactos) {
+      if (Array.isArray(_coordAllContacts) && _coordAllContacts.length) _propContactos = _coordAllContacts;
+      else { const d = await callNotion(`databases/${CONTACTOS_DB_ID}/query`, 'POST', { sorts: [{ property: 'Nombre / Empresa', direction: 'ascending' }] }); _propContactos = d.results || []; }
+    }
+    const sel = document.getElementById('edit-cliente-select');
+    if (!sel) return;
+    const cur = editState.clienteForm?.clienteSel || '__new__';
+    const tit = c => c.properties?.['Nombre / Empresa']?.title?.[0]?.plain_text || '(sin nombre)';
+    const estadoC = c => c.properties?.['Estado']?.select?.name || '';
+    sel.innerHTML = '<option value="__new__">➕ Nuevo cliente</option>' +
+      _propContactos.slice().filter(c => estadoC(c) !== '❌ Descartado' || c.id === cur).sort((a, b) => tit(a).localeCompare(tit(b))).map(c => `<option value="${esc(c.id)}">${esc(tit(c))}</option>`).join('');
+    sel.value = cur;
+  } catch (e) { /* el form sirve igual */ }
+}
+// Navegación entre overlays: cerrar → delay → abrir (no se apilan). Capturar el id ANTES de cerrar.
+function verClienteDesdeServicio(id) { if (!id) return; closeEditSheet(); setTimeout(() => openContactSheet(id), 250); }
+function verPropuestaDesdeServicio(id) {
+  if (!id) return;
+  closeEditSheet();
+  setTimeout(async () => {
+    try {
+      let prop = _coordAllProps?.find(p => p.id === id);
+      if (!prop) { const d = await callNotion('pages/' + id, 'GET'); if (!_coordAllProps) _coordAllProps = []; _coordAllProps.push(d); }
+    } catch (_) {}
+    if (typeof setCoordTab === 'function' && document.getElementById('screen-coordinator')?.classList.contains('active')) { try { setCoordTab('propuestas'); } catch (_) {} }
+    setTimeout(() => openPropSheet(id), 200);
+  }, 250);
 }
 
 function toggleSvcUbicacionOverride() {
@@ -11762,7 +11927,23 @@ async function saveServiceEdit() {
     props['Tipo de servicio'] = { multi_select: (editState.tipoServicios || []).map(name => ({ name })) };
     props['Notas pre-servicio'] = editState.notasPreServicio ? { rich_text: [{ text: { content: editState.notasPreServicio } }] } : { rich_text: [] };
     props['Observación cliente'] = editState.observacionCliente ? { rich_text: [{ text: { content: editState.observacionCliente } }] } : { rich_text: [] };
+    // Cliente (R2): si se cambió desde el selector, resolver/crear y setear la relación Contacto del servicio.
+    // Si resolveOrCreateClienteId devuelve null (nada ingresado), NO tocamos Contacto → no borra el existente.
+    let _assignedCid = null;
+    if (editState._clienteDirty && puedeAsignarCliente()) {
+      try {
+        const cid = await resolveOrCreateClienteId(editState.clienteForm || {});
+        if (cid) {
+          props['Contacto'] = { relation: [{ id: cid }] };
+          _assignedCid = cid;
+          const nm = editState.clienteForm?.nombreCliente || clienteNombreDe(cid) || '';
+          if (nm) setClienteNombre(cid, nm);
+        }
+      } catch (_) { /* si falla, no tocar Contacto */ }
+    }
     const updated = await updateServiceProps(editingService.id, props);
+    // Optimista SOLO tras el PATCH exitoso (si fallaba, la card no debe mostrar un cliente no guardado).
+    if (_assignedCid) editingService.properties['Contacto'] = { relation: [{ id: _assignedCid }] };
     syncAfterWrite(editingService.id, 'servicios');
     // Update optimista: garantizar que el servicio recién editado quede visible en la lista tras el
     // re-render. Notion puede tardar en indexar un servicio recién CREADO en los queries de lista, así
@@ -12688,7 +12869,15 @@ function propClienteSectionHTML() {
       <option value="__new__">➕ Nuevo cliente</option>
       <option value="" disabled>cargando clientes…</option>
     </select>
-    <div id="prop-cliente-fields">${propClienteInputsHTML()}</div></div>`;
+    <div id="prop-cliente-fields">${propClienteInputsHTML()}</div>
+    <button type="button" onclick="verClienteDesdePropuesta()" style="background:none;border:none;color:var(--accent,#00C98D);font-size:12px;text-decoration:underline;cursor:pointer;padding:6px 0">${t('sheet.prop.vercliente')}</button></div>`;
+}
+// R3: abrir la ficha del cliente vinculado a la propuesta (cerrar prop-sheet → delay → abrir contact-sheet).
+function verClienteDesdePropuesta() {
+  const id = propEditState?.clienteSel;
+  if (!id || id === '__new__') { alert(t('sheet.prop.vercliente.none')); return; }
+  closePropSheet();
+  setTimeout(() => openContactSheet(id), 250);
 }
 function propClienteChanged(val) {
   propEditState.clienteSel = val || '__new__';
@@ -14112,6 +14301,15 @@ function coordContactCard(c) {
   const email = props['Email']?.email || '';
   const servicios = (props['Servicio de interés']?.multi_select || []).map(s => s.name).join(' · ');
   const estadoClass = estado.includes('activo') ? 'activo' : estado.includes('Inactivo') ? 'inactivo' : '';
+  // R4: chip "🤝 vía X" si el cliente llegó por un intermediario (nombre resuelto desde la cartera ya cargada).
+  // Ventas NO ve el modelo de intermediarios (igual que el 360) → no mostrarle "quién trajo a quién".
+  const intId = props['Intermediario']?.relation?.[0]?.id || '';
+  let viaBadge = '';
+  if (intId && !esVentas()) {
+    const im = (_coordAllContacts || []).find(x => x.id === intId);
+    const intNombre = (im?.properties?.['Nombre / Empresa']?.title?.[0]?.plain_text) || clienteNombreDe(intId) || '';
+    viaBadge = `<span class="coord-tag">🤝 ${t('sheet.contact.via')} ${esc(intNombre || '…')}</span>`;
+  }
   const proxContacto = (props['Próximo contacto']?.date?.start || '').split('T')[0];
   const recontactadoReciente = proxContacto && proxContacto > new Date().toISOString().split('T')[0];
   // Botones de recontactar SOLO para Ventas (es su trabajo). 💬 solo ABRE el canal; 📞 Contactado es
@@ -14133,6 +14331,7 @@ function coordContactCard(c) {
       ${estado ? `<span class="contact-estado ${estadoClass}">${esc(estado)}</span>` : ''}
       ${tipo ? `<span class="coord-tag">${esc(tipo)}</span>` : ''}
       ${pais ? `<span class="coord-tag">${esc(pais)}</span>` : ''}
+      ${viaBadge}
     </div>
     ${servicios ? `<div class="contact-detail">🛠 ${esc(servicios)}</div>` : ''}
     ${tel ? `<div class="contact-detail">📞 ${esc(tel)}</div>` : ''}
@@ -14185,10 +14384,12 @@ function buildContactSheetBody(mode) {
       </div></div>` +
     (mode === 'edit'
       ? `<div class="edit-section"><div class="edit-section-label">${t('sheet.contact.section.intermediario')}</div>
+          <div id="contact-traidopor-row"></div>
           <select id="contact-intermediario-select" class="edit-date-input" onchange="contactIntermediarioChanged(this.value)">
             <option value="">${t('sheet.contact.intermediario.none')}</option>
             <option value="__loading__" disabled>${t('sheet.contact.intermediario.loading')}</option>
-          </select></div>`
+          </select></div>
+         <div id="contact-traidos-container"></div>`
       : '') +
     `<div class="edit-section"><div class="edit-section-label">${t('sheet.contact.section.interlocutor')}</div>
       <input type="text" class="edit-date-input" placeholder="${t('sheet.contact.interlocutor.placeholder')}" value="${s.interlocutor || ''}" oninput="contactEditState.interlocutor=this.value"/></div>` +
@@ -14275,7 +14476,38 @@ async function openContactSheet(pageId) {
   }
   // Ventas tampoco carga los intermediarios (traería toda la cartera como <option> al DOM).
   if (!esVentas()) loadContactIntermediarios(pageId);
+  // R4: "Traído por" (directo) + "Clientes traídos" (inverso). Solo no-Ventas (no ve el 360).
+  if (!esVentas()) renderIntermediarioVistas(pageId);
 }
+
+// R4: vistas de intermediario en la carta del cliente (ambos sentidos), resueltas con el mapa id→nombre.
+async function renderIntermediarioVistas(pageId) {
+  try {
+    await ensureClienteNombres();
+    // "Traído por X" (lado directo, read-only clickeable) arriba del selector.
+    const row = document.getElementById('contact-traidopor-row');
+    if (row) {
+      const intId = contactEditState.intermediario;
+      row.innerHTML = intId
+        ? `<div style="font-size:12px;color:var(--text2);margin-bottom:6px;cursor:pointer" onclick="verClienteDesdeContacto('${esc(intId)}')">🤝 ${t('sheet.contact.traidopor')}: <span style="text-decoration:underline">${esc(clienteNombreDe(intId) || '…')}</span> ↗</div>`
+        : '';
+    }
+    // "Clientes traídos (N)" (lado inverso). El espejo podría no traer la relación → page GET puntual de fallback.
+    const box = document.getElementById('contact-traidos-container');
+    if (!box) return;
+    let rel = editingContact?.properties?.['Clientes traídos']?.relation;
+    if (!rel && pageId) { try { const c = await callNotion('pages/' + pageId, 'GET'); rel = c?.properties?.['Clientes traídos']?.relation; } catch (_) {} }
+    rel = rel || [];
+    if (!rel.length) { box.innerHTML = ''; return; }
+    const rows = rel.map(r => {
+      const nm = clienteNombreDe(r.id) || '(cliente)';
+      return `<div class="equipo-card" style="cursor:pointer" onclick="verClienteDesdeContacto('${esc(r.id)}')"><div style="flex:1;min-width:0"><div class="equipo-name">🏢 ${esc(nm)}</div></div><span class="user-arrow">↗</span></div>`;
+    }).join('');
+    box.innerHTML = `<div class="edit-section"><div class="edit-section-label">🤝 ${t('sheet.contact.traidos.title')} (${rel.length})</div>${rows}</div>`;
+  } catch (_) {}
+}
+// Navegar de una ficha de cliente a otra (mismo overlay): cerrar → delay → reabrir con el id destino.
+function verClienteDesdeContacto(id) { if (!id) return; closeContactSheet(); setTimeout(() => openContactSheet(id), 250); }
 
 function openNewContactSheet() {
   contactSheetMode = 'create';
