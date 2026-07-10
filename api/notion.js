@@ -1,8 +1,9 @@
 import { verifySession, tokenFromReq, maybeRenewSession } from './_lib/session.js';
 import { userById, resolveUser, esVentas, esGlobal } from './_lib/users.js';
 import { checkPermiso } from './_lib/permisos.js';
-import { resourceFromPage } from './_lib/notion-map.js';
-import { mirrorPage } from './_lib/mirror.js';
+import { resourceFromPage, DBS } from './_lib/notion-map.js';
+import { mirrorPage, deleteRowByNotionId } from './_lib/mirror.js';
+import { mergeProps, enqueueOutbox, supafirstSet, getMirrorRaw, cancelOutboxForPage } from './_lib/supafirst.js';
 
 // Fase 3a.1 — espejo garantizado: tras un PATCH/POST EXITOSO a Notion, reflejar esa página en Supabase desde
 // el proxy (cierra los huecos de syncAfterWrite: operario, gastos, drain offline, creates). await inline con
@@ -10,6 +11,11 @@ import { mirrorPage } from './_lib/mirror.js';
 const MIRROR_ON_WRITE = process.env.MIRROR_ON_WRITE === '1';
 const MIRROR_VERBOSE = process.env.MIRROR_VERBOSE === '1'; // loguea también los OK (para verificar el rollout)
 const MIRROR_TIMEOUT_MS = 2500;
+
+// Fase 3a.2 — Supabase-first para EDICIONES por tabla (env SUPAFIRST_TABLES, CSV). VACÍO = inerte (nunca entra
+// al branch → comportamiento idéntico a 3a.1). Prender una tabla: setear el env + correr la migración +
+// sacar la tabla del cron-db-sync. Rollback = sacar la tabla del CSV.
+const SUPAFIRST = supafirstSet();
 
 // Auth del proxy (#1). MONITOR (false): valida el token y lo reporta en X-Auth, pero NO rechaza.
 // ENFORCE (true): rechaza con 401 los pedidos sin token válido → CIERRA el agujero.
@@ -130,6 +136,13 @@ export default async function handler(req, res) {
   // Backstop server-side del rol Ventas: restringe a la DB de Clientes/Contactos.
   // Solo entra si hay sesión Y esVentas(u) → cero cambio de comportamiento para cualquier otro rol.
   const u = session ? await resolveUser(session.id) : null; // DB-backed con rescate + fallback duro (Fase 3.0)
+  // Fase 3a.2: la meta (página COMPLETA antes del PATCH) que descargan los checks de permisos se reusa para
+  // derivar el resource del branch Supabase-first (evita un 2º GET). Se setea en los dos GET meta de abajo.
+  let patchMeta = null;
+  // Motivo por el que el branch Supabase-first cayó a Notion-first (gobierna el post-write del espejo):
+  // null = no aplicó · 'notfound' = fila no espejada (upsert completo es SEGURO: no puede tener outbox
+  // pendiente) · 'fail'/'enqueue'/'error' = hipo transitorio (solo delta-merge: NUNCA página completa).
+  let supafirstMiss = null;
   if (esVentas(u)) {
     const mQuery = endpointNorm.match(/^databases\/([a-f0-9-]{32,36})(\/query)?$/);
     const mPage = endpointNorm.match(/^pages\/([a-f0-9-]{32,36})$/);
@@ -152,6 +165,7 @@ export default async function handler(req, res) {
           headers: { Authorization: `Bearer ${token}`, 'Notion-Version': '2022-06-28' },
         });
         const meta = await metaRes.json();
+        patchMeta = meta;
         const parentNorm = norm(meta?.parent?.database_id);
         if (parentNorm === CONTACTOS_NORM) {
           // ok — comportamiento original
@@ -190,6 +204,7 @@ export default async function handler(req, res) {
             method: 'GET', headers: { Authorization: `Bearer ${token}`, 'Notion-Version': '2022-06-28' },
           });
           const meta = await metaRes.json();
+          patchMeta = meta;
           const parentDb = norm(meta?.parent?.database_id);
           if (parentDb) {
             const perm = checkPermiso(u, { tipo: 'create', dbId: parentDb });
@@ -238,6 +253,58 @@ export default async function handler(req, res) {
         console.warn('[perms] DENEGARÍA', JSON.stringify({ rol: u?.rol, id: session?.id, tipo, db: norm(dbId), endpoint: endpointNorm, motivo: perm.motivo }));
         if (ENFORCE_PERMS) return res.status(403).json({ error: 'forbidden: tu rol no accede a esa base' });
       }
+    }
+  }
+
+  // Fase 3a.2 — Supabase-first para las tablas flipeadas (SUPAFIRST): escribe en el espejo (merge atómico) +
+  // encola la propagación a Notion, y responde SIN llamar a Notion. Solo RETORNA si TODO salió bien (merge +
+  // enqueue); ante cualquier duda (fila no espejada, RPC/enqueue falla, error) NO retorna → cae al path
+  // Notion-first de abajo (+ mirror 3a.1), que deja Notion y el espejo consistentes. INERTE con SUPAFIRST vacío.
+  if (SUPAFIRST.size && httpMethod === 'PATCH' && patchMeta && body?.properties) {
+    const mId = endpointNorm.match(/^pages\/([a-f0-9-]{32,36})$/);
+    const resource = resourceFromPage(patchMeta);
+    if (mId && resource && SUPAFIRST.has(resource)) {
+      try {
+        const mp = await mergeProps(resource, mId[1], body.properties);
+        if (mp.ok && mp.found) {
+          const eq = await enqueueOutbox(mId[1], resource, body.properties);
+          if (eq.ok) {
+            // Respuesta con forma de página (raw mergeado) para no romper los call sites que leen updated.properties.
+            return res.status(200).json({ object: 'page', id: mId[1], properties: mp.raw, _source: 'supabase-first' });
+          }
+          supafirstMiss = 'enqueue';
+          console.warn('[supafirst] enqueue fail → Notion-first', { id: mId[1], resource, status: eq.status });
+        } else if (mp.ok && !mp.found) {
+          supafirstMiss = 'notfound';
+          console.warn('[supafirst] fila no espejada → Notion-first', { id: mId[1], resource });
+        } else {
+          supafirstMiss = 'fail';
+          console.warn('[supafirst] merge fail → Notion-first', { id: mId[1], resource, status: mp.status });
+        }
+      } catch (e) {
+        supafirstMiss = 'error';
+        console.warn('[supafirst] error → Notion-first', { id: mId[1], resource, msg: String(e?.message || e).slice(0, 120) });
+      }
+    }
+  }
+
+  // Fase 3a.2 (fix review #2) — con tablas flipeadas, las LECTURAS por id también salen del espejo (la MISMA
+  // fuente que lee la app): si el front hace un read-modify-write (ej. fotos: leer array actual + append), un
+  // GET a Notion vería el estado ATRASADO (outbox sin drenar) y el PATCH resultante pisaría datos. Si la página
+  // no está en ninguna tabla flipeada → cae a Notion como siempre. Corre DESPUÉS del backstop Ventas (403 primero).
+  if (SUPAFIRST.size && httpMethod === 'GET') {
+    const mIdGet = endpointNorm.match(/^pages\/([a-f0-9-]{32,36})$/);
+    if (mIdGet) {
+      try {
+        const hit = await getMirrorRaw([...SUPAFIRST], mIdGet[1]);
+        if (hit) {
+          return res.status(200).json({
+            object: 'page', id: mIdGet[1],
+            parent: { type: 'database_id', database_id: DBS[hit.resource] || null },
+            properties: hit.raw, _source: 'supabase',
+          });
+        }
+      } catch (e) { /* cae a Notion */ }
     }
   }
 
@@ -297,20 +364,46 @@ export default async function handler(req, res) {
       return res.status(200).json({ object: 'list', results: allResults, has_more: truncated });
     }
 
-    // Fase 3a.1 — espejo garantizado (best-effort, NO altera la respuesta ni el guardado en Notion):
-    // tras un PATCH pages/{id} o un POST pages EXITOSO, reflejar la página devuelta (COMPLETA) en Supabase.
-    if (MIRROR_ON_WRITE && session && response.status >= 200 && response.status < 300 && data?.id && data?.properties) {
+    // Fases 3a.1/3a.2 — post-write en el espejo (best-effort, NO altera la respuesta ni el guardado en Notion).
+    // Para tablas NO flipeadas (3a.1): upsert de la página completa devuelta. Para tablas FLIPEADAS (3a.2):
+    // Notion puede estar ATRASADO (outbox sin drenar) → NUNCA página completa; solo el delta de este request
+    // (fix review #1), y corre SIN depender de MIRROR_ON_WRITE (fix #4: el espejo de una tabla flipeada no es
+    // opcional). Papelera/archivado (fix #3): se borra la fila del espejo (que no re-aparezca) y se cancela su
+    // outbox pendiente.
+    if (session && response.status >= 200 && response.status < 300 && data?.id) {
       const isWrite = (httpMethod === 'PATCH' && /^pages\/[a-f0-9-]{32,36}$/.test(endpointNorm))
         || (httpMethod === 'POST' && endpointNorm === 'pages');
       if (isWrite) {
         let tid;
         try { // TODO adentro del try (resourceFromPage incluido): un throw acá JAMÁS debe volver 502 al usuario.
           const resource = resourceFromPage(data);
-          if (resource) {
+          const flipped = !!(resource && SUPAFIRST.has(resource));
+          if (resource && (flipped || MIRROR_ON_WRITE)) {
+            const isTrash = body?.in_trash === true || body?.archived === true;
+            let action;
+            if (isTrash) {
+              // Borrado/archivado de página: fuera del espejo + cancelar el outbox de esa página (si flipeada).
+              action = deleteRowByNotionId(resource, data.id).then(async (r) => {
+                if (flipped) { try { await cancelOutboxForPage(data.id); } catch (_) {} }
+                return r;
+              });
+            } else if (flipped && httpMethod === 'PATCH' && supafirstMiss !== 'notfound'
+                       && body?.in_trash !== false && body?.archived !== false) {
+              // Fallback de tabla flipeada: aplicar SOLO el delta (idempotente con el camino feliz).
+              // El RESTORE (in_trash:false / archived:false) queda EXCLUIDO → cae al else (full upsert):
+              // la fila fue borrada del espejo al trashear y solo el upsert completo puede resucitarla.
+              action = body?.properties
+                ? mergeProps(resource, data.id, body.properties).then(mp => ({ ok: !!(mp.ok && mp.found), status: mp.status || 200, reason: mp.ok && !mp.found ? 'notfound' : mp.reason }))
+                : Promise.resolve({ ok: true, status: 0, reason: 'patch sin properties' });
+            } else {
+              // Página completa SEGURA: creates (página nueva, sin outbox posible), restore de papelera,
+              // fila no espejada (el upsert la repone), o tabla no flipeada (3a.1 clásico).
+              action = data?.properties ? mirrorPage(resource, data) : Promise.resolve({ ok: false, status: 0, reason: 'sin properties' });
+            }
             const to = new Promise(r => { tid = setTimeout(() => r({ ok: false, status: 0, reason: 'timeout' }), MIRROR_TIMEOUT_MS); });
-            const r = await Promise.race([mirrorPage(resource, data), to]);
-            if (!r?.ok) console.warn('[mirror] fail', { id: data.id, resource, status: r?.status, reason: r?.reason });
-            else if (MIRROR_VERBOSE) console.log('[mirror] ok', { id: data.id, resource, status: r?.status });
+            const r = await Promise.race([action, to]);
+            if (!r?.ok) console.warn('[mirror] fail', { id: data.id, resource, flipped, status: r?.status, reason: r?.reason });
+            else if (MIRROR_VERBOSE) console.log('[mirror] ok', { id: data.id, resource, flipped, status: r?.status });
           }
         } catch (e) { console.warn('[mirror] error', { id: data?.id, msg: String(e?.message || e).slice(0, 120) }); }
         finally { if (tid) clearTimeout(tid); }
