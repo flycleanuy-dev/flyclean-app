@@ -59,11 +59,19 @@ export default async function handler(req, res) {
 
     if (activo === false || activo === true) {
       // Baja suave o reactivación: solo togglea el flag (nombre/rol/país/created_at intactos).
+      // return=representation (NO minimal): PostgREST devuelve 204 aunque el id no matchee ninguna fila
+      // → una baja "exitosa" que no actualizó nada. Con representation vemos las filas afectadas y, si son 0,
+      // devolvemos 404 en vez de mentir "dado de baja" (el usuario no aparecería nunca en Dados de baja).
       const r = await fetch(`${SB_URL}/rest/v1/usuarios?id=eq.${encodeURIComponent(id)}`, {
-        method: 'PATCH', headers: SB_HEADERS(),
+        method: 'PATCH',
+        headers: { apikey: SB_KEY, Authorization: 'Bearer ' + SB_KEY, 'Content-Type': 'application/json', Prefer: 'return=representation' },
         body: JSON.stringify({ activo, updated_at: new Date().toISOString() }),
       });
       if (!r.ok) return sbFail(res, r, 'actualizar');
+      const rows = await r.json().catch(() => []);
+      if (!Array.isArray(rows) || rows.length === 0) {
+        return res.status(404).json({ ok: false, error: 'no se encontró el usuario en la base (id: ' + id + ')' });
+      }
       // Baja = cortar acceso: BLOQUEAR el PIN (centinela), no borrarlo — si solo se borrara, verify-pin caería
       // al default de USER_PINS y un usuario original podría volver a entrar. Reactivar/🔑 lo pisan con uno nuevo.
       if (activo === false) { try { await blockUserPin(id); } catch (_) {} }

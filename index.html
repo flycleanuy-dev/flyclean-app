@@ -1364,7 +1364,8 @@ body::before {
       <div class="edit-section-label" data-i18n="sheet.edit.section.tiposervicio">TIPO DE SERVICIO</div>
       <div class="estado-btns" id="edit-tiposervicio-btns"></div>
     </div>
-    <button type="button" class="ceo-acc-head edit-acc-head" onclick="toggleCeoAcc(this)"><span data-i18n="sheet.edit.acc.notas">📝 NOTAS, OBSERVACIÓN Y CLIENTE</span><span class="fin-arrow">▾</span></button>
+    <div class="edit-section" id="edit-cliente-ubicacion"></div>
+    <button type="button" class="ceo-acc-head edit-acc-head" onclick="toggleCeoAcc(this)"><span data-i18n="sheet.edit.acc.notas">📝 NOTAS Y OBSERVACIÓN</span><span class="fin-arrow">▾</span></button>
     <div class="ceo-acc-body" style="display:none">
       <div class="edit-section">
         <div class="edit-section-label" data-i18n="sheet.edit.section.notaspre">📝 NOTAS PARA EL OPERARIO (antes del trabajo)</div>
@@ -1374,7 +1375,6 @@ body::before {
         <div class="edit-section-label" data-i18n="sheet.edit.section.obscliente">🗒️ OBSERVACIÓN PARA EL CLIENTE (va en el PDF)</div>
         <textarea class="edit-date-input" id="edit-obscliente" rows="3" style="resize:none;height:70px" oninput="editState.observacionCliente=this.value"></textarea>
       </div>
-      <div class="edit-section" id="edit-cliente-ubicacion"></div>
     </div>
     <button class="edit-save-btn" id="edit-save-btn" data-i18n="btn.save.notion" onclick="saveServiceEdit()">💾 Guardar</button>
     <button class="report-pdf-btn" id="report-pdf-btn" onclick="openReportStep(editingService)" style="display:none">📄 Generar reporte</button>
@@ -2390,7 +2390,7 @@ const TRANSLATIONS = {
     'coord.new.servicio': '＋ Nuevo servicio',
     'sheet.contact.new.servicio': '＋ Nuevo servicio para este cliente',
     'sheet.edit.section.tiposervicio': 'TIPO DE SERVICIO',
-    'sheet.edit.acc.notas': '📝 NOTAS, OBSERVACIÓN Y CLIENTE',
+    'sheet.edit.acc.notas': '📝 NOTAS Y OBSERVACIÓN',
     'sheet.edit.section.notaspre': '📝 NOTAS PARA EL OPERARIO (antes del trabajo)',
     'sheet.edit.section.obscliente': '🗒️ OBSERVACIÓN PARA EL CLIENTE (va en el PDF)',
     'sheet.contact.sectores.empty': 'Sin sectores aún.',
@@ -3154,7 +3154,7 @@ const TRANSLATIONS = {
     'coord.new.servicio': '＋ Novo serviço',
     'sheet.contact.new.servicio': '＋ Novo serviço para este cliente',
     'sheet.edit.section.tiposervicio': 'TIPO DE SERVIÇO',
-    'sheet.edit.acc.notas': '📝 NOTAS, OBSERVAÇÃO E CLIENTE',
+    'sheet.edit.acc.notas': '📝 NOTAS E OBSERVAÇÃO',
     'sheet.edit.section.notaspre': '📝 NOTAS PARA O OPERÁRIO (antes do trabalho)',
     'sheet.edit.section.obscliente': '🗒️ OBSERVAÇÃO PARA O CLIENTE (vai no PDF)',
     'sheet.contact.sectores.empty': 'Sem setores ainda.',
@@ -9743,7 +9743,13 @@ async function loadInactiveUsers() {
   try {
     const tok = localStorage.getItem('fc_token') || '';
     const r = await fetch('/api/admin-list-users', { headers: { 'Authorization': 'Bearer ' + tok } });
-    if (!r.ok) return; // sin permiso / base caída → dejamos el botón como está (silencioso)
+    if (!r.ok) {
+      // Ya NO en silencio: mostramos el error para poder diagnosticar (antes quedaba el panel en blanco).
+      const body = await r.text().catch(() => '');
+      console.warn('[baja] admin-list-users', r.status, body.slice(0, 200));
+      box.innerHTML = '<div style="font-size:12px;color:var(--amber,#f59e0b);padding:10px 2px">⚠️ No se pudo cargar la lista (error ' + r.status + ').</div>';
+      return;
+    }
     const j = await r.json();
     const inactivos = (j.users || []).filter(u => u.activo === false);
     window._bajaUsers = Object.fromEntries(inactivos.map(u => [u.id, u.nombre || u.id])); // _userName lee de acá
@@ -11325,7 +11331,8 @@ function renderSvcClienteUbicacion() {
        <div class="edit-section-hint" style="font-size:11px;color:var(--text3);margin-bottom:6px">${t('sheet.svc.ubicacion.override.hint')}</div>
        <input type="url" class="edit-date-input" placeholder="https://maps.app.goo.gl/..." value="${esc(editState.mapa || '')}" oninput="editState.mapa=this.value"/>`
     : '';
-  box.innerHTML = clienteRow + actions + selectorBox + ubicBtn + ' ' + overrideLink + overrideInput;
+  const secLabel = `<div class="edit-section-label">${t('sheet.svc.cliente.label').toUpperCase()}</div>`;
+  box.innerHTML = secLabel + clienteRow + actions + selectorBox + ubicBtn + ' ' + overrideLink + overrideInput;
 }
 
 // ── R2/R3: cliente en el sheet del servicio (asignar/cambiar + navegar) ─────────────────────────────
