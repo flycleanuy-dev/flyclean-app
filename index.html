@@ -1752,7 +1752,7 @@ body::before {
 // Versionado web/APK. Cuando cambie funcionalidad significativa de la web,
 // bump APP_VERSION. Cuando algo requiera versión mínima de APK, bump MIN_APK_VERSION_REQUIRED.
 // La app instalada (TWA) compara su versión nativa contra MIN_APK_VERSION_REQUIRED.
-const APP_VERSION = '1.2.8';
+const APP_VERSION = '1.2.9';
 const MIN_APK_VERSION_REQUIRED = '1.0.0';
 
 // Helper semver simple para comparar "x.y.z" (devuelve <0, 0, >0).
@@ -2069,6 +2069,8 @@ const TRANSLATIONS = {
     'coord.tab.mapa': '🗺️ Mapa',
     'coord.mapa.title': 'Mapa de objetivos',
     'wa.btn': 'Abrir WhatsApp',
+    'sheet.prop.recontacte': 'Recontacté hoy',
+    'sheet.prop.recontacte.ok': 'Recontactado hoy',
     'wa.sin.tel': 'Este cliente no tiene teléfono cargado en su ficha',
     'wa.msg.prop': 'Hola{n}, te escribimos de FlyClean por el presupuesto "{prop}". ¿Pudiste verlo? Cualquier duda estamos a las órdenes 🚁',
     'wa.msg.prospecto': 'Hola{n}, somos FlyClean: limpieza de fachadas, vidrios y paneles con drones. ¿Podemos contarte cómo trabajamos? 🚁',
@@ -2428,6 +2430,7 @@ const TRANSLATIONS = {
     'coord.cli.mant.meses': 'hace {n} meses del último servicio',
     'coord.cli.contactado': 'Contactado',
     'coord.cli.recontactado': 'Recontactado — no reaparece por ahora',
+    'coord.cli.crearprop': 'Crear propuesta',
     'wa.msg.cliente': 'Hola{n}, te escribimos de FlyClean 🚁 ¿Coordinamos una limpieza de fachada, vidrios o paneles? Estamos a las órdenes.',
     'prosp.empty': 'Sin prospectos en este momento.',
     'prosp.error': 'Error al cargar prospección.',
@@ -2820,6 +2823,8 @@ const TRANSLATIONS = {
     'coord.tab.mapa': '🗺️ Mapa',
     'coord.mapa.title': 'Mapa de alvos',
     'wa.btn': 'Abrir WhatsApp',
+    'sheet.prop.recontacte': 'Recontatei hoje',
+    'sheet.prop.recontacte.ok': 'Recontatado hoje',
     'wa.sin.tel': 'Este cliente não tem telefone cadastrado na ficha',
     'wa.msg.prop': 'Olá{n}, falamos da FlyClean sobre o orçamento "{prop}". Conseguiu dar uma olhada? Qualquer dúvida estamos à disposição 🚁',
     'wa.msg.prospecto': 'Olá{n}, somos a FlyClean: limpeza de fachadas, vidros e painéis com drones. Podemos te contar como trabalhamos? 🚁',
@@ -3178,6 +3183,7 @@ const TRANSLATIONS = {
     'coord.cli.mant.meses': 'há {n} meses do último serviço',
     'coord.cli.contactado': 'Contatado',
     'coord.cli.recontactado': 'Recontatado — não reaparece por ora',
+    'coord.cli.crearprop': 'Criar proposta',
     'wa.msg.cliente': 'Olá{n}, falamos da FlyClean 🚁 Vamos combinar uma limpeza de fachada, vidros ou painéis? Estamos à disposição.',
     'prosp.empty': 'Nenhum prospecto no momento.',
     'prosp.error': 'Erro ao carregar prospecção.',
@@ -12605,7 +12611,10 @@ function openPropSheet(pageId) {
 
   document.getElementById('prop-sheet-body').innerHTML =
     propClienteSectionHTML() +
-    `<div class="edit-section" style="padding-bottom:0"><button class="estado-btn" data-wa-btn="1" style="width:100%;color:#25D366;border-color:#25D366" onclick="abrirWhatsAppProp('${pageId}')">💬 ${t('wa.btn')}</button></div>` +
+    `<div class="edit-section" style="padding-bottom:0;display:flex;gap:8px">
+      <button class="estado-btn" data-wa-btn="1" style="flex:1;color:#25D366;border-color:#25D366" onclick="abrirWhatsAppProp('${pageId}')">💬 ${t('wa.btn')}</button>
+      <button class="estado-btn" data-wa-btn="1" style="flex:1;color:var(--blue);border-color:var(--blue)" onclick="recontacteHoyDesdeSheet('${pageId}', this)">📞 ${t('sheet.prop.recontacte')}</button>
+    </div>` +
     btnGroup(t('sheet.prop.section.estado'), 'estado', PIPELINE) +
     btnGroup(t('sheet.prop.section.pais'), 'pais', PAISES) +
     btnGroup(t('sheet.prop.section.tipo'), 'tipo', TIPOS) +
@@ -12618,7 +12627,7 @@ function openPropSheet(pageId) {
     `<div class="edit-section"><div class="edit-section-label">${t('sheet.prop.section.fechaenvio')}</div>
       <input type="date" class="edit-date-input" value="${fechaEnvio}" onchange="propEditState.fechaEnvio=this.value"/></div>` +
     `<div class="edit-section"><div class="edit-section-label">${t('sheet.prop.section.ultimaint')}</div>
-      <input type="date" class="edit-date-input" value="${ultimaInt}" onchange="propEditState.ultimaInt=this.value"/></div>` +
+      <input type="date" id="prop-ultimaint-input" class="edit-date-input" value="${ultimaInt}" onchange="propEditState.ultimaInt=this.value"/></div>` +
     `<div class="edit-section"><div class="edit-section-label">${t('sheet.prop.section.obs')}</div>
       <textarea class="edit-date-input" rows="3" style="resize:none;height:80px" placeholder="${t('sheet.prop.obs.placeholder')}" oninput="propEditState.obs=this.value">${obs}</textarea></div>` +
     `<div class="edit-section" id="prop-ubicacion-override-box" data-override="${mapaProp ? '1' : '0'}">
@@ -13212,7 +13221,10 @@ async function savePropEdit() {
       if (propEditState.ultimaInt) props['Última interacción'] = { date: { start: propEditState.ultimaInt } };
       if (propEditState.obs) props['Observaciones'] = { rich_text: [{ text: { content: propEditState.obs } }] };
       if (clienteId) props['Contacto'] = { relation: [{ id: clienteId }] };
-      await callNotion('pages', 'POST', { parent: { database_id: PROPUESTAS_DB_ID }, properties: props });
+      const _nuevaProp = await callNotion('pages', 'POST', { parent: { database_id: PROPUESTAS_DB_ID }, properties: props });
+      // Espejar la propuesta nueva al mirror Supabase (las secciones de Clientes lo leen) para que el
+      // cliente salga de "Mantenimiento (9 meses)" sin esperar el sync batch (~10 min). Comercial 2026-07-09.
+      if (_nuevaProp?.id && typeof syncAfterWrite === 'function') { try { syncAfterWrite(_nuevaProp.id, 'propuestas'); } catch (_) {} }
       await promoteClienteIfAceptada(clienteId, propEditState.estado);
     } else {
       const props = {};
@@ -13252,6 +13264,9 @@ async function savePropEdit() {
       && _svcLen === 0)
       ? editingProp.id : null;
     closePropSheet();
+    // Invalidar la clasificación de secciones de Clientes: crear/editar una propuesta cambia si el cliente
+    // tiene "propuesta abierta" → al volver a la tab Clientes se recomputa y sale de "9 meses" (Comercial 2026-07-09).
+    _coordCliSecciones = null;
     await renderCoordPropuestas();
     if (_ofrecerSvcId && confirm(t('sheet.prop.aceptada.offer'))) {
       await createServicioFromPropuesta(_ofrecerSvcId);
@@ -13890,6 +13905,12 @@ function coordContactCard(c) {
       <button class="estado-btn" style="color:#25D366;border-color:#25D366" onclick="event.stopPropagation();abrirWhatsAppCliente('${esc(c.id)}')">💬 WhatsApp</button>
       <button class="estado-btn" id="cli-cont-btn-${esc(c.id)}" onclick="event.stopPropagation();marcarClienteContactado('${esc(c.id)}')">📞 ${t('coord.cli.contactado')}</button>
     </div>` : '';
+  // Botón "→ Crear propuesta" para el COORD en clientes de mantenimiento (9 meses sin trabajo): abre una
+  // propuesta nueva ya asociada al cliente. Al guardarla, el cliente sale SOLO de la sección (la lógica
+  // !propAbierta de computeClienteSecciones lo pasa a "Cartera activa"). Comercial 2026-07-09.
+  const botonCoordMant = (!esVentas() && Number.isFinite(c._mantMeses)) ? `<div style="margin-top:8px">
+      <button class="estado-btn" style="color:var(--green);border-color:var(--green)" onclick="event.stopPropagation();openNewPropSheet('${esc(c.id)}')">→ ${t('coord.cli.crearprop')}</button>
+    </div>` : '';
   return `<div class="contact-card" onclick="openContactSheet('${esc(c.id)}')">
     <div class="contact-name">${nombreHTML}</div>
     <div class="contact-badges">
@@ -13903,6 +13924,7 @@ function coordContactCard(c) {
     ${Number.isFinite(c._mantMeses) ? `<div class="contact-detail" style="color:var(--red);font-weight:600">🔴 ${t('coord.cli.mant.meses').replace('{n}', c._mantMeses)}</div>` : ''}
     ${recontactadoReciente ? `<div class="contact-detail" style="color:var(--green);font-weight:600">✓ ${t('coord.cli.recontactado')}</div>` : ''}
     ${botonesVentas}
+    ${botonCoordMant}
   </div>`;
 }
 
@@ -14687,6 +14709,24 @@ function openContactarHoy() {
 
 // Botón «📞 Contactado» del bloque "A contactar hoy": registra el contacto de HOY escribiendo
 // 'Última interacción' (mismo patrón hoyISO que openNewServiceSheet) — 1 tap, sin abrir el sheet.
+// Núcleo compartido (2026-07-09): marca 'Última interacción' = hoy en una propuesta, espeja al mirror
+// (syncAfterWrite) y actualiza el registro en memoria (para que el bloque "A contactar hoy" / la alerta se
+// recalculen sin esperar la fórmula de Notion). Lo usan el botón 1-toque de la card compacta
+// (marcarPropContactada) Y el botón "Recontacté hoy" del sheet → una sola fuente de verdad, todo sincronizado.
+async function patchPropUltimaInteraccionHoy(id) {
+  const today = new Date();
+  const hoyISO = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  await callNotion('pages/' + id, 'PATCH', { properties: { 'Última interacción': { date: { start: hoyISO } } } });
+  if (typeof syncAfterWrite === 'function') { try { syncAfterWrite(id, 'propuestas'); } catch (_) {} }
+  const p = (_coordAllProps || []).find(x => x.id === id);
+  if (p) {
+    p.properties = p.properties || {};
+    p.properties['Última interacción'] = { date: { start: hoyISO } };
+    p.properties['Días sin respuesta'] = { formula: { number: 0 } };
+  }
+  return hoyISO;
+}
+
 async function marcarPropContactada(id) {
   const btn = document.getElementById('contactar-btn-' + id);
   if (!btn || btn.disabled) return;
@@ -14694,22 +14734,30 @@ async function marcarPropContactada(id) {
   const prevText = btn.textContent;
   btn.textContent = '⏳';
   try {
-    const today = new Date();
-    const hoyISO = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-    await callNotion('pages/' + id, 'PATCH', { properties: { 'Última interacción': { date: { start: hoyISO } } } });
-    if (typeof syncAfterWrite === 'function') { try { syncAfterWrite(id, 'propuestas'); } catch (_) {} }
-    // Optimista: actualiza el registro en memoria para que la propuesta desaparezca del bloque al
-    // re-renderizar (sin esperar a que Notion recalcule la fórmula 'Días sin respuesta').
-    const p = (_coordAllProps || []).find(x => x.id === id);
-    if (p) {
-      p.properties = p.properties || {};
-      p.properties['Última interacción'] = { date: { start: hoyISO } };
-      p.properties['Días sin respuesta'] = { formula: { number: 0 } };
-    }
+    await patchPropUltimaInteraccionHoy(id);
     renderCoordPropuestasList(true);
   } catch (e) {
     btn.disabled = false;
     btn.textContent = prevText;
+    alert(t('sheet.alert.save.error2') + e.message);
+  }
+}
+
+// Botón "📞 Recontacté hoy" del sheet de propuesta (2026-07-09): marca última interacción = hoy sin abrir el
+// date-picker ni esperar a los 15 días. Reusa el mismo núcleo (memoria + mirror sincronizados). Actualiza el
+// input de fecha visible + propEditState para que un Guardar posterior NO pise la fecha con el valor viejo.
+async function recontacteHoyDesdeSheet(id, btn) {
+  if (!btn || btn.disabled) return;
+  const prev = btn.textContent;
+  btn.disabled = true; btn.textContent = '⏳';
+  try {
+    const hoyISO = await patchPropUltimaInteraccionHoy(id);
+    if (typeof propEditState !== 'undefined' && propEditState) propEditState.ultimaInt = hoyISO;
+    const inp = document.getElementById('prop-ultimaint-input');
+    if (inp) inp.value = hoyISO;
+    btn.textContent = '✓ ' + t('sheet.prop.recontacte.ok');
+  } catch (e) {
+    btn.disabled = false; btn.textContent = prev;
     alert(t('sheet.alert.save.error2') + e.message);
   }
 }
