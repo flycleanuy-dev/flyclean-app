@@ -1,5 +1,5 @@
 import { verifySession, tokenFromReq, maybeRenewSession } from './_lib/session.js';
-import { userById, esVentas, esGlobal } from './_lib/users.js';
+import { userById, resolveUser, esVentas, esGlobal } from './_lib/users.js';
 import { checkPermiso } from './_lib/permisos.js';
 
 // Auth del proxy (#1). MONITOR (false): valida el token y lo reporta en X-Auth, pero NO rechaza.
@@ -119,7 +119,7 @@ export default async function handler(req, res) {
 
   // Backstop server-side del rol Ventas: restringe a la DB de Clientes/Contactos.
   // Solo entra si hay sesión Y esVentas(u) → cero cambio de comportamiento para cualquier otro rol.
-  const u = session ? userById(session.id) : null;
+  const u = session ? await resolveUser(session.id) : null; // DB-backed con rescate + fallback duro (Fase 3.0)
   if (esVentas(u)) {
     const mQuery = endpointNorm.match(/^databases\/([a-f0-9-]{32,36})(\/query)?$/);
     const mPage = endpointNorm.match(/^pages\/([a-f0-9-]{32,36})$/);

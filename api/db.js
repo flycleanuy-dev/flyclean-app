@@ -6,7 +6,7 @@
 // Devuelve { results: [{ object:'page', id:notion_id, properties:raw }] } → idéntico a la respuesta de Notion,
 // gracias a que el sync guardó `raw` = las properties tal cual de Notion. Así el render de la app NO cambia.
 import { verifySession, tokenFromReq, maybeRenewSession } from './_lib/session.js';
-import { userById, esGlobal, esVentas } from './_lib/users.js';
+import { userById, resolveUser, esGlobal, esVentas } from './_lib/users.js';
 import { checkPermiso, DB } from './_lib/permisos.js';
 import crypto from 'node:crypto';
 
@@ -90,7 +90,7 @@ export default async function handler(req, res) {
   const session = verifySession(tokenFromReq(req));
   if (!session || !session.id) return res.status(401).json({ error: 'auth required' });
   maybeRenewSession(res, session); // renovación silenciosa (token 7d sliding)
-  const u = userById(session.id);
+  const u = await resolveUser(session.id); // DB-backed con rescate + fallback duro (Fase 3.0)
   if (!u) return res.status(403).json({ error: 'usuario desconocido' });
 
   const resource = String((req.query && req.query.resource) || '');
