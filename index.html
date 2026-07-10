@@ -9660,21 +9660,36 @@ async function adminHardDeleteUser(id) {
   } catch (e) { alert('❌ Error: ' + e.message); }
 }
 
-// Carga los usuarios dados de baja (inactivos) y los pinta en la sección «Dados de baja» del panel admin.
+// Muestra/oculta el panel de dados de baja (y lo recarga al abrir para traer datos frescos).
+function toggleBajaPanel() {
+  const p = document.getElementById('baja-users-panel');
+  if (!p) return;
+  const show = p.style.display === 'none';
+  p.style.display = show ? 'block' : 'none';
+  if (show) loadInactiveUsers();
+}
+
+// Carga los usuarios dados de baja (inactivos) en el panel «Dados de baja» + actualiza el conteo del botón.
+// Corre tras renderizar (para el conteo) y al abrir el panel (para refrescar). Degrada en silencio.
 async function loadInactiveUsers() {
-  const box = document.getElementById('baja-users-section');
+  const box = document.getElementById('baja-users-panel');
+  const btn = document.getElementById('baja-toggle-btn');
   if (!box) return;
   try {
     const tok = localStorage.getItem('fc_token') || '';
     const r = await fetch('/api/admin-list-users', { headers: { 'Authorization': 'Bearer ' + tok } });
-    if (!r.ok) return; // sin permiso / base caída → no mostramos la sección (silencioso)
+    if (!r.ok) return; // sin permiso / base caída → dejamos el botón como está (silencioso)
     const j = await r.json();
     const inactivos = (j.users || []).filter(u => u.activo === false);
     window._bajaUsers = Object.fromEntries(inactivos.map(u => [u.id, u.nombre || u.id])); // _userName lee de acá
-    if (!inactivos.length) { box.innerHTML = ''; return; }
-    let h = '<div class="ceo-section-title" style="margin-top:14px">🗂️ Dados de baja (' + inactivos.length + ')</div>';
+    if (btn) btn.textContent = '🗂️ Dados de baja' + (inactivos.length ? ' (' + inactivos.length + ')' : '');
+    if (!inactivos.length) {
+      box.innerHTML = '<div style="font-size:12px;color:var(--text3);padding:10px 2px">No hay usuarios dados de baja.</div>';
+      return;
+    }
+    let h = '';
     inactivos.forEach(u => {
-      h += '<div class="equipo-card" style="opacity:.72">' +
+      h += '<div class="equipo-card" style="opacity:.78">' +
         '<div class="equipo-emoji">' + esc(u.emoji || '👤') + '</div>' +
         '<div style="flex:1;min-width:0"><div class="equipo-name">' + esc(u.nombre || u.id) + '</div><div class="equipo-role">' + esc(translateRole(u.rol) || '') + ' · ' + esc(u.pais || '') + '</div></div>' +
         '<button class="fin-svc-link" style="white-space:nowrap;color:var(--accent,#00C98D)" onclick="adminReactivarUser(\'' + esc(u.id) + '\')">♻️ Reactivar</button>' +
@@ -9702,7 +9717,10 @@ function adminAccountsHTML() {
   const defPais = isGlobal ? 'Uruguay' : ceoViewCountry;
   const _inp = 'width:100%;box-sizing:border-box;padding:9px 11px;margin-bottom:7px;border:1px solid var(--border);border-radius:9px;background:var(--bg);color:var(--text);font-size:14px';
   h += '<div style="padding:0 16px 10px">' +
-    '<button class="fin-svc-link" onclick="toggleNewUserForm()">➕ Agregar usuario</button>' +
+    '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
+      '<button class="fin-svc-link" onclick="toggleNewUserForm()">➕ Agregar usuario</button>' +
+      '<button class="fin-svc-link" id="baja-toggle-btn" onclick="toggleBajaPanel()">🗂️ Dados de baja</button>' +
+    '</div>' +
     '<div id="new-user-form" style="display:none;margin-top:8px;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px">' +
       '<input id="nu-nombre" placeholder="Nombre y apellido" oninput="nuSyncId()" style="' + _inp + '">' +
       '<input id="nu-id" placeholder="id de login (se genera solo)" oninput="this.dataset.touched=1" style="' + _inp + '">' +
@@ -9711,6 +9729,7 @@ function adminAccountsHTML() {
       '<div style="font-size:11px;color:var(--text3);margin:2px 0 8px">Se crea el usuario y te pide un PIN. Aparece en el login cuando el modo base esté activo.</div>' +
       '<button onclick="adminNewUser()" style="width:100%;padding:11px;border:none;border-radius:10px;background:var(--accent,#00C98D);color:#03231a;font-weight:700;font-size:14px">Crear usuario + poner PIN</button>' +
     '</div>' +
+    '<div id="baja-users-panel" style="display:none;margin-top:8px"></div>' +
   '</div>';
   for (const [c, list] of Object.entries(byC)) {
     h += '<div style="font-size:11px;color:var(--text3);padding:2px 16px 4px">' + (flagByCountry[c] || '') + ' ' + esc(c) + '</div>';
@@ -9724,8 +9743,7 @@ function adminAccountsHTML() {
         '</div>';
     });
   }
-  // Contenedor para "Dados de baja" (se llena async con loadInactiveUsers tras renderizar el panel).
-  return h + '<div id="baja-users-section" style="padding:0 16px"></div><div style="height:16px"></div>';
+  return h + '<div style="height:16px"></div>';
 }
 
 async function renderCEOEquipo() {
