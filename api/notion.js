@@ -8,6 +8,7 @@ import { mirrorPage } from './_lib/mirror.js';
 // el proxy (cierra los huecos de syncAfterWrite: operario, gastos, drain offline, creates). await inline con
 // timeout, best-effort: NUNCA afecta la respuesta ni el guardado en Notion. Flag env (rollback = borrar el env).
 const MIRROR_ON_WRITE = process.env.MIRROR_ON_WRITE === '1';
+const MIRROR_VERBOSE = process.env.MIRROR_VERBOSE === '1'; // loguea también los OK (para verificar el rollout)
 const MIRROR_TIMEOUT_MS = 2500;
 
 // Auth del proxy (#1). MONITOR (false): valida el token y lo reporta en X-Auth, pero NO rechaza.
@@ -309,6 +310,7 @@ export default async function handler(req, res) {
             const to = new Promise(r => { tid = setTimeout(() => r({ ok: false, status: 0, reason: 'timeout' }), MIRROR_TIMEOUT_MS); });
             const r = await Promise.race([mirrorPage(resource, data), to]);
             if (!r?.ok) console.warn('[mirror] fail', { id: data.id, resource, status: r?.status, reason: r?.reason });
+            else if (MIRROR_VERBOSE) console.log('[mirror] ok', { id: data.id, resource, status: r?.status });
           }
         } catch (e) { console.warn('[mirror] error', { id: data?.id, msg: String(e?.message || e).slice(0, 120) }); }
         finally { if (tid) clearTimeout(tid); }
