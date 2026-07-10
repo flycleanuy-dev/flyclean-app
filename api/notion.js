@@ -8,13 +8,14 @@ import { checkPermiso } from './_lib/permisos.js';
 // todos los usuarios están en PINs server-known → nadie queda trancado. Revertir = poner false.
 const ENFORCE_AUTH = true;
 
-// Matriz de permisos por rol (#2). Mismo patrón monitor→enforce que ENFORCE_AUTH:
-// MONITOR (false): evalúa cada request contra la matriz (api/_lib/permisos.js) y loguea
+// Matriz de permisos por rol (#2). Mismo patrón monitor→enforce que ENFORCE_AUTH, pero DRIVEN POR ENV para
+// poder prender/apagar SIN deploy (rollback instantáneo): setear ENFORCE_PERMS=1 en Vercel para enforcar.
+// MONITOR (env ausente/≠1): evalúa cada request contra la matriz (api/_lib/permisos.js) y loguea
 // '[perms] DENEGARÍA ...' cuando un rol pide una base que no le corresponde, pero NO rechaza
-// (cero cambio de comportamiento). ENFORCE (true): responde 403 → CIERRA el acceso cruzado.
-// Prender recién después de auditar los warns en prod y afinar la matriz para que ningún
-// flujo real quede afuera. Revertir = poner false.
-const ENFORCE_PERMS = false;
+// (cero cambio de comportamiento). ENFORCE (env=1): responde 403 → CIERRA el acceso cruzado.
+// Auditoría 2026-07-10: el único DENEGARÍA en prod es un operario de prueba llegando a Finanzas (acceso
+// cruzado que el candado DEBE bloquear); ningún flujo legítimo queda afuera. Revertir = borrar el env.
+const ENFORCE_PERMS = process.env.ENFORCE_PERMS === '1';
 
 const ALLOWED_ENDPOINTS = [
   /^databases\/[a-f0-9-]{32,36}\/query$/,
