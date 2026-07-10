@@ -3423,7 +3423,7 @@ function rerenderActiveContent() {
       else if (activeCoordTab === 'contactos') renderCoordContactos();
       else if (activeCoordTab === 'prospeccion') renderCoordProspeccion();
       else if (activeCoordTab === 'mapa') renderCoordMapa();
-    } else if (id === 'screen-ceo' && currentUser) {
+    } else if (id === 'screen-ceo' && currentUser && puedeVerCEO()) {
       renderCEOCountryTabs();
       if (activeCEOTab === 'metricas') renderCEOMetricas();
       else if (activeCEOTab === 'servicios') renderCEOServicios();
@@ -4851,6 +4851,7 @@ async function routeByRole(role) {
 
 async function loadFinanzas() {
   if (!currentUser) { showScreen('login'); return; }
+  if (!puedeVerFinanzas()) { return routeByRole(currentUser.role); } // solo Finanzas/CEO/Dirección
   markUserActive();
   showScreen('finanzas');
   document.getElementById('finanzas-header-user').textContent = (currentUser.emoji + ' ' + currentUser.name);
@@ -6556,6 +6557,10 @@ function puedeEditarNombre(u = currentUser) { return !!(u?.role && (u.role.inclu
 // Rol 🧲 Ventas (spec 2026-07-02 B2): junta y madura prospectos, NUNCA ve cartera/servicios/finanzas
 // ni crea propuestas (decisión explícita del dueño del producto — el coord es quien cotiza).
 function esVentas(u = currentUser) { return !!(u?.role && u.role.includes('Ventas')); }
+// Gating de pantallas financieras (defensa en profundidad — el candado server ya bloquea el dato):
+// solo estos roles pueden VER el panel CEO / Finanzas; a cualquier otro se lo devuelve a su panel.
+function puedeVerCEO(u = currentUser) { return !!(u?.role && (u.role.includes('CEO') || u.role.includes('Dirección'))); }
+function puedeVerFinanzas(u = currentUser) { return !!(u?.role && (u.role.includes('Administración') || u.role.includes('CEO') || u.role.includes('Dirección'))); }
 
 // Control segmentado de las sub-vistas de Servicios (reusa el estilo de coord-view-toggle).
 // Cada botón vuelve a llamar a setCoordTab con el valor de tab interno correspondiente.
@@ -8120,6 +8125,7 @@ async function finishAndGoBack() {
 // ─────────────────────────────────────────────
 async function loadCEO() {
   if (!currentUser) { showScreen('login'); return; }
+  if (!puedeVerCEO()) { return routeByRole(currentUser.role); } // ningún otro rol entra al panel CEO
   markUserActive();
   showScreen('ceo');
   document.getElementById('ceo-user-name').textContent = currentUser.emoji + ' ' + currentUser.name.split(' ')[0];
