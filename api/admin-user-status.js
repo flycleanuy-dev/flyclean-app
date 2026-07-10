@@ -75,7 +75,8 @@ export default async function handler(req, res) {
       // Baja = cortar acceso: BLOQUEAR el PIN (centinela), no borrarlo — si solo se borrara, verify-pin caería
       // al default de USER_PINS y un usuario original podría volver a entrar. Reactivar/🔑 lo pisan con uno nuevo.
       if (activo === false) { try { await blockUserPin(id); } catch (_) {} }
-      return res.status(200).json({ ok: true, action: activo ? 'reactivated' : 'deactivated' });
+      // Devolvemos la fila actualizada para que el front haga el update OPTIMISTA (sin esperar el roster cacheado 60s).
+      return res.status(200).json({ ok: true, action: activo ? 'reactivated' : 'deactivated', user: rows[0] });
     }
 
     return res.status(400).json({ ok: false, error: 'falta activo (true/false) o hard' });

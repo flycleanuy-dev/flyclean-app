@@ -9691,7 +9691,9 @@ async function adminBajaUser(id) {
     const { r, j } = await _userStatusCall({ id, activo: false });
     if (!j.ok) { alert('❌ No se pudo: ' + (j.error || ('error ' + r.status))); return; }
     alert('✅ ' + nombre + ' quedó dado de baja (guardado en «Dados de baja»).');
-    await loadRoster(); renderCEOEquipo();
+    // Update OPTIMISTA: sacar de activos AL INSTANTE (el roster server cachea 60s → no esperar el refetch).
+    const i = USERS.findIndex(u => u.id === id); if (i >= 0) USERS.splice(i, 1);
+    renderCEOEquipo(); // re-arma activos sin el usuario + loadInactiveUsers lo trae fresco a Dados de baja
   } catch (e) { alert('❌ Error: ' + e.message); }
 }
 
@@ -9711,7 +9713,12 @@ async function adminReactivarUser(id) {
     } else {
       alert('⚠️ Reactivado SIN PIN. No puede entrar hasta que le pongas uno con el botón 🔑.');
     }
-    await loadRoster(); renderCEOEquipo();
+    // Update OPTIMISTA: volver a activos AL INSTANTE desde la fila devuelta (sin esperar el roster cacheado).
+    if (j.user && !USERS.some(u => u.id === id)) {
+      const uu = j.user, firstTok = s => String(s || '').trim().split(/\s+/)[0] || '👤';
+      USERS.push({ id: uu.id, name: uu.nombre, role: uu.rol, country: uu.pais, emoji: uu.emoji || firstTok(uu.rol), notionId: uu.notion_id || null });
+    }
+    renderCEOEquipo(); // muestra al usuario en activos + loadInactiveUsers lo saca de Dados de baja
   } catch (e) { alert('❌ Error: ' + e.message); }
 }
 
@@ -9723,7 +9730,9 @@ async function adminHardDeleteUser(id) {
     const { r, j } = await _userStatusCall({ id, hard: true });
     if (!j.ok) { alert('❌ No se pudo: ' + (j.error || ('error ' + r.status))); return; }
     alert('✅ ' + nombre + ' eliminado definitivamente.');
-    await loadRoster(); renderCEOEquipo();
+    // Update OPTIMISTA: sacar de USERS por si estuviera + re-render (loadInactiveUsers lo saca de Dados de baja).
+    const i = USERS.findIndex(u => u.id === id); if (i >= 0) USERS.splice(i, 1);
+    renderCEOEquipo();
   } catch (e) { alert('❌ Error: ' + e.message); }
 }
 
@@ -9821,7 +9830,8 @@ function adminAccountsHTML() {
 
 async function renderCEOEquipo() {
   const content = document.getElementById('ceo-content');
-  content.innerHTML = '<div style="text-align:center;padding:40px 0"><div class="spinner" style="margin:0 auto"></div></div>';
+  // Spinner solo en la 1ª carga (sin caché); en el re-render tras baja/reactivar NO parpadea → más ágil.
+  if (!_ceoEquipoCache) content.innerHTML = '<div style="text-align:center;padding:40px 0"><div class="spinner" style="margin:0 auto"></div></div>';
   const flagMap = { '🇺🇾 UY': '🇺🇾', '🇧🇷 BR': '🇧🇷', '🇵🇦 PA': '🇵🇦', '🇬🇹 GT': '🇬🇹', '🇲🇽 MX': '🇲🇽' };
   const roleEmoji = { '🎯 Dirección': '🎯', '💼 Comercial': '💼', '✈️ Operario': '👨‍✈️', '📊 Administración': '📊', '🔧 Técnico': '🔧' };
   try {
