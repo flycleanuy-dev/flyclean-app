@@ -8418,6 +8418,7 @@ async function renderCEOMetricas() {
       ? '<div class="kpi-num" style="color:var(--text3)">—</div>'
       : ((margenReal.uyu != null ? '<div class="kpi-num" style="color:' + (margenReal.uyu >= 0 ? 'var(--green)' : 'var(--red)') + '">UY$ ' + (margenReal.uyu >= 0 ? '+' : '') + margenReal.uyu + '%</div>' : '') + (margenReal.usd != null ? '<div class="kpi-num" style="color:' + (margenReal.usd >= 0 ? 'var(--green)' : 'var(--red)') + '">USD ' + (margenReal.usd >= 0 ? '+' : '') + margenReal.usd + '%</div>' : ''));
 
+    if (activeCEOTab !== 'metricas') return; // cambió de tab mientras cargaba → NO pisar el contenido nuevo
     content.innerHTML = ceoHeaderHTML('Métricas') + renderCEOPeriodSelector() +
       '<div class="acct">' +
         '<div class="salud-band" style="color:' + salud.c + '">SALUD DEL NEGOCIO<span class="salud-chip">' + salud.t + '</span></div>' +
@@ -8443,7 +8444,7 @@ async function renderCEOMetricas() {
     try { renderCeoRentaBody(); } catch (_) {}
     try { renderCeoComBody(); } catch (_) {}
   } catch (e) {
-    content.innerHTML = '<div class="coord-empty">' + t('ceo.error.metricas') + '<br><small>' + esc(e.message) + '</small></div>';
+    if (activeCEOTab === 'metricas') content.innerHTML = '<div class="coord-empty">' + t('ceo.error.metricas') + '<br><small>' + esc(e.message) + '</small></div>';
   }
 }
 
@@ -8761,6 +8762,7 @@ async function renderCEOServicios() {
     const dateLocaleCeo = currentLang === 'pt-BR' ? 'pt-BR' : 'es-UY';
     _ceoServiciosCache = results;
     await ensureClienteNombres(); // el CEO ve 'all' → el mapa resuelve el cliente de cualquier país
+    if (activeCEOTab !== 'servicios') return; // cambió de tab mientras cargaba → NO pisar
     content.innerHTML = `<div class="ceo-section-title">${t('ceo.servicios.title')}</div>` + results.map(s => {
       const props = s.properties || {};
       const nombre = props['Nombre del servicio']?.title?.[0]?.plain_text || t('common.sinnombre');
@@ -9850,6 +9852,7 @@ async function renderCEOEquipo() {
           countryTag + '</div>';
       }
     }
+    if (activeCEOTab !== 'equipo') return; // cambió de tab mientras cargaba → NO pisar
     content.innerHTML = adminAccountsHTML() + html;
     if (isAppAdmin()) loadInactiveUsers();
   } catch (e) {

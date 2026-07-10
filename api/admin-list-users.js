@@ -29,7 +29,9 @@ export default async function handler(req, res) {
 
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'GET') return res.status(405).json({ ok: false });
-  if (!originAllowed(origin)) return res.status(403).json({ ok: false, error: 'origin' });
+  // Los GET same-origin del navegador NO mandan header Origin → si viene vacío, es same-origin y se permite
+  // (la seguridad real es el token de sesión + admin). Solo rechazamos un Origin presente y NO permitido.
+  if (origin && !originAllowed(origin)) return res.status(403).json({ ok: false, error: 'origin' });
   if (!SB_URL || !SB_KEY) return res.status(503).json({ ok: false, error: 'base no configurada' });
 
   const session = verifySession(tokenFromReq(req));
