@@ -29,13 +29,43 @@ export async function getReglas() {
   return (c.reglas && typeof c.reglas === 'object') ? c.reglas : null;
 }
 
+const MAX_TARIFAS = 60;
+const COSTO_KEYS = ['m2Dron', 'm2Manual', 'margen', 'minimo'];
+
 // Valida el objeto ENTERO. Devuelve string de error o null si es válido. Estricta (prioridad de Diego):
 // claves solo de allow-list, números acotados, textos sin <> (el checklist se renderiza en la UI del
 // operario y las plantillas van a wa.me — defensa en profundidad aunque el front escape/encodee).
 export function validateAppConfig(cfg) {
   if (!cfg || typeof cfg !== 'object' || Array.isArray(cfg)) return 'config inválida';
-  const allowedTop = ['reglas', 'checklistPre', 'checklistPost', 'waTemplates'];
+  const allowedTop = ['reglas', 'checklistPre', 'checklistPost', 'waTemplates', 'tarifas', 'costos'];
   for (const k of Object.keys(cfg)) if (!allowedTop.includes(k)) return `clave desconocida: ${String(k).slice(0, 30)}`;
+
+  // tarifas: { <operarioId>: { dron:number, manual:number } } — jornal por método.
+  if (cfg.tarifas !== undefined) {
+    if (!cfg.tarifas || typeof cfg.tarifas !== 'object' || Array.isArray(cfg.tarifas)) return 'tarifas inválidas';
+    const ids = Object.keys(cfg.tarifas);
+    if (ids.length > MAX_TARIFAS) return `máximo ${MAX_TARIFAS} tarifas`;
+    for (const id of ids) {
+      if (!/^[a-z0-9-]{2,60}$/.test(id)) return `id de operario inválido: ${String(id).slice(0, 30)}`;
+      const v = cfg.tarifas[id];
+      if (!v || typeof v !== 'object' || Array.isArray(v)) return `tarifa de "${id}" inválida`;
+      for (const [mk, mv] of Object.entries(v)) {
+        if (!['dron', 'manual'].includes(mk)) return `método desconocido en "${id}"`;
+        if (typeof mv !== 'number' || !isFinite(mv) || mv < 0 || mv > 10000000) return `tarifa de "${id}" fuera de rango`;
+      }
+    }
+  }
+
+  // costos: parámetros escalares de la calculadora de precio.
+  if (cfg.costos !== undefined) {
+    if (!cfg.costos || typeof cfg.costos !== 'object' || Array.isArray(cfg.costos)) return 'costos inválidos';
+    for (const [k, v] of Object.entries(cfg.costos)) {
+      if (!COSTO_KEYS.includes(k)) return `parámetro de costo desconocido: ${String(k).slice(0, 30)}`;
+      if (typeof v !== 'number' || !isFinite(v) || v < 0) return `"${k}" debe ser un número ≥ 0`;
+      if (k === 'margen' && v > 100) return 'el margen debe ser 0–100 %';
+      if (k !== 'margen' && v > 100000000) return `"${k}" fuera de rango`;
+    }
+  }
 
   if (cfg.reglas !== undefined) {
     if (!cfg.reglas || typeof cfg.reglas !== 'object' || Array.isArray(cfg.reglas)) return 'reglas inválidas';

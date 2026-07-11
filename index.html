@@ -2014,6 +2014,30 @@ const TRANSLATIONS = {
     'cfg.user.saved': 'Usuario actualizado.',
     'cfg.user.nombre.invalid': 'Nombre inválido (1 a 80 caracteres, sin < ni >).',
     'cfg.user.self.rol': 'No podés quitarte a vos mismo el rol de administración (anti-bloqueo).',
+    'cfg.tar.title': 'Tarifas de jornales',
+    'cfg.tar.hint': 'Precio de UN jornal (una persona, un día) por método. Se multiplica por los jornales del mes.',
+    'cfg.tar.max': 'Tarifa fuera de rango.',
+    'cfg.tar.empty': 'Cargá las tarifas para ver el total de jornales del mes.',
+    'cfg.tar.nomes': 'Sin jornadas trabajadas este mes.',
+    'cfg.tar.preview': 'Jornales de este mes',
+    'cfg.tar.total': 'Total a pagar',
+    'cfg.tar.paisnote': 'Suma todos los países del mes (moneda local). Al activar otro país se separará por moneda.',
+    'cfg.costo.title': 'Costos del servicio (calculadora)',
+    'cfg.costo.m2dron': 'Costo por m² · Dron',
+    'cfg.costo.m2manual': 'Costo por m² · Manual',
+    'cfg.costo.margen': 'Margen',
+    'cfg.costo.minimo': 'Precio mínimo',
+    'cfg.costo.hint': 'Se usan en la calculadora 🧮 de la propuesta: precio = m² × costo/m² × (1 + margen).',
+    'cfg.costo.invalid': 'Cada valor debe ser un número ≥ 0.',
+    'cfg.costo.margen.invalid': 'El margen debe ser 0–100 %.',
+    'calc.title': 'Calcular precio sugerido',
+    'calc.nocfg': 'Primero cargá los costos en ⚙️ Configuración → Costos del servicio.',
+    'calc.m2': 'Metros cuadrados (m²) aproximados:',
+    'calc.m2.invalid': 'Ingresá un m² válido (mayor a 0).',
+    'calc.metodo': '¿El trabajo es MANUAL?\n\nAceptar = Manual · Cancelar = Dron',
+    'calc.dron': 'Dron',
+    'calc.manual': 'Manual',
+    'calc.result': 'Precio sugerido para {m2} m² ({metodo}): {precio}\n\nQuedó cargado en el importe (podés ajustarlo).',
     'pinchange.error.current': 'El PIN actual es incorrecto.',
     'pinchange.error.format': 'El PIN debe ser de 4 o 6 dígitos.',
     'pinchange.error.conn': 'Error de conexión. Probá de nuevo.',
@@ -2856,6 +2880,30 @@ const TRANSLATIONS = {
     'cfg.user.saved': 'Usuário atualizado.',
     'cfg.user.nombre.invalid': 'Nome inválido (1 a 80 caracteres, sem < nem >).',
     'cfg.user.self.rol': 'Você não pode remover de si mesmo o papel de administração (anti-bloqueio).',
+    'cfg.tar.title': 'Tarifas de diárias',
+    'cfg.tar.hint': 'Preço de UMA diária (uma pessoa, um dia) por método. Multiplica-se pelas diárias do mês.',
+    'cfg.tar.max': 'Tarifa fora do intervalo.',
+    'cfg.tar.empty': 'Cadastre as tarifas para ver o total de diárias do mês.',
+    'cfg.tar.nomes': 'Sem jornadas trabalhadas neste mês.',
+    'cfg.tar.preview': 'Diárias deste mês',
+    'cfg.tar.total': 'Total a pagar',
+    'cfg.tar.paisnote': 'Soma todos os países do mês (moeda local). Ao ativar outro país será separado por moeda.',
+    'cfg.costo.title': 'Custos do serviço (calculadora)',
+    'cfg.costo.m2dron': 'Custo por m² · Drone',
+    'cfg.costo.m2manual': 'Custo por m² · Manual',
+    'cfg.costo.margen': 'Margem',
+    'cfg.costo.minimo': 'Preço mínimo',
+    'cfg.costo.hint': 'Usados na calculadora 🧮 da proposta: preço = m² × custo/m² × (1 + margem).',
+    'cfg.costo.invalid': 'Cada valor deve ser um número ≥ 0.',
+    'cfg.costo.margen.invalid': 'A margem deve ser 0–100 %.',
+    'calc.title': 'Calcular preço sugerido',
+    'calc.nocfg': 'Primeiro cadastre os custos em ⚙️ Configurações → Custos do serviço.',
+    'calc.m2': 'Metros quadrados (m²) aproximados:',
+    'calc.m2.invalid': 'Informe um m² válido (maior que 0).',
+    'calc.metodo': 'O trabalho é MANUAL?\n\nOK = Manual · Cancelar = Drone',
+    'calc.dron': 'Drone',
+    'calc.manual': 'Manual',
+    'calc.result': 'Preço sugerido para {m2} m² ({metodo}): {precio}\n\nFoi preenchido no valor (você pode ajustar).',
     'pinchange.error.current': 'O PIN atual está incorreto.',
     'pinchange.error.format': 'O PIN deve ser de 4 ou 6 dígitos.',
     'pinchange.error.conn': 'Erro de conexão. Tente de novo.',
@@ -3830,6 +3878,18 @@ function cfgWa(key) {
   const s = _appCfg?.waTemplates?.[key]?.[lang];
   return (typeof s === 'string' && s.trim()) ? s : t('wa.msg.' + key);
 }
+// #6 Tarifas de jornales: rate por operario y método (dron/manual). 0 si no está cargada (cajón vacío).
+function cfgTarifa(operarioId, metodo) {
+  const v = _appCfg?.tarifas?.[operarioId]?.[metodo === 'manual' ? 'manual' : 'dron'];
+  return (typeof v === 'number' && isFinite(v) && v >= 0) ? v : 0;
+}
+function tarifasCargadas() { return !!(_appCfg?.tarifas && Object.keys(_appCfg.tarifas).length); }
+// #7 Costos del servicio: parámetro escalar de la calculadora. null si no está cargado.
+function cfgCosto(k) {
+  const v = _appCfg?.costos?.[k];
+  return (typeof v === 'number' && isFinite(v) && v >= 0) ? v : null;
+}
+function costosCargados() { return !!(_appCfg?.costos && Object.keys(_appCfg.costos).length); }
 // Carga la config al login (best-effort: si falla, defaults del código). Pisa las checklists si hay editadas.
 // Guard (review): los ticks se guardan POR ÍNDICE. Si un admin acortó la checklist con un servicio en
 // curso, un mapa con índices fuera de rango se DESCARTA (mejor re-tildar que un ✓ en el ítem equivocado).
@@ -13142,6 +13202,29 @@ async function buildProposalDoc(prop, extra = {}) {
   return { doc, nombre };
 }
 
+// #7 — Calculadora de precio sugerido: usa los costos de ⚙️ + m² + método. Rellena el campo Importe.
+// Fórmula: base = m² × costo_m²(método); precio = base × (1 + margen%); piso = mínimo. Redondea a $50.
+function calcularPrecioPropuesta() {
+  if (!costosCargados()) { alert(t('calc.nocfg')); return; }
+  const m2raw = prompt(t('calc.m2'));
+  if (m2raw == null) return;
+  const m2 = parseFloat(String(m2raw).replace(',', '.'));
+  if (!Number.isFinite(m2) || m2 <= 0) { alert(t('calc.m2.invalid')); return; }
+  const usarManual = confirm(t('calc.metodo')); // OK = Manual, Cancelar = Dron
+  const costoM2 = cfgCosto(usarManual ? 'm2Manual' : 'm2Dron');
+  if (costoM2 == null || costoM2 <= 0) { alert(t('calc.nocfg')); return; }
+  const margen = cfgCosto('margen') || 0;
+  const minimo = cfgCosto('minimo') || 0;
+  let precio = m2 * costoM2 * (1 + margen / 100);
+  precio = Math.round(precio / 50) * 50; // redondeo comercial
+  const piso = Math.ceil(minimo / 50) * 50;
+  if (precio < piso) precio = piso; // el piso se aplica DESPUÉS del redondeo (no queda por debajo del mínimo)
+  propEditState.importe = String(precio);
+  const inp = document.getElementById('prop-importe-input');
+  if (inp) inp.value = precio;
+  alert(t('calc.result').replace('{m2}', m2).replace('{metodo}', usarManual ? t('calc.manual') : t('calc.dron')).replace('{precio}', '$ ' + precio.toLocaleString('es-UY')));
+}
+
 async function generateProposalPDF(prop) {
   prop = prop || editingProp;
   if (!prop) return;
@@ -13558,7 +13641,10 @@ function openNewPropSheet(prefillContactId = null) {
     btnGroup(t('sheet.prop.section.tipo'), 'tipo', TIPOS) +
     btnGroup(t('sheet.prop.section.aprobacion'), 'aprobacion', APROBACIONES) +
     `<div class="edit-section"><div class="edit-section-label">${t('sheet.prop.section.importe')}</div>
-      <input type="number" class="edit-date-input" placeholder="${t('sheet.prop.importe.placeholder')}" step="100" oninput="propEditState.importe=this.value"/></div>` +
+      <div style="display:flex;gap:8px;align-items:center">
+        <input type="number" id="prop-importe-input" class="edit-date-input" placeholder="${t('sheet.prop.importe.placeholder')}" step="100" style="flex:1" oninput="propEditState.importe=this.value"/>
+        <button type="button" onclick="calcularPrecioPropuesta()" title="${t('calc.title')}" style="flex:none;background:var(--card);border:1px solid var(--border2);border-radius:9px;color:var(--text2);font-size:13px;padding:9px 12px;cursor:pointer;font-family:'Exo 2',sans-serif">🧮</button>
+      </div></div>` +
     `<div class="edit-section"><div class="edit-section-label">🔄 Contrato recurrente (si aplica)</div>
       <input type="number" class="edit-date-input" placeholder="Servicios por año (ej. 6)" value="${propEditState.serviciosAnio ?? ''}" oninput="propEditState.serviciosAnio=this.value"/>
       <input type="number" class="edit-date-input" style="margin-top:6px" placeholder="Comisión % del intermediario (ej. 10)" value="${propEditState.comision ?? ''}" oninput="propEditState.comision=this.value"/></div>` +
@@ -13634,7 +13720,10 @@ function openPropSheet(pageId) {
     btnGroup(t('sheet.prop.section.tipo'), 'tipo', TIPOS) +
     btnGroup(t('sheet.prop.section.aprobacion'), 'aprobacion', APROBACIONES) +
     `<div class="edit-section"><div class="edit-section-label">${t('sheet.prop.section.importe')}</div>
-      <input type="number" class="edit-date-input" value="${importe}" placeholder="${t('sheet.prop.importe.placeholder')}" step="100" oninput="propEditState.importe=this.value"/></div>` +
+      <div style="display:flex;gap:8px;align-items:center">
+        <input type="number" id="prop-importe-input" class="edit-date-input" value="${importe}" placeholder="${t('sheet.prop.importe.placeholder')}" step="100" style="flex:1" oninput="propEditState.importe=this.value"/>
+        <button type="button" onclick="calcularPrecioPropuesta()" title="${t('calc.title')}" style="flex:none;background:var(--card);border:1px solid var(--border2);border-radius:9px;color:var(--text2);font-size:13px;padding:9px 12px;cursor:pointer;font-family:'Exo 2',sans-serif">🧮</button>
+      </div></div>` +
     `<div class="edit-section"><div class="edit-section-label">🔄 Contrato recurrente (si aplica)</div>
       <input type="number" class="edit-date-input" placeholder="Servicios por año (ej. 6)" value="${serviciosAnio}" oninput="propEditState.serviciosAnio=this.value"/>
       <input type="number" class="edit-date-input" style="margin-top:6px" placeholder="Comisión % del intermediario (ej. 10)" value="${comision}" oninput="propEditState.comision=this.value"/></div>` +
@@ -16531,7 +16620,36 @@ function renderAppCfgUI() {
   h += '<div style="font-size:11px;color:var(--text3);margin:2px 0 10px">' + esc(t('cfg.wa.hint')) + '</div>' +
     '<button class="pin-change-btn" style="margin-top:0" onclick="saveAppCfgWa(this)">' + esc(t('cfg.btn.save')) + '</button></div></div>';
 
+  // 💰 Tarifas de jornales (#6) — un rate dron/manual por operario del país (gente de campo).
+  const opsCampo = USERS.filter(u => /Operario|Coordinador|Dirección/.test(u.role));
+  h += '<div class="am-card"><div class="am-card-h">💰 <b>' + esc(t('cfg.tar.title')) + '</b></div><div style="padding:11px 13px">' +
+    '<div style="display:flex;gap:8px;font-size:10.5px;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px">' +
+    '<span style="flex:1"></span><span style="width:84px;text-align:center">🚁 Dron</span><span style="width:84px;text-align:center">💪 Manual</span></div>';
+  opsCampo.forEach(u => {
+    const tr = _appCfg?.tarifas?.[u.id] || {};
+    h += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:7px">' +
+      '<span style="flex:1;font-size:12.5px;color:var(--text)">' + esc(u.emoji || '👤') + ' ' + esc(u.name) + '</span>' +
+      '<input id="cfg-tar-' + esc(u.id) + '-dron" type="number" min="0" step="1" value="' + (tr.dron != null ? tr.dron : '') + '" placeholder="0" style="' + _cfgInp + ';width:84px;text-align:center;flex:none">' +
+      '<input id="cfg-tar-' + esc(u.id) + '-manual" type="number" min="0" step="1" value="' + (tr.manual != null ? tr.manual : '') + '" placeholder="0" style="' + _cfgInp + ';width:84px;text-align:center;flex:none"></div>';
+  });
+  h += '<div style="font-size:11px;color:var(--text3);margin:2px 0 10px">' + esc(t('cfg.tar.hint')) + '</div>' +
+    '<button class="pin-change-btn" style="margin-top:0" onclick="saveAppCfgTarifas(this)">' + esc(t('cfg.btn.save')) + '</button>' +
+    '<div id="cfg-tar-preview" style="margin-top:10px"></div></div></div>';
+
+  // 🧮 Costos del servicio (#7) — parámetros de la calculadora de precio de la propuesta.
+  const c = _appCfg?.costos || {};
+  const cField = (k, lbl, suf) => '<div style="display:flex;align-items:center;gap:10px;margin-bottom:9px">' +
+    '<span style="flex:1;font-size:12.5px;color:var(--text2)">' + esc(t(lbl)) + '</span>' +
+    '<input id="cfg-costo-' + k + '" type="number" min="0" step="0.01" value="' + (c[k] != null ? c[k] : '') + '" placeholder="0" style="' + _cfgInp + ';width:100px;text-align:center;flex:none">' +
+    (suf ? '<span style="font-size:11px;color:var(--text3);width:16px">' + suf + '</span>' : '<span style="width:16px"></span>') + '</div>';
+  h += '<div class="am-card"><div class="am-card-h">🧮 <b>' + esc(t('cfg.costo.title')) + '</b></div><div style="padding:11px 13px">' +
+    cField('m2Dron', 'cfg.costo.m2dron', '') + cField('m2Manual', 'cfg.costo.m2manual', '') +
+    cField('margen', 'cfg.costo.margen', '%') + cField('minimo', 'cfg.costo.minimo', '') +
+    '<div style="font-size:11px;color:var(--text3);margin:2px 0 10px">' + esc(t('cfg.costo.hint')) + '</div>' +
+    '<button class="pin-change-btn" style="margin-top:0" onclick="saveAppCfgCostos(this)">' + esc(t('cfg.btn.save')) + '</button></div></div>';
+
   el.innerHTML = h;
+  renderJornalesPreview();
 }
 
 // POST de la config ENTERA (mismo patrón que recipients: _appCfg es el estado, cada sección lo muta y postea todo)
@@ -16602,6 +16720,96 @@ async function saveAppCfgWa(btn) {
   _appCfg = _appCfg || {};
   if (Object.keys(wa).length) _appCfg.waTemplates = wa; else delete _appCfg.waTemplates;
   await _postAppCfg(btn);
+}
+
+// #6 — guardar tarifas de jornales (solo las que tienen algún valor > 0).
+async function saveAppCfgTarifas(btn) {
+  const opsCampo = USERS.filter(u => /Operario|Coordinador|Dirección/.test(u.role));
+  const tarifas = {};
+  for (const u of opsCampo) {
+    const dron = parseFloat(document.getElementById('cfg-tar-' + u.id + '-dron')?.value);
+    const manual = parseFloat(document.getElementById('cfg-tar-' + u.id + '-manual')?.value);
+    const o = {};
+    if (Number.isFinite(dron) && dron >= 0) o.dron = dron;
+    if (Number.isFinite(manual) && manual >= 0) o.manual = manual;
+    if ((o.dron || o.manual)) {
+      if ((o.dron || 0) > 10000000 || (o.manual || 0) > 10000000) { alert(t('cfg.tar.max')); return; }
+      tarifas[u.id] = o;
+    }
+  }
+  _appCfg = _appCfg || {};
+  if (Object.keys(tarifas).length) _appCfg.tarifas = tarifas; else delete _appCfg.tarifas;
+  if (await _postAppCfg(btn)) renderJornalesPreview();
+}
+
+// #7 — guardar parámetros de costos.
+async function saveAppCfgCostos(btn) {
+  const costos = {};
+  for (const k of ['m2Dron', 'm2Manual', 'margen', 'minimo']) {
+    const v = parseFloat(document.getElementById('cfg-costo-' + k)?.value);
+    if (document.getElementById('cfg-costo-' + k)?.value === '') continue;
+    if (!Number.isFinite(v) || v < 0) { alert(t('cfg.costo.invalid')); return; }
+    if (k === 'margen' && v > 100) { alert(t('cfg.costo.margen.invalid')); return; }
+    costos[k] = v;
+  }
+  _appCfg = _appCfg || {};
+  if (Object.keys(costos).length) _appCfg.costos = costos; else delete _appCfg.costos;
+  await _postAppCfg(btn);
+}
+
+// #6 — TABLERO de jornales del MES en curso: recorre servicios/jornadas y suma jornal×tarifa por operario.
+// Un "jornal" = una persona en un servicio/jornada de un día (encargado + piloto + manual + ayudantes,
+// deduplicados). El método (dron/manual) sale del servicio; si falta, usa dron. Cajón vacío → aviso.
+async function renderJornalesPreview() {
+  const box = document.getElementById('cfg-tar-preview');
+  if (!box) return;
+  if (!tarifasCargadas()) { box.innerHTML = '<div style="font-size:11.5px;color:var(--text3)">' + esc(t('cfg.tar.empty')) + '</div>'; return; }
+  box.innerHTML = '<div class="spinner" style="margin:10px auto"></div>';
+  const ym = new Date().toISOString().slice(0, 7); // 'YYYY-MM'
+  try {
+    const data = await callNotion(`databases/${DB_ID}/query`, 'POST', {});
+    const items = (data.results || []).filter(s => {
+      const p = s.properties || {};
+      const tipo = p['Tipo de registro']?.select?.name || '';
+      // Vacío/Orden/Jornada = trabajo real (misma convención que el resto de la app); excluir solo Relev/Prueba.
+      if (/Relevamiento|Prueba/.test(tipo)) return false;
+      const est = p['Estado']?.select?.name || '';
+      if (/Cancelado/.test(est) || p['🗄️ Archivado']?.checkbox) return false;
+      const f = (p['Fecha programada']?.date?.start || '').slice(0, 7);
+      return f === ym;
+    });
+    // Acumular jornales por operario (nombre) y método.
+    const acc = {}; // name → { dron:count, manual:count }
+    for (const s of items) {
+      const p = s.properties || {};
+      const metodo = /Manual/.test(p['Método de trabajo']?.select?.name || '') ? 'manual' : 'dron';
+      const gente = new Set();
+      [p['Operario App']?.select?.name, p['Piloto']?.select?.name, p['Operario manual']?.select?.name].forEach(n => { if (n) gente.add(n); });
+      (p['Operarios participantes']?.multi_select || []).forEach(o => { if (o.name) gente.add(o.name); });
+      gente.forEach(name => { acc[name] = acc[name] || { dron: 0, manual: 0 }; acc[name][metodo]++; });
+    }
+    // Cruzar con tarifas (por id → name).
+    const idByName = {}; USERS.forEach(u => { idByName[u.name] = u.id; });
+    let total = 0; const rows = [];
+    for (const [name, cnt] of Object.entries(acc)) {
+      const id = idByName[name];
+      const pago = id ? (cnt.dron * cfgTarifa(id, 'dron') + cnt.manual * cfgTarifa(id, 'manual')) : 0;
+      total += pago;
+      rows.push({ name, jornales: cnt.dron + cnt.manual, pago, sinTarifa: !id || (!cfgTarifa(id, 'dron') && !cfgTarifa(id, 'manual')) });
+    }
+    rows.sort((a, b) => b.pago - a.pago);
+    if (!rows.length) { box.innerHTML = '<div style="font-size:11.5px;color:var(--text3)">' + esc(t('cfg.tar.nomes')) + '</div>'; return; }
+    const fmt = (n) => '$ ' + Number(n).toLocaleString('es-UY');
+    box.innerHTML = '<div style="border-top:1px solid var(--border);padding-top:8px">' +
+      '<div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px">' + esc(t('cfg.tar.preview')) + '</div>' +
+      rows.map(r => '<div style="display:flex;justify-content:space-between;font-size:12.5px;padding:3px 0;color:var(--text)">' +
+        '<span>' + esc(r.name) + ' <span style="color:var(--text3)">· ' + r.jornales + ' j</span>' + (r.sinTarifa ? ' <span style="color:var(--amber,#f59e0b);font-size:10px">⚠️ sin tarifa</span>' : '') + '</span>' +
+        '<b>' + esc(fmt(r.pago)) + '</b></div>').join('') +
+      '<div style="display:flex;justify-content:space-between;font-size:13.5px;padding:8px 0 0;margin-top:4px;border-top:1px solid var(--border);color:var(--text)"><b>' + esc(t('cfg.tar.total')) + '</b><b style="color:var(--accent,#00C98D)">' + esc(fmt(total)) + '</b></div>' +
+      '<div style="font-size:10px;color:var(--text3);margin-top:4px">' + esc(t('cfg.tar.paisnote')) + '</div></div>';
+  } catch (e) {
+    box.innerHTML = '<div style="font-size:11px;color:var(--red)">⚠️ ' + esc(e.message) + '</div>';
+  }
 }
 
 // ─────────────────────────────────────────────
