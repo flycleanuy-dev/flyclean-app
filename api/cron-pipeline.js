@@ -13,6 +13,7 @@
 import { queryAll, updatePage } from './_lib/notion.js';
 import { sendEmail, emailLayout } from './_lib/email.js';
 import { getRecipients } from './_lib/recipients.js';
+import { getReglas } from './_lib/appconfig.js';
 
 const PROPUESTAS_DB = '2c0a4257f4294941b994dfebc1098633';
 // Fallback histórico si la lista editable (⚙️ Configuración → 📬 Destinatarios) está vacía o KV caído.
@@ -51,6 +52,11 @@ export default async function handler(req, res) {
   // Modo simulación: ?dry=1 calcula y reporta SIN escribir en Notion ni mandar email.
   const dryRun = ['1', 'true', 'yes'].includes(String(req.query?.dry || '').toLowerCase());
   try {
+    // Umbrales editables desde la app (⚙️ Configuración → Reglas). Fallback a las constantes históricas
+    // si KV está vacío/caído — el cron NUNCA deja de funcionar por la config.
+    const reglas = await getReglas().catch(() => null);
+    const diasAlerta = Number.isInteger(reglas?.pipelineAviso) && reglas.pipelineAviso >= 1 ? reglas.pipelineAviso : DIAS_ALERTA;
+    const diasAutomove = Number.isInteger(reglas?.pipelineSinRespuesta) && reglas.pipelineSinRespuesta >= 1 ? reglas.pipelineSinRespuesta : DIAS_AUTOMOVE;
     const propuestas = await queryAll(PROPUESTAS_DB, {
       filter: { or: ESTADOS_ESPERANDO.map(s => ({ property: 'Estado pipeline', select: { equals: s } })) },
     });
@@ -79,14 +85,14 @@ export default async function handler(req, res) {
       // días desde 'Fecha de envío' (fallback created_time) — un contacto nuestro ya no la revive.
       const diasVida = esNegociando ? dias : diasDeVida(p, pr);
 
-      if (diasVida != null && diasVida >= DIAS_AUTOMOVE) {
+      if (diasVida != null && diasVida >= diasAutomove) {
         if (!dryRun) await updatePage(p.id, { 'Estado pipeline': { select: { name: SIN_RESPUESTA } } });
         movidas.push({ nombre, dias: diasVida });
         continue; // ya se movió — no evaluar el reloj de seguimiento sobre esta.
       }
 
       if (dias == null) continue; // sin 'Última interacción' no hay nada más que evaluar (alerta 15d).
-      if (dias >= DIAS_ALERTA) {
+      if (dias >= diasAlerta) {
         if (!yaAvisado) {
           if (!dryRun) await updatePage(p.id, { 'Aviso re-contacto': { date: { start: today } } });
           nuevasRecontacto.push({ nombre, dias });

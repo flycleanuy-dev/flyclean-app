@@ -1792,6 +1792,8 @@ body::before {
       <div class="am-card-h">📬 <b data-i18n="cfg.rec.title">Destinatarios de reportes</b></div>
       <div id="rec-body"><div class="spinner" style="margin:14px auto"></div></div>
     </div>
+    <!-- Reglas del negocio + Checklist + Plantillas WhatsApp (render JS, /api/app-config) -->
+    <div id="appcfg-body"><div class="spinner" style="margin:14px auto"></div></div>
   </div>
 </div>
 
@@ -1964,6 +1966,34 @@ const TRANSLATIONS = {
     'cfg.rec.max': 'Máximo 10 destinatarios por reporte.',
     'cfg.rec.confirm.del': '¿Quitar {e} de este reporte?',
     'cfg.rec.fallback': 'Usando la lista por defecto',
+    'cfg.reglas.title': 'Reglas del negocio (días)',
+    'cfg.regla.aviso': 'Aviso "re-contactar" propuesta',
+    'cfg.regla.sinresp': 'Auto-mover a "Sin respuesta"',
+    'cfg.regla.mant': 'Cliente entra a Mantenimiento',
+    'cfg.regla.ventas': 'Recontacto tras "📞 Contactado"',
+    'cfg.regla.prospecto': 'Próximo contacto de prospección',
+    'cfg.reglas.hint': 'Aplican al instante en la app; los avisos automáticos los toman en su próxima corrida diaria.',
+    'cfg.reglas.invalid': 'Cada valor debe ser un número entero entre 1 y 3650 días.',
+    'cfg.reglas.orden': 'El aviso de re-contacto debe ser MENOR que los días de "Sin respuesta".',
+    'cfg.ck.title': 'Checklist del operario',
+    'cfg.ck.pre': 'Pre-vuelo (un ítem por línea)',
+    'cfg.ck.post': 'Post-servicio (un ítem por línea)',
+    'cfg.ck.hint': 'Los cambios aplican a los servicios que se abran de ahora en más.',
+    'cfg.ck.vacia': 'Las checklists no pueden quedar vacías.',
+    'cfg.ck.max': 'Máximo 40 ítems por checklist.',
+    'cfg.ck.invalid': 'Cada ítem: hasta 140 caracteres, sin < ni >.',
+    'cfg.wa.title': 'Plantillas de WhatsApp',
+    'cfg.wa.prop': 'Seguimiento de propuesta',
+    'cfg.wa.prospecto': 'Primer contacto (prospección)',
+    'cfg.wa.cliente': 'Mensaje a cliente',
+    'cfg.wa.hint': 'Comodines: {n} = nombre de la persona · {prop} = nombre de la propuesta (solo en Seguimiento).',
+    'cfg.wa.max': 'Cada plantilla: hasta 400 caracteres.',
+    'cfg.wa.invalid': 'Las plantillas no pueden contener < ni >.',
+    'cfg.btn.save': 'Guardar',
+    'cfg.user.save': 'Guardar cambios',
+    'cfg.user.saved': 'Usuario actualizado.',
+    'cfg.user.nombre.invalid': 'Nombre inválido (1 a 80 caracteres, sin < ni >).',
+    'cfg.user.self.rol': 'No podés quitarte a vos mismo el rol de administración (anti-bloqueo).',
     'pinchange.error.current': 'El PIN actual es incorrecto.',
     'pinchange.error.format': 'El PIN debe ser de 4 o 6 dígitos.',
     'pinchange.error.conn': 'Error de conexión. Probá de nuevo.',
@@ -2767,6 +2797,34 @@ const TRANSLATIONS = {
     'cfg.rec.max': 'Máximo de 10 destinatários por relatório.',
     'cfg.rec.confirm.del': 'Remover {e} deste relatório?',
     'cfg.rec.fallback': 'Usando a lista padrão',
+    'cfg.reglas.title': 'Regras do negócio (dias)',
+    'cfg.regla.aviso': 'Aviso "recontatar" proposta',
+    'cfg.regla.sinresp': 'Auto-mover para "Sem resposta"',
+    'cfg.regla.mant': 'Cliente entra em Manutenção',
+    'cfg.regla.ventas': 'Recontato após "📞 Contatado"',
+    'cfg.regla.prospecto': 'Próximo contato de prospecção',
+    'cfg.reglas.hint': 'Aplicam na hora no app; os avisos automáticos usam na próxima rodada diária.',
+    'cfg.reglas.invalid': 'Cada valor deve ser um número inteiro entre 1 e 3650 dias.',
+    'cfg.reglas.orden': 'O aviso de recontato deve ser MENOR que os dias de "Sem resposta".',
+    'cfg.ck.title': 'Checklist do operador',
+    'cfg.ck.pre': 'Pré-voo (um item por linha)',
+    'cfg.ck.post': 'Pós-serviço (um item por linha)',
+    'cfg.ck.hint': 'As mudanças valem para os serviços abertos daqui pra frente.',
+    'cfg.ck.vacia': 'As checklists não podem ficar vazias.',
+    'cfg.ck.max': 'Máximo de 40 itens por checklist.',
+    'cfg.ck.invalid': 'Cada item: até 140 caracteres, sem < nem >.',
+    'cfg.wa.title': 'Modelos de WhatsApp',
+    'cfg.wa.prop': 'Acompanhamento de proposta',
+    'cfg.wa.prospecto': 'Primeiro contato (prospecção)',
+    'cfg.wa.cliente': 'Mensagem ao cliente',
+    'cfg.wa.hint': 'Curingas: {n} = nome da pessoa · {prop} = nome da proposta (só no Acompanhamento).',
+    'cfg.wa.max': 'Cada modelo: até 400 caracteres.',
+    'cfg.wa.invalid': 'Os modelos não podem conter < nem >.',
+    'cfg.btn.save': 'Salvar',
+    'cfg.user.save': 'Salvar alterações',
+    'cfg.user.saved': 'Usuário atualizado.',
+    'cfg.user.nombre.invalid': 'Nome inválido (1 a 80 caracteres, sem < nem >).',
+    'cfg.user.self.rol': 'Você não pode remover de si mesmo o papel de administração (anti-bloqueio).',
     'pinchange.error.current': 'O PIN atual está incorreto.',
     'pinchange.error.format': 'O PIN deve ser de 4 ou 6 dígitos.',
     'pinchange.error.conn': 'Erro de conexão. Tente de novo.',
@@ -3678,7 +3736,9 @@ function recEnPaisNotion(r) {
   return ceoViewCountry === 'Uruguay' ? (p === val || p === '') : (p === val);
 }
 
-const CHECKLIST_PRE = [
+// `let` (no const): si hay checklist editada en ⚙️ Configuración, loadAppConfig() la reemplaza al login.
+// Estos valores de código son el DEFAULT (y el fallback si KV está vacío/caído).
+let CHECKLIST_PRE = [
   '✈️ Permiso de operador vigente verificado',
   '🌤️ Meteorología consultada y apta para volar',
   '📡 Índice KP verificado en SpaceWeatherLive (≤ 4)',
@@ -3697,7 +3757,7 @@ const CHECKLIST_PRE = [
   '🧪 Vuelo de prueba a 3m — estabilidad OK'
 ];
 
-const CHECKLIST_POST = [
+let CHECKLIST_POST = [
   '💧 Agua cortada con drone a +3m del área trabajada',
   '🛬 Drone aterrizado en zona segura',
   '📦 Equipo desmontado y guardado correctamente',
@@ -3706,6 +3766,58 @@ const CHECKLIST_POST = [
   '🤝 Cliente notificado del trabajo realizado',
   '✅ Resultado guardado'
 ];
+
+// ─────────────────────────────────────────────
+// CONFIG DEL NEGOCIO (⚙️ Configuración, editable por admins — /api/app-config, KV)
+// Las REGLAS/checklist/plantillas dejan de vivir en el código: el código guarda solo los DEFAULTS
+// históricos y cada consumidor pregunta por cfgRegla()/cfgWa()/CHECKLIST_* (pisadas al login).
+// Fail-safe total: sin config o sin red, la app se comporta EXACTO como siempre.
+// ─────────────────────────────────────────────
+const APP_CFG_DEFAULTS = {
+  reglas: {
+    pipelineAviso: 15,        // días sin respuesta → marcar "para re-contactar" (cron + alerta in-app)
+    pipelineSinRespuesta: 45, // días → auto-mover a 😶 Sin respuesta (cron + reloj de vida en card)
+    mantenimientoDias: 270,   // ~9 meses desde el último servicio → cliente entra a 🔁 Mantenimiento
+    ventasSnoozeDias: 60,     // "📞 Contactado" de Ventas pospone el recontacto estos días
+    prospectoDias: 7,         // prospección: próximo contacto sugerido tras una acción
+  },
+};
+let _appCfg = null; // config viva del server ({} si no hay overrides)
+
+function cfgRegla(k) {
+  const v = Number(_appCfg?.reglas?.[k]);
+  return (Number.isInteger(v) && v >= 1) ? v : APP_CFG_DEFAULTS.reglas[k];
+}
+// Plantilla de WhatsApp editada (por idioma), con fallback al texto i18n de siempre.
+function cfgWa(key) {
+  const lang = currentLang === 'pt-BR' ? 'pt' : 'es';
+  const s = _appCfg?.waTemplates?.[key]?.[lang];
+  return (typeof s === 'string' && s.trim()) ? s : t('wa.msg.' + key);
+}
+// Carga la config al login (best-effort: si falla, defaults del código). Pisa las checklists si hay editadas.
+// Guard (review): los ticks se guardan POR ÍNDICE. Si un admin acortó la checklist con un servicio en
+// curso, un mapa con índices fuera de rango se DESCARTA (mejor re-tildar que un ✓ en el ítem equivocado).
+function _ckAligned(map, list) {
+  const ks = Object.keys(map || {}).map(Number).filter(Number.isFinite);
+  return !ks.length || Math.max(...ks) < list.length;
+}
+
+async function loadAppConfig() {
+  try {
+    // Timeout 3s (review): en "lie-fi" (conectado sin datos) un fetch sin límite congelaría el LOGIN,
+    // porque completarLogin/init lo esperan. Al abortar → defaults del código, idéntico a estar offline.
+    const ctl = new AbortController();
+    const tid = setTimeout(() => ctl.abort(), 3000);
+    const r = await fetch('/api/app-config', { headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('fc_token') || '') }, signal: ctl.signal });
+    clearTimeout(tid);
+    const j = await r.json().catch(() => ({}));
+    if (r.ok && j.ok && j.config) {
+      _appCfg = j.config;
+      if (Array.isArray(_appCfg.checklistPre) && _appCfg.checklistPre.length) CHECKLIST_PRE = _appCfg.checklistPre;
+      if (Array.isArray(_appCfg.checklistPost) && _appCfg.checklistPost.length) CHECKLIST_POST = _appCfg.checklistPost;
+    }
+  } catch (_) { /* sin red/KV → defaults del código */ }
+}
 
 const STEPS_SERVICIO = [
   { id: 'inicio', label: 'INICIAR', icon: '▶' },
@@ -3953,8 +4065,8 @@ function hydrateServiceStateFromNotion(svc) {
     if (ckRaw) {
       const ck = JSON.parse(ckRaw);
       if (ck && typeof ck === 'object') {
-        if (ck.pre && Object.keys(ck.pre).length) serviceState.checklistPre = ck.pre;
-        if (ck.post && Object.keys(ck.post).length) serviceState.checklistPost = ck.post;
+        if (ck.pre && Object.keys(ck.pre).length && _ckAligned(ck.pre, CHECKLIST_PRE)) serviceState.checklistPre = ck.pre;
+        if (ck.post && Object.keys(ck.post).length && _ckAligned(ck.post, CHECKLIST_POST)) serviceState.checklistPost = ck.post;
       }
     }
   } catch (_) { /* JSON corrupto → ignorar, el checklist arranca vacío */ }
@@ -3966,8 +4078,8 @@ function hydrateServiceStateFromLocal(id) {
     if (!raw) return false;
     const d = JSON.parse(raw);
     const ls = d.state || {};
-    if (ls.checklistPre && Object.keys(ls.checklistPre).length) serviceState.checklistPre = ls.checklistPre;
-    if (ls.checklistPost && Object.keys(ls.checklistPost).length) serviceState.checklistPost = ls.checklistPost;
+    if (ls.checklistPre && Object.keys(ls.checklistPre).length && _ckAligned(ls.checklistPre, CHECKLIST_PRE)) serviceState.checklistPre = ls.checklistPre;
+    if (ls.checklistPost && Object.keys(ls.checklistPost).length && _ckAligned(ls.checklistPost, CHECKLIST_POST)) serviceState.checklistPost = ls.checklistPost;
     if (ls.notasPost) serviceState.notasPost = ls.notasPost;
     if (ls.avance) serviceState.avance = ls.avance;
     if (ls.relevamiento) serviceState.relevamiento = { ...serviceState.relevamiento, ...ls.relevamiento };
@@ -5040,6 +5152,7 @@ async function completarLogin(u) {
   currentUser = { id: u.id, name: u.name, role: u.role, emoji: u.emoji, country: u.country };
   localStorage.setItem('fc_user', JSON.stringify(currentUser));
   markUserActive();
+  await loadAppConfig(); // reglas/checklist/plantillas editadas (best-effort, nunca bloquea)
   await routeByRole(currentUser.role);
 }
 
@@ -7565,7 +7678,7 @@ function renderStep() {
       ${CHECKLIST_PRE.map((item, i) => `
         <div class="check-item ${serviceState.checklistPre[i] ? 'checked' : ''}" onclick="toggleCheck('pre', ${i})">
           <div class="checkbox">${serviceState.checklistPre[i] ? '✓' : ''}</div>
-          <span class="check-label">${item}</span>
+          <span class="check-label">${esc(item)}</span>
         </div>`).join('')}
       <div style="height:20px"></div>
     `;
@@ -7718,7 +7831,7 @@ function renderStep() {
       ${CHECKLIST_POST.map((item, i) => `
         <div class="check-item ${serviceState.checklistPost[i] ? 'checked' : ''}" onclick="toggleCheck('post', ${i})">
           <div class="checkbox">${serviceState.checklistPost[i] ? '✓' : ''}</div>
-          <span class="check-label">${item}</span>
+          <span class="check-label">${esc(item)}</span>
         </div>`).join('')}
       <div style="height:20px"></div>
     `;
@@ -9926,6 +10039,58 @@ async function adminReactivarUser(id) {
   } catch (e) { alert('❌ Error: ' + e.message); }
 }
 
+// ✏️ EDITAR usuario existente (nombre/rol/país) — server: admin-set-user con upsert:true (ya soportado).
+// El id NO se cambia (es la PK del login/permisos); activo:true explícito para no tocar el estado.
+function toggleEditUser(id) {
+  const slot = document.getElementById('eu-slot-' + id);
+  if (!slot) return;
+  if (slot.style.display !== 'none') { slot.style.display = 'none'; slot.innerHTML = ''; return; }
+  const u = USERS.find(x => x.id === id);
+  if (!u) return;
+  const ROLES_UI = ['🎯 Dirección', '🔧 Coordinador', '🛠️ Operario', '👔 CEO', '📊 Administración', '🧲 Ventas'];
+  const PAISES_UI = ['Uruguay', 'Brasil', 'Panamá', 'Guatemala', 'México'];
+  const _inp = 'width:100%;box-sizing:border-box;padding:9px 11px;margin-bottom:7px;border:1px solid var(--border);border-radius:9px;background:var(--bg);color:var(--text);font-size:14px';
+  slot.innerHTML = '<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px">' +
+    '<input id="eu-nombre-' + esc(id) + '" value="' + esc(u.name) + '" maxlength="80" style="' + _inp + '">' +
+    '<select id="eu-rol-' + esc(id) + '" style="' + _inp + '">' + ROLES_UI.map(r => '<option' + (r === u.role ? ' selected' : '') + '>' + r + '</option>').join('') + '</select>' +
+    '<select id="eu-pais-' + esc(id) + '" style="' + _inp + '">' + PAISES_UI.map(pp => '<option' + (pp === u.country ? ' selected' : '') + '>' + pp + '</option>').join('') + '</select>' +
+    '<div style="display:flex;gap:8px">' +
+      '<button onclick="adminEditUser(\'' + esc(id) + '\')" style="flex:1;padding:10px;border:none;border-radius:10px;background:var(--accent,#00C98D);color:#03231a;font-weight:700;font-size:13px">' + esc(t('cfg.user.save')) + '</button>' +
+      '<button onclick="toggleEditUser(\'' + esc(id) + '\')" style="flex:1;padding:10px;border:1px solid var(--border);border-radius:10px;background:transparent;color:var(--text2);font-size:13px">' + esc(t('btn.cancel')) + '</button>' +
+    '</div></div>';
+  slot.style.display = 'block';
+}
+
+async function adminEditUser(id) {
+  const nombre = String(document.getElementById('eu-nombre-' + id)?.value || '').trim();
+  const rol = document.getElementById('eu-rol-' + id)?.value;
+  const pais = document.getElementById('eu-pais-' + id)?.value;
+  if (!nombre || nombre.length > 80 || /[<>]/.test(nombre)) { alert(t('cfg.user.nombre.invalid')); return; }
+  // Guard anti-lockout: un admin no puede sacarse a sí mismo el rol de Dirección/CEO por accidente.
+  if (id === currentUser?.id && !(rol.includes('Dirección') || rol.includes('CEO'))) {
+    alert(t('cfg.user.self.rol')); return;
+  }
+  try {
+    const tok = localStorage.getItem('fc_token') || '';
+    const r = await fetch('/api/admin-set-user', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + tok },
+      body: JSON.stringify({ id, nombre, rol, pais, activo: true, upsert: true }),
+    });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok || !j.ok) { alert('❌ ' + (j.error || ('error ' + r.status))); return; }
+    // Update OPTIMISTA (el roster server tiene caché 60s): USERS + currentUser si se editó a sí mismo.
+    const u = USERS.find(x => x.id === id);
+    if (u) { u.name = nombre; u.role = rol; u.country = pais; }
+    if (currentUser?.id === id) {
+      currentUser.name = nombre; currentUser.role = rol; currentUser.country = pais;
+      localStorage.setItem('fc_user', JSON.stringify(currentUser));
+    }
+    renderCEOEquipo();
+    alert('✅ ' + t('cfg.user.saved'));
+  } catch (e) { alert('❌ ' + e.message); }
+}
+
 // BORRADO DEFINITIVO (solo para basura/pruebas — NO empleados reales, se pierde todo).
 async function adminHardDeleteUser(id) {
   const nombre = _userName(id);
@@ -10024,9 +10189,11 @@ function adminAccountsHTML() {
       h += '<div class="equipo-card">' +
         '<div class="equipo-emoji">' + esc(u.emoji || '👤') + '</div>' +
         '<div style="flex:1;min-width:0"><div class="equipo-name">' + esc(u.name) + '</div><div class="equipo-role">' + esc(translateRole(u.role)) + '</div></div>' +
+        '<button class="fin-svc-link" style="white-space:nowrap" onclick="toggleEditUser(\'' + esc(u.id) + '\')">✏️</button>' +
         '<button class="fin-svc-link" style="white-space:nowrap" onclick="adminSetPin(\'' + esc(u.id) + '\')">🔑 PIN</button>' +
         (isAdm ? '' : '<button class="fin-svc-link" style="white-space:nowrap;color:#e5484d" onclick="adminBajaUser(\'' + esc(u.id) + '\')">Baja</button>') +
-        '</div>';
+        '</div>' +
+        '<div id="eu-slot-' + esc(u.id) + '" style="display:none;margin:0 16px 8px"></div>';
     });
   }
   return h + '<div style="height:16px"></div>';
@@ -13944,7 +14111,7 @@ let _contactsContainerId = 'coord-content';
 
 // ── Secciones especiales de la vista Clientes (spec 2026-07-02) ────────────────────────────
 // 9 meses sin trabajo. Constante fija en v1 (sin configuración por cliente todavía).
-const MANTENIMIENTO_DIAS = 270;
+// El umbral de mantenimiento vive en cfgRegla('mantenimientoDias') (270 = ~9 meses por defecto, editable en ⚙️).
 // Estados terminales del pipeline de Propuestas — cualquier otro estado se considera "abierto"
 // (en curso), mismo criterio que usa el cron diario (api/cron-pipeline.js) y loadAlerts().
 const PROP_ESTADOS_TERMINALES = ['✅ Aceptada', '❌ Rechazada', '😶 Sin respuesta'];
@@ -14010,7 +14177,7 @@ function computeClienteSecciones(contacts, propuestas, servicios) {
       // "para recontactar" ese período para no pisarse el equipo; vuelve solo cuando la fecha vence.
       const proxC = (c.properties?.['Próximo contacto']?.date?.start || '').split('T')[0];
       const recontactadoReciente = proxC && proxC > new Date().toISOString().split('T')[0];
-      if (diasDesde != null && diasDesde >= MANTENIMIENTO_DIAS && !hayMasNuevo && !propAbierta && !recontactadoReciente) { c._mantMeses = Math.round(diasDesde / 30.4); mantenimiento.push(c); return; }
+      if (diasDesde != null && diasDesde >= cfgRegla('mantenimientoDias') && !hayMasNuevo && !propAbierta && !recontactadoReciente) { c._mantMeses = Math.round(diasDesde / 30.4); mantenimiento.push(c); return; }
       activa.push(c);
       return;
     }
@@ -14054,8 +14221,8 @@ const PROSPECCION_ESTADOS = ['🎯 Prospecto', '📵 Prospecto contactado', '�
 const ORIGEN_LEAD_OPTIONS = ['🧲 Vendedor', '🤝 Referido', '🌐 Web/Redes', '📞 Entrante', '🚶 Puerta fría'];
 const INTERES_OPTIONS = ['🏢 Fachada', '🪟 Vidrios', '☀️ Paneles solares'];
 // Heurística fija v1 (sin configuración por usuario/base): días que suma "📞 Contactado hoy" al
-// campo "Próximo contacto". Mismo espíritu que MANTENIMIENTO_DIAS más arriba.
-const PROSPECTO_SIGUIENTE_CONTACTO_DIAS = 7;
+// campo "Próximo contacto". Mismo espíritu que el umbral de mantenimiento (cfgRegla).
+// Los días del próximo contacto viven en cfgRegla('prospectoDias') (7 por defecto, editable en ⚙️).
 let _coordAllProspectos = [];
 
 // Tab 🗺️ Mapa (solo Ventas): mapa de prospección "TOP 1000 objetivos" embebido como iframe
@@ -14246,9 +14413,9 @@ async function prospAccion(id, tipo) {
 
   const props = {};
   if (tipo === 'contactado') {
-    // SIEMPRE reprograma el próximo contacto (+7 días, PROSPECTO_SIGUIENTE_CONTACTO_DIAS); el estado
+    // SIEMPRE reprograma el próximo contacto (+cfgRegla('prospectoDias') días); el estado
     // solo AVANZA si estaba recién creado (🎯 Prospecto) — si ya estaba contactado/interesado no retrocede.
-    const proxima = new Date(Date.now() + PROSPECTO_SIGUIENTE_CONTACTO_DIAS * 86400000).toISOString().split('T')[0];
+    const proxima = new Date(Date.now() + cfgRegla('prospectoDias') * 86400000).toISOString().split('T')[0];
     props['Próximo contacto'] = { date: { start: proxima } };
     if (estadoAnterior === '🎯 Prospecto') props['Estado'] = { select: { name: '📵 Prospecto contactado' } };
   } else if (tipo === 'interesado') {
@@ -14509,14 +14676,14 @@ function abrirWhatsAppCliente(id) {
   const tel = props['Teléfono / WhatsApp']?.phone_number || '';
   const pais = props['País']?.select?.name || '';
   const persona = props['Interlocutor']?.rich_text?.[0]?.plain_text || '';
-  abrirWhatsApp(tel, pais, t('wa.msg.cliente').replace('{n}', persona ? ' ' + persona : ''));
+  abrirWhatsApp(tel, pais, cfgWa('cliente').replace('{n}', persona ? ' ' + persona : ''));
 }
 
 // Rol Ventas — "📞 Contactado" en un cliente de la cartera: MANUAL y separado del WhatsApp (se marca solo
-// cuando de verdad se habló/envió). Escribe 'Próximo contacto' = hoy + MANT_SNOOZE_DIAS → el cliente SALE
+// cuando de verdad se habló/envió). Escribe 'Próximo contacto' = hoy + cfgRegla('ventasSnoozeDias') → el cliente SALE
 // de "para recontactar" ese período (computeClienteSecciones lo respeta) y el equipo ve que ya fue
 // contactado (no se pisan). Optimista: muta en memoria + re-clasifica; revierte si el write falla.
-const MANT_SNOOZE_DIAS = 60;
+// Los días del snooze de Ventas viven en cfgRegla('ventasSnoozeDias') (60 por defecto, editable en ⚙️).
 // Núcleo único de escritura del snooze: PATCH 'Próximo contacto' + espejo + optimista + re-clasificación.
 // Lo usan el "📞 Contactado" de Ventas (hoy+60 fijo) y el "📅 Recontactar a partir de…" del coord (fecha libre).
 async function setProximoContacto(id, fechaISO) {
@@ -14531,7 +14698,7 @@ async function marcarClienteContactado(id) {
   const btn = document.getElementById('cli-cont-btn-' + id);
   if (btn) { if (btn.disabled) return; btn.disabled = true; btn.textContent = '⏳'; }
   try {
-    const prox = new Date(Date.now() + MANT_SNOOZE_DIAS * 86400000).toISOString().split('T')[0];
+    const prox = new Date(Date.now() + cfgRegla('ventasSnoozeDias') * 86400000).toISOString().split('T')[0];
     await setProximoContacto(id, prox);
   } catch (e) {
     if (btn) { btn.disabled = false; btn.textContent = '📞 ' + t('coord.cli.contactado'); }
@@ -15391,7 +15558,7 @@ function renderContactarHoyHTML() {
     // Snooze por registro: 'Posponer aviso hasta' futuro = no molestar hasta esa fecha (vuelve sola al vencer).
     const posp = (props['Posponer aviso hasta']?.date?.start || '').split('T')[0];
     if (posp && posp > hoyISO) return false;
-    return ESPERANDO.includes(estado) && dias != null && dias >= 15;
+    return ESPERANDO.includes(estado) && dias != null && dias >= cfgRegla('pipelineAviso');
   }).sort((a, b) => (b.properties?.['Días sin respuesta']?.formula?.number || 0) - (a.properties?.['Días sin respuesta']?.formula?.number || 0));
   if (!items.length) return '';
   // Reloj de VIDA (spec dos-relojes 2026-07-02): días restantes antes de que el cron diario
@@ -15401,7 +15568,7 @@ function renderContactarHoyHTML() {
     const fechaEnvio = p.properties?.['Fecha de envío']?.date?.start || p.created_time;
     if (!fechaEnvio) return null;
     const diasDesdeEnvio = Math.floor((Date.now() - new Date(fechaEnvio).getTime()) / 86400000);
-    return Math.max(0, 45 - diasDesdeEnvio);
+    return Math.max(0, cfgRegla('pipelineSinRespuesta') - diasDesdeEnvio);
   };
   // Tier de urgencia ("por vencer", rojo): Contactado/Enviada se re-ancla a la VIDA restante (≤5d);
   // Negociando (sin reloj de vida) mantiene el criterio de siempre — 40+ días sin respuesta.
@@ -15555,7 +15722,7 @@ async function abrirWhatsAppProp(propId) {
     const tel = c?.properties?.['Teléfono / WhatsApp']?.phone_number || '';
     const pais = c?.properties?.['País']?.select?.name || props['País']?.select?.name || '';
     const persona = c?.properties?.['Interlocutor']?.rich_text?.[0]?.plain_text || '';
-    const msg = t('wa.msg.prop').replace('{n}', persona ? ' ' + persona : '').replace('{prop}', () => propNombre);
+    const msg = cfgWa('prop').replace('{n}', persona ? ' ' + persona : '').replace('{prop}', () => propNombre);
     abrirWhatsApp(tel, pais, msg);
   } catch (e) { alert(t('wa.sin.tel')); }
 }
@@ -15567,7 +15734,7 @@ function abrirWhatsAppProspecto(id) {
   const tel = props['Teléfono / WhatsApp']?.phone_number || '';
   const pais = props['País']?.select?.name || '';
   const persona = props['Contacto (persona)']?.rich_text?.[0]?.plain_text || '';
-  const msg = t('wa.msg.prospecto').replace('{n}', persona ? ' ' + persona : '');
+  const msg = cfgWa('prospecto').replace('{n}', persona ? ' ' + persona : '');
   abrirWhatsApp(tel, pais, msg);
 }
 
@@ -15734,7 +15901,7 @@ async function loadAlerts(role, bannerId) {
         // Snooze por registro (mismo criterio que "A contactar hoy" y el cron): pospuesta = no cuenta.
         const posp = (r.properties?.['Posponer aviso hasta']?.date?.start || '').split('T')[0];
         if (posp && posp > hoyISOProp) return false;
-        return dias != null && dias >= 15;
+        return dias != null && dias >= cfgRegla('pipelineAviso');
       });
       if (vencidas.length) {
         const max = Math.max(...vencidas.map(r => r.properties?.['Días sin respuesta']?.formula?.number || 0));
@@ -15993,6 +16160,7 @@ function openConfigSheet() {
   if (!isAppAdmin()) return;
   document.getElementById('config-overlay').classList.add('open');
   loadEmailRecipients();
+  loadAppCfgUI();
 }
 function closeConfigSheet() { document.getElementById('config-overlay').classList.remove('open'); }
 function configOverlayClick(e) { if (e.target.id === 'config-overlay') closeConfigSheet(); }
@@ -16077,6 +16245,138 @@ async function saveRecipients() {
   }
 }
 
+// ── ⚙️ Reglas del negocio + Checklist + Plantillas WhatsApp (POST admin-only server-side) ──
+const REGLAS_UI = [
+  { k: 'pipelineAviso', lbl: 'cfg.regla.aviso' },
+  { k: 'pipelineSinRespuesta', lbl: 'cfg.regla.sinresp' },
+  { k: 'mantenimientoDias', lbl: 'cfg.regla.mant' },
+  { k: 'ventasSnoozeDias', lbl: 'cfg.regla.ventas' },
+  { k: 'prospectoDias', lbl: 'cfg.regla.prospecto' },
+];
+const WA_UI = [
+  { k: 'prop', lbl: 'cfg.wa.prop', i18n: 'wa.msg.prop' },
+  { k: 'prospecto', lbl: 'cfg.wa.prospecto', i18n: 'wa.msg.prospecto' },
+  { k: 'cliente', lbl: 'cfg.wa.cliente', i18n: 'wa.msg.cliente' },
+];
+const _cfgInp = 'width:100%;box-sizing:border-box;padding:9px 11px;border:1px solid var(--border);border-radius:9px;background:var(--bg);color:var(--text);font-size:14px;font-family:inherit';
+
+async function loadAppCfgUI() {
+  const el = document.getElementById('appcfg-body');
+  if (!el) return;
+  el.innerHTML = '<div class="spinner" style="margin:14px auto"></div>';
+  await loadAppConfig(); // refresca _appCfg (y las checklists vivas)
+  renderAppCfgUI();
+}
+
+function renderAppCfgUI() {
+  const el = document.getElementById('appcfg-body');
+  if (!el) return;
+  // ⏱️ Reglas — inputs numéricos con el valor VIVO (override o default)
+  let h = '<div class="am-card"><div class="am-card-h">⏱️ <b>' + esc(t('cfg.reglas.title')) + '</b></div><div style="padding:11px 13px">';
+  REGLAS_UI.forEach(r => {
+    h += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:9px">' +
+      '<span style="flex:1;font-size:12.5px;color:var(--text2)">' + esc(t(r.lbl)) + '</span>' +
+      '<input id="cfg-regla-' + r.k + '" type="number" min="1" max="3650" value="' + cfgRegla(r.k) + '" style="' + _cfgInp + ';width:84px;text-align:center;flex:none">' +
+      '</div>';
+  });
+  h += '<div style="font-size:11px;color:var(--text3);margin:2px 0 10px">' + esc(t('cfg.reglas.hint')) + '</div>' +
+    '<button class="pin-change-btn" style="margin-top:0" onclick="saveAppCfgReglas(this)">' + esc(t('cfg.btn.save')) + '</button></div></div>';
+
+  // ✅ Checklist del operario — 1 ítem por línea
+  h += '<div class="am-card"><div class="am-card-h">✅ <b>' + esc(t('cfg.ck.title')) + '</b></div><div style="padding:11px 13px">' +
+    '<div class="login-field-label" style="margin-top:0">' + esc(t('cfg.ck.pre')) + '</div>' +
+    '<textarea id="cfg-ck-pre" rows="8" style="' + _cfgInp + ';resize:vertical">' + esc(CHECKLIST_PRE.join('\n')) + '</textarea>' +
+    '<div class="login-field-label">' + esc(t('cfg.ck.post')) + '</div>' +
+    '<textarea id="cfg-ck-post" rows="5" style="' + _cfgInp + ';resize:vertical">' + esc(CHECKLIST_POST.join('\n')) + '</textarea>' +
+    '<div style="font-size:11px;color:var(--text3);margin:6px 0 10px">' + esc(t('cfg.ck.hint')) + '</div>' +
+    '<button class="pin-change-btn" style="margin-top:0" onclick="saveAppCfgChecklist(this)">' + esc(t('cfg.btn.save')) + '</button></div></div>';
+
+  // 💬 Plantillas de WhatsApp — texto vivo (override o i18n) por idioma
+  h += '<div class="am-card"><div class="am-card-h">💬 <b>' + esc(t('cfg.wa.title')) + '</b></div><div style="padding:11px 13px">';
+  WA_UI.forEach(w => {
+    const vEs = _appCfg?.waTemplates?.[w.k]?.es || TRANSLATIONS['es'][w.i18n] || '';
+    const vPt = _appCfg?.waTemplates?.[w.k]?.pt || TRANSLATIONS['pt-BR'][w.i18n] || '';
+    h += '<div class="login-field-label" style="margin-top:0">' + esc(t(w.lbl)) + ' · ES</div>' +
+      '<textarea id="cfg-wa-' + w.k + '-es" rows="3" style="' + _cfgInp + ';resize:vertical">' + esc(vEs) + '</textarea>' +
+      '<div class="login-field-label">' + esc(t(w.lbl)) + ' · PT</div>' +
+      '<textarea id="cfg-wa-' + w.k + '-pt" rows="3" style="' + _cfgInp + ';resize:vertical;margin-bottom:10px">' + esc(vPt) + '</textarea>';
+  });
+  h += '<div style="font-size:11px;color:var(--text3);margin:2px 0 10px">' + esc(t('cfg.wa.hint')) + '</div>' +
+    '<button class="pin-change-btn" style="margin-top:0" onclick="saveAppCfgWa(this)">' + esc(t('cfg.btn.save')) + '</button></div></div>';
+
+  el.innerHTML = h;
+}
+
+// POST de la config ENTERA (mismo patrón que recipients: _appCfg es el estado, cada sección lo muta y postea todo)
+async function _postAppCfg(btn) {
+  const orig = btn.textContent;
+  btn.disabled = true; btn.textContent = '⏳';
+  try {
+    const r = await fetch('/api/app-config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (localStorage.getItem('fc_token') || '') },
+      body: JSON.stringify({ config: _appCfg || {} }),
+    });
+    if (r.status === 401) { forceRelogin(); return false; }
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok || !j.ok) throw new Error(j.error || ('HTTP ' + r.status));
+    _appCfg = j.config;
+    if (Array.isArray(_appCfg.checklistPre) && _appCfg.checklistPre.length) CHECKLIST_PRE = _appCfg.checklistPre;
+    if (Array.isArray(_appCfg.checklistPost) && _appCfg.checklistPost.length) CHECKLIST_POST = _appCfg.checklistPost;
+    btn.textContent = '✅';
+    setTimeout(() => { btn.textContent = orig; btn.disabled = false; }, 900);
+    return true;
+  } catch (e) {
+    btn.textContent = orig; btn.disabled = false;
+    alert(t('sheet.alert.save.error2') + e.message);
+    return false;
+  }
+}
+
+async function saveAppCfgReglas(btn) {
+  const reglas = {};
+  for (const r of REGLAS_UI) {
+    const v = parseInt(document.getElementById('cfg-regla-' + r.k)?.value, 10);
+    if (!Number.isInteger(v) || v < 1 || v > 3650) { alert(t('cfg.reglas.invalid')); return; }
+    reglas[r.k] = v;
+  }
+  if (reglas.pipelineAviso >= reglas.pipelineSinRespuesta) { alert(t('cfg.reglas.orden')); return; }
+  _appCfg = _appCfg || {};
+  _appCfg.reglas = reglas;
+  await _postAppCfg(btn);
+}
+
+async function saveAppCfgChecklist(btn) {
+  const parse = (id) => (document.getElementById(id)?.value || '').split('\n').map(x => x.trim()).filter(Boolean);
+  const pre = parse('cfg-ck-pre'), post = parse('cfg-ck-post');
+  if (!pre.length || !post.length) { alert(t('cfg.ck.vacia')); return; }
+  if (pre.length > 40 || post.length > 40) { alert(t('cfg.ck.max')); return; }
+  for (const it of [...pre, ...post]) {
+    if (it.length > 140 || /[<>]/.test(it)) { alert(t('cfg.ck.invalid')); return; }
+  }
+  _appCfg = _appCfg || {};
+  _appCfg.checklistPre = pre;
+  _appCfg.checklistPost = post;
+  await _postAppCfg(btn);
+}
+
+async function saveAppCfgWa(btn) {
+  const wa = {};
+  for (const w of WA_UI) {
+    const es = (document.getElementById('cfg-wa-' + w.k + '-es')?.value || '').trim();
+    const pt = (document.getElementById('cfg-wa-' + w.k + '-pt')?.value || '').trim();
+    if (es.length > 400 || pt.length > 400) { alert(t('cfg.wa.max')); return; }
+    if (/[<>]/.test(es) || /[<>]/.test(pt)) { alert(t('cfg.wa.invalid')); return; }
+    const o = {};
+    if (es) o.es = es;
+    if (pt) o.pt = pt;
+    if (Object.keys(o).length) wa[w.k] = o;
+  }
+  _appCfg = _appCfg || {};
+  if (Object.keys(wa).length) _appCfg.waTemplates = wa; else delete _appCfg.waTemplates;
+  await _postAppCfg(btn);
+}
+
 // ─────────────────────────────────────────────
 // INIT
 // ─────────────────────────────────────────────
@@ -16154,6 +16454,7 @@ async function init() {
         if (isSessionFresh()) {
           currentUser = { id: pinUser.id, name: pinUser.name, role: pinUser.role, emoji: pinUser.emoji, country: pinUser.country };
           markUserActive();
+          await loadAppConfig(); // config editable también en el fast-path (checklist/reglas frescas)
           await routeByRole(currentUser.role);
           return;
         }
