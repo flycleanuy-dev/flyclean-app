@@ -1485,6 +1485,7 @@ body::before {
       <div class="edit-sheet-sub" id="prop-sheet-sub"></div>
     </div>
     <div id="prop-sheet-body"></div>
+    <button class="report-pdf-btn" id="prop-pdf-btn" onclick="generateProposalPDF(editingProp)" style="display:none">📄 <span data-i18n="prop.pdf.btn">Generar propuesta PDF</span></button>
     <button class="edit-save-btn" id="prop-save-btn" data-i18n="btn.save.notion" onclick="savePropEdit()">💾 Guardar</button>
     <button class="delete-svc-btn" id="delete-prop-btn" onclick="deletePropuesta()" style="display:none">🗑️ Eliminar propuesta</button>
   </div>
@@ -1774,9 +1775,22 @@ body::before {
       <div class="am-row" id="am-row-lang" onclick="amLang()"><span class="am-ic">🌐</span><span class="am-lbl"><span data-i18n="am.lang">Idioma</span><small id="am-lang-val">Español</small></span><span class="am-chev" id="am-lang-chev">›</span></div>
       <div class="am-row" onclick="amRegion()"><span class="am-ic">🌎</span><span class="am-lbl" data-i18n="am.region">Cambiar región / país</span><span class="am-chev">›</span></div>
       <div class="am-row" onclick="amUpdate()"><span class="am-ic">↻</span><span class="am-lbl"><span data-i18n="am.update">Buscar actualización</span><small id="am-version"></small></span><span class="am-chev">›</span></div>
+      <div class="am-row" id="am-row-help" onclick="amHelp()"><span class="am-ic">📖</span><span class="am-lbl" data-i18n="am.help">Ayuda y manuales</span><span class="am-chev">›</span></div>
       <div class="am-row am-admin" id="am-row-config" style="display:none" onclick="amConfig()"><span class="am-ic">⚙️</span><span class="am-lbl"><span data-i18n="am.config">Configuración</span><small data-i18n="am.config.sub">Cuentas · Reportes</small></span><span class="am-chev">›</span></div>
       <div class="am-row am-danger" onclick="amLogout()"><span class="am-ic">🚪</span><span class="am-lbl" data-i18n="am.logout">Cerrar sesión</span></div>
     </div>
+  </div>
+</div>
+
+<!-- AYUDA Y MANUALES (todos los roles) — sibling de body -->
+<div class="edit-overlay" id="help-overlay" onclick="helpOverlayClick(event)">
+  <div class="pin-change-sheet">
+    <button class="sheet-close-btn" type="button" aria-label="Cerrar" onclick="closeHelpSheet()">×</button>
+    <div class="pin-change-handle"></div>
+    <div class="pin-change-title" data-i18n="help.title">📖 Ayuda y manuales</div>
+    <div class="pin-change-sub" data-i18n="help.sub">Guías de uso de la app.</div>
+    <div id="help-body"></div>
+    <div style="font-size:11px;color:var(--text3);text-align:center;margin-top:14px" id="help-version"></div>
   </div>
 </div>
 
@@ -1947,6 +1961,12 @@ const TRANSLATIONS = {
     'am.config': 'Configuración',
     'am.config.sub': 'Cuentas · Reportes',
     'am.logout': 'Cerrar sesión',
+    'am.help': 'Ayuda y manuales',
+    'prop.pdf.btn': 'Generar propuesta PDF',
+    'help.title': '📖 Ayuda y manuales',
+    'help.sub': 'Guías de uso de la app.',
+    'help.yours': '· el tuyo',
+    'help.more': 'Más manuales (Operario, Coordinador) en preparación.',
     'am.confirm.logout': '¿Cerrar sesión?',
     'am.confirm.region': 'Vas a salir de tu sesión y volver a la selección de país. ¿Continuar?',
     'cfg.title': '⚙️ Configuración',
@@ -2216,6 +2236,10 @@ const TRANSLATIONS = {
     'pedido.field.prioridad': 'Prioridad',
     'pedido.field.cantidad': 'Cantidad (opcional)',
     'pedido.field.cantidad.ph': 'Ej. 2',
+    'pedido.field.proveedor': 'Proveedor / tienda (opcional)',
+    'pedido.field.proveedor.ph': 'Ej. Ferretería Central',
+    'pedido.field.costo': 'Costo estimado (opcional)',
+    'pedido.field.costo.ph': 'Ej. 1500',
     'pedido.field.nota': 'Nota (opcional)',
     'pedido.field.nota.ph': 'Detalle, marca, dónde comprarlo…',
     'pedido.send': '📦 Enviar pedido',
@@ -2227,6 +2251,7 @@ const TRANSLATIONS = {
     'pedido.error.save': 'Error al guardar:',
     'pedido.bought.prefix': 'comprado ',
     'pedido.btn.comprado': '✅ Marcar comprado',
+    'pedido.btn.recibido': '📦 Marcar recibido',
     'pedido.btn.cancelar': '❌ Cancelar',
     'pedido.confirm.cancelar': '¿Cancelar este pedido?',
     'pedido.coord.error': 'No se pudieron cargar los pedidos.',
@@ -2778,6 +2803,12 @@ const TRANSLATIONS = {
     'am.config': 'Configurações',
     'am.config.sub': 'Contas · Relatórios',
     'am.logout': 'Sair da conta',
+    'am.help': 'Ajuda e manuais',
+    'prop.pdf.btn': 'Gerar proposta PDF',
+    'help.title': '📖 Ajuda e manuais',
+    'help.sub': 'Guias de uso do app.',
+    'help.yours': '· o seu',
+    'help.more': 'Mais manuais (Operador, Coordenador) em preparação.',
     'am.confirm.logout': 'Sair da conta?',
     'am.confirm.region': 'Você vai sair da sessão e voltar à seleção de país. Continuar?',
     'cfg.title': '⚙️ Configurações',
@@ -3047,6 +3078,10 @@ const TRANSLATIONS = {
     'pedido.field.prioridad': 'Prioridade',
     'pedido.field.cantidad': 'Quantidade (opcional)',
     'pedido.field.cantidad.ph': 'Ex. 2',
+    'pedido.field.proveedor': 'Fornecedor / loja (opcional)',
+    'pedido.field.proveedor.ph': 'Ex. Ferragem Central',
+    'pedido.field.costo': 'Custo estimado (opcional)',
+    'pedido.field.costo.ph': 'Ex. 1500',
     'pedido.field.nota': 'Nota (opcional)',
     'pedido.field.nota.ph': 'Detalhe, marca, onde comprar…',
     'pedido.send': '📦 Enviar pedido',
@@ -3058,6 +3093,7 @@ const TRANSLATIONS = {
     'pedido.error.save': 'Erro ao salvar:',
     'pedido.bought.prefix': 'comprado ',
     'pedido.btn.comprado': '✅ Marcar comprado',
+    'pedido.btn.recibido': '📦 Marcar recebido',
     'pedido.btn.cancelar': '❌ Cancelar',
     'pedido.confirm.cancelar': 'Cancelar este pedido?',
     'pedido.coord.error': 'Não foi possível carregar os pedidos.',
@@ -6584,6 +6620,7 @@ function pedidoPrioClass(prio) {
 
 function pedidoEstadoClass(estado) {
   if (!estado) return 'estado-pendiente';
+  if (estado.includes('Recibido')) return 'estado-comprado';
   if (estado.includes('Comprado')) return 'estado-comprado';
   if (estado.includes('Cancelado')) return 'estado-cancelado';
   return 'estado-pendiente';
@@ -6598,7 +6635,7 @@ function pedidoFmtFecha(iso) {
 
 function openNuevoPedidoSheet() {
   if (esVentas()) return; // blindaje: Ventas no ve Pedidos, ni por un llamado directo
-  pedidoState = { producto: '', prioridad: '🟡 Normal', cantidad: '', nota: '', saving: false, mine: null, loadingMine: true };
+  pedidoState = { producto: '', prioridad: '🟡 Normal', cantidad: '', proveedor: '', costo: '', nota: '', saving: false, mine: null, loadingMine: true };
   document.getElementById('pedido-overlay').classList.add('open');
   renderPedidoSheet();
   loadMisPedidos();
@@ -6686,6 +6723,14 @@ function renderPedidoSheet() {
       <input type="number" id="ped-cantidad" value="${esc(String(f.cantidad))}" step="1" min="0" oninput="pedidoState.cantidad=this.value" placeholder="${t('pedido.field.cantidad.ph')}"/>
     </div>
     <div class="gasto-form-row">
+      <label>${t('pedido.field.proveedor')}</label>
+      <input type="text" id="ped-proveedor" value="${esc(f.proveedor)}" oninput="pedidoState.proveedor=this.value" maxlength="120" placeholder="${t('pedido.field.proveedor.ph')}"/>
+    </div>
+    <div class="gasto-form-row">
+      <label>${t('pedido.field.costo')}</label>
+      <input type="number" id="ped-costo" value="${esc(String(f.costo))}" step="0.01" min="0" inputmode="decimal" oninput="pedidoState.costo=this.value" placeholder="${t('pedido.field.costo.ph')}"/>
+    </div>
+    <div class="gasto-form-row">
       <label>${t('pedido.field.nota')}</label>
       <textarea id="ped-nota" oninput="pedidoState.nota=this.value" maxlength="500" placeholder="${t('pedido.field.nota.ph')}">${esc(f.nota)}</textarea>
     </div>
@@ -6718,6 +6763,9 @@ async function savePedido() {
     'País': { select: { name: pedidoPaisDelUser() } },
   };
   if (cantNum != null && !isNaN(cantNum)) properties['Cantidad'] = { number: cantNum };
+  const costoNum = f.costo !== '' && f.costo != null ? Number(f.costo) : null;
+  if (costoNum != null && !isNaN(costoNum) && costoNum >= 0) properties['Costo estimado'] = { number: costoNum };
+  if (f.proveedor.trim()) properties['Tienda / Proveedor'] = { rich_text: [{ text: { content: f.proveedor.trim() } }] };
   if (f.nota.trim()) properties['Nota'] = { rich_text: [{ text: { content: f.nota.trim() } }] };
 
   try {
@@ -6730,6 +6778,8 @@ async function savePedido() {
     f.producto = '';
     f.prioridad = '🟡 Normal';
     f.cantidad = '';
+    f.proveedor = '';
+    f.costo = '';
     f.nota = '';
     f.loadingMine = true;
     renderPedidoSheet();
@@ -6817,9 +6867,12 @@ function coordPedidoCard(p) {
   const cant = props['Cantidad']?.number;
   const solicitante = props['Solicitado por']?.rich_text?.[0]?.plain_text || '';
   const nota = props['Nota']?.rich_text?.[0]?.plain_text || '';
+  const proveedor = props['Tienda / Proveedor']?.rich_text?.[0]?.plain_text || '';
+  const costo = props['Costo estimado']?.number;
   const fechaPedido = props['Fecha del pedido']?.date?.start || '';
   const fechaCompra = props['Fecha de compra']?.date?.start || '';
   const isPendiente = estado.includes('Pendiente');
+  const isComprado = estado.includes('Comprado');
 
   return `<div class="pedido-card">
     <div class="pedido-card-producto">${esc(prod)}${cant != null ? ` <span style="font-weight:600;color:var(--text3);font-size:13px">×${esc(String(cant))}</span>` : ''}</div>
@@ -6828,6 +6881,8 @@ function coordPedidoCard(p) {
       ${estado ? `<span class="pedido-badge ${pedidoEstadoClass(estado)}">${esc(estado)}</span>` : ''}
     </div>
     ${solicitante ? `<div class="pedido-card-detail">👤 ${esc(solicitante)}</div>` : ''}
+    ${proveedor ? `<div class="pedido-card-detail">🏪 ${esc(proveedor)}</div>` : ''}
+    ${costo != null ? `<div class="pedido-card-detail">💲 ${esc(String(costo))}</div>` : ''}
     ${fechaPedido ? `<div class="pedido-card-detail">🗓 ${esc(pedidoFmtFecha(fechaPedido))}</div>` : ''}
     ${fechaCompra ? `<div class="pedido-card-detail">🛒 ${t('pedido.bought.prefix')}${esc(pedidoFmtFecha(fechaCompra))}</div>` : ''}
     ${nota ? `<div class="pedido-card-detail">📝 ${esc(nota)}</div>` : ''}
@@ -6835,7 +6890,23 @@ function coordPedidoCard(p) {
       <button class="pedido-btn-comprar" onclick="marcarPedidoComprado('${esc(p.id)}')">${t('pedido.btn.comprado')}</button>
       <button class="pedido-btn-cancelar" onclick="cancelarPedido('${esc(p.id)}')">${t('pedido.btn.cancelar')}</button>
     </div>` : ''}
+    ${isComprado ? `<div class="pedido-card-actions">
+      <button class="pedido-btn-comprar" onclick="marcarPedidoRecibido('${esc(p.id)}')">${t('pedido.btn.recibido')}</button>
+    </div>` : ''}
   </div>`;
+}
+
+async function marcarPedidoRecibido(id) {
+  // Confirma la RECEPCIÓN del insumo (paso posterior a "Comprado"). No toca Fecha de compra.
+  const item = _coordAllPedidos.find(p => p.id === id);
+  if (item) { item.properties['Estado'] = { select: { name: '📦 Recibido' } }; renderCoordPedidosList(); }
+  try {
+    await callNotion(`pages/${id}`, 'PATCH', { properties: { 'Estado': { select: { name: '📦 Recibido' } } } });
+    showSaving();
+  } catch (e) {
+    alert((t('pedido.error.save') || 'Error al guardar:') + ' ' + e.message);
+    renderCoordPedidos();
+  }
 }
 
 async function marcarPedidoComprado(id) {
@@ -12975,6 +13046,130 @@ function generateReportPDFFromCEO(id) {
   if (svc) openReportStep(svc);
 }
 
+// ── PDF de PROPUESTA comercial al cliente (#5) — reusa el motor jsPDF + marca del reporte de devolución.
+// Condiciones comerciales por defecto (bilingüe); a futuro editables en ⚙️ como las plantillas de WhatsApp.
+const PROPOSAL_LBL = {
+  es: { titulo: 'Propuesta comercial', datos: 'Datos de la propuesta', cliente: 'Cliente', prop: 'Propuesta', tipo: 'Modalidad', pais: 'País', fecha: 'Fecha', importe: 'Inversión estimada', porano: 'Servicios por año', obs: 'Detalle', cond: 'Condiciones', pagina: 'Página', de: 'de', generado: 'Generado el',
+    puntual: 'Servicio puntual', recurrente: 'Servicio recurrente',
+    terminos: ['Validez de la propuesta: 15 días desde su emisión.', 'Los valores no incluyen impuestos, salvo indicación expresa.', 'Coordinación de fecha sujeta a condiciones climáticas aptas para el vuelo.', 'Formas de pago a convenir. Consultas: www.flyclean.app'] },
+  ptBR: { titulo: 'Proposta comercial', datos: 'Dados da proposta', cliente: 'Cliente', prop: 'Proposta', tipo: 'Modalidade', pais: 'País', fecha: 'Data', importe: 'Investimento estimado', porano: 'Serviços por ano', obs: 'Detalhe', cond: 'Condições', pagina: 'Página', de: 'de', generado: 'Gerado em',
+    puntual: 'Serviço pontual', recurrente: 'Serviço recorrente',
+    terminos: ['Validade da proposta: 15 dias a partir da emissão.', 'Os valores não incluem impostos, salvo indicação expressa.', 'Agendamento sujeito a condições climáticas adequadas para o voo.', 'Formas de pagamento a combinar. Contato: www.flyclean.app'] },
+};
+
+async function buildProposalDoc(prop, extra = {}) {
+  if (!prop) throw new Error('sin propuesta');
+  const JS = await ensureJsPDF();
+  if (!JS) throw new Error(t('pdf.notloaded'));
+  const brand = await ensureReportBrand();
+  const ptLang = currentLang === 'pt-BR';
+  const L = PROPOSAL_LBL[ptLang ? 'ptBR' : 'es'];
+  const locale = ptLang ? 'pt-BR' : 'es-UY';
+  const p = prop.properties || {};
+  const clean = (s) => String(s || '').replace(/[\p{Extended_Pictographic}\u{1F1E6}-\u{1F1FF}️‍]/gu, '').replace(/\s+/g, ' ').trim();
+  const sel = (k) => clean(p[k]?.select?.name || '');
+  const nombre = clean(p['Nombre de propuesta']?.title?.[0]?.plain_text || 'Propuesta');
+  const importe = p['Importe estimado']?.number;
+  const monedaTag = sel('Moneda') || 'USD'; // 'USD' | 'UY$'
+  const esRecurrente = /Recurrente/.test(p['Tipo']?.select?.name || '');
+  const porAno = p['Servicios por año']?.number;
+  const obs = p['Observaciones']?.rich_text?.[0]?.plain_text || '';
+  const fechaEnvio = p['Fecha de envío']?.date?.start;
+  const fmtDate = (iso) => { if (!iso) return '—'; const d = new Date(iso.length === 10 ? iso + 'T00:00:00' : iso); return isNaN(d) ? iso : d.toLocaleDateString(locale, { day: '2-digit', month: '2-digit', year: 'numeric' }); };
+  const hoy = new Date().toLocaleDateString(locale, { day: '2-digit', month: '2-digit', year: 'numeric' });
+  const fmtMonto = (n) => (monedaTag.includes('UY') ? 'UYU ' : 'USD ') + Number(n).toLocaleString(locale, { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+
+  // Cliente vinculado (mismo patrón que buildReportDoc).
+  let clienteName = '—';
+  const rel = p['Contacto']?.relation || [];
+  if (rel[0]?.id) {
+    try {
+      const c = await callNotion('pages/' + rel[0].id, 'GET');
+      const cp = c?.properties || {};
+      for (const k in cp) { const tt = cp[k]?.title; if (Array.isArray(tt) && tt.length) { clienteName = tt.map(x => x.plain_text).join('') || '—'; break; } }
+    } catch (e) { console.warn('[propuesta] cliente:', e); }
+  }
+
+  const doc = new JS({ unit: 'mm', format: 'a4' });
+  let useExo = false;
+  if (brand) { try { brand.register(doc); useExo = true; } catch (_) {} }
+  const FONT = useExo ? 'Exo2' : 'helvetica';
+  const F = (st) => doc.setFont(FONT, st);
+  const PW = 210, M = 14, BOT = 282;
+  const GREEN = [0, 201, 141], SECT = [0, 165, 120], DARK = [20, 31, 25], LBLC = [70, 107, 94], MUTE = [150, 160, 156];
+  let y = 0;
+  const topStrip = () => { doc.setFillColor(...GREEN); doc.rect(0, 0, PW, 3, 'F'); if (brand?.logo) { try { doc.addImage(brand.logo, 'PNG', M, 6, 6, 6); } catch (_) {} } doc.setTextColor(...SECT); F('bold'); doc.setFontSize(10); doc.text('FlyClean', brand?.logo ? M + 8 : M, 10.5); };
+  const newPageIf = (need) => { if (y + need > BOT) { doc.addPage(); topStrip(); y = 20; } };
+
+  // Header
+  doc.setFillColor(...GREEN); doc.rect(0, 0, PW, 40, 'F');
+  if (brand?.logo) { try { doc.addImage(brand.logo, 'PNG', M, 9, 18, 18); } catch (_) {} }
+  const tx = brand?.logo ? M + 23 : M;
+  doc.setTextColor(255, 255, 255); F('bold'); doc.setFontSize(24); doc.text('FlyClean', tx, 19);
+  F('normal'); doc.setFontSize(13); doc.text(L.titulo, tx, 28);
+  doc.setFontSize(9); doc.text(fmtDate(fechaEnvio) !== '—' ? fmtDate(fechaEnvio) : hoy, PW - M, 12, { align: 'right' });
+  y = 50;
+
+  const section = (title) => { newPageIf(12); F('bold'); doc.setFontSize(11); doc.setTextColor(...SECT); doc.text(String(title).toUpperCase(), M, y); doc.setDrawColor(179, 237, 217); doc.setLineWidth(0.3); doc.line(M, y + 1.5, PW - M, y + 1.5); y += 7; };
+  const row = (label, value) => { if (value == null || value === '') return; const vl = doc.splitTextToSize(String(value), 118); newPageIf(5.5 * vl.length + 2); F('normal'); doc.setFontSize(10.5); doc.setTextColor(...LBLC); doc.text(String(label), M, y); F('bold'); doc.setTextColor(...DARK); doc.text(vl, PW - M, y, { align: 'right' }); y += 5.5 * vl.length + 1.5; doc.setDrawColor(232, 240, 236); doc.setLineWidth(0.2); doc.line(M, y - 1.5, PW - M, y - 1.5); };
+
+  section(L.datos);
+  row(L.cliente, clienteName);
+  row(L.prop, nombre);
+  row(L.tipo, esRecurrente ? L.recurrente : L.puntual);
+  if (esRecurrente && porAno != null) row(L.porano, String(porAno));
+  row(L.pais, sel('País'));
+  row(L.fecha, fmtDate(fechaEnvio) !== '—' ? fmtDate(fechaEnvio) : hoy);
+
+  // Importe destacado
+  if (importe != null) {
+    newPageIf(24);
+    doc.setFillColor(240, 250, 246); doc.setDrawColor(...GREEN); doc.setLineWidth(0.5); doc.roundedRect(M, y, PW - M * 2, 18, 2, 2, 'FD');
+    F('normal'); doc.setFontSize(10); doc.setTextColor(...LBLC); doc.text(L.importe.toUpperCase(), M + 5, y + 7);
+    F('bold'); doc.setFontSize(18); doc.setTextColor(...DARK); doc.text(fmtMonto(importe), PW - M - 5, y + 12, { align: 'right' });
+    y += 24;
+  }
+
+  if (obs) { section(L.obs); F('normal'); doc.setFontSize(10.5); doc.setTextColor(...DARK); const nl = doc.splitTextToSize(obs, PW - M * 2 - 8); newPageIf(nl.length * 5 + 8); doc.setFillColor(247, 250, 249); doc.setDrawColor(224, 235, 231); doc.roundedRect(M, y, PW - M * 2, nl.length * 5 + 8, 2, 2, 'FD'); doc.text(nl, M + 4, y + 6); y += nl.length * 5 + 12; }
+
+  // Condiciones
+  section(L.cond);
+  (extra.terminos || L.terminos).forEach(txt => { const ls = doc.splitTextToSize('•  ' + txt, PW - M * 2 - 4); newPageIf(ls.length * 5 + 2); F('normal'); doc.setFontSize(9.5); doc.setTextColor(...DARK); doc.text(ls, M + 2, y); y += ls.length * 5 + 2; });
+
+  // Footer
+  const pages = doc.getNumberOfPages();
+  for (let i = 1; i <= pages; i++) { doc.setPage(i); F('normal'); doc.setFontSize(8); doc.setTextColor(...MUTE); doc.text(L.generado + ' ' + hoy + ' — FlyClean SAS · www.flyclean.app', PW / 2, 290, { align: 'center' }); doc.text(L.pagina + ' ' + i + ' ' + L.de + ' ' + pages, PW - M, 290, { align: 'right' }); }
+  return { doc, nombre };
+}
+
+async function generateProposalPDF(prop) {
+  prop = prop || editingProp;
+  if (!prop) return;
+  const btn = document.getElementById('prop-pdf-btn');
+  const orig = btn?.textContent;
+  if (btn) { btn.textContent = '⏳ ' + t('pdf.generating'); btn.disabled = true; }
+  try {
+    const { doc, nombre } = await buildProposalDoc(prop);
+    const fname = (nombre || 'propuesta').replace(/[^a-z0-9-_ ]/gi, '').trim().replace(/\s+/g, '-') || 'propuesta';
+    const filename = 'FlyClean-Propuesta-' + fname + '.pdf';
+    // Compartir nativo si el dispositivo lo soporta (mandar el PDF sin descargar); si no, descarga.
+    let shared = false;
+    if (navigator.canShare && navigator.share) {
+      try {
+        const blob = doc.output('blob');
+        const file = new File([blob], filename, { type: 'application/pdf' });
+        if (navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: nombre }); shared = true; }
+      } catch (e) { if (e && e.name === 'AbortError') shared = true; } // el usuario canceló el share → no descargar
+    }
+    if (!shared) doc.save(filename);
+  } catch (e) {
+    console.error('PDF propuesta', e);
+    alert(t('pdf.error') + ' ' + (e.message || ''));
+  } finally {
+    if (btn && orig) { btn.textContent = orig; btn.disabled = false; }
+  }
+}
+
 // ─────────────────────────────────────────────
 // 📊 RESUMEN — dashboard mensual del coordinador (SOLO LECTURA).
 // KPIs del mes + comparación vs el mes anterior. No escribe nada en Notion.
@@ -13377,9 +13572,11 @@ function openNewPropSheet(prefillContactId = null) {
   const btn = document.getElementById('prop-save-btn');
   btn.textContent = t('btn.create.notion');
   btn.disabled = false;
-  // En modo "create" no se muestra eliminar (la propuesta no existe aún)
+  // En modo "create" no se muestra eliminar ni el PDF (la propuesta no existe aún)
   const delBtn = document.getElementById('delete-prop-btn');
   if (delBtn) delBtn.style.display = 'none';
+  const pdfBtn = document.getElementById('prop-pdf-btn');
+  if (pdfBtn) pdfBtn.style.display = 'none';
   document.getElementById('prop-overlay').classList.add('open');
   loadPropContactos();
 }
@@ -13499,6 +13696,14 @@ function openPropSheet(pageId) {
     delPropBtn.style.display = propSoloLectura ? 'none' : '';
     delPropBtn.textContent = '🗑️ ' + t('sheet.prop.delete');
     delPropBtn.disabled = false;
+  }
+  // Botón "📄 Generar propuesta PDF": visible en TODOS los roles que abren el sheet (incluida Ventas —
+  // generar el PDF es solo-lectura, no escribe en Notion). Requiere que la propuesta tenga importe.
+  const pdfBtn = document.getElementById('prop-pdf-btn');
+  if (pdfBtn) {
+    const tieneImporte = (editingProp?.properties?.['Importe estimado']?.number) != null;
+    pdfBtn.style.display = (editingProp && editingProp.id && tieneImporte) ? 'block' : 'none';
+    pdfBtn.disabled = false;
   }
   document.getElementById('prop-overlay').classList.add('open');
   if (!propSoloLectura) loadPropContactos();
@@ -16154,6 +16359,28 @@ function amConfig() {
   closeAccountMenu();
   openConfigSheet();
 }
+function amHelp() { closeAccountMenu(); openHelpSheet(); }
+
+// Manuales publicados (PDF servidos estáticos desde el repo). Hoy solo Ventas; operario/coord están en
+// preparación → la hoja de ayuda muestra solo los que EXISTEN (nada de links rotos). `roles` = a qué roles
+// les aparece destacado por ser el suyo (igual todos pueden abrir cualquiera).
+const MANUALES = [
+  { file: '/docs/manuales/Manual_Ventas_v2.pdf', label: 'Manual de Ventas y Prospección', roles: ['Ventas', 'Dirección', 'CEO'] },
+];
+function openHelpSheet() {
+  const body = document.getElementById('help-body');
+  const rol = currentUser?.role || '';
+  const mine = (m) => m.roles.some(r => rol.includes(r));
+  const items = MANUALES.slice().sort((a, b) => (mine(b) ? 1 : 0) - (mine(a) ? 1 : 0));
+  body.innerHTML = items.map(m =>
+    '<div class="am-row" style="border:1px solid var(--border2);border-radius:12px;margin-bottom:8px" onclick="window.open(\'' + m.file + '\',\'_blank\')">' +
+    '<span class="am-ic">📄</span><span class="am-lbl">' + esc(m.label) + (mine(m) ? ' <small style="color:var(--accent,#00C98D)">' + esc(t('help.yours')) + '</small>' : '') + '</span><span class="am-chev">↗</span></div>'
+  ).join('') + '<div style="font-size:12px;color:var(--text3);padding:6px 2px">' + esc(t('help.more')) + '</div>';
+  document.getElementById('help-version').textContent = 'FlyClean v' + APP_VERSION;
+  document.getElementById('help-overlay').classList.add('open');
+}
+function closeHelpSheet() { document.getElementById('help-overlay').classList.remove('open'); }
+function helpOverlayClick(e) { if (e.target.id === 'help-overlay') closeHelpSheet(); }
 
 // ── Configuración (sheet admin) ──
 function openConfigSheet() {
