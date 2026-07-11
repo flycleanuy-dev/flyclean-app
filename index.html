@@ -158,6 +158,16 @@ body::before {
   .user-role { font-size: 12px; color: var(--text3); margin-top: 2px; }
   .user-arrow { margin-left: auto; color: var(--text3); font-size: 18px; }
 
+  /* ── LOGIN v2 (nombre/email + PIN, sin lista de usuarios) ── */
+  .login-form { display: flex; flex-direction: column; text-align: left; }
+  .login-field-label { font-size: 11px; font-weight: 700; color: var(--text3); letter-spacing: 0.5px; text-transform: uppercase; margin: 12px 0 6px 2px; }
+  .login-input { width: 100%; padding: 13px 14px; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); font-size: 16px; font-family: 'Exo 2', sans-serif; outline: none; }
+  .login-input:focus { border-color: var(--green); }
+  .login-input-pin { font-size: 20px; letter-spacing: 8px; text-align: center; }
+  .login-btn { width: 100%; padding: 14px; background: var(--green); border: none; border-radius: var(--radius-sm); color: #fff; font-size: 15px; font-weight: 700; cursor: pointer; font-family: 'Exo 2', sans-serif; margin-top: 4px; }
+  .login-btn:active { opacity: 0.85; }
+  .login-btn:disabled { opacity: 0.6; }
+
   /* ── HEADER ── */
   .header {
     padding: 20px 20px 14px;
@@ -1908,7 +1918,12 @@ const TRANSLATIONS = {
     'consent.privacy': 'Política de Privacidad',
     'consent.accept': 'Acepto y continuar',
     'login.subtitle': 'Panel Operario',
-    'login.who': '¿QUIÉN ERES?',
+    'login.who': 'INGRESÁ CON TU USUARIO',
+    'login.user.label': 'Nombre de usuario o email',
+    'login.user.ph': 'ej: Federico',
+    'login.pin.label': 'PIN',
+    'login.btn': 'Entrar',
+    'login.err': 'Usuario o PIN incorrectos. Probá con tu nombre completo.',
     'login.back': '‹ Cambiar región',
     'pin.sub': 'Ingresá tu PIN',
     'pin.error.wrong': 'PIN incorrecto. Intentá de nuevo.',
@@ -2706,7 +2721,12 @@ const TRANSLATIONS = {
     'consent.privacy': 'Política de Privacidade',
     'consent.accept': 'Aceito e continuar',
     'login.subtitle': 'Painel Operário',
-    'login.who': 'QUEM É VOCÊ?',
+    'login.who': 'ENTRE COM SEU USUÁRIO',
+    'login.user.label': 'Nome de usuário ou email',
+    'login.user.ph': 'ex: Federico',
+    'login.pin.label': 'PIN',
+    'login.btn': 'Entrar',
+    'login.err': 'Usuário ou PIN incorretos. Tente com seu nome completo.',
     'login.back': '‹ Trocar região',
     'pin.sub': 'Digite seu PIN',
     'pin.error.wrong': 'PIN incorreto. Tente novamente.',
@@ -4957,19 +4977,70 @@ async function loadRoster() {
   } catch (_) { return false; }
 }
 
+// Login v2 (2026-07-11, pedido de Diego): SIN lista pública de usuarios — se entra escribiendo el
+// NOMBRE (o email cuando el roster lo tenga) + PIN. Los PINs no cambiaron. La pantalla de re-PIN
+// (screen-pin, usuario ya conocido en este dispositivo tras 8h) sigue igual — esto es solo el alta de sesión.
 function renderLogin() {
   const list = document.getElementById('users-list');
-  const countryUsers = USERS.filter(u => u.country === selectedCountry);
-  list.innerHTML = countryUsers.map(u => `
-    <div class="user-card" onclick="selectUser('${esc(u.id)}')">
-      <span class="user-avatar">${esc(u.emoji)}</span>
-      <div>
-        <div class="user-name">${esc(u.name)}</div>
-        <div class="user-role">${esc(translateRole(u.role))}</div>
-      </div>
-      <span class="user-arrow">→</span>
-    </div>
-  `).join('');
+  list.innerHTML = `
+    <div class="login-form">
+      <div class="login-field-label" data-i18n="login.user.label">${esc(t('login.user.label'))}</div>
+      <input class="login-input" id="login-user" type="text" autocomplete="username" autocapitalize="words"
+        placeholder="${esc(t('login.user.ph'))}"
+        onkeydown="if(event.key==='Enter'){document.getElementById('login-pin').focus()}"/>
+      <div class="login-field-label" data-i18n="login.pin.label">${esc(t('login.pin.label'))}</div>
+      <input class="login-input login-input-pin" id="login-pin" type="password" inputmode="numeric"
+        autocomplete="current-password" maxlength="6" placeholder="••••"
+        oninput="this.value=this.value.replace(/\\D/g,'').slice(0,6)"
+        onkeydown="if(event.key==='Enter'){loginSubmit()}"/>
+      <div class="pin-error" id="login-error" style="min-height:16px;margin:6px 0 2px"></div>
+      <button class="login-btn" id="login-btn" onclick="loginSubmit()">${esc(t('login.btn'))}</button>
+    </div>`;
+}
+
+// Matching tolerante del identificador (case/acentos/espacios-insensible), SIEMPRE dentro del país elegido:
+// nombre completo exacto → primer nombre único → prefijo único ("federico m") → id → email (si el roster lo trae).
+function _normName(s) { return String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim().replace(/\s+/g, ' '); }
+function resolveLoginUser(txt) {
+  const q = _normName(txt);
+  if (!q) return null;
+  const pool = USERS.filter(u => u.country === selectedCountry);
+  let m = pool.filter(u => _normName(u.name) === q || String(u.id).toLowerCase() === q || (u.email && _normName(u.email) === q));
+  if (m.length === 1) return m[0];
+  m = pool.filter(u => _normName(u.name).split(' ')[0] === q);
+  if (m.length === 1) return m[0];
+  if (q.length >= 3) { // prefijo: mínimo 3 letras (evita que 2 letras sueltas matcheen a alguien)
+    m = pool.filter(u => _normName(u.name).startsWith(q));
+    if (m.length === 1) return m[0];
+  }
+  return null; // ambiguo o inexistente → el caller muestra el error GENÉRICO (no se revela nada)
+}
+
+async function loginSubmit() {
+  const errEl = document.getElementById('login-error');
+  const btn = document.getElementById('login-btn');
+  const pinEl = document.getElementById('login-pin');
+  const user = resolveLoginUser(document.getElementById('login-user')?.value);
+  const pin = String(pinEl?.value || '');
+  errEl.textContent = '';
+  // Error GENÉRICO idéntico para usuario inexistente/ambiguo y PIN mal → no se filtra quién existe.
+  if (!user || !/^(\d{4}|\d{6})$/.test(pin)) { errEl.textContent = t('login.err'); return; }
+  btn.disabled = true; btn.textContent = '···';
+  let ok = false;
+  try { ok = await verifyPin(user.id, pin); } catch (_) { ok = false; }
+  btn.disabled = false; btn.textContent = t('login.btn');
+  if (!ok) { errEl.textContent = t('login.err'); pinEl.value = ''; return; }
+  await completarLogin(user);
+}
+
+// Camino único post-autenticación (lo usan el login nuevo Y el re-PIN de screen-pin).
+async function completarLogin(u) {
+  pinAttempts = 0;
+  await purgeReadCaches(); // sesión nueva → no servir cachés de lectura del usuario anterior
+  currentUser = { id: u.id, name: u.name, role: u.role, emoji: u.emoji, country: u.country };
+  localStorage.setItem('fc_user', JSON.stringify(currentUser));
+  markUserActive();
+  await routeByRole(currentUser.role);
 }
 
 function selectUser(userId) {
@@ -6721,12 +6792,7 @@ async function pinConfirm() {
     setTimeout(() => dots.classList.remove('shake'), 400);
     return;
   }
-  pinAttempts = 0;
-  await purgeReadCaches(); // sesión nueva → no servir cachés de lectura del usuario anterior
-  currentUser = { id: pinUser.id, name: pinUser.name, role: pinUser.role, emoji: pinUser.emoji, country: pinUser.country };
-  localStorage.setItem('fc_user', JSON.stringify(currentUser));
-  markUserActive();
-  await routeByRole(currentUser.role);
+  await completarLogin(pinUser); // camino único post-autenticación (compartido con el login nuevo)
 }
 
 function setTab(tab) {
