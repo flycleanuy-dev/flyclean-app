@@ -5,7 +5,7 @@
 > **ANTES de construir/proponer algo: buscalo acá + grep del código. Reusar > reconstruir** (ya
 > duplicamos 2 veces: Clientes/Contactos y PINs). Mantenerlo: actualizar este archivo tras cada feature
 > (junto al bump de `sw.js`). Complementa a `ARQUITECTURA.md` (cómo está construido), `NOTION.md`
-> (datos) y `RUNBOOK.md` (operar/deploy). **Última actualización: 2026-07-11, sw v153** (CRM interconectado
+> (datos) y `RUNBOOK.md` (operar/deploy). **Última actualización: 2026-07-11, sw v154** (CRM interconectado
 > v147 · snooze de recontacto v151 · diagnóstico de errores con motivo v152 · Supabase-first SERVICIOS vivo +
 > regla "escribir solo lo que cambió" v153 — ver RUNBOOK §Supabase-first) — el detalle de cada
 > release está en las secciones fechadas al final (llegan hasta v133). Hito documentado de **sectores** (sw v93):
@@ -752,3 +752,11 @@ Todo front, sin cambios de API/schema (reusa el modelo que ya existía: relació
 
 ---
 _Generado automáticamente del código (workflow `inventario-funcionalidades`). Si algo no coincide con el código, gana el código → regenerar._
+
+- **Menú de cuenta ⋯ + Configuración + 📬 destinatarios (v154, 2026-07-11)**: el chip de usuario de los 4
+  headers abre el menú de cuenta (`openAccountMenu`, overlay `account-menu-overlay` sibling de body): identidad,
+  `amPin` (cambiar PIN), `amLang` (toggle es/pt solo Brasil), `amRegion`/`amLogout` (SIEMPRE con confirmación —
+  fin del logout accidental), `amUpdate` (SW update+reload), `amConfig` → sheet `config-overlay` (solo
+  `isAppAdmin`): fila a Cuentas de acceso (`amGoCuentas` → CEO→Equipo, await sin race) + panel 📬 destinatarios
+  (`loadEmailRecipients`/`recAdd`/`recRemove`/`saveRecipients` → `/api/email-recipients` admin-only server-side;
+  crons leen KV con fallback a constantes). Botones 🔑 de headers eliminados (viven en el menú). i18n es/pt.

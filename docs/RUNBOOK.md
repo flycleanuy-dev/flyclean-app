@@ -171,3 +171,23 @@ la tabla automáticamente (mismo env). NUNCA rollback con outbox pendiente (se p
 `plain_text`; el espejo debe normalizar SIEMPRE (`normalizePatchForRaw` en `api/_lib/supafirst.js`). Si una
 etiqueta aparece vacía/"Sin nombre" tras un guardado, revisar esa normalización primero. Y la regla F1: los
 sheets escriben SOLO campos modificados — una lectura rota jamás re-escribe fallbacks como datos.
+
+---
+
+## Destinatarios de reportes por email (⚙️ Configuración, 2026-07-11)
+
+Los emails de los cron (`cron-report` viernes/lunes, `cron-pipeline` diario) salen a la lista editable en
+**menú de cuenta ⋯ → ⚙️ Configuración → 📬 Destinatarios de reportes** (solo admins = env `ADMIN_IDS`).
+- Storage: KV `email:recipients:v1` (JSON `{semanal:[],lunes:[],pipeline:[]}`), endpoint `api/email-recipients.js`
+  (GET/POST admin-only, guardas clonadas de admin-set-pin, emails validados anti-inyección, máx 10/tipo).
+- **Fallback fail-safe**: lista vacía o KV caído → los cron usan las constantes históricas
+  (`cron-report.js` CEO_EMAIL=Diego; `cron-pipeline.js` Federico+Diego). Los reportes NUNCA dejan de salir.
+- Test manual de un reporte: `curl -H "Authorization: Bearer $CRON_SECRET" "https://www.flyclean.app/api/cron-report?tipo=viernes&to=<email>"`
+  (el `?to=` puentea la lista solo con CRON_SECRET).
+
+## Menú de cuenta (⋯) — dónde vive cada cosa (2026-07-11)
+
+El chip de usuario (los 4 headers) abre `account-menu-overlay`: Cambiar PIN · Idioma (toggle solo Brasil) ·
+Cambiar región (confirma) · Buscar actualización · ⚙️ Configuración (solo `isAppAdmin`, acoplado a env
+`ADMIN_IDS` — si se cambia la env, actualizar `isAppAdmin()` en index.html) · **Cerrar sesión (confirma)**.
+Ya NO existe logout directo de un toque (chips, ← Finanzas, ← CEO puro → todos abren el menú).
