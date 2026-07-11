@@ -11,13 +11,32 @@ export function supafirstSet() {
 }
 export function supafirstConfigured() { return !!(SUPABASE_URL && SERVICE_KEY); }
 
+// HOTFIX 2026-07-11: el front escribe en FORMATO DE ESCRITURA de Notion (title/rich_text = [{text:{content}}],
+// SIN plain_text). En Notion-first la respuesta volvía normalizada por Notion; bajo Supabase-first el patch va
+// TAL CUAL al raw → el front (que lee `plain_text`) veía el título/lugar/notas vacíos ("Servicio sin nombre").
+// Normalizamos ANTES de mergear: cada item de title/rich_text gana plain_text (desde text.content). El OUTBOX
+// sigue mandando el patch ORIGINAL a Notion (el caller pasa body.properties crudo a enqueueOutbox).
+export function normalizePatchForRaw(patch) {
+  const out = {};
+  for (const [k, v] of Object.entries(patch || {})) {
+    if (v && Array.isArray(v.title)) {
+      out[k] = { ...v, title: v.title.map(x => ({ type: 'text', ...x, plain_text: x?.plain_text ?? x?.text?.content ?? '' })) };
+    } else if (v && Array.isArray(v.rich_text)) {
+      out[k] = { ...v, rich_text: v.rich_text.map(x => ({ type: 'text', ...x, plain_text: x?.plain_text ?? x?.text?.content ?? '' })) };
+    } else {
+      out[k] = v; // select/date/multi_select/relation/number/url/checkbox: formato write == lo que lee el front
+    }
+  }
+  return out;
+}
+
 // Merge atómico del PATCH parcial sobre la fila del espejo (RPC merge_props). Sin lost-update (todo en la base).
 // Devuelve { ok, found, raw }: found=false si el notion_id no existe en el espejo → el caller cae a Notion-first.
 export async function mergeProps(table, notionId, patch) {
   if (!supafirstConfigured()) return { ok: false, found: false, reason: 'config' };
   const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/merge_props`, {
     method: 'POST', headers: _H(),
-    body: JSON.stringify({ p_table: table, p_notion_id: notionId, p_patch: patch }),
+    body: JSON.stringify({ p_table: table, p_notion_id: notionId, p_patch: normalizePatchForRaw(patch) }),
   });
   if (!r.ok) { const detail = await r.text().catch(() => ''); return { ok: false, found: false, status: r.status, detail: detail.slice(0, 200) }; }
   const raw = await r.json().catch(() => null); // la RPC devuelve el raw mergeado, o null si 0 filas
