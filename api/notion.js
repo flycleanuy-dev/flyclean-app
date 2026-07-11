@@ -16,6 +16,7 @@ const MIRROR_TIMEOUT_MS = 2500;
 // al branch → comportamiento idéntico a 3a.1). Prender una tabla: setear el env + correr la migración +
 // sacar la tabla del cron-db-sync. Rollback = sacar la tabla del CSV.
 const SUPAFIRST = supafirstSet();
+const SUPAFIRST_VERBOSE = process.env.SUPAFIRST_VERBOSE === '1'; // loguea también los OK (verificar el rollout)
 
 // Auth del proxy (#1). MONITOR (false): valida el token y lo reporta en X-Auth, pero NO rechaza.
 // ENFORCE (true): rechaza con 401 los pedidos sin token válido → CIERRA el agujero.
@@ -269,6 +270,7 @@ export default async function handler(req, res) {
         if (mp.ok && mp.found) {
           const eq = await enqueueOutbox(mId[1], resource, body.properties);
           if (eq.ok) {
+            if (SUPAFIRST_VERBOSE) console.log('[supafirst] ok', { id: mId[1], resource });
             // Respuesta con forma de página (raw mergeado) para no romper los call sites que leen updated.properties.
             return res.status(200).json({ object: 'page', id: mId[1], properties: mp.raw, _source: 'supabase-first' });
           }
