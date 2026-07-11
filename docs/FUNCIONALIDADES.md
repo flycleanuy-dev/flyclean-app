@@ -760,3 +760,8 @@ _Generado automáticamente del código (workflow `inventario-funcionalidades`). 
   `isAppAdmin`): fila a Cuentas de acceso (`amGoCuentas` → CEO→Equipo, await sin race) + panel 📬 destinatarios
   (`loadEmailRecipients`/`recAdd`/`recRemove`/`saveRecipients` → `/api/email-recipients` admin-only server-side;
   crons leen KV con fallback a constantes). Botones 🔑 de headers eliminados (viven en el menú). i18n es/pt.
+- **Login v2 sin lista de usuarios (v155, 2026-07-11)**: `renderLogin` = campo "Nombre de usuario o email" +
+  PIN + Entrar (ya NO se listan los usuarios del país). `resolveLoginUser` (matching tolerante case/acentos
+  dentro del país: nombre completo → primer nombre único → prefijo único ≥3 → id → email), `loginSubmit`
+  (error GENÉRICO anti-enumeración), `completarLogin` (camino único post-auth, compartido con el re-PIN 8h de
+  screen-pin que sigue igual). PINs/verify-pin intactos; USERS/roster igual (el matching es client-side).
