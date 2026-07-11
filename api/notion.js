@@ -364,6 +364,16 @@ export default async function handler(req, res) {
       return res.status(200).json({ object: 'list', results: allResults, has_more: truncated });
     }
 
+    // Diagnóstico: un WRITE (PATCH/POST pages) rechazado por Notion con 4xx queda logueado con su motivo —
+    // sin esto, el usuario ve "API error 400" y en los logs solo el status (imposible diagnosticar).
+    if (response.status >= 400 && response.status < 500
+        && (httpMethod === 'PATCH' || (httpMethod === 'POST' && endpointNorm === 'pages'))) {
+      console.warn('[proxy] notion 4xx en write', JSON.stringify({
+        endpoint: endpointNorm, method: httpMethod, status: response.status,
+        code: data?.code, message: String(data?.message || '').slice(0, 300),
+      }));
+    }
+
     // Fases 3a.1/3a.2 — post-write en el espejo (best-effort, NO altera la respuesta ni el guardado en Notion).
     // Para tablas NO flipeadas (3a.1): upsert de la página completa devuelta. Para tablas FLIPEADAS (3a.2):
     // Notion puede estar ATRASADO (outbox sin drenar) → NUNCA página completa; solo el delta de este request

@@ -4206,7 +4206,12 @@ async function callNotion(endpoint, method = 'GET', body = null) {
     body: JSON.stringify({ endpoint, method, body })
   });
   if (response.status === 401) { forceRelogin(); throw new Error('Sesión expirada'); }
-  if (!response.ok) throw new Error('API error ' + response.status);
+  if (!response.ok) {
+    // Incluir el MOTIVO de Notion/proxy en el error (antes solo "API error 400" → imposible diagnosticar).
+    let motivo = '';
+    try { const j = await response.json(); motivo = j?.message || j?.error || ''; } catch (_) {}
+    throw new Error('API error ' + response.status + (motivo ? ': ' + String(motivo).slice(0, 140) : ''));
+  }
   captureRenewedToken(response);
   return response.json();
 }
