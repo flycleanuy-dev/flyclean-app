@@ -131,3 +131,43 @@ SOLO log, decidir en el flip si se enforcea; puede haber ayudantes legítimos). 
 **Tests de permisos**: `npm test` incluye `tests/permisos.mjs` (sin token→401 + backstop Ventas +
 casos por rol). Los casos autenticados necesitan la clave de firma real:
 `CRON_SECRET=<valor de Vercel> node tests/permisos.mjs`. Al prender enforce, flipear `EXPECT_ENFORCE=true`.
+
+---
+
+## Supabase-first (Fase 3a — VIVO en `servicios` desde 2026-07-11)
+
+**Qué es:** las EDICIONES (PATCH) de las tablas listadas en el env `SUPAFIRST_TABLES` (CSV) guardan PRIMERO en
+el espejo Supabase (RPC `merge_props`, merge atómico `raw||patch` normalizado) y la propagación a Notion es
+async vía la tabla `outbox_notion`, drenada por `api/cron-outbox.js` (cron cada 1 min, coalescing por página,
+retry con backoff, veneno a los 8 intentos → `status='error'`). Las lecturas `pages/{id}` de tablas flipeadas
+también se sirven del espejo. Los creates siguen Notion-first + mirror (hasta 3b). Notion queda DOWNSTREAM:
+puede caerse o romperse sin frenar a la app.
+
+**Estado actual:** `SUPAFIRST_TABLES=servicios` · `MIRROR_ON_WRITE=1` (espejo garantizado para el resto) ·
+`SUPAFIRST_VERBOSE=1` (log `[supafirst] ok` por guardado — quitar cuando termine la convivencia).
+
+**Monitoreo (convivencia):**
+```
+vercel -Q ~/.config/vercel-flyclean logs <deploy-prod> --json | grep -E '\[supafirst\]|\[mirror\]|\[outbox\]'
+```
+- `[supafirst] ok` = guardado por el camino nuevo (esperado). `fail/error/notfound/enqueue` = cayó a
+  Notion-first (el fallback aplica solo el DELTA al espejo — sin data-loss); investigar si se repite.
+- Veneno del outbox: filas `status='error'` en `outbox_notion` (SQL editor) = ediciones que no llegaron a
+  Notion (la app NO se entera; Notion queda atrás). Revisar `last_error`.
+
+**Rollback (por tabla, sin deploy):** 1) verificar outbox drenado (0 `pending` de esa tabla en `outbox_notion`);
+2) quitar la tabla del env `SUPAFIRST_TABLES` + redeploy → vuelve Notion-first+mirror y `cron-db-sync` re-incluye
+la tabla automáticamente (mismo env). NUNCA rollback con outbox pendiente (se perdería lo no propagado).
+
+**Antes de flipear la PRÓXIMA tabla (clientes → propuestas):**
+1. Aplicar el patrón F1 ("escribir solo lo que cambió") a `saveContactEdit`/`savePropEdit` — el echo-back de
+   fallbacks existe ahí y hoy es inocuo solo porque van Notion-first.
+2. Construir la reconciliación segura (M1): job que solo INSERTA filas faltantes / repara por
+   `last_edited_time`, jamás pisa `raw` fresco.
+3. Review adversarial del delta + verificación en vivo como se hizo con servicios.
+4. Gastos/Ingresos NO se flipean (canal del cowork en Notion) hasta renegociar CONTRATO-NOTION (3b).
+
+**Lección del incidente 2026-07-11 (formato write vs read):** el front escribe `title/rich_text` SIN
+`plain_text`; el espejo debe normalizar SIEMPRE (`normalizePatchForRaw` en `api/_lib/supafirst.js`). Si una
+etiqueta aparece vacía/"Sin nombre" tras un guardado, revisar esa normalización primero. Y la regla F1: los
+sheets escriben SOLO campos modificados — una lectura rota jamás re-escribe fallbacks como datos.

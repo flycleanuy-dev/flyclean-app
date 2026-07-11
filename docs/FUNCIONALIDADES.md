@@ -5,8 +5,9 @@
 > **ANTES de construir/proponer algo: buscalo acá + grep del código. Reusar > reconstruir** (ya
 > duplicamos 2 veces: Clientes/Contactos y PINs). Mantenerlo: actualizar este archivo tras cada feature
 > (junto al bump de `sw.js`). Complementa a `ARQUITECTURA.md` (cómo está construido), `NOTION.md`
-> (datos) y `RUNBOOK.md` (operar/deploy). **Última actualización: 2026-07-10, sw v151** (CRM interconectado
-> v147 + snooze de recontacto por fecha v151 — secciones al final) — el detalle de cada
+> (datos) y `RUNBOOK.md` (operar/deploy). **Última actualización: 2026-07-11, sw v153** (CRM interconectado
+> v147 · snooze de recontacto v151 · diagnóstico de errores con motivo v152 · Supabase-first SERVICIOS vivo +
+> regla "escribir solo lo que cambió" v153 — ver RUNBOOK §Supabase-first) — el detalle de cada
 > release está en las secciones fechadas al final (llegan hasta v133). Hito documentado de **sectores** (sw v93):
 > fix del selector "Operario manual" (botón +nuevo + el piloto aparece) + lista reusable de **sectores** en la
 > ficha del cliente (CRUD) y **selección de sectores** en el servicio/prueba/relevamiento. **Fase 2**: el operario

@@ -92,7 +92,18 @@ Base nueva levantada en paralelo: `db/schema.sql` (14 tablas; cada fila con `not
 - Cada paso detrás de flag, reversible, con Notion de respaldo. **Los writes siguen en Notion hasta la Fase 3.**
 - No se toca **El Parrillero**. Nada de lo del **31/7** se rompe. Secretos solo en `.env.local`/Vercel, nunca en el repo.
 
-## Estado actual (2026-07-09)
-- Fase 1: ✅ completa (27/06) · Fase 2: ✅ completa (01-02/07, lecturas + writesync + RLS en prod) ·
-  **Fase 3: APROBADA con fechas** (3.0 el 10-11/07 · 3a el 16-19/07 · 3.M el 19-24/07 · 3b hasta ~08/08) ·
-  Fase 4: tras el cierre de Fase 3.
+## Estado actual (2026-07-11)
+- Fase 1: ✅ completa (27/06) · Fase 2: ✅ completa (01-02/07, lecturas + writesync + RLS en prod).
+- **Etapa 3.0: ✅ COMPLETA (10-11/07)** — usuarios sin deploy (tabla `usuarios` + alta/baja con historial +
+  reactivar, `USERS_FROM_DB=1`) + candado `ENFORCE_PERMS=1` prendido y verificado.
+- **Etapa 3a: ✅ ADELANTADA Y VIVA (10-11/07, antes de lo planificado)** —
+  · 3a.1 espejo garantizado server-side (`MIRROR_ON_WRITE=1`): todo write exitoso a Notion se refleja al
+    instante en Supabase desde el proxy (cerró los huecos de syncAfterWrite).
+  · 3a.2 Supabase-first **VIVO en `servicios`** (`SUPAFIRST_TABLES=servicios`): las ediciones guardan primero
+    en el espejo (RPC `merge_props` + normalización de formato) y Notion se actualiza async vía `outbox_notion`
+    + `api/cron-outbox.js` (1 min). Lecturas `pages/{id}` de tablas flipeadas también del espejo. Ciclo
+    verificado de punta a punta en prod. Operativa/rollback/monitoreo: ver `docs/RUNBOOK.md` §Supabase-first.
+  · Antes de flipear clientes/propuestas: patrón F1 en sus sheets + reconciliación segura (M1) + review.
+  · Gastos/Ingresos quedan en 3a.1 (cowork) hasta 3b.
+- Etapa 3.M (partir el código) y 3b (creates + relaciones): según fechas del plan (19-24/07 y 24/07→08/08).
+- Fase 4: tras el cierre de Fase 3.
