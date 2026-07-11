@@ -5,7 +5,9 @@
 // Test manual: ?tipo=viernes|lunes  ·  ?to=<email> (override, gated por CRON_SECRET)
 import { queryAll } from './_lib/notion.js';
 import { sendEmail, emailLayout } from './_lib/email.js';
+import { getRecipients } from './_lib/recipients.js';
 
+// Fallback histórico si la lista editable (⚙️ Configuración → 📬 Destinatarios) está vacía o KV caído.
 const CEO_EMAIL = 'ihodieego@gmail.com';
 const SERVICIOS_DB = 'ccaf276c7f6a460caeb3d2800deab2e5';
 const PROPUESTAS_DB = '2c0a4257f4294941b994dfebc1098633';
@@ -110,8 +112,11 @@ export default async function handler(req, res) {
         section(`📋 Servicios sin operario (${svcSinOp.length})`) + (svcSinOp.length ? svcSinOp.map(s => svcCard(s)).join('') : empty('Todos asignados ✅'));
     }
 
-    const emailRes = await sendEmail({ to: toOverride || CEO_EMAIL, subject, html: emailLayout(subject, body) });
-    return res.status(200).json({ ok: true, tipo, to: toOverride || CEO_EMAIL, svcDone: svcDone.length, svcSinOp: svcSinOp.length, svcProximos: svcProximos.length, recontactar: recontactar.length, email: emailRes });
+    // Destinatarios: ?to= (test manual) > lista editable de la app (KV) > fallback histórico.
+    const listaKV = toOverride ? null : await getRecipients(tipo === 'viernes' ? 'semanal' : 'lunes');
+    const to = toOverride || listaKV || CEO_EMAIL;
+    const emailRes = await sendEmail({ to, subject, html: emailLayout(subject, body) });
+    return res.status(200).json({ ok: true, tipo, to, svcDone: svcDone.length, svcSinOp: svcSinOp.length, svcProximos: svcProximos.length, recontactar: recontactar.length, email: emailRes });
   } catch (e) {
     console.error('[cron-report]', e);
     return res.status(500).json({ error: String(e.message || e) });

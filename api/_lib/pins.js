@@ -10,7 +10,8 @@ const KV_TOKEN = process.env.KV_REST_API_TOKEN || '';
 export function kvConfigured() { return !!(KV_URL && KV_TOKEN); }
 
 // Upstash REST: POST <url> con body ["CMD", arg, ...] y Authorization: Bearer <token>.
-async function kvCmd(cmd) {
+// Exportado: también lo usa api/_lib/recipients.js (destinatarios de reportes) — mismo KV, mismo patrón.
+export async function kvCmd(cmd) {
   const r = await fetch(KV_URL, {
     method: 'POST',
     headers: { Authorization: `Bearer ${KV_TOKEN}`, 'Content-Type': 'application/json' },

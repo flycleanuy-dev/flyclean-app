@@ -12,8 +12,10 @@
 // 3) Email a Federico (+ Diego en copia) SOLO si hay novedades.
 import { queryAll, updatePage } from './_lib/notion.js';
 import { sendEmail, emailLayout } from './_lib/email.js';
+import { getRecipients } from './_lib/recipients.js';
 
 const PROPUESTAS_DB = '2c0a4257f4294941b994dfebc1098633';
+// Fallback histórico si la lista editable (⚙️ Configuración → 📬 Destinatarios) está vacía o KV caído.
 const COORD_EMAIL = 'federicomaciel939@gmail.com';
 const CEO_EMAIL = 'ihodieego@gmail.com';
 
@@ -105,8 +107,10 @@ export default async function handler(req, res) {
       const body = btn +
         (nuevasRecontacto.length ? `<p><b>📞 Para re-contactar (${nuevasRecontacto.length})</b></p><ul>${li(nuevasRecontacto)}</ul>` : '') +
         (movidas.length ? `<p><b>😶 Movidas a "Sin respuesta" automáticamente (${movidas.length})</b></p><ul>${li(movidas)}</ul>` : '');
+      // Destinatarios: lista editable de la app (KV) > fallback histórico (Federico + Diego).
+      const listaKV = await getRecipients('pipeline');
       await sendEmail({
-        to: [COORD_EMAIL, CEO_EMAIL],
+        to: listaKV || [COORD_EMAIL, CEO_EMAIL],
         subject: `FlyClean · Pipeline: ${nuevasRecontacto.length} para re-contactar, ${movidas.length} movidas`,
         html: emailLayout('Novedades del pipeline de propuestas', body),
       });
