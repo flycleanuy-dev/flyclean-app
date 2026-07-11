@@ -191,3 +191,12 @@ El chip de usuario (los 4 headers) abre `account-menu-overlay`: Cambiar PIN · I
 Cambiar región (confirma) · Buscar actualización · ⚙️ Configuración (solo `isAppAdmin`, acoplado a env
 `ADMIN_IDS` — si se cambia la env, actualizar `isAppAdmin()` en index.html) · **Cerrar sesión (confirma)**.
 Ya NO existe logout directo de un toque (chips, ← Finanzas, ← CEO puro → todos abren el menú).
+
+## Configuración del negocio (⚙️ → Reglas/Checklist/WhatsApp, 2026-07-11)
+
+Reglas (umbrales de días), checklist del operario y plantillas de WhatsApp son EDITABLES por admins
+(`ADMIN_IDS`) en ⚙️ Configuración. Storage: KV `config:app:v1` (endpoint `api/app-config.js`).
+**Fail-safe total**: KV vacío/caído → el front usa `APP_CFG_DEFAULTS` + las listas de código, y
+`cron-pipeline` sus consts 15/45 — borrar la clave KV = volver al comportamiento histórico (rollback
+instantáneo sin deploy). El front carga la config al login (`loadAppConfig`, timeout 3s). Los cambios de
+reglas aplican al instante en la app y en la PRÓXIMA corrida del cron diario.

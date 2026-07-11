@@ -5,7 +5,7 @@
 > **ANTES de construir/proponer algo: buscalo acá + grep del código. Reusar > reconstruir** (ya
 > duplicamos 2 veces: Clientes/Contactos y PINs). Mantenerlo: actualizar este archivo tras cada feature
 > (junto al bump de `sw.js`). Complementa a `ARQUITECTURA.md` (cómo está construido), `NOTION.md`
-> (datos) y `RUNBOOK.md` (operar/deploy). **Última actualización: 2026-07-11, sw v154** (CRM interconectado
+> (datos) y `RUNBOOK.md` (operar/deploy). **Última actualización: 2026-07-11, sw v156** (CRM interconectado
 > v147 · snooze de recontacto v151 · diagnóstico de errores con motivo v152 · Supabase-first SERVICIOS vivo +
 > regla "escribir solo lo que cambió" v153 — ver RUNBOOK §Supabase-first) — el detalle de cada
 > release está en las secciones fechadas al final (llegan hasta v133). Hito documentado de **sectores** (sw v93):
@@ -765,3 +765,14 @@ _Generado automáticamente del código (workflow `inventario-funcionalidades`). 
   dentro del país: nombre completo → primer nombre único → prefijo único ≥3 → id → email), `loginSubmit`
   (error GENÉRICO anti-enumeración), `completarLogin` (camino único post-auth, compartido con el re-PIN 8h de
   screen-pin que sigue igual). PINs/verify-pin intactos; USERS/roster igual (el matching es client-side).
+- **Configuración del negocio editable (v156, 2026-07-11)**: los 4 puntos del mapa "depende del código" que
+  Diego priorizó. ⚙️ Configuración suma 3 cards (render `renderAppCfgUI`, storage KV `config:app:v1` vía
+  `/api/app-config` — GET cualquier sesión, POST solo ADMIN_IDS, validación estricta en `api/_lib/appconfig.js`):
+  (a) **⏱️ Reglas del negocio**: `cfgRegla(k)` reemplazó las constantes en los 6 puntos de consumo
+  (mantenimiento 270d, snooze Ventas 60d, prospección 7d, aviso 15d ×2, reloj de vida 45d) y `cron-pipeline`
+  lee `getReglas()` — fallback SIEMPRE a los defaults históricos; (b) **✅ Checklist del operario** (pre/post,
+  1 ítem por línea): `CHECKLIST_PRE/POST` ahora `let`, pisadas por `loadAppConfig()` al login (timeout 3s
+  anti lie-fi), render con `esc()`, guard `_ckAligned` descarta ticks por índice fuera de rango;
+  (c) **💬 Plantillas WhatsApp** por idioma: `cfgWa(k)` en los 3 call sites, fallback i18n, siguen por
+  encodeURIComponent. Además (d) **✏️ editar usuario** en Cuentas de acceso (`toggleEditUser`/`adminEditUser`
+  → admin-set-user `upsert:true`; anti-lockout: un admin no se quita Dirección/CEO a sí mismo).
