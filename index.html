@@ -11161,7 +11161,9 @@ async function openEditSheet(pageId) {
   }
   if (!editingService) return;
   const props = editingService.properties || {};
-  const nombre = props['Nombre del servicio']?.title?.[0]?.plain_text || t('common.sinnombre');
+  // SIN fallback de display acá (fix F1, incidente 2026-07-11): si el título no se puede leer, nombre = ''.
+  // Antes caía a t('common.sinnombre') y saveServiceEdit ESCRIBÍA ese literal como nombre real del servicio.
+  const nombre = props['Nombre del servicio']?.title?.[0]?.plain_text || '';
   const fecha = props['Fecha programada']?.date?.start || '';
   const estadoActual = props['Estado']?.select?.name || '';
   const operarioApp = props['Operario App']?.select?.name || '';
@@ -11193,7 +11195,14 @@ async function openEditSheet(pageId) {
     tipoServicios: tipoServicioList(props), // multi: un servicio puede ser Fachada + Vidrios (+ Paneles)
     notasPreServicio: props['Notas pre-servicio']?.rich_text?.[0]?.plain_text || '',
     observacionCliente: props['Observación cliente']?.rich_text?.[0]?.plain_text || '' };
-  document.getElementById('edit-sheet-title').textContent = nombre;
+  // Originales (fix F1): los campos de texto/sectores se ESCRIBEN solo si cambiaron — así una lectura rota
+  // (raw sin plain_text) jamás puede pisar el dato bueno al guardar otra cosa (ej. asignar piloto).
+  editState._nombreOrig = nombre;
+  editState._lugarOrig = editState.lugar || '';
+  editState._notasPreOrig = editState.notasPreServicio || '';
+  editState._obsCliOrig = editState.observacionCliente || '';
+  editState._sectoresOrigJson = JSON.stringify((editState.sectores || []).map(x => ({ id: x.id, nombre: String(x.nombre || '').trim(), estado: x.estado || 'pendiente' })).filter(x => x.nombre));
+  document.getElementById('edit-sheet-title').textContent = nombre || t('common.sinnombre');
   const dateLocale = currentLang === 'pt-BR' ? 'pt-BR' : 'es-UY';
   document.getElementById('edit-sheet-sub').textContent = fecha ? new Date(fecha + 'T00:00:00').toLocaleDateString(dateLocale, { weekday: 'long', day: 'numeric', month: 'long' }) : t('sheet.alert.fecha');
   const estados = ['📋 Pendiente', '🔄 Asignado', '✈️ En curso', '✅ Completado', '❌ Cancelado'];
@@ -11208,7 +11217,7 @@ async function openEditSheet(pageId) {
   if (tsEl) tsEl.innerHTML = TIPOS_SVC_EDIT.map(o => `<button class="estado-btn ${editState.tipoServicios.includes(o) ? 'active' : ''}" onclick="selectEditTipoServicio('${o.replace(/'/g,"\\'")}')">${o}</button>`).join('');
   const npEl = document.getElementById('edit-notaspre'); if (npEl) npEl.value = editState.notasPreServicio || '';
   const ocEl = document.getElementById('edit-obscliente'); if (ocEl) ocEl.value = editState.observacionCliente || '';
-  const nombreInput = document.getElementById('edit-nombre'); if (nombreInput) nombreInput.value = nombre;
+  const nombreInput = document.getElementById('edit-nombre'); if (nombreInput) { nombreInput.value = nombre; nombreInput.placeholder = t('common.sinnombre'); }
   document.getElementById('edit-save-btn').textContent = t('btn.save.notion');
   document.getElementById('edit-save-btn').disabled = false;
   const esFin = !!(currentUser?.role && currentUser.role.includes('Administración'));
@@ -11915,8 +11924,10 @@ async function saveServiceEdit() {
   try {
     const props = {};
     const nombreSvc = String(editState.nombre || '').trim();
-    if (!nombreSvc) { btn.textContent = t('btn.save.notion'); btn.disabled = false; alert('El nombre del servicio no puede quedar vacío.'); return; }
-    props['Nombre del servicio'] = { title: [{ text: { content: nombreSvc } }] };
+    // Fix F1: el título se escribe SOLO si hay texto. Bloquear únicamente si el usuario BORRÓ un nombre que
+    // existía; si la lectura vino rota (nombre vacío de origen), se puede guardar el resto sin tocar el título.
+    if (!nombreSvc && editState._nombreOrig) { btn.textContent = t('btn.save.notion'); btn.disabled = false; alert('El nombre del servicio no puede quedar vacío.'); return; }
+    if (nombreSvc && nombreSvc !== editState._nombreOrig) props['Nombre del servicio'] = { title: [{ text: { content: nombreSvc } }] };
     if (editState.estado) props['Estado'] = { select: { name: editState.estado } };
     if (editState.fecha) props['Fecha programada'] = { date: { start: editState.fecha } };
     // Hora Inicio: combinar fecha + hora en ISO con time. Si no hay hora, limpiar la property.
@@ -11926,7 +11937,8 @@ async function saveServiceEdit() {
     } else if (!editState.hora) {
       props['Hora Inicio'] = { date: null };
     }
-    props['Lugar'] = editState.lugar ? { rich_text: [{ text: { content: editState.lugar } }] } : { rich_text: [] };
+    if ((editState.lugar || '') !== editState._lugarOrig) // fix F1: solo si cambió (una lectura rota no borra el dato)
+      props['Lugar'] = editState.lugar ? { rich_text: [{ text: { content: editState.lugar } }] } : { rich_text: [] };
     props['Mapa'] = editState.mapa ? { url: editState.mapa } : { url: null };
     props['Operario App'] = editState.operario ? { select: { name: editState.operario } } : { select: null };
     props['Piloto'] = editState.piloto ? { select: { name: editState.piloto } } : { select: null };
@@ -11952,7 +11964,9 @@ async function saveServiceEdit() {
       const secs = (Array.isArray(editState.sectores) ? editState.sectores : [])
         .map(x => ({ id: x.id, nombre: String(x.nombre || '').trim(), estado: x.estado || 'pendiente' }))
         .filter(x => x.nombre);
-      props['Estado sectores'] = { rich_text: secs.length ? [{ text: { content: JSON.stringify(secs) } }] : [] };
+      // Fix F1: solo si cambió — una lectura rota del JSON (→ []) no debe BORRAR los sectores al guardar otra cosa.
+      if (JSON.stringify(secs) !== editState._sectoresOrigJson)
+        props['Estado sectores'] = { rich_text: secs.length ? [{ text: { content: JSON.stringify(secs) } }] : [] };
     }
     // Si se agregó un sector nuevo desde el servicio, persistirlo a la lista reusable del cliente.
     if (editState._sectoresClienteDirty && editState.contactoId && editState._sectoresClienteLoaded) {
@@ -11966,8 +11980,10 @@ async function saveServiceEdit() {
     }
     // multi_select desde 2026-07-04 (antes select). Se escribe SIEMPRE: array vacío = limpiar el campo.
     props['Tipo de servicio'] = { multi_select: (editState.tipoServicios || []).map(name => ({ name })) };
-    props['Notas pre-servicio'] = editState.notasPreServicio ? { rich_text: [{ text: { content: editState.notasPreServicio } }] } : { rich_text: [] };
-    props['Observación cliente'] = editState.observacionCliente ? { rich_text: [{ text: { content: editState.observacionCliente } }] } : { rich_text: [] };
+    if ((editState.notasPreServicio || '') !== editState._notasPreOrig) // fix F1: solo si cambió
+      props['Notas pre-servicio'] = editState.notasPreServicio ? { rich_text: [{ text: { content: editState.notasPreServicio } }] } : { rich_text: [] };
+    if ((editState.observacionCliente || '') !== editState._obsCliOrig) // fix F1: solo si cambió
+      props['Observación cliente'] = editState.observacionCliente ? { rich_text: [{ text: { content: editState.observacionCliente } }] } : { rich_text: [] };
     // Cliente (R2): si se cambió desde el selector, resolver/crear y setear la relación Contacto del servicio.
     // Si resolveOrCreateClienteId devuelve null (nada ingresado), NO tocamos Contacto → no borra el existente.
     let _assignedCid = null;
