@@ -88,6 +88,7 @@ export const DB = {
   propuestas:    '2c0a4257f4294941b994dfebc1098633',
   contactos:     '250115612de74e0582366549bbe5e389',
   activos:       'e75449eeb78143f1b74006a4796c1f95',
+  activosDs:     'c3cf41a0a16041668d3d1bbd90af45ff', // data source de Activos (módulo 🔧 Equipos crea con data_source_id)
   equipo:        'cfff6e26dbc84eedb7eabcb6c51db1eb',
   regTiempo:     '57bc613af5d04908a9f2342cf6a1a5a7',
   solicitudesDb: '0f5cd38362ab430293a5dec7140ac18f',
@@ -106,7 +107,9 @@ export const PERMISOS = {
     query: [DB.serviciosDb, DB.propuestas, DB.contactos, DB.ingresosDb, DB.gastosDb,
             DB.solicitudesDb, DB.activos, DB.regTiempo, DB.documentosDb],
     create: [DB.serviciosDb, DB.serviciosDs, DB.contactos, DB.propuestas,
-             DB.gastosDb, DB.gastosDs, DB.solicitudesDb, DB.solicitudesDs, DB.regTiempo],
+             DB.gastosDb, DB.gastosDs, DB.solicitudesDb, DB.solicitudesDs, DB.regTiempo,
+             // Módulo 🔧 Equipos (v167): alta de activo + check mensual/service/estado (PATCH pages de Activos)
+             DB.activos, DB.activosDs],
     search: false,
   },
   'Operario': {
