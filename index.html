@@ -16508,7 +16508,11 @@ function amHelp() { closeAccountMenu(); openHelpSheet(); }
 // preparación → la hoja de ayuda muestra solo los que EXISTEN (nada de links rotos). `roles` = a qué roles
 // les aparece destacado por ser el suyo (igual todos pueden abrir cualquiera).
 const MANUALES = [
-  { file: '/docs/manuales/Manual_Ventas_v2.pdf', label: 'Manual de Ventas y Prospección', roles: ['Ventas', 'Dirección', 'CEO'] },
+  { file: '/docs/manuales/Manual_Operario_v3.pdf', label: 'Manual del Operario', roles: ['Operario'] },
+  { file: '/docs/manuales/Manual_Coordinador_v3.pdf', label: 'Manual del Coordinador', roles: ['Coordinador'] },
+  { file: '/docs/manuales/Manual_CEO_v1.pdf', label: 'Manual del CEO / Dirección', roles: ['CEO', 'Dirección'] },
+  { file: '/docs/manuales/Manual_Finanzas_v1.pdf', label: 'Manual de Finanzas', roles: ['Administración'] },
+  { file: '/docs/manuales/Manual_Ventas_v3.pdf', label: 'Manual de Ventas y Prospección', roles: ['Ventas'] },
 ];
 function openHelpSheet() {
   const body = document.getElementById('help-body');
