@@ -1979,8 +1979,6 @@ const TRANSLATIONS = {
     'prop.pdf.btn': 'Generar propuesta PDF',
     'help.title': '📖 Ayuda y manuales',
     'help.sub': 'Guías de uso de la app.',
-    'help.yours': '· el tuyo',
-    'help.more': 'Más manuales (Operario, Coordinador) en preparación.',
     'am.confirm.logout': '¿Cerrar sesión?',
     'am.confirm.region': 'Vas a salir de tu sesión y volver a la selección de país. ¿Continuar?',
     'cfg.title': '⚙️ Configuración',
@@ -2865,8 +2863,6 @@ const TRANSLATIONS = {
     'prop.pdf.btn': 'Gerar proposta PDF',
     'help.title': '📖 Ajuda e manuais',
     'help.sub': 'Guias de uso do app.',
-    'help.yours': '· o seu',
-    'help.more': 'Mais manuais (Operador, Coordenador) em preparação.',
     'am.confirm.logout': 'Sair da conta?',
     'am.confirm.region': 'Você vai sair da sessão e voltar à seleção de país. Continuar?',
     'cfg.title': '⚙️ Configurações',
@@ -16518,11 +16514,14 @@ function openHelpSheet() {
   const body = document.getElementById('help-body');
   const rol = currentUser?.role || '';
   const mine = (m) => m.roles.some(r => rol.includes(r));
-  const items = MANUALES.slice().sort((a, b) => (mine(b) ? 1 : 0) - (mine(a) ? 1 : 0));
+  // Cada rol ve SOLO su manual (pedido de Diego). Fallback defensivo: si un rol no tuviera manual asignado,
+  // se muestran todos para que nadie quede sin ayuda.
+  let items = MANUALES.filter(mine);
+  if (!items.length) items = MANUALES.slice();
   body.innerHTML = items.map(m =>
     '<div class="am-row" style="border:1px solid var(--border2);border-radius:12px;margin-bottom:8px" onclick="window.open(\'' + m.file + '\',\'_blank\')">' +
-    '<span class="am-ic">📄</span><span class="am-lbl">' + esc(m.label) + (mine(m) ? ' <small style="color:var(--accent,#00C98D)">' + esc(t('help.yours')) + '</small>' : '') + '</span><span class="am-chev">↗</span></div>'
-  ).join('') + '<div style="font-size:12px;color:var(--text3);padding:6px 2px">' + esc(t('help.more')) + '</div>';
+    '<span class="am-ic">📄</span><span class="am-lbl">' + esc(m.label) + '</span><span class="am-chev">↗</span></div>'
+  ).join('');
   document.getElementById('help-version').textContent = 'FlyClean v' + APP_VERSION;
   document.getElementById('help-overlay').classList.add('open');
 }
