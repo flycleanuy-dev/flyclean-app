@@ -5,7 +5,7 @@
 > **ANTES de construir/proponer algo: buscalo acá + grep del código. Reusar > reconstruir** (ya
 > duplicamos 2 veces: Clientes/Contactos y PINs). Mantenerlo: actualizar este archivo tras cada feature
 > (junto al bump de `sw.js`). Complementa a `ARQUITECTURA.md` (cómo está construido), `NOTION.md`
-> (datos) y `RUNBOOK.md` (operar/deploy). **Última actualización: 2026-07-12, sw v163** (CRM interconectado
+> (datos) y `RUNBOOK.md` (operar/deploy). **Última actualización: 2026-07-12, sw v164** (CRM interconectado
 > v147 · snooze de recontacto v151 · diagnóstico de errores con motivo v152 · Supabase-first SERVICIOS vivo +
 > regla "escribir solo lo que cambió" v153 — ver RUNBOOK §Supabase-first) — el detalle de cada
 > release está en las secciones fechadas al final (llegan hasta v133). Hito documentado de **sectores** (sw v93):
@@ -805,3 +805,10 @@ _Generado automáticamente del código (workflow `inventario-funcionalidades`). 
   `applyCoordFilters`). La lógica de filtrado quedó INTACTA (mismos coordFilters/applyCoordFilters). El mes
   quedó como fila (lo usa también Resumen — desvío consciente del mockup). Alta de Francarlos Velázquez
   (operario/piloto, v162) en USERS; el alta efectiva login+PIN la hace un admin en ⚙️ Cuentas.
+- **📋 Mi historial de trabajos (v164, 2026-07-12)**: fila en el menú ⋯ (solo roles de campo) → sheet
+  `historial-overlay`: métricas Este mes/Total (servicios, jornales = órdenes+jornadas, tiempo efectivo por
+  Hora Inicio/Fin Efectivo) + lista SOLO LECTURA con el ROL de la persona en cada servicio (`participaEn`:
+  encargado/piloto/manual/ayudante). IMPOSIBLE reabrir/tocar desde ahí; única escritura = "📝 Mi nota"
+  (`histSaveNota` → PATCH exclusivo de `Notas post-servicio`). Datos: fetch directo al proxy (el /api/db
+  filtra al operario solo-encargado; acá se necesita TODA la participación) + filtro país client-side.
+  Base futura del cálculo de jornales (fase Finanzas).
