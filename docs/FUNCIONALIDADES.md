@@ -5,7 +5,7 @@
 > **ANTES de construir/proponer algo: buscalo acá + grep del código. Reusar > reconstruir** (ya
 > duplicamos 2 veces: Clientes/Contactos y PINs). Mantenerlo: actualizar este archivo tras cada feature
 > (junto al bump de `sw.js`). Complementa a `ARQUITECTURA.md` (cómo está construido), `NOTION.md`
-> (datos) y `RUNBOOK.md` (operar/deploy). **Última actualización: 2026-07-12, sw v160** (CRM interconectado
+> (datos) y `RUNBOOK.md` (operar/deploy). **Última actualización: 2026-07-12, sw v163** (CRM interconectado
 > v147 · snooze de recontacto v151 · diagnóstico de errores con motivo v152 · Supabase-first SERVICIOS vivo +
 > regla "escribir solo lo que cambió" v153 — ver RUNBOOK §Supabase-first) — el detalle de cada
 > release está en las secciones fechadas al final (llegan hasta v133). Hito documentado de **sectores** (sw v93):
@@ -798,3 +798,10 @@ _Generado automáticamente del código (workflow `inventario-funcionalidades`). 
   Generador `scripts/build-manuales-roles.cjs`: Playwright con RED INTERCEPTADA (route + serviceWorkers:block)
   → la app corre real pero /api/* devuelve datos DEMO (sin PINs, sin datos de clientes en capturas, cero
   escritura posible). Login v2 tipeado. Regenerar: `node scripts/build-manuales-roles.cjs [rol]`.
+- **Filtros v2 del coordinador (v163, 2026-07-12)**: mockup aprobado por Diego. Barra compacta (buscador
+  redondeado + ⚙︎ con badge; se fue el <select> de orden) + fila `#coord-chips` con los filtros ACTIVOS como
+  chips removibles (hook en `refreshCoordFilterBadge`) + bottom-sheet `coord-filter-overlay` (patrón
+  edit-overlay) con "Ordenar por" adentro + botón "Ver N resultados" (`_coordFilteredCount` seteado por
+  `applyCoordFilters`). La lógica de filtrado quedó INTACTA (mismos coordFilters/applyCoordFilters). El mes
+  quedó como fila (lo usa también Resumen — desvío consciente del mockup). Alta de Francarlos Velázquez
+  (operario/piloto, v162) en USERS; el alta efectiva login+PIN la hace un admin en ⚙️ Cuentas.
