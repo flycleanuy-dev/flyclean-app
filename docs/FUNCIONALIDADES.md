@@ -5,7 +5,7 @@
 > **ANTES de construir/proponer algo: buscalo acá + grep del código. Reusar > reconstruir** (ya
 > duplicamos 2 veces: Clientes/Contactos y PINs). Mantenerlo: actualizar este archivo tras cada feature
 > (junto al bump de `sw.js`). Complementa a `ARQUITECTURA.md` (cómo está construido), `NOTION.md`
-> (datos) y `RUNBOOK.md` (operar/deploy). **Última actualización: 2026-07-12, sw v164** (CRM interconectado
+> (datos) y `RUNBOOK.md` (operar/deploy). **Última actualización: 2026-07-12, sw v167** (CRM interconectado
 > v147 · snooze de recontacto v151 · diagnóstico de errores con motivo v152 · Supabase-first SERVICIOS vivo +
 > regla "escribir solo lo que cambió" v153 — ver RUNBOOK §Supabase-first) — el detalle de cada
 > release está en las secciones fechadas al final (llegan hasta v133). Hito documentado de **sectores** (sw v93):
@@ -812,3 +812,12 @@ _Generado automáticamente del código (workflow `inventario-funcionalidades`). 
   (`histSaveNota` → PATCH exclusivo de `Notas post-servicio`). Datos: fetch directo al proxy (el /api/db
   filtra al operario solo-encargado; acá se necesita TODA la participación) + filtro país client-side.
   Base futura del cálculo de jornales (fase Finanzas).
+- **🔧 Módulo Equipos/flota v1 (v167, 2026-07-12)**: tab del coordinador (país-scoped; Dirección global;
+  Ventas bloqueada 3 capas) sobre la DB Activos. Lista por tipo con matrícula/estado/km/horas/semáforo de
+  check mensual (>30 días = 🔴). Acciones por equipo: ✅ Check mensual (`eqCheckSave`: km si vehículo, horas
+  si drone, nota → `Último check` + valores + evento en `Historial equipo` JSON cap 100) · 🔧 Service
+  (`Último/Próximo mantenimiento`) · ✏️ editar/estado (allowlist) · 📜 historial · ＋ alta
+  (`data_source_id` ACTIVOS_DS_ID). Permisos: Coordinador.create += activos/activosDs. Alerta
+  "🔧 N equipos sin check mensual" (clickable) + estados reparación/mantenimiento alertan siempre + mapa
+  país global en loadAlerts. Schema Notion +4 props (MCP) + inventario UY cargado (M400, 2×M350, 2 lanzas,
+  H1, Changan Hunter, Trailer c/Ósmosis). Mi historial: sub-línea 🚁 dron · 💪 manual/lanzas.
