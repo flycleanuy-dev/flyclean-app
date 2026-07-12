@@ -2016,8 +2016,8 @@ const TRANSLATIONS = {
     'coord.tab.equipos': '🔧 Equipos',
     'eq.add': '＋ Agregar equipo',
     'eq.empty': 'Sin equipos cargados en tu país.',
-    'eq.sincheck.banner': '{n} equipos sin check este mes — hacé el ✅ Check de cada uno.',
-    'eq.alert.sincheck': '🔧 {n} equipos sin check mensual',
+    'eq.sincheck.banner': '{n} equipos sin check este mes — hacé el ✅ Check y cargá km/horas de cada uno.',
+    'eq.alert.sincheck': '🔧 {n} equipos sin check mensual (cargar km/horas)',
     'eq.check.nunca': 'sin check',
     'eq.check.hace': 'check hace {d} días',
     'eq.sinmatricula': 'sin matrícula',
@@ -2039,6 +2039,9 @@ const TRANSLATIONS = {
     'eq.f.snota': 'Qué se hizo (opcional)',
     'eq.err.tipo': 'Elegí el tipo de equipo.',
     'eq.err.nota': 'Texto inválido (sin < ni >).',
+    'eq.delete.btn': 'Eliminar equipo',
+    'eq.delete.hint': 'Sale de la lista, recuperable 30 días. Para apartarlo sin borrar, usá el estado "Fuera de servicio".',
+    'eq.delete.confirm': 'Eliminar "{name}" de los equipos. Va a la papelera (recuperable 30 días). ¿Eliminar?',
     'hist.stat.contiempo': 'Con tiempo registrado: {n} de {m} servicios.',
     'hist.stat.hint': 'El tiempo se registra cuando el operario aprieta ▶ Iniciar y al finalizar — los servicios viejos sin ese registro no suman. 🚁 Dron usa el Método de trabajo del servicio.',
     'hist.empty': 'Todavía no participaste en ningún servicio.',
@@ -2957,8 +2960,8 @@ const TRANSLATIONS = {
     'coord.tab.equipos': '🔧 Equipamentos',
     'eq.add': '＋ Adicionar equipamento',
     'eq.empty': 'Sem equipamentos cadastrados no seu país.',
-    'eq.sincheck.banner': '{n} equipamentos sem check este mês — faça o ✅ Check de cada um.',
-    'eq.alert.sincheck': '🔧 {n} equipamentos sem check mensal',
+    'eq.sincheck.banner': '{n} equipamentos sem check este mês — faça o ✅ Check e informe km/horas de cada um.',
+    'eq.alert.sincheck': '🔧 {n} equipamentos sem check mensal (informar km/horas)',
     'eq.check.nunca': 'sem check',
     'eq.check.hace': 'check há {d} dias',
     'eq.sinmatricula': 'sem placa',
@@ -2980,6 +2983,9 @@ const TRANSLATIONS = {
     'eq.f.snota': 'O que foi feito (opcional)',
     'eq.err.tipo': 'Escolha o tipo de equipamento.',
     'eq.err.nota': 'Texto inválido (sem < nem >).',
+    'eq.delete.btn': 'Excluir equipamento',
+    'eq.delete.hint': 'Sai da lista, recuperável por 30 dias. Para afastá-lo sem excluir, use o estado "Fora de serviço".',
+    'eq.delete.confirm': 'Excluir "{name}" dos equipamentos. Vai para a lixeira (recuperável 30 dias). Excluir?',
     'hist.stat.contiempo': 'Com tempo registrado: {n} de {m} serviços.',
     'hist.stat.hint': 'O tempo é registrado quando o operador toca ▶ Iniciar e ao finalizar — serviços antigos sem esse registro não somam. 🚁 Drone usa o Método de trabalho do serviço.',
     'hist.empty': 'Você ainda não participou de nenhum serviço.',
@@ -12521,8 +12527,26 @@ function eqEditForm(id) {
     '<input id="eq-emarca-' + esc(id) + '" value="' + esc(marca) + '" maxlength="80" placeholder="' + esc(t('eq.f.marca')) + '" style="' + _eqInp + '">' +
     '<input id="eq-emat-' + esc(id) + '" value="' + esc(matricula) + '" maxlength="40" placeholder="' + esc(t('eq.f.matricula')) + '" style="' + _eqInp + '">' +
     '<select id="eq-eestado-' + esc(id) + '" style="' + _eqInp + '">' + EQ_ESTADOS.map(x => '<option' + (x === estado ? ' selected' : '') + '>' + esc(x) + '</option>').join('') + '</select>' +
-    '<button class="pin-change-btn" style="margin-top:2px" onclick="eqEditSave(\'' + esc(id) + '\', this)">' + esc(t('cfg.user.save')) + '</button></div>';
+    '<button class="pin-change-btn" style="margin-top:2px" onclick="eqEditSave(\'' + esc(id) + '\', this)">' + esc(t('cfg.user.save')) + '</button>' +
+    '<button class="pin-change-link" style="width:100%;text-align:center;color:#e5484d;margin-top:8px" onclick="eqDeleteEquipo(\'' + esc(id) + '\')">🗑️ ' + esc(t('eq.delete.btn')) + '</button>' +
+    '<div style="font-size:10px;color:var(--text3);text-align:center;margin-top:2px">' + esc(t('eq.delete.hint')) + '</div></div>';
   sl.style.display = 'block';
+}
+
+// 🗑️ Eliminar equipo: archiva la página en Notion (in_trash) — mismo patrón que deleteService. Sale de la
+// lista pero es recuperable 30 días en la papelera de Notion (no se pierde el historial). Para apartar un
+// equipo SIN sacarlo, está el estado "❌ Fuera de servicio" en el select.
+async function eqDeleteEquipo(id) {
+  const a = eqFind(id); if (!a) return;
+  const nombre = a.properties?.['Activo']?.title?.[0]?.plain_text || t('common.sinnombre');
+  if (!confirm(t('eq.delete.confirm').replace('{name}', nombre))) return;
+  try {
+    await callNotion('pages/' + id, 'PATCH', { in_trash: true });
+    // Update optimista: sacarlo de la lista al instante.
+    _coordAllActivos = (_coordAllActivos || []).filter(x => x.id !== id);
+    renderCoordEquiposList();
+    showSaving();
+  } catch (e) { alert(t('sheet.alert.save.error2') + e.message); }
 }
 async function eqEditSave(id, btn) {
   const a = eqFind(id); if (!a) return;
