@@ -2246,7 +2246,7 @@ const TRANSLATIONS = {
     'step.inicioef.recorded': '✅ Inicio efectivo registrado',
     'step.inicioef.btn': '🕐 REGISTRAR INICIO EFECTIVO',
     'step.metodo.label': '🛠️ MÉTODO DE TRABAJO',
-    'step.metodo.hint': 'Elegí cómo se hace el trabajo. Obligatorio para registrar el inicio efectivo.',
+    'step.metodo.hint': 'Elegí cómo se hace el trabajo — podés marcar uno o ambos (dron y manual) y varias herramientas. Obligatorio para registrar el inicio efectivo.',
     'step.metodo.dron': '🚁 Dron',
     'step.metodo.manual': '💪 Manual',
     'step.metodo.herramienta.label': '¿Con qué herramienta manual?',
@@ -3190,7 +3190,7 @@ const TRANSLATIONS = {
     'step.inicioef.recorded': '✅ Início efetivo registrado',
     'step.inicioef.btn': '🕐 REGISTRAR INÍCIO EFETIVO',
     'step.metodo.label': '🛠️ MÉTODO DE TRABALHO',
-    'step.metodo.hint': 'Escolha como o trabalho é feito. Obrigatório para registrar o início efetivo.',
+    'step.metodo.hint': 'Escolha como o trabalho é feito — pode marcar um ou ambos (drone e manual) e várias ferramentas. Obrigatório para registrar o início efetivo.',
     'step.metodo.dron': '🚁 Drone',
     'step.metodo.manual': '💪 Manual',
     'step.metodo.herramienta.label': 'Com qual ferramenta manual?',
@@ -4177,6 +4177,16 @@ let _ceoComData = null;
 let _ceoProspData = null;
 let currentService = null;
 let currentStep = 0;
+// Normaliza a array de strings: array→igual, string→[string], null/''→[]. Usado por los campos que
+// pasaron de select (string) a multi_select (array): metodoTrabajo, herramientaManual (tolera legacy).
+function toArr(v) { return Array.isArray(v) ? v.filter(Boolean) : (v ? [v] : []); }
+// Lee una property Notion multi_select devolviendo los nombres. Fallback a select (registros legacy que
+// quedaron como single antes de la conversión a multi_select).
+function msNames(prop) {
+  if (prop?.multi_select) return prop.multi_select.map(o => o.name).filter(Boolean);
+  if (prop?.select?.name) return [prop.select.name];
+  return [];
+}
 let serviceState = {};
 let activeTab = 'ordenes';
 let _allServices = [];
@@ -4218,8 +4228,8 @@ function resetServiceState() {
     resultado: '',
     resultadoPrueba: '',
     clima: [],
-    metodoTrabajo: '',       // '🚁 Dron' | '💪 Manual'
-    herramientaManual: '',   // 'Lanzas'|'Manguera'|'Hidrolavadora'|'Otro' (solo si Manual)
+    metodoTrabajo: [],       // multi: ['🚁 Dron','💪 Manual'] (puede ser uno, ambos o ninguno)
+    herramientaManual: [],   // multi: ['Lanzas','Manguera','Hidrolavadora','Otro'] (solo si incluye Manual)
     isSaving: false,
     photos: { pre: [], post: [], relevamiento: [] },
     relevamiento: {
@@ -4281,10 +4291,12 @@ function buildIncrementalProps(s) {
   if (Object.keys(_ck.pre).length || Object.keys(_ck.post).length) {
     properties['Estado checklist'] = { rich_text: [{ text: { content: JSON.stringify(_ck) } }] };
   }
-  if (s.metodoTrabajo) {
-    properties['Método de trabajo'] = { select: { name: s.metodoTrabajo } };
-    if (s.metodoTrabajo === '💪 Manual' && s.herramientaManual) {
-      properties['Herramienta manual'] = { select: { name: s.herramientaManual } };
+  const _met = toArr(s.metodoTrabajo);
+  if (_met.length) {
+    properties['Método de trabajo'] = { multi_select: _met.map(name => ({ name })) };
+    const _herr = toArr(s.herramientaManual);
+    if (_met.includes('💪 Manual') && _herr.length) {
+      properties['Herramienta manual'] = { multi_select: _herr.map(name => ({ name })) };
     }
   }
   // Sectores: el operario actualiza el estado de cada sector (en_curso/hecho). Preserva id+nombre
@@ -4328,10 +4340,10 @@ function hydrateServiceStateFromNotion(svc) {
   const resultado = props['Resultado']?.select?.name;
   if (resultado) serviceState.resultado = resultado;
 
-  const metodoTrabajo = props['Método de trabajo']?.select?.name;
-  if (metodoTrabajo) serviceState.metodoTrabajo = metodoTrabajo;
-  const herramientaManual = props['Herramienta manual']?.select?.name;
-  if (herramientaManual) serviceState.herramientaManual = herramientaManual;
+  const metodoTrabajo = msNames(props['Método de trabajo']);
+  if (metodoTrabajo.length) serviceState.metodoTrabajo = metodoTrabajo;
+  const herramientaManual = msNames(props['Herramienta manual']);
+  if (herramientaManual.length) serviceState.herramientaManual = herramientaManual;
 
   const collect = prop => (prop?.files || [])
     .map(f => {
@@ -4380,8 +4392,8 @@ function hydrateServiceStateFromLocal(id) {
     if (!serviceState.horaInicio && ls.horaInicio) serviceState.horaInicio = ls.horaInicio;
     if (!serviceState.horaInicioEfectivo && ls.horaInicioEfectivo) serviceState.horaInicioEfectivo = ls.horaInicioEfectivo;
     if (!serviceState.horaCierreEfectivo && ls.horaCierreEfectivo) serviceState.horaCierreEfectivo = ls.horaCierreEfectivo;
-    if (!serviceState.metodoTrabajo && ls.metodoTrabajo) serviceState.metodoTrabajo = ls.metodoTrabajo;
-    if (!serviceState.herramientaManual && ls.herramientaManual) serviceState.herramientaManual = ls.herramientaManual;
+    if (!toArr(serviceState.metodoTrabajo).length && ls.metodoTrabajo) serviceState.metodoTrabajo = toArr(ls.metodoTrabajo);
+    if (!toArr(serviceState.herramientaManual).length && ls.herramientaManual) serviceState.herramientaManual = toArr(ls.herramientaManual);
 
     // Rehidratar FOTOS desde localStorage (auditoría 2026-07-09): hydrateServiceStateFromNotion corrió
     // antes y trae solo las 'done' ya commiteadas a Notion. Una foto recién subida cuyo flush (debounce 3s)
@@ -8047,7 +8059,9 @@ function renderStep() {
       { val: 'Hidrolavadora', key: 'step.metodo.herr.hidro' },
       { val: 'Otro', key: 'step.metodo.herr.otro' },
     ];
-    const esManual = serviceState.metodoTrabajo === '💪 Manual';
+    const metodoArr = toArr(serviceState.metodoTrabajo);
+    const herrArr = toArr(serviceState.herramientaManual);
+    const esManual = metodoArr.includes('💪 Manual');
     content.innerHTML = `
       ${renderCancelarBanner()}
       <div class="step-title">${t('step.inicioef.title')}</div>
@@ -8065,13 +8079,13 @@ function renderStep() {
         <div class="form-label">${t('step.metodo.label')}</div>
         <div class="hint hint-blue" style="margin-bottom:10px">${t('step.metodo.hint')}</div>
         <div class="metodo-group">
-          <button type="button" class="metodo-btn ${serviceState.metodoTrabajo === '🚁 Dron' ? 'active' : ''}" onclick="selectMetodoTrabajo('🚁 Dron')">${t('step.metodo.dron')}</button>
+          <button type="button" class="metodo-btn ${metodoArr.includes('🚁 Dron') ? 'active' : ''}" onclick="selectMetodoTrabajo('🚁 Dron')">${t('step.metodo.dron')}</button>
           <button type="button" class="metodo-btn ${esManual ? 'active' : ''}" onclick="selectMetodoTrabajo('💪 Manual')">${t('step.metodo.manual')}</button>
         </div>
         ${esManual ? `
           <div class="form-label" style="margin-top:12px">${t('step.metodo.herramienta.label')}</div>
           <div class="herr-group">
-            ${herrOpts.map(o => `<button type="button" class="herr-btn ${serviceState.herramientaManual === o.val ? 'active' : ''}" onclick="selectHerramientaManual('${o.val}')">${t(o.key)}</button>`).join('')}
+            ${herrOpts.map(o => `<button type="button" class="herr-btn ${herrArr.includes(o.val) ? 'active' : ''}" onclick="selectHerramientaManual('${o.val}')">${t(o.key)}</button>`).join('')}
           </div>` : ''}
       </div>
 
@@ -8523,18 +8537,21 @@ async function continuarCierreEfectivo() {
 
 async function registrarInicioEfectivo() {
   if (serviceState.horaInicioEfectivo) { renderStep(); return; }
-  // Método de trabajo obligatorio antes de registrar el inicio efectivo.
-  if (!serviceState.metodoTrabajo) { alert(t('step.metodo.required')); return; }
-  if (serviceState.metodoTrabajo === '💪 Manual' && !serviceState.herramientaManual) {
+  // Método de trabajo obligatorio antes de registrar el inicio efectivo. Multi: al menos uno; si incluye
+  // Manual, al menos una herramienta.
+  const _met = toArr(serviceState.metodoTrabajo);
+  const _herr = toArr(serviceState.herramientaManual);
+  if (!_met.length) { alert(t('step.metodo.required')); return; }
+  if (_met.includes('💪 Manual') && !_herr.length) {
     alert(t('step.metodo.required.herr')); return;
   }
   serviceState.horaInicioEfectivo = timeNow();
   try {
     await queueableUpdateServiceProps(currentService.id, {
       'Hora Inicio Efectivo': { date: { start: isoNow()} },
-      'Método de trabajo': { select: { name: serviceState.metodoTrabajo } },
-      ...(serviceState.metodoTrabajo === '💪 Manual' && serviceState.herramientaManual
-        ? { 'Herramienta manual': { select: { name: serviceState.herramientaManual } } }
+      'Método de trabajo': { multi_select: _met.map(name => ({ name })) },
+      ...(_met.includes('💪 Manual') && _herr.length
+        ? { 'Herramienta manual': { multi_select: _herr.map(name => ({ name })) } }
         : {})
     });
     showSaving();
@@ -8610,15 +8627,19 @@ function selectClima(val) {
 }
 
 function selectMetodoTrabajo(val) {
-  serviceState.metodoTrabajo = val;
-  // Si vuelve a Dron, limpiar la herramienta manual (no aplica).
-  if (val !== '💪 Manual') serviceState.herramientaManual = '';
+  // Toggle: se pueden marcar Dron Y Manual a la vez (ej. dron arriba + lanzas abajo).
+  const arr = toArr(serviceState.metodoTrabajo);
+  serviceState.metodoTrabajo = arr.includes(val) ? arr.filter(x => x !== val) : [...arr, val];
+  // Si el método ya NO incluye Manual, las herramientas no aplican → limpiar.
+  if (!serviceState.metodoTrabajo.includes('💪 Manual')) serviceState.herramientaManual = [];
   persistServiceState();
   renderStep();
 }
 
 function selectHerramientaManual(val) {
-  serviceState.herramientaManual = val;
+  // Toggle: varias herramientas a la vez (ej. lanzas + manguera).
+  const arr = toArr(serviceState.herramientaManual);
+  serviceState.herramientaManual = arr.includes(val) ? arr.filter(x => x !== val) : [...arr, val];
   persistServiceState();
   renderStep();
 }
@@ -8743,9 +8764,11 @@ async function _ejecutarCierre(modo) {
   else if (serviceState.resultado) properties['Resultado'] = { select: { name: serviceState.resultado } };
   const climaArr = Array.isArray(serviceState.clima) ? serviceState.clima : (serviceState.clima ? [serviceState.clima] : []);
   if (climaArr.length) properties['Condición climática'] = { multi_select: climaArr.map(name => ({ name })) };
-  if (serviceState.metodoTrabajo) {
-    properties['Método de trabajo'] = { select: { name: serviceState.metodoTrabajo } };
-    if (serviceState.metodoTrabajo === '💪 Manual' && serviceState.herramientaManual) properties['Herramienta manual'] = { select: { name: serviceState.herramientaManual } };
+  const metodoArrC = toArr(serviceState.metodoTrabajo);
+  if (metodoArrC.length) {
+    properties['Método de trabajo'] = { multi_select: metodoArrC.map(name => ({ name })) };
+    const herrArrC = toArr(serviceState.herramientaManual);
+    if (metodoArrC.includes('💪 Manual') && herrArrC.length) properties['Herramienta manual'] = { multi_select: herrArrC.map(name => ({ name })) };
   }
   const preFiles = photosToNotionFiles(serviceState.photos?.pre, 'pre');
   const postFiles = photosToNotionFiles(serviceState.photos?.post, 'post');
@@ -17144,8 +17167,9 @@ function renderHistorial() {
   const items = _histItems;
   const ym = new Date().toISOString().slice(0, 7);
   const esJornal = (it) => { const tipo = it.p['Tipo de registro']?.select?.name || ''; return !/Relevamiento|Prueba/.test(tipo); };
-  const esDron = (it) => /Dron/.test(it.p['Método de trabajo']?.select?.name || '');
-  const esManualM = (it) => /Manual/.test(it.p['Método de trabajo']?.select?.name || '');
+  // Multi: un servicio puede tener Dron Y Manual → suma en ambas categorías (no se registra el split de tiempo).
+  const esDron = (it) => msNames(it.p['Método de trabajo']).includes('🚁 Dron');
+  const esManualM = (it) => msNames(it.p['Método de trabajo']).includes('💪 Manual');
   const calc = (arr) => ({
     servicios: arr.length,
     jornales: arr.filter(esJornal).length,
@@ -17634,7 +17658,7 @@ async function renderJornalesPreview() {
     const acc = {}; // name → { dron:count, manual:count }
     for (const s of items) {
       const p = s.properties || {};
-      const metodo = /Manual/.test(p['Método de trabajo']?.select?.name || '') ? 'manual' : 'dron';
+      const metodo = msNames(p['Método de trabajo']).includes('💪 Manual') ? 'manual' : 'dron';
       const gente = new Set();
       [p['Operario App']?.select?.name, p['Piloto']?.select?.name, p['Operario manual']?.select?.name].forEach(n => { if (n) gente.add(n); });
       (p['Operarios participantes']?.multi_select || []).forEach(o => { if (o.name) gente.add(o.name); });

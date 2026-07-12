@@ -78,7 +78,10 @@ export const MAP = {
     resultado: sel(props, 'Resultado'), resultado_prueba: sel(props, 'Resultado prueba'),
     ubicacion_gps: url(props, 'Ubicación GPS'), observacion_cliente: rich(props, 'Observación cliente'),
     notas_pre_servicio: rich(props, 'Notas pre-servicio'),
-    metodo_trabajo: sel(props, 'Método de trabajo'), herramienta_manual: sel(props, 'Herramienta manual'),
+    // Método de trabajo + Herramienta manual pasaron a multi_select (2026-07-12) — defensivo select||multi,
+    // join a texto para no cambiar el tipo de la columna del espejo (mismo patrón que tipo_servicio).
+    metodo_trabajo: sel(props, 'Método de trabajo') ?? (msel(props, 'Método de trabajo').join(', ') || null),
+    herramienta_manual: sel(props, 'Herramienta manual') ?? (msel(props, 'Herramienta manual').join(', ') || null),
     jornada_n: num(props, 'Jornada N°'), avance_pct: num(props, '% de avance'),
     excluir_kpis: check(props, 'Excluir de KPIs'), cliente_notion_id: relId(props, 'Contacto'),
     propuesta_notion_id: relId(props, 'Propuesta'), orden_madre_notion_id: relId(props, 'Orden madre'),
