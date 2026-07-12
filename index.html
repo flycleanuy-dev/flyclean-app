@@ -8018,9 +8018,11 @@ function renderStep() {
         : `<button class="btn-main btn-purple" style="margin-top:16px" onclick="registrarInicioEfectivo()">${t('step.inicioef.btn')}</button>`
       }
     `;
+    // "Continuar" AUTO-REGISTRA el inicio si falta (fix 2026-07-12: antes se podía avanzar sin registrar
+    // → ningún servicio quedaba con Hora Inicio Efectivo y el historial/jornales daban 0).
     bar.innerHTML = `
       <button class="btn-secondary" onclick="goToStep(currentStep - 1)">${t('btn.back')}</button>
-      <button class="btn-main btn-green" onclick="nextStep()">${t('btn.continue')}</button>
+      <button class="btn-main btn-green" onclick="continuarInicioEfectivo()">${t('btn.continue')}</button>
     `;
   }
 
@@ -8079,9 +8081,10 @@ function renderStep() {
         : `<button class="btn-main btn-orange" style="margin-top:16px" onclick="registrarCierreEfectivo()">${t('step.cierreef.btn')}</button>`
       }
     `;
+    // Idem inicio: "Continuar" auto-registra el cierre si falta (mismo agujero, mismo fix).
     bar.innerHTML = `
       <button class="btn-secondary" onclick="goToStep(currentStep - 1)">${t('btn.back')}</button>
-      <button class="btn-main btn-green" onclick="nextStep()">${t('btn.continue')}</button>
+      <button class="btn-main btn-green" onclick="continuarCierreEfectivo()">${t('btn.continue')}</button>
     `;
   }
 
@@ -8437,6 +8440,22 @@ async function cancelarInicio() {
   } catch (e) { console.warn('Error al cancelar inicio:', e); }
   persistServiceStateToLocal();
   renderStep();
+}
+
+// Fix 2026-07-12 — el "Continuar" de los pasos inicio/cierre efectivo AUTO-REGISTRA la hora si falta.
+// Antes nextStep() avanzaba sin validar → el equipo salteaba los botones violeta/naranja y NINGÚN servicio
+// quedaba con horas efectivas (el historial y los jornales daban 0). registrarInicioEfectivo valida el
+// método de trabajo (alert) → si no pasa, NO se avanza.
+async function continuarInicioEfectivo() {
+  if (!serviceState.horaInicioEfectivo) {
+    await registrarInicioEfectivo();
+    if (!serviceState.horaInicioEfectivo) return; // no pasó la validación (falta método) → no avanzar
+  }
+  nextStep();
+}
+async function continuarCierreEfectivo() {
+  if (!serviceState.horaCierreEfectivo) await registrarCierreEfectivo();
+  nextStep();
 }
 
 async function registrarInicioEfectivo() {
