@@ -1775,10 +1775,23 @@ body::before {
       <div class="am-row" id="am-row-lang" onclick="amLang()"><span class="am-ic">🌐</span><span class="am-lbl"><span data-i18n="am.lang">Idioma</span><small id="am-lang-val">Español</small></span><span class="am-chev" id="am-lang-chev">›</span></div>
       <div class="am-row" onclick="amRegion()"><span class="am-ic">🌎</span><span class="am-lbl" data-i18n="am.region">Cambiar región / país</span><span class="am-chev">›</span></div>
       <div class="am-row" onclick="amUpdate()"><span class="am-ic">↻</span><span class="am-lbl"><span data-i18n="am.update">Buscar actualización</span><small id="am-version"></small></span><span class="am-chev">›</span></div>
+      <div class="am-row" id="am-row-hist" onclick="amHistorial()"><span class="am-ic">📋</span><span class="am-lbl" data-i18n="am.hist">Mi historial de trabajos</span><span class="am-chev">›</span></div>
       <div class="am-row" id="am-row-help" onclick="amHelp()"><span class="am-ic">📖</span><span class="am-lbl" data-i18n="am.help">Ayuda y manuales</span><span class="am-chev">›</span></div>
       <div class="am-row am-admin" id="am-row-config" style="display:none" onclick="amConfig()"><span class="am-ic">⚙️</span><span class="am-lbl"><span data-i18n="am.config">Configuración</span><small data-i18n="am.config.sub">Cuentas · Reportes</small></span><span class="am-chev">›</span></div>
       <div class="am-row am-danger" onclick="amLogout()"><span class="am-ic">🚪</span><span class="am-lbl" data-i18n="am.logout">Cerrar sesión</span></div>
     </div>
+  </div>
+</div>
+
+<!-- MI HISTORIAL DE TRABAJOS (roles de campo) — SOLO LECTURA salvo la nota propia. Sibling de body. -->
+<div class="edit-overlay" id="historial-overlay" onclick="historialOverlayClick(event)">
+  <div class="pin-change-sheet" style="max-height:86vh;overflow-y:auto">
+    <button class="sheet-close-btn" type="button" aria-label="Cerrar" onclick="closeHistorialSheet()">×</button>
+    <div class="pin-change-handle"></div>
+    <div class="pin-change-title" data-i18n="hist.title">📋 Mi historial de trabajos</div>
+    <div class="pin-change-sub" data-i18n="hist.sub">Los servicios en los que participaste. Solo lectura — acá no se puede tocar nada, solo tu nota.</div>
+    <div id="hist-stats"></div>
+    <div id="hist-list"><div class="spinner" style="margin:16px auto"></div></div>
   </div>
 </div>
 
@@ -1988,6 +2001,23 @@ const TRANSLATIONS = {
     'am.config': 'Configuración',
     'am.config.sub': 'Cuentas · Reportes',
     'am.logout': 'Cerrar sesión',
+    'am.hist': 'Mi historial de trabajos',
+    'hist.title': '📋 Mi historial de trabajos',
+    'hist.sub': 'Los servicios en los que participaste. Solo lectura — acá no se puede tocar nada, solo tu nota.',
+    'hist.mes': 'Este mes',
+    'hist.total': 'Total',
+    'hist.stat.servicios': 'servicios',
+    'hist.stat.jornales': 'jornales',
+    'hist.stat.tiempo': 'tiempo efectivo',
+    'hist.stat.hint': 'Tiempos según el inicio/fin real del servicio. Jornales = órdenes y jornadas (pruebas/relevamientos no cuentan).',
+    'hist.empty': 'Todavía no participaste en ningún servicio.',
+    'hist.mas': '… y {n} más (se muestran los últimos 50).',
+    'hist.rol.encargado': '👤 Encargado',
+    'hist.rol.piloto': '🚁 Piloto',
+    'hist.rol.manual': '💪 Manual',
+    'hist.rol.ayudante': '🤝 Ayudante',
+    'hist.nota.btn': 'Mi nota',
+    'hist.nota.save': 'Guardar nota',
     'am.help': 'Ayuda y manuales',
     'prop.pdf.btn': 'Generar propuesta PDF',
     'help.title': '📖 Ayuda y manuales',
@@ -2882,6 +2912,23 @@ const TRANSLATIONS = {
     'am.config': 'Configurações',
     'am.config.sub': 'Contas · Relatórios',
     'am.logout': 'Sair da conta',
+    'am.hist': 'Meu histórico de trabalhos',
+    'hist.title': '📋 Meu histórico de trabalhos',
+    'hist.sub': 'Os serviços em que você participou. Somente leitura — aqui nada pode ser alterado, só a sua nota.',
+    'hist.mes': 'Este mês',
+    'hist.total': 'Total',
+    'hist.stat.servicios': 'serviços',
+    'hist.stat.jornales': 'diárias',
+    'hist.stat.tiempo': 'tempo efetivo',
+    'hist.stat.hint': 'Tempos conforme o início/fim real do serviço. Diárias = ordens e jornadas (testes/vistorias não contam).',
+    'hist.empty': 'Você ainda não participou de nenhum serviço.',
+    'hist.mas': '… e mais {n} (mostram-se os últimos 50).',
+    'hist.rol.encargado': '👤 Encarregado',
+    'hist.rol.piloto': '🚁 Piloto',
+    'hist.rol.manual': '💪 Manual',
+    'hist.rol.ayudante': '🤝 Ajudante',
+    'hist.nota.btn': 'Minha nota',
+    'hist.nota.save': 'Salvar nota',
     'am.help': 'Ajuda e manuais',
     'prop.pdf.btn': 'Gerar proposta PDF',
     'help.title': '📖 Ajuda e manuais',
@@ -16538,6 +16585,9 @@ function openAccountMenu() {
   document.getElementById('am-country').textContent = ((PAIS_FLAG[pais] || '🌎') + ' FlyClean ' + pais).trim();
   document.getElementById('am-version').textContent = 'v' + APP_VERSION;
   document.getElementById('am-row-config').style.display = isAppAdmin() ? 'flex' : 'none';
+  // Mi historial: solo roles de CAMPO (los que suman jornales). Ventas/CEO/Finanzas no operan.
+  const rowHist = document.getElementById('am-row-hist');
+  if (rowHist) rowHist.style.display = /Operario|Coordinador|Dirección/.test(currentUser.role || '') ? 'flex' : 'none';
   _amRefreshLang();
   document.getElementById('account-menu-overlay').classList.add('open');
   markUserActive();
@@ -16610,6 +16660,148 @@ function openHelpSheet() {
 }
 function closeHelpSheet() { document.getElementById('help-overlay').classList.remove('open'); }
 function helpOverlayClick(e) { if (e.target.id === 'help-overlay') closeHelpSheet(); }
+
+// ── 📋 MI HISTORIAL DE TRABAJOS ──────────────────────────────────────────────
+// SOLO LECTURA estricta: las cards NO abren el servicio (imposible reabrir/recomenzar por error).
+// Única acción permitida: editar la PROPIA nota (property existente 'Notas post-servicio').
+let _histItems = null;
+
+function amHistorial() { closeAccountMenu(); openHistorialSheet(); }
+function closeHistorialSheet() { document.getElementById('historial-overlay').classList.remove('open'); }
+function historialOverlayClick(e) { if (e.target.id === 'historial-overlay') closeHistorialSheet(); }
+
+// ¿Participó esta persona en el servicio? (encargado / piloto / operario manual / ayudante)
+function participaEn(props, nombre) {
+  if ((props['Operario App']?.select?.name || '') === nombre) return t('hist.rol.encargado');
+  if ((props['Piloto']?.select?.name || '') === nombre) return t('hist.rol.piloto');
+  if ((props['Operario manual']?.select?.name || '') === nombre) return t('hist.rol.manual');
+  if ((props['Operarios participantes']?.multi_select || []).some(o => o.name === nombre)) return t('hist.rol.ayudante');
+  return null;
+}
+
+// Duración efectiva en minutos (Hora Inicio Efectivo → Hora Fin Efectivo), o null.
+function _histDurMin(props) {
+  const ini = props['Hora Inicio Efectivo']?.date?.start, fin = props['Hora Fin Efectivo']?.date?.start;
+  if (!ini || !fin) return null;
+  const di = new Date(ini), df = new Date(fin);
+  if (isNaN(di) || isNaN(df) || df <= di) return null;
+  return Math.round((df - di) / 60000);
+}
+function _histFmtMin(mins) {
+  if (!mins) return '0 min';
+  const h = Math.floor(mins / 60), m = mins % 60;
+  return (h ? h + ' h ' : '') + (m ? m + ' min' : '') || '0 min';
+}
+
+async function openHistorialSheet() {
+  document.getElementById('historial-overlay').classList.add('open');
+  const list = document.getElementById('hist-list');
+  const stats = document.getElementById('hist-stats');
+  list.innerHTML = '<div class="spinner" style="margin:16px auto"></div>';
+  stats.innerHTML = '';
+  try {
+    // Fetch DIRECTO al proxy (como jornadaYaExiste): el camino /api/db le filtra al operario solo los
+    // servicios donde es ENCARGADO — acá necesitamos TODA su participación (piloto/manual/ayudante).
+    // El proxy pagina y la matriz permite query de servicios a los roles de campo. País: filtro client-side.
+    const tok = localStorage.getItem('fc_token') || '';
+    const resp = await fetch('/api/notion', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + tok },
+      body: JSON.stringify({ endpoint: `databases/${DB_ID}/query`, method: 'POST', body: { page_size: 100 } }),
+    });
+    if (resp.status === 401) { forceRelogin(); return; }
+    if (!resp.ok) throw new Error('API error ' + resp.status);
+    const data = await resp.json();
+    const nombre = currentUser?.name || '';
+    const paisNotion = COUNTRY_NOTION_MAP[currentUser?.country] || null;
+    const items = (data.results || []).filter(r => !esArchivado(r)).map(r => {
+      const p = r.properties || {};
+      const estado = p['Estado']?.select?.name || '';
+      if (/Cancelado/.test(estado)) return null;
+      const pais = p['País']?.select?.name || '';
+      if (paisNotion && pais && pais !== paisNotion) return null; // cinturón país (patrón getMyServices)
+      const rol = participaEn(p, nombre);
+      if (!rol) return null;
+      return { id: r.id, p, rol, estado, fecha: p['Fecha programada']?.date?.start || '', dur: _histDurMin(p) };
+    }).filter(Boolean).sort((a, b) => (b.fecha || '').localeCompare(a.fecha || ''));
+    _histItems = items;
+    renderHistorial();
+  } catch (e) {
+    list.innerHTML = '<div style="color:var(--red);font-size:12px;padding:12px">⚠️ ' + esc(e.message) + '</div>';
+  }
+}
+
+function renderHistorial() {
+  const list = document.getElementById('hist-list');
+  const stats = document.getElementById('hist-stats');
+  if (!list || !_histItems) return;
+  const items = _histItems;
+  const ym = new Date().toISOString().slice(0, 7);
+  const esJornal = (it) => { const tipo = it.p['Tipo de registro']?.select?.name || ''; return !/Relevamiento|Prueba/.test(tipo); };
+  const calc = (arr) => ({
+    servicios: arr.length,
+    jornales: arr.filter(esJornal).length,
+    minutos: arr.reduce((acc, it) => acc + (it.dur || 0), 0),
+  });
+  const mes = calc(items.filter(it => (it.fecha || '').slice(0, 7) === ym));
+  const tot = calc(items);
+  const statRow = (lbl, c) => '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">' +
+    '<span style="width:74px;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--text3)">' + esc(lbl) + '</span>' +
+    '<span style="flex:1;display:flex;gap:6px">' +
+      '<span style="flex:1;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:7px 4px;text-align:center"><b style="font-size:15px">' + c.servicios + '</b><br><span style="font-size:9.5px;color:var(--text3)">' + esc(t('hist.stat.servicios')) + '</span></span>' +
+      '<span style="flex:1;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:7px 4px;text-align:center"><b style="font-size:15px">' + c.jornales + '</b><br><span style="font-size:9.5px;color:var(--text3)">' + esc(t('hist.stat.jornales')) + '</span></span>' +
+      '<span style="flex:1.3;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:7px 4px;text-align:center"><b style="font-size:15px">' + esc(_histFmtMin(c.minutos)) + '</b><br><span style="font-size:9.5px;color:var(--text3)">' + esc(t('hist.stat.tiempo')) + '</span></span>' +
+    '</span></div>';
+  stats.innerHTML = statRow(t('hist.mes'), mes) + statRow(t('hist.total'), tot) +
+    '<div style="font-size:10px;color:var(--text3);margin:2px 0 10px">' + esc(t('hist.stat.hint')) + '</div>';
+
+  if (!items.length) { list.innerHTML = '<div style="font-size:12.5px;color:var(--text3);padding:10px 2px">' + esc(t('hist.empty')) + '</div>'; return; }
+  const MAX = 50;
+  list.innerHTML = items.slice(0, MAX).map(it => {
+    const nom = esc(it.p['Nombre del servicio']?.title?.[0]?.plain_text || t('common.sinnombre'));
+    const nota = it.p['Notas post-servicio']?.rich_text?.[0]?.plain_text || '';
+    const fechaTxt = it.fecha ? esc(pedidoFmtFecha(it.fecha)) : '—';
+    return '<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:10px 12px;margin-bottom:8px">' +
+      '<div style="font-size:13px;font-weight:700;color:var(--text)">' + nom + '</div>' +
+      '<div style="font-size:11px;color:var(--text3);margin-top:3px">' + fechaTxt + ' · ' + esc(it.estado) + ' · ' + esc(it.rol) + (it.dur ? ' · ⏱️ ' + esc(_histFmtMin(it.dur)) : '') + '</div>' +
+      (nota ? '<div style="font-size:11.5px;color:var(--text2);margin-top:5px">📝 ' + esc(nota) + '</div>' : '') +
+      '<div style="margin-top:7px"><button class="fin-svc-link" onclick="histEditNota(\'' + esc(it.id) + '\')">📝 ' + esc(t('hist.nota.btn')) + '</button></div>' +
+      '<div id="hist-nota-' + esc(it.id) + '" style="display:none;margin-top:7px"></div>' +
+      '</div>';
+  }).join('') + (items.length > MAX ? '<div style="font-size:11px;color:var(--text3);text-align:center;padding:6px">' + esc(t('hist.mas').replace('{n}', items.length - MAX)) + '</div>' : '');
+}
+
+function histEditNota(id) {
+  const slot = document.getElementById('hist-nota-' + id);
+  if (!slot) return;
+  if (slot.style.display !== 'none') { slot.style.display = 'none'; slot.innerHTML = ''; return; }
+  const it = (_histItems || []).find(x => x.id === id);
+  if (!it) return;
+  const nota = it.p['Notas post-servicio']?.rich_text?.[0]?.plain_text || '';
+  slot.innerHTML = '<textarea id="hist-nota-input-' + esc(id) + '" rows="3" maxlength="800" style="width:100%;box-sizing:border-box;padding:9px 11px;border:1px solid var(--border);border-radius:9px;background:var(--bg);color:var(--text);font-size:13px;font-family:inherit;resize:vertical">' + esc(nota) + '</textarea>' +
+    '<div style="display:flex;gap:8px;margin-top:6px">' +
+    '<button onclick="histSaveNota(\'' + esc(id) + '\', this)" style="flex:1;padding:9px;border:none;border-radius:9px;background:var(--accent,#00C98D);color:#03231a;font-weight:700;font-size:12.5px;font-family:inherit">' + esc(t('hist.nota.save')) + '</button>' +
+    '<button onclick="histEditNota(\'' + esc(id) + '\')" style="flex:1;padding:9px;border:1px solid var(--border);border-radius:9px;background:transparent;color:var(--text2);font-size:12.5px;font-family:inherit">' + esc(t('btn.cancel')) + '</button></div>';
+  slot.style.display = 'block';
+}
+
+async function histSaveNota(id, btn) {
+  const inp = document.getElementById('hist-nota-input-' + id);
+  const it = (_histItems || []).find(x => x.id === id);
+  if (!inp || !it) return;
+  const texto = inp.value.trim();
+  btn.disabled = true; btn.textContent = '⏳';
+  try {
+    // ÚNICA escritura permitida desde el historial: la nota propia. Nada más se toca.
+    await callNotion('pages/' + id, 'PATCH', { properties: { 'Notas post-servicio': texto ? { rich_text: [{ text: { content: texto } }] } : { rich_text: [] } } });
+    it.p['Notas post-servicio'] = texto ? { rich_text: [{ plain_text: texto, text: { content: texto } }] } : { rich_text: [] };
+    renderHistorial();
+    showSaving();
+  } catch (e) {
+    btn.disabled = false; btn.textContent = t('hist.nota.save');
+    alert(t('sheet.alert.save.error2') + e.message);
+  }
+}
 
 // ── Configuración (sheet admin) ──
 function openConfigSheet() {
