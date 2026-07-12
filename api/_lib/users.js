@@ -96,6 +96,22 @@ export function esGlobal(u) {
   return r.includes('Direcci') || (r.includes('CEO') && u.pais === 'Uruguay');
 }
 
+// Código corto por país. Las bases de Notion usan DOS convenciones de País: nombre completo
+// ("🇺🇾 Uruguay" en Servicios/Contactos/Propuestas) y código corto ("🇺🇾 UY" en Activos/Solicitudes/
+// Documentos/Gastos/Ingresos). El candado de país debe reconocer ambas.
+const PAIS_CODE = { Uruguay: 'UY', Brasil: 'BR', Panamá: 'PA', Guatemala: 'GT', México: 'MX', Paraguay: 'PY', Argentina: 'AR' };
+
+// ¿La página (su valor de select 'País') pertenece al país del usuario? Acepta el nombre completo O el
+// código corto. NO afloja el candado: un usuario de otro país no matchea ni por nombre ni por código
+// (los códigos son de 2 letras mayúsculas al final del select y no colisionan entre países).
+export function paisCoincide(paisPagina, userPais) {
+  if (!userPais) return true;            // sin país de usuario → no bloquear (comportamiento previo)
+  const pp = String(paisPagina || '');
+  if (pp.includes(userPais)) return true; // nombre completo ("🇺🇾 Uruguay")
+  const code = PAIS_CODE[userPais];
+  return !!(code && pp.includes(code));   // código corto ("🇺🇾 UY")
+}
+
 // ¿Rol Ventas? Usado para el backstop server-side: Ventas solo accede a Clientes/Contactos
 // (ver docs/superpowers/specs/2026-07-03-backstop-ventas-serverside-design.md).
 export function esVentas(u) { return !!(u && String(u.rol || '').includes('Ventas')); }

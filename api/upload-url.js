@@ -2,7 +2,7 @@ import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import crypto from 'crypto';
 import { verifySession, tokenFromReq } from './_lib/session.js';
-import { userById, esGlobal, esVentas } from './_lib/users.js';
+import { userById, esGlobal, esVentas, paisCoincide } from './_lib/users.js';
 
 // Auth de sesión (#1/#4). MONITOR (false): valida + reporta en X-Auth, no rechaza. ENFORCE (true):
 // rechaza con 401 las subidas sin token válido. Verificado: el endpoint acepta el token (200 +
@@ -99,8 +99,11 @@ async function checkServiceOwnership(serviceId, userId) {
   } else if (!esGlobal(u)) {
     // Gestión por país (coordinador/CEO país/finanzas): el servicio debe ser de su país
     // (espejo de recEnPaisNotion: Uruguay incluye registros sin país).
+    // paisCoincide reconoce nombre completo ("🇺🇾 Uruguay") Y código corto: el `=== u.pais` viejo daba
+    // false para el valor real con bandera ("🇺🇾 Uruguay" !== "Uruguay") → 403 al coord/finanzas subiendo
+    // una foto de su propio país (misma familia de bug que el candado de país del proxy).
     const paisSvc = p['País']?.select?.name || '';
-    const match = paisSvc ? paisSvc === u.pais : u.pais === 'Uruguay';
+    const match = paisSvc ? paisCoincide(paisSvc, u.pais) : u.pais === 'Uruguay';
     if (!match) return { status: 403, error: 'servicio de otro país' };
   }
 

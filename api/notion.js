@@ -1,5 +1,5 @@
 import { verifySession, tokenFromReq, maybeRenewSession } from './_lib/session.js';
-import { userById, resolveUser, esVentas, esGlobal } from './_lib/users.js';
+import { userById, resolveUser, esVentas, esGlobal, paisCoincide } from './_lib/users.js';
 import { checkPermiso } from './_lib/permisos.js';
 import { resourceFromPage, DBS } from './_lib/notion-map.js';
 import { mirrorPage, deleteRowByNotionId } from './_lib/mirror.js';
@@ -220,7 +220,10 @@ export default async function handler(req, res) {
             //     ayudantes/jornadas pueden tener ediciones legítimas; se decide en la Fase 3 con los logs.
             const pProps = meta?.properties || {};
             const paisPagina = pProps['País']?.select?.name || '';
-            if (!esGlobal(u) && paisPagina && u?.pais && !paisPagina.includes(u.pais)) {
+            // paisCoincide (no .includes crudo): reconoce nombre completo ("🇺🇾 Uruguay") Y código corto
+            // ("🇺🇾 UY"). Antes solo el nombre → un coord editando Activos/Solicitudes/Documentos/Gastos/
+            // Ingresos (código corto) daba 403 "otro país" siendo del MISMO país (bug del módulo Equipos).
+            if (!esGlobal(u) && paisPagina && u?.pais && !paisCoincide(paisPagina, u.pais)) {
               console.warn('[perms] DENEGARÍA', JSON.stringify({ rol: u?.rol, id: session?.id, tipo: 'page-patch-pais', db: parentDb, paisPagina, paisUser: u.pais }));
               if (ENFORCE_PERMS) return res.status(403).json({ error: 'forbidden: página de otro país' });
             }
