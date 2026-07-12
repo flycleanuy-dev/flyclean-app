@@ -1794,6 +1794,19 @@ body::before {
   </div>
 </div>
 
+<!-- DOCUMENTOS & CERTIFICADOS (#12) — alta desde la app (solo admins). Sibling de body. -->
+<div class="edit-overlay" id="documentos-overlay" onclick="documentosOverlayClick(event)">
+  <div class="pin-change-sheet" style="max-height:86vh;overflow-y:auto">
+    <button class="sheet-close-btn" type="button" aria-label="Cerrar" onclick="closeDocumentosSheet()">×</button>
+    <div class="pin-change-handle"></div>
+    <div class="pin-change-title" data-i18n="doc.title">📑 Documentos y certificados</div>
+    <div class="pin-change-sub" data-i18n="doc.sub">Cargá DGI, BPS, seguros y permisos para que la app avise sus vencimientos.</div>
+    <button class="pin-change-btn" style="margin:0 0 12px" onclick="docToggleForm()" id="doc-nuevo-btn" data-i18n="doc.new">＋ Nuevo documento</button>
+    <div id="doc-form" style="display:none"></div>
+    <div id="doc-list"><div class="spinner" style="margin:14px auto"></div></div>
+  </div>
+</div>
+
 <!-- CONFIGURACIÓN (solo admins; el server re-valida TODO con ADMIN_IDS — esto es cosmético) -->
 <div class="edit-overlay" id="config-overlay" onclick="configOverlayClick(event)">
   <div class="pin-change-sheet" style="max-height:82vh;overflow-y:auto">
@@ -1802,6 +1815,7 @@ body::before {
     <div class="pin-change-title" data-i18n="cfg.title">⚙️ Configuración</div>
     <div class="pin-change-sub" data-i18n="cfg.sub">Solo administradores.</div>
     <div class="am-row" style="border:1px solid var(--border2);border-radius:12px" onclick="amGoCuentas()"><span class="am-ic">🔑</span><span class="am-lbl"><span data-i18n="cfg.cuentas">Cuentas de acceso</span><small data-i18n="cfg.cuentas.sub">Altas, bajas y PINs del equipo</small></span><span class="am-chev">›</span></div>
+    <div class="am-row" style="border:1px solid var(--border2);border-radius:12px;margin-top:8px" onclick="openDocumentosSheet()"><span class="am-ic">📑</span><span class="am-lbl"><span data-i18n="doc.cfg.row">Documentos y certificados</span><small data-i18n="doc.cfg.sub">DGI, BPS, seguros, permisos</small></span><span class="am-chev">›</span></div>
     <div class="am-card">
       <div class="am-card-h">📬 <b data-i18n="cfg.rec.title">Destinatarios de reportes</b></div>
       <div id="rec-body"><div class="spinner" style="margin:14px auto"></div></div>
@@ -2022,6 +2036,26 @@ const TRANSLATIONS = {
     'cfg.tar.preview': 'Jornales de este mes',
     'cfg.tar.total': 'Total a pagar',
     'cfg.tar.paisnote': 'Suma todos los países del mes (moneda local). Al activar otro país se separará por moneda.',
+    'doc.cfg.row': 'Documentos y certificados',
+    'doc.cfg.sub': 'DGI, BPS, seguros, permisos',
+    'doc.title': '📑 Documentos y certificados',
+    'doc.sub': 'Cargá DGI, BPS, seguros y permisos para que la app avise sus vencimientos.',
+    'doc.new': '＋ Nuevo documento',
+    'doc.empty': 'Todavía no hay documentos cargados.',
+    'doc.list.title': 'Documentos activos',
+    'doc.expired': 'Vencido',
+    'doc.days': 'días',
+    'doc.novence': 'Sin vencimiento',
+    'doc.f.nombre': 'Nombre del documento (ej. Certificado DGI)',
+    'doc.f.tipo': 'Tipo…',
+    'doc.f.entidad': 'Entidad emisora…',
+    'doc.f.emision': 'Fecha de emisión',
+    'doc.f.vence': 'Vence',
+    'doc.f.aviso': 'Días de aviso antes del vencimiento',
+    'doc.f.notas': 'Notas (opcional)',
+    'doc.f.save': 'Guardar documento',
+    'doc.err.nombre': 'Poné un nombre válido (sin < ni >).',
+    'doc.err.tipo': 'Elegí el tipo y la entidad emisora.',
     'cfg.costo.title': 'Costos del servicio (calculadora)',
     'cfg.costo.m2dron': 'Costo por m² · Dron',
     'cfg.costo.m2manual': 'Costo por m² · Manual',
@@ -2888,6 +2922,26 @@ const TRANSLATIONS = {
     'cfg.tar.preview': 'Diárias deste mês',
     'cfg.tar.total': 'Total a pagar',
     'cfg.tar.paisnote': 'Soma todos os países do mês (moeda local). Ao ativar outro país será separado por moeda.',
+    'doc.cfg.row': 'Documentos e certificados',
+    'doc.cfg.sub': 'DGI, BPS, seguros, licenças',
+    'doc.title': '📑 Documentos e certificados',
+    'doc.sub': 'Cadastre DGI, BPS, seguros e licenças para o app avisar os vencimentos.',
+    'doc.new': '＋ Novo documento',
+    'doc.empty': 'Ainda não há documentos cadastrados.',
+    'doc.list.title': 'Documentos ativos',
+    'doc.expired': 'Vencido',
+    'doc.days': 'dias',
+    'doc.novence': 'Sem vencimento',
+    'doc.f.nombre': 'Nome do documento (ex. Certificado DGI)',
+    'doc.f.tipo': 'Tipo…',
+    'doc.f.entidad': 'Entidade emissora…',
+    'doc.f.emision': 'Data de emissão',
+    'doc.f.vence': 'Vence',
+    'doc.f.aviso': 'Dias de aviso antes do vencimento',
+    'doc.f.notas': 'Notas (opcional)',
+    'doc.f.save': 'Salvar documento',
+    'doc.err.nombre': 'Coloque um nome válido (sem < nem >).',
+    'doc.err.tipo': 'Escolha o tipo e a entidade emissora.',
     'cfg.costo.title': 'Custos do serviço (calculadora)',
     'cfg.costo.m2dron': 'Custo por m² · Drone',
     'cfg.costo.m2manual': 'Custo por m² · Manual',
@@ -16480,6 +16534,110 @@ function openConfigSheet() {
 }
 function closeConfigSheet() { document.getElementById('config-overlay').classList.remove('open'); }
 function configOverlayClick(e) { if (e.target.id === 'config-overlay') closeConfigSheet(); }
+
+// ── 📑 Documentos & Certificados (#12) — alta desde la app (admin). Escribe una page nueva en la DB
+// Documentos con los nombres EXACTOS del esquema (verificado por MCP). PDF adjunto = paso futuro (por
+// ahora se carga la metadata y la app avisa el vencimiento; el archivo se adjunta en Notion si hace falta).
+const DOC_TIPOS = ['Certificado fiscal', 'Certificado seguridad social', 'Seguro', 'Permiso/Habilitación', 'Contrato', 'Licencia drone', 'Otro'];
+const DOC_ENTIDADES = ['DGI', 'BPS', 'DINACIA', 'MTSS', 'Aseguradora', 'Otro'];
+const DOC_PAISES = ['🇺🇾 UY', '🇧🇷 BR', '🇵🇦 PA', '🇬🇹 GT', '🇲🇽 MX'];
+let _docState = null;
+
+function openDocumentosSheet() {
+  if (!isAppAdmin()) return;
+  document.getElementById('doc-form').style.display = 'none';
+  document.getElementById('documentos-overlay').classList.add('open');
+  loadDocumentos();
+}
+function closeDocumentosSheet() { document.getElementById('documentos-overlay').classList.remove('open'); }
+function documentosOverlayClick(e) { if (e.target.id === 'documentos-overlay') closeDocumentosSheet(); }
+
+async function loadDocumentos() {
+  const box = document.getElementById('doc-list');
+  if (!box) return;
+  box.innerHTML = '<div class="spinner" style="margin:14px auto"></div>';
+  try {
+    const data = await callNotion(`databases/${DOCUMENTOS_DB_ID}/query`, 'POST', { page_size: 100 });
+    const docs = (data.results || []).map(r => r.properties || {})
+      .filter(p => !(p['Estado']?.select?.name || '').includes('Histórico'))
+      .map(p => ({
+        nombre: p['Documento']?.title?.[0]?.plain_text || '(sin nombre)',
+        estado: p['Estado']?.select?.name || '',
+        entidad: p['Entidad emisora']?.select?.name || '',
+        pais: p['País']?.select?.name || '',
+        vence: p['Vence']?.date?.start || '',
+      }))
+      .sort((a, b) => (a.vence || '9999').localeCompare(b.vence || '9999'));
+    if (!docs.length) { box.innerHTML = '<div style="font-size:12.5px;color:var(--text3);padding:10px 2px">' + esc(t('doc.empty')) + '</div>'; return; }
+    const hoy = Date.now();
+    box.innerHTML = '<div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;margin:6px 2px">' + esc(t('doc.list.title')) + '</div>' +
+      docs.map(d => {
+        const dl = d.vence ? Math.round((new Date(d.vence) - hoy) / 86400000) : null;
+        const venceTxt = d.vence ? (dl < 0 ? '🔴 ' + t('doc.expired') : (dl <= 30 ? '🟡 ' : '🟢 ') + dl + ' ' + t('doc.days')) : '—';
+        return '<div style="background:var(--card);border:1px solid var(--border);border-radius:11px;padding:11px 12px;margin-bottom:7px">' +
+          '<div style="font-size:13.5px;font-weight:600;color:var(--text)">' + esc(d.nombre) + '</div>' +
+          '<div style="font-size:11.5px;color:var(--text3);margin-top:3px">' + esc([d.entidad, d.pais].filter(Boolean).join(' · ')) + '</div>' +
+          '<div style="font-size:12px;color:var(--text2);margin-top:3px">' + esc(d.vence ? pedidoFmtFecha(d.vence) + ' · ' + venceTxt : t('doc.novence')) + '</div></div>';
+      }).join('');
+  } catch (e) {
+    box.innerHTML = '<div style="font-size:12px;color:var(--red);padding:10px 2px">⚠️ ' + esc(e.message) + '</div>';
+  }
+}
+
+function docToggleForm() {
+  const f = document.getElementById('doc-form');
+  if (f.style.display !== 'none') { f.style.display = 'none'; return; }
+  _docState = { nombre: '', tipo: '', entidad: '', pais: DOC_PAISES[0], emision: '', vence: '', aviso: '30', notas: '' };
+  const _inp = 'width:100%;box-sizing:border-box;padding:10px 12px;margin-bottom:8px;border:1px solid var(--border);border-radius:9px;background:var(--bg);color:var(--text);font-size:14px;font-family:inherit';
+  f.innerHTML = '<div style="background:var(--card);border:1px solid var(--border2);border-radius:12px;padding:13px;margin-bottom:12px">' +
+    '<input id="doc-nombre" placeholder="' + esc(t('doc.f.nombre')) + '" maxlength="120" oninput="_docState.nombre=this.value" style="' + _inp + '">' +
+    '<select id="doc-tipo" oninput="_docState.tipo=this.value" style="' + _inp + '"><option value="" disabled selected>' + esc(t('doc.f.tipo')) + '</option>' + DOC_TIPOS.map(x => '<option>' + esc(x) + '</option>').join('') + '</select>' +
+    '<select id="doc-entidad" oninput="_docState.entidad=this.value" style="' + _inp + '"><option value="" disabled selected>' + esc(t('doc.f.entidad')) + '</option>' + DOC_ENTIDADES.map(x => '<option>' + esc(x) + '</option>').join('') + '</select>' +
+    '<select id="doc-pais" oninput="_docState.pais=this.value" style="' + _inp + '">' + DOC_PAISES.map(x => '<option>' + esc(x) + '</option>').join('') + '</select>' +
+    '<label style="font-size:11px;color:var(--text3)">' + esc(t('doc.f.emision')) + '</label>' +
+    '<input id="doc-emision" type="date" oninput="_docState.emision=this.value" style="' + _inp + '">' +
+    '<label style="font-size:11px;color:var(--text3)">' + esc(t('doc.f.vence')) + '</label>' +
+    '<input id="doc-vence" type="date" oninput="_docState.vence=this.value" style="' + _inp + '">' +
+    '<label style="font-size:11px;color:var(--text3)">' + esc(t('doc.f.aviso')) + '</label>' +
+    '<input id="doc-aviso" type="number" min="0" value="30" oninput="_docState.aviso=this.value" style="' + _inp + '">' +
+    '<textarea id="doc-notas" placeholder="' + esc(t('doc.f.notas')) + '" maxlength="500" oninput="_docState.notas=this.value" style="' + _inp + ';resize:vertical" rows="2"></textarea>' +
+    '<button class="pin-change-btn" style="margin-top:2px" onclick="saveDocumento(this)">' + esc(t('doc.f.save')) + '</button></div>';
+  f.style.display = 'block';
+}
+
+async function saveDocumento(btn) {
+  const s = _docState;
+  if (!s.nombre.trim()) { alert(t('doc.err.nombre')); return; }
+  if (/[<>]/.test(s.nombre)) { alert(t('doc.err.nombre')); return; }
+  if (!s.tipo || !s.entidad) { alert(t('doc.err.tipo')); return; }
+  // Defensa: los selects solo pueden ser valores de la allow-list del esquema (no ensuciar Notion aunque
+  // alguien fuerce el valor por consola). País cae al 1º válido si viniera raro.
+  if (!DOC_TIPOS.includes(s.tipo) || !DOC_ENTIDADES.includes(s.entidad)) { alert(t('doc.err.tipo')); return; }
+  if (!DOC_PAISES.includes(s.pais)) s.pais = DOC_PAISES[0];
+  const props = {
+    'Documento': { title: [{ text: { content: s.nombre.trim() } }] },
+    'Tipo': { select: { name: s.tipo } },
+    'Entidad emisora': { select: { name: s.entidad } },
+    'País': { select: { name: s.pais } },
+    'Estado': { select: { name: '🟢 Vigente' } },
+    'Cargado por': { select: { name: 'Técnico' } },
+  };
+  if (s.emision) props['Fecha emisión'] = { date: { start: s.emision } };
+  if (s.vence) props['Vence'] = { date: { start: s.vence } };
+  const av = parseInt(s.aviso, 10);
+  if (Number.isFinite(av) && av >= 0) props['Días de aviso'] = { number: av };
+  if (s.notas.trim()) props['Notas'] = { rich_text: [{ text: { content: s.notas.trim() } }] };
+  const orig = btn.textContent; btn.disabled = true; btn.textContent = '⏳';
+  try {
+    await callNotion('pages', 'POST', { parent: { type: 'data_source_id', data_source_id: DOCUMENTOS_DS_ID }, properties: props });
+    document.getElementById('doc-form').style.display = 'none';
+    loadDocumentos();
+    showSaving();
+  } catch (e) {
+    btn.disabled = false; btn.textContent = orig;
+    alert(t('sheet.alert.save.error2') + e.message);
+  }
+}
 async function amGoCuentas() {
   // El panel "🔑 Cuentas de acceso" vive en CEO → Equipo (adminAccountsHTML). Navegamos ahí.
   // await encadenado (no setTimeout): si loadCEO tarda, Equipo se pinta DESPUÉS y nadie lo pisa (review).
