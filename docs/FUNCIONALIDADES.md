@@ -5,7 +5,7 @@
 > **ANTES de construir/proponer algo: buscalo acá + grep del código. Reusar > reconstruir** (ya
 > duplicamos 2 veces: Clientes/Contactos y PINs). Mantenerlo: actualizar este archivo tras cada feature
 > (junto al bump de `sw.js`). Complementa a `ARQUITECTURA.md` (cómo está construido), `NOTION.md`
-> (datos) y `RUNBOOK.md` (operar/deploy). **Última actualización: 2026-07-11, sw v156** (CRM interconectado
+> (datos) y `RUNBOOK.md` (operar/deploy). **Última actualización: 2026-07-12, sw v159** (CRM interconectado
 > v147 · snooze de recontacto v151 · diagnóstico de errores con motivo v152 · Supabase-first SERVICIOS vivo +
 > regla "escribir solo lo que cambió" v153 — ver RUNBOOK §Supabase-first) — el detalle de cada
 > release está en las secciones fechadas al final (llegan hasta v133). Hito documentado de **sectores** (sw v93):
@@ -776,3 +776,20 @@ _Generado automáticamente del código (workflow `inventario-funcionalidades`). 
   (c) **💬 Plantillas WhatsApp** por idioma: `cfgWa(k)` en los 3 call sites, fallback i18n, siguen por
   encodeURIComponent. Además (d) **✏️ editar usuario** en Cuentas de acceso (`toggleEditUser`/`adminEditUser`
   → admin-set-user `upsert:true`; anti-lockout: un admin no se quita Dirección/CEO a sí mismo).
+- **Mapa "traer a la app" — puntos 5-12 (v157-v159, 2026-07-11/12)**: tras el análisis de qué dependía de
+  afuera, se trajeron:
+  · **#5 PDF de propuesta** (`buildProposalDoc`/`generateProposalPDF`, botón en el sheet de propuesta, todos
+    los roles solo-lectura, reusa el motor jsPDF+marca; navigator.share o descarga).
+  · **#8 Ayuda** (fila 📖 en el menú de cuenta → `openHelpSheet`, lista los manuales publicados en /docs/manuales).
+  · **#9 Pedidos/compras** (2 columnas nuevas en DB Solicitudes: Tienda/Proveedor + Costo estimado; estado
+    "📦 Recibido"; `marcarPedidoRecibido`).
+  · **#6 Tarifas de jornales** (⚙️ card `tarifas` en appconfig {id:{dron,manual}} + `renderJornalesPreview`:
+    jornales×tarifa del mes; cajón que Diego llena).
+  · **#7 Costos + calculadora** (⚙️ card `costos` {m2Dron,m2Manual,margen,minimo} + botón 🧮 en la propuesta
+    `calcularPrecioPropuesta`: m²×costo/m²×(1+margen), piso, redondeo).
+  · **#12 Documentos & Certificados** (⚙️ → `openDocumentosSheet`: alta de documento — Documento/Tipo/Entidad/
+    País/Fecha emisión/Vence/Días aviso/Notas → crea page con Cargado por=Técnico; nombres verificados por MCP;
+    la alerta de vencimiento ya los toma). PDF adjunto = pendiente.
+  · **#10 ROI** DIFERIDO a la fase Finanzas (decisión de Diego). **#11 Conciliación** = solo-lectura: los
+    movimientos del cowork YA se ven en Gastos/Ingresos; un marcador que los distinga requiere coordinar con el
+    cowork (el badge intentado se revirtió: cowork y app-Finanzas comparten el label "Finanzas").
