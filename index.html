@@ -574,7 +574,12 @@ body::before {
   .coord-content { flex: 1; overflow-y: auto; padding-bottom: 32px; }
   .coord-toolbar { padding: 10px 12px 6px; border-bottom: 1px solid var(--border); background: var(--bg); position: sticky; top: 0; z-index: 5; }
   .coord-toolbar-row { display: flex; gap: 8px; align-items: center; }
-  .coord-search-input { flex: 1; min-width: 0; padding: 10px 12px; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); font-family: inherit; font-size: 14px; outline: none; }
+  .coord-search-input { flex: 1; min-width: 0; padding: 9px 16px; background: var(--card); border: 1px solid var(--border); border-radius: 999px; color: var(--text); font-family: inherit; font-size: 14px; outline: none; }
+  .coord-chips { display: flex; gap: 6px; overflow-x: auto; padding: 8px 0 2px; align-items: center; scrollbar-width: none; }
+  .coord-chips::-webkit-scrollbar { display: none; }
+  .coord-chip-active { display: inline-flex; align-items: center; gap: 5px; background: var(--green-dark, rgba(0,201,141,0.12)); border: 1px solid var(--green); border-radius: 999px; padding: 4px 10px; font-size: 11.5px; color: var(--text); white-space: nowrap; flex: 0 0 auto; cursor: pointer; }
+  .coord-chip-active .x { color: var(--text3); font-size: 12px; }
+  .coord-chip-clear { border: none; background: transparent; color: var(--text3); font-size: 11px; font-family: inherit; cursor: pointer; white-space: nowrap; flex: 0 0 auto; padding: 4px 6px; }
   .coord-search-input:focus { border-color: var(--green); }
   .coord-tool-btn { position: relative; min-width: 44px; padding: 10px; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); font-size: 16px; cursor: pointer; font-family: inherit; }
   .coord-tool-btn.active { border-color: var(--green); color: var(--green); }
@@ -1307,14 +1312,9 @@ body::before {
     <div class="coord-toolbar-row">
       <input type="search" id="coord-search" class="coord-search-input" placeholder="🔎 Buscar..." oninput="onCoordSearchInput(this.value)" autocomplete="off"/>
       <button class="coord-tool-btn" id="coord-filter-btn" onclick="toggleCoordFiltersPanel()" title="Filtros"><span id="coord-filter-icon">⚙︎</span><span id="coord-filter-count" class="coord-filter-count" style="display:none"></span></button>
-      <select id="coord-sort" class="coord-sort-select" onchange="setCoordSort(this.value)" title="Orden">
-        <option value="date-desc">📅 Próximos primero</option>
-        <option value="date-asc">📆 Pasados primero</option>
-        <option value="alpha-asc">🔤 A → Z</option>
-        <option value="alpha-desc">🔤 Z → A</option>
-      </select>
     </div>
-    <div class="coord-filters-panel" id="coord-filters-panel" style="display:none"></div>
+    <!-- Filtros activos como chips removibles (patrón estándar); los filtros viven en el bottom-sheet -->
+    <div class="coord-chips" id="coord-chips" style="display:none"></div>
   </div>
   <div id="coord-view-toggle" class="coord-view-toggle" style="display:none"></div>
   <div id="coord-subtab-bar" class="coord-view-toggle" style="display:none"></div>
@@ -1807,6 +1807,18 @@ body::before {
   </div>
 </div>
 
+<!-- FILTROS Y ORDEN (coordinador) — bottom-sheet estándar; reemplaza el panel inline (v163) -->
+<div class="edit-overlay" id="coord-filter-overlay" onclick="coordFilterOverlayClick(event)">
+  <div class="pin-change-sheet" style="max-height:82vh;overflow-y:auto">
+    <button class="sheet-close-btn" type="button" aria-label="Cerrar" onclick="closeCoordFilterSheet()">×</button>
+    <div class="pin-change-handle"></div>
+    <div class="pin-change-title" data-i18n="flt.title">Filtros y orden</div>
+    <div id="coord-filter-sheet-content"></div>
+    <button class="pin-change-btn" id="coord-filter-apply" onclick="closeCoordFilterSheet()" style="margin-top:12px">Listo</button>
+    <button class="pin-change-link" style="width:100%;text-align:center;margin-top:4px" onclick="clearCoordFilters()" data-i18n="flt.clear">Limpiar todo</button>
+  </div>
+</div>
+
 <!-- CONFIGURACIÓN (solo admins; el server re-valida TODO con ADMIN_IDS — esto es cosmético) -->
 <div class="edit-overlay" id="config-overlay" onclick="configOverlayClick(event)">
   <div class="pin-change-sheet" style="max-height:82vh;overflow-y:auto">
@@ -2055,6 +2067,16 @@ const TRANSLATIONS = {
     'doc.f.save': 'Guardar documento',
     'doc.err.nombre': 'Poné un nombre válido (sin < ni >).',
     'doc.err.tipo': 'Elegí el tipo y la entidad emisora.',
+    'flt.title': 'Filtros y orden',
+    'flt.sort': 'Ordenar por',
+    'flt.sort.proximos': '📅 Próximos',
+    'flt.sort.pasados': '📆 Pasados',
+    'flt.ver': 'Ver {n} {que}',
+    'flt.listo': 'Listo',
+    'flt.clear': 'Limpiar todo',
+    'flt.chips.clear': 'Limpiar',
+    'flt.noun.servicios': 'servicios',
+    'flt.noun.propuestas': 'propuestas',
     'cfg.costo.title': 'Costos del servicio (calculadora)',
     'cfg.costo.m2dron': 'Costo por m² · Dron',
     'cfg.costo.m2manual': 'Costo por m² · Manual',
@@ -2939,6 +2961,16 @@ const TRANSLATIONS = {
     'doc.f.save': 'Salvar documento',
     'doc.err.nombre': 'Coloque um nome válido (sem < nem >).',
     'doc.err.tipo': 'Escolha o tipo e a entidade emissora.',
+    'flt.title': 'Filtros e ordem',
+    'flt.sort': 'Ordenar por',
+    'flt.sort.proximos': '📅 Próximos',
+    'flt.sort.pasados': '📆 Passados',
+    'flt.ver': 'Ver {n} {que}',
+    'flt.listo': 'Pronto',
+    'flt.clear': 'Limpar tudo',
+    'flt.chips.clear': 'Limpar',
+    'flt.noun.servicios': 'serviços',
+    'flt.noun.propuestas': 'propostas',
     'cfg.costo.title': 'Custos do serviço (calculadora)',
     'cfg.costo.m2dron': 'Custo por m² · Drone',
     'cfg.costo.m2manual': 'Custo por m² · Manual',
@@ -10452,6 +10484,7 @@ function renderCEOEquipoLocal() {
 // FILTROS DEL COORDINADOR — buscador + multi-select + sort + rango fechas
 // Aplica client-side sobre los items ya cargados (no genera más calls a Notion).
 // ─────────────────────────────────────────────
+let _coordFilteredCount = null; // total tras applyCoordFilters (para el botón del sheet)
 let coordFilters = {
   search: '',
   estado: [],         // multi-select de estados a INCLUIR; vacío = todos
@@ -10461,7 +10494,13 @@ let coordFilters = {
   dateTo: '',         // YYYY-MM-DD
   sort: 'date-desc'   // por defecto: próximos arriba → hoy → pasados → sin fecha al final
 };
-let _coordFiltersPanelOpen = false;
+let _coordFiltersPanelOpen = false; // legacy (panel inline); el sheet v163 se chequea por su overlay
+function refreshCoordFilterSheetIfOpen() {
+  if (document.getElementById('coord-filter-overlay')?.classList.contains('open')) {
+    renderCoordFiltersPanel();
+    updateCoordApplyBtn();
+  }
+}
 let _coordSearchTimer = null;
 // Vista de la pestaña Inicio del coord: 'list' (cronológica) o 'board' (Kanban por estado).
 let _coordView = localStorage.getItem('fc_coord_view') || 'list';
@@ -10485,6 +10524,7 @@ function refreshCoordFilterBadge() {
     else { badge.style.display = 'none'; }
   }
   if (btn) btn.classList.toggle('active', n > 0);
+  renderCoordChips();
 }
 
 function isCoordToolbarVisible(tab) {
@@ -10496,15 +10536,12 @@ function showCoordToolbar(tab) {
   if (!tb) return;
   if (isCoordToolbarVisible(tab)) {
     tb.style.display = 'block';
-    const sortSel = document.getElementById('coord-sort');
-    if (sortSel) sortSel.value = coordFilters.sort;
     const searchEl = document.getElementById('coord-search');
     if (searchEl) searchEl.value = coordFilters.search;
     refreshCoordFilterBadge();
   } else {
     tb.style.display = 'none';
-    const panel = document.getElementById('coord-filters-panel');
-    if (panel) { panel.style.display = 'none'; _coordFiltersPanelOpen = false; }
+    closeCoordFilterSheet();
   }
 }
 
@@ -10520,14 +10557,49 @@ function onCoordSearchInput(v) {
 function setCoordSort(v) {
   coordFilters.sort = v;
   rerenderActiveCoordTab();
+  updateCoordApplyBtn();
 }
 
+// v163: los filtros viven en un BOTTOM-SHEET (patrón estándar) en vez del panel inline que empujaba
+// la lista. Mismo nombre de función (la llama el botón ⚙︎); misma lógica de filtros por debajo.
 function toggleCoordFiltersPanel() {
-  _coordFiltersPanelOpen = !_coordFiltersPanelOpen;
-  const panel = document.getElementById('coord-filters-panel');
-  if (!panel) return;
-  panel.style.display = _coordFiltersPanelOpen ? 'block' : 'none';
-  if (_coordFiltersPanelOpen) renderCoordFiltersPanel();
+  const ov = document.getElementById('coord-filter-overlay');
+  if (!ov) return;
+  if (ov.classList.contains('open')) { closeCoordFilterSheet(); return; }
+  renderCoordFiltersPanel();
+  updateCoordApplyBtn();
+  ov.classList.add('open');
+}
+function closeCoordFilterSheet() { document.getElementById('coord-filter-overlay')?.classList.remove('open'); }
+function coordFilterOverlayClick(e) { if (e.target.id === 'coord-filter-overlay') closeCoordFilterSheet(); }
+
+// Botón "Ver N resultados": N = total filtrado (pre-paginación), lo deja applyCoordFilters en _coordFilteredCount.
+function updateCoordApplyBtn() {
+  const btn = document.getElementById('coord-filter-apply');
+  if (!btn) return;
+  const n = (typeof _coordFilteredCount === 'number') ? _coordFilteredCount : null;
+  const noun = activeCoordTab === 'propuestas' ? t('flt.noun.propuestas') : t('flt.noun.servicios');
+  btn.textContent = (n != null) ? t('flt.ver').replace('{n}', n).replace('{que}', noun) : t('flt.listo');
+}
+
+// Chips de filtros ACTIVOS bajo el buscador (se sacan con un toque). Único hook: refreshCoordFilterBadge.
+function renderCoordChips() {
+  const row = document.getElementById('coord-chips');
+  if (!row) return;
+  const escA = v => String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const chips = [];
+  const mk = (label, dim, val) => chips.push('<span class="coord-chip-active" data-dim="' + dim + '" data-val="' + escA(val) + '" onclick="toggleCoordFilterValue(this.dataset.dim, this.dataset.val)">' + escA(label) + ' <span class="x">✕</span></span>');
+  coordFilters.estado.forEach(v => mk(v, 'estado', v));
+  coordFilters.pais.forEach(v => mk(v, 'pais', v));
+  coordFilters.operario.forEach(v => mk('👤 ' + v, 'operario', v));
+  if (coordFilters.dateFrom || coordFilters.dateTo) {
+    const fmt = (d) => d ? d.slice(8, 10) + '/' + d.slice(5, 7) : '…';
+    chips.push('<span class="coord-chip-active" onclick="setCoordDateRange(\'\', \'\')">📅 ' + fmt(coordFilters.dateFrom) + ' → ' + fmt(coordFilters.dateTo) + ' <span class="x">✕</span></span>');
+  }
+  if (!chips.length) { row.style.display = 'none'; row.innerHTML = ''; return; }
+  chips.push('<button class="coord-chip-clear" onclick="clearCoordFilters()">' + t('flt.chips.clear') + '</button>');
+  row.innerHTML = chips.join('');
+  row.style.display = 'flex';
 }
 
 function toggleCoordFilterValue(dim, val) {
@@ -10537,13 +10609,16 @@ function toggleCoordFilterValue(dim, val) {
   refreshCoordFilterBadge();
   renderCoordFiltersPanel();
   rerenderActiveCoordTab();
+  updateCoordApplyBtn();
 }
 
 function setCoordDateRange(from, to) {
   coordFilters.dateFrom = from || '';
   coordFilters.dateTo = to || '';
   refreshCoordFilterBadge();
+  renderCoordFiltersPanel();
   rerenderActiveCoordTab();
+  updateCoordApplyBtn();
 }
 
 function clearCoordFilters() {
@@ -10558,6 +10633,7 @@ function clearCoordFilters() {
   refreshCoordFilterBadge();
   renderCoordFiltersPanel();
   rerenderActiveCoordTab();
+  updateCoordApplyBtn();
 }
 
 function uniqueValues(items, getter) {
@@ -10567,7 +10643,7 @@ function uniqueValues(items, getter) {
 }
 
 function renderCoordFiltersPanel() {
-  const panel = document.getElementById('coord-filters-panel');
+  const panel = document.getElementById('coord-filter-sheet-content');
   if (!panel) return;
   const isProps = activeCoordTab === 'propuestas';
   const items = isProps ? _coordAllProps : _coordAllServices;
@@ -10585,7 +10661,15 @@ function renderCoordFiltersPanel() {
   const chip = (dim, value, active) =>
     `<span class="coord-filter-chip ${active ? 'active' : ''}" data-dim="${dim}" data-val="${escAttr(value)}" onclick="toggleCoordFilterValue(this.dataset.dim, this.dataset.val)">${escAttr(value)}</span>`;
 
-  let html = '';
+  // Orden adentro del sheet (antes era un <select> suelto que comía lugar en la barra)
+  const SORTS = [
+    ['date-desc', t('flt.sort.proximos')], ['date-asc', t('flt.sort.pasados')],
+    ['alpha-asc', '🔤 A → Z'], ['alpha-desc', '🔤 Z → A'],
+  ];
+  let html = `<div class="coord-filter-section">
+    <div class="coord-filter-label">${t('flt.sort')}</div>
+    <div class="coord-filter-chips">${SORTS.map(([v, l]) => `<span class="coord-filter-chip ${coordFilters.sort === v ? 'active' : ''}" onclick="setCoordSort('${v}');renderCoordFiltersPanel()">${l}</span>`).join('')}</div>
+  </div>`;
   if (estados.length) {
     html += `<div class="coord-filter-section">
       <div class="coord-filter-label">Estado</div>
@@ -10611,10 +10695,6 @@ function renderCoordFiltersPanel() {
       <span style="color:var(--text3);font-size:12px">→</span>
       <input type="date" class="coord-filter-date-input" value="${coordFilters.dateTo}" onchange="setCoordDateRange(coordFilters.dateFrom, this.value)" placeholder="Hasta"/>
     </div>
-  </div>`;
-  html += `<div class="coord-filters-actions">
-    <button class="clear-btn" onclick="clearCoordFilters()">Limpiar todo</button>
-    <button onclick="toggleCoordFiltersPanel()">Aplicar</button>
   </div>`;
   panel.innerHTML = html;
 }
@@ -10675,6 +10755,7 @@ function applyCoordFilters(items, opts) {
     'date-desc':  (a, b) => (getDate(b) || '0000').localeCompare(getDate(a) || '0000'),
   }[coordFilters.sort] || ((a, b) => 0);
 
+  _coordFilteredCount = out.length; // total filtrado (pre-paginación) — lo lee el botón "Ver N resultados"
   return [...out].sort(sortFn);
 }
 
@@ -13501,7 +13582,7 @@ async function renderCoordInicio() {
     renderWeekStrip(_coordAllServices);
     // El toggle Lista/Tablero/Calendario solo se ve en Inicio. renderCoordServiciosView lo muestra (display:flex) y decide qué pintar.
     renderCoordServiciosView();
-    if (_coordFiltersPanelOpen) renderCoordFiltersPanel();
+    refreshCoordFilterSheetIfOpen();
   } catch (e) {
     if (activeCoordTab !== myTab) return;
     content.innerHTML = `<div class="coord-empty">${t('coord.error.load')}<br><small>${esc(e.message)}</small></div>`;
@@ -13529,7 +13610,7 @@ async function renderCoordServicios() {
     renderWeekStrip(_coordAllServices);
     // Servicios = lista cronológica simple (sin toggle de vistas; eso vive en Inicio).
     renderCoordList();
-    if (_coordFiltersPanelOpen) renderCoordFiltersPanel();
+    refreshCoordFilterSheetIfOpen();
   } catch (e) {
     if (activeCoordTab !== myTab) return;
     content.innerHTML = `<div class="coord-empty">${t('coord.error.load')}<br><small>${esc(e.message)}</small></div>`;
@@ -13554,7 +13635,7 @@ async function renderCoordPruebas() {
     if (!selectedCoordDay) selectedCoordDay = 'all';
     renderWeekStrip(_coordAllServices);
     renderCoordList();
-    if (_coordFiltersPanelOpen) renderCoordFiltersPanel();
+    refreshCoordFilterSheetIfOpen();
   } catch (e) {
     if (activeCoordTab !== myTab) return;
     content.innerHTML = `<div class="coord-empty">${t('coord.error.load')}<br><small>${esc(e.message)}</small></div>`;
@@ -13579,7 +13660,7 @@ async function renderCoordRelevamientos() {
     if (!selectedCoordDay) selectedCoordDay = 'all';
     renderWeekStrip(_coordAllServices);
     renderCoordList();
-    if (_coordFiltersPanelOpen) renderCoordFiltersPanel();
+    refreshCoordFilterSheetIfOpen();
   } catch (e) {
     if (activeCoordTab !== myTab) return;
     content.innerHTML = `<div class="coord-empty">${t('coord.error.load')}<br><small>${esc(e.message)}</small></div>`;
@@ -15811,7 +15892,7 @@ async function renderCoordPropuestas() {
     if (activeCoordTab !== myTab) return;
     _coordAllProps = data.results || [];
     renderCoordPropuestasList();
-    if (_coordFiltersPanelOpen) renderCoordFiltersPanel();
+    refreshCoordFilterSheetIfOpen();
   } catch (e) {
     if (activeCoordTab !== myTab) return;
     content.innerHTML = `<div class="coord-empty">${t('coord.error.props')}<br><small>${esc(e.message)}</small></div>`;
@@ -15828,6 +15909,7 @@ function renderCoordPropuestasList(keepLimit) {
   const nuevaPropBtnHTML = esVentas() ? '' :
     `<div style="padding:12px 16px 0"><button class="nueva-prop-btn" onclick="openNewPropSheet()">${t('coord.new.prop')}</button></div>`;
   if (!_coordAllProps.length) {
+    _coordFilteredCount = 0; // review: sin propuestas, el botón del sheet debe decir 0 (no heredar otro count)
     content.innerHTML = contactarHoyHTML + nuevaPropBtnHTML +
       `<div class="coord-empty">${t('coord.empty.props')}</div>`;
     return;
