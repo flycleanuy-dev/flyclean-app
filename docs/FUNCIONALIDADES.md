@@ -5,7 +5,7 @@
 > **ANTES de construir/proponer algo: buscalo acá + grep del código. Reusar > reconstruir** (ya
 > duplicamos 2 veces: Clientes/Contactos y PINs). Mantenerlo: actualizar este archivo tras cada feature
 > (junto al bump de `sw.js`). Complementa a `ARQUITECTURA.md` (cómo está construido), `NOTION.md`
-> (datos) y `RUNBOOK.md` (operar/deploy). **Última actualización: 2026-07-12, sw v159** (CRM interconectado
+> (datos) y `RUNBOOK.md` (operar/deploy). **Última actualización: 2026-07-12, sw v160** (CRM interconectado
 > v147 · snooze de recontacto v151 · diagnóstico de errores con motivo v152 · Supabase-first SERVICIOS vivo +
 > regla "escribir solo lo que cambió" v153 — ver RUNBOOK §Supabase-first) — el detalle de cada
 > release está en las secciones fechadas al final (llegan hasta v133). Hito documentado de **sectores** (sw v93):
@@ -793,3 +793,8 @@ _Generado automáticamente del código (workflow `inventario-funcionalidades`). 
   · **#10 ROI** DIFERIDO a la fase Finanzas (decisión de Diego). **#11 Conciliación** = solo-lectura: los
     movimientos del cowork YA se ven en Gastos/Ingresos; un marcador que los distinga requiere coordinar con el
     cowork (el badge intentado se revirtió: cowork y app-Finanzas comparten el label "Finanzas").
+- **Manuales por rol (v160, 2026-07-12)**: 5 PDFs en `docs/manuales/` (Operario_v3, Coordinador_v3, CEO_v1,
+  Finanzas_v1, Ventas_v3 — reemplaza v2), registrados en `MANUALES[]` → 📖 Ayuda muestra "el tuyo" primero.
+  Generador `scripts/build-manuales-roles.cjs`: Playwright con RED INTERCEPTADA (route + serviceWorkers:block)
+  → la app corre real pero /api/* devuelve datos DEMO (sin PINs, sin datos de clientes en capturas, cero
+  escritura posible). Login v2 tipeado. Regenerar: `node scripts/build-manuales-roles.cjs [rol]`.
