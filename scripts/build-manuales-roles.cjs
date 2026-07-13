@@ -222,6 +222,32 @@ const EQUIPO = [
   }},
 ];
 
+// Flota (módulo 🔧 Equipos del coordinador). Datos demo: uno sin "Último check" reciente = alerta de check.
+const ACTIVOS = [
+  { object: 'page', id: 'act-1', created_time: '2026-01-01T10:00:00Z', properties: {
+    'Activo': title('Drone DJI M400'), 'Tipo': sel('🚁 Drone'), 'Estado': sel('✅ Operativo'),
+    'Marca / Modelo': txt('DJI Matrice 400'), 'Nro. Serie / Matrícula': txt('SN-M400-01'),
+    'Horas de vuelo': num(48), 'Último check': date('2026-07-04'), 'País': sel('🇺🇾 UY') } },
+  { object: 'page', id: 'act-2', created_time: '2026-01-01T10:00:00Z', properties: {
+    'Activo': title('Drone DJI M350 #1'), 'Tipo': sel('🚁 Drone'), 'Estado': sel('✅ Operativo'),
+    'Marca / Modelo': txt('DJI Matrice 350 RTK'), 'Nro. Serie / Matrícula': txt('SN-M350-01'),
+    'Horas de vuelo': num(31), 'Último check': date('2026-07-04'), 'País': sel('🇺🇾 UY') } },
+  { object: 'page', id: 'act-3', created_time: '2026-01-01T10:00:00Z', properties: {
+    'Activo': title('Camioneta Changan Hunter'), 'Tipo': sel('🚗 Vehículo'), 'Estado': sel('✅ Operativo'),
+    'Marca / Modelo': txt('Changan Hunter'), 'Nro. Serie / Matrícula': txt('SBA 1234'),
+    'Km actuales': num(12450), 'Último check': date('2026-07-04'), 'País': sel('🇺🇾 UY') } },
+  { object: 'page', id: 'act-4', created_time: '2026-01-01T10:00:00Z', properties: {
+    'Activo': title('Camioneta Hyundai H1'), 'Tipo': sel('🚗 Vehículo'), 'Estado': sel('✅ Operativo'),
+    'Marca / Modelo': txt('Hyundai H1'), 'Nro. Serie / Matrícula': txt('SBB 5678'),
+    'Km actuales': num(86300), 'País': sel('🇺🇾 UY') } },
+  { object: 'page', id: 'act-5', created_time: '2026-01-01T10:00:00Z', properties: {
+    'Activo': title('Trailer c/Ósmosis'), 'Tipo': sel('🚛 Trailer'), 'Estado': sel('✅ Operativo'),
+    'Marca / Modelo': txt('Trailer + planta de ósmosis'), 'Último check': date('2026-07-04'), 'País': sel('🇺🇾 UY') } },
+  { object: 'page', id: 'act-6', created_time: '2026-01-01T10:00:00Z', properties: {
+    'Activo': title('Hidrolavadora Honda'), 'Tipo': sel('💧 Hidrolavadora'), 'Estado': sel('🔧 En mantenimiento'),
+    'Marca / Modelo': txt('Honda GX390'), 'País': sel('🇺🇾 UY') } },
+];
+
 const DEMO_CONFIG = {
   reglas: { pipelineAviso: 15, pipelineSinRespuesta: 45, mantenimientoDias: 270, ventasSnoozeDias: 60, prospectoDias: 7 },
   tarifas: { 'juan-pablo': { dron: 2500, manual: 2000 }, 'francisco-rocha': { dron: 2500, manual: 2000 } },
@@ -237,10 +263,11 @@ const MOCK_BY_DB = {
   '0f5cd38362ab430293a5dec7140ac18f': SOLICITUDES,
   'f888bd9c89e0497a9d2c57594aacd663': DOCUMENTOS,
   'cfff6e26dbc84eedb7eabcb6c51db1eb': EQUIPO,
+  'e75449eeb78143f1b74006a4796c1f95': ACTIVOS,
   '57bc613af5d04908a9f2342cf6a1a5a7': [],
 };
 const DB_BY_RESOURCE = { servicios: SERVICIOS, clientes: CLIENTES, propuestas: PROPUESTAS, gastos: GASTOS, ingresos: INGRESOS };
-const ALL_PAGES = [...SERVICIOS, ...CLIENTES, ...PROPUESTAS, ...GASTOS, ...INGRESOS, ...SOLICITUDES, ...DOCUMENTOS, ...EQUIPO];
+const ALL_PAGES = [...SERVICIOS, ...CLIENTES, ...PROPUESTAS, ...GASTOS, ...INGRESOS, ...SOLICITUDES, ...DOCUMENTOS, ...EQUIPO, ...ACTIVOS];
 
 // ══════════════════════════════════════════════════════════════════════════════
 // Red interceptada
@@ -365,18 +392,36 @@ async function buildOperario(browser) {
   });
 
   console.log('  [Operario] ficha del servicio...');
-  let imgFicha = null, imgChecklist = null;
+  let imgFicha = null, imgChecklist = null, imgMetodo = null;
   try {
     await page.evaluate(() => { const el = document.querySelector('#services-list .service-card, #services-list [onclick*="openService"]'); if (el) el.click(); });
     await page.waitForSelector('#screen-detail.active', { timeout: 12000 });
     imgFicha = await snap(page, { wait: 1200, fullPage: false });
-    // Paso checklist (sin clickear "Iniciar" real — seteamos el paso DIRECTO y renderizamos; goToStep
-    // tiene guard de secuencia). serviceState.horaInicio simula que ya inició (client-side puro).
+    // Paso MÉTODO DE TRABAJO (inicio efectivo): mostramos que se pueden marcar Dron Y Manual a la vez +
+    // varias herramientas (feature 2026-07-12). Seteamos el paso DIRECTO y renderizamos (goToStep tiene
+    // guard de secuencia). serviceState.horaInicio simula que ya inició (client-side puro, sin escribir).
     await page.evaluate(() => {
       try {
         serviceState.horaInicio = new Date().toISOString();
-        serviceState.metodoTrabajo = '🚁 Dron';
-        const steps = (typeof STEPS_SERVICIO !== 'undefined' ? STEPS_SERVICIO : []);
+        serviceState.metodoTrabajo = ['🚁 Dron', '💪 Manual'];
+        serviceState.herramientaManual = ['Lanzas', 'Manguera'];
+        // Usar el array ACTIVO (STEPS): para servicios con sectores es STEPS_SECTORES, donde el índice de
+        // inicio_efectivo difiere de STEPS_SERVICIO. renderStep lee STEPS[currentStep].
+        const steps = (typeof STEPS !== 'undefined' && STEPS ? STEPS : (typeof STEPS_SERVICIO !== 'undefined' ? STEPS_SERVICIO : []));
+        const idx = steps.findIndex(s => s.id === 'inicio_efectivo');
+        if (idx >= 0) { currentStep = idx; if (typeof renderStepNav === 'function') renderStepNav(); if (typeof renderStep === 'function') renderStep(); }
+      } catch (e) { console.warn('step metodo', e); }
+    });
+    // Scroll hasta los botones de método (Dron/Manual + herramientas) — es lo que queremos mostrar, no el clima.
+    await page.evaluate(() => {
+      const el = document.querySelector('.metodo-group');
+      if (el) el.scrollIntoView({ block: 'center' });
+    });
+    imgMetodo = await snap(page, { wait: 700 });
+    // Paso checklist pre-vuelo.
+    await page.evaluate(() => {
+      try {
+        const steps = (typeof STEPS !== 'undefined' && STEPS ? STEPS : (typeof STEPS_SERVICIO !== 'undefined' ? STEPS_SERVICIO : []));
         const idx = steps.findIndex(s => s.id === 'checklist_pre');
         if (idx >= 0) {
           currentStep = idx;
@@ -393,6 +438,11 @@ async function buildOperario(browser) {
     title: 'La ficha del servicio — todo antes de empezar',
     intro: 'Al abrir un servicio ves la información que te dejó el coordinador: fecha, hora, lugar (con 🗺️ mapa), el cliente y sus notas. Desde acá tocás ▶ INICIAR cuando llegás.',
     steps: [{ title: 'Leé las notas del coordinador ANTES de iniciar', description: 'Si el trabajo tiene sectores (ej. Fachada norte / este / vidrios lobby) los ves acá con su estado. Al iniciar, la app te puede pedir tu ubicación (es solo el punto de inicio del trabajo).', image: imgFicha, wide: true }],
+  });
+  sections.push({
+    title: '🛠️ Método de trabajo — dron, manual o los dos',
+    intro: 'Al registrar el inicio elegís CÓMO se hace el trabajo. Podés marcar 🚁 Dron y 💪 Manual a la vez (ej. dron para lo alto y lanzas/manguera para lo bajo) y varias herramientas juntas. También marcás la condición del clima.',
+    steps: [{ title: 'Marcá uno o ambos + las herramientas que uses', description: 'Es obligatorio elegir al menos un método para registrar el inicio efectivo. Si marcás Manual, elegí con qué herramienta(s): Lanzas, Manguera, Hidrolavadora u Otro. Esto alimenta tus horas de dron vs. manual en tu historial.', image: imgMetodo, wide: true }],
   });
   sections.push({
     title: 'Checklist pre-vuelo — seguridad primero',
@@ -521,6 +571,15 @@ async function buildCoordinador(browser) {
     title: '📦 Pedidos — las compras del equipo',
     intro: 'Lo que piden los operarios cae acá, ordenado por urgencia. Ahora con proveedor y costo estimado.',
     steps: [{ title: 'Pendiente → ✅ Comprado → 📦 Recibido', description: 'Marcá "Comprado" cuando lo compraste (guarda la fecha) y "Recibido" cuando llegó. Cancelá lo que no va.', image: imgPedidos, wide: true }],
+  });
+
+  console.log('  [Coord] equipos...');
+  await tab('equipos');
+  const imgEquipos = await snap(page, { wait: 1200 });
+  sections.push({
+    title: '🔧 Equipos — la flota bajo control',
+    intro: 'Toda la flota del país en un lugar: drones, camionetas, hidrolavadoras, ósmosis y trailer. Cada equipo con su estado, matrícula, km (vehículos) u horas de vuelo (drones) y el semáforo del check mensual.',
+    steps: [{ title: 'Check mensual + km/horas + service + historial', description: 'Una vez al mes hacés el ✅ Check y cargás los km (vehículos) o las horas de vuelo (drones) que te pasa el piloto/chofer. El 🔧 registra un service, ✏️ edita o da de baja un equipo, y 📜 muestra el historial. Los que llevan +30 días sin check aparecen marcados arriba para que no se te pase.', image: imgEquipos, wide: true }],
   });
 
   console.log('  [Coord] menú...');
