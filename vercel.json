@@ -21,10 +21,12 @@
     { "path": "/api/cron-report", "schedule": "0 21 * * 5" },
     { "path": "/api/cron-report", "schedule": "0 11 * * 1" },
     { "path": "/api/cron-db-sync", "schedule": "*/10 * * * *" },
-    { "path": "/api/cron-outbox", "schedule": "* * * * *" }
+    { "path": "/api/cron-outbox", "schedule": "* * * * *" },
+    { "path": "/api/health-reconcile", "schedule": "17 4 * * *" }
   ],
   "functions": {
     "api/cron-db-sync.js": { "maxDuration": 60 },
-    "api/cron-outbox.js": { "maxDuration": 60 }
+    "api/cron-outbox.js": { "maxDuration": 60 },
+    "api/health-reconcile.js": { "maxDuration": 60 }
   }
 }

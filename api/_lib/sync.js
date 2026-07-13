@@ -18,7 +18,8 @@ async function notionFetch(path, body) {
   return { ok: r.ok, status: r.status, json: await r.json().catch(() => ({})) };
 }
 
-async function queryAll(dbId) {
+// Exportada para la reconciliación M1 (api/health-reconcile.js): cuenta páginas activas de una base (.length).
+export async function queryAll(dbId) {
   let results = [], cursor;
   do {
     const { ok, json } = await notionFetch(`databases/${dbId}/query`, { page_size: 100, start_cursor: cursor });
