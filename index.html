@@ -1871,7 +1871,8 @@ body::before {
   <div class="done-title" data-i18n="done.title">¡Servicio cerrado!</div>
   <div class="done-sub" data-i18n="done.sub">Todos los datos se guardaron automáticamente.</div>
   <div class="done-stats" id="done-stats"></div>
-  <button class="btn-main btn-green" data-i18n="done.btn" style="width:100%;max-width:300px" onclick="finishAndGoBack()">Ver mis servicios →</button>
+  <button class="btn-main btn-green" data-i18n="done.btn" style="width:100%;max-width:300px;flex:none" onclick="finishAndGoBack()">Ver mis servicios →</button>
+  <button id="done-pdf-btn" style="width:100%;max-width:300px;margin-top:12px;padding:12px;background:var(--card);border:1px solid var(--border2);border-radius:var(--radius-sm);color:var(--text2);font-size:14px;font-weight:600;cursor:pointer;font-family:'Exo 2',sans-serif;display:none" onclick="openReportStep(currentService)">📄 <span data-i18n="done.pdf.btn">Generar reporte para el cliente</span></button>
 </div>
 
 <script>
@@ -2329,6 +2330,11 @@ const TRANSLATIONS = {
     'cierre.sectores.continuar': '🔄 Sigo otro día',
     'cierre.sectores.completar': '✅ Ya está, cerrar así',
     'done.btn': 'Ver mis servicios →',
+    'done.pdf.btn': 'Generar reporte para el cliente',
+    'install.title': 'Instalá FlyClean',
+    'install.android': 'Agregala a tu pantalla de inicio para abrirla más rápido.',
+    'install.ios': 'Tocá Compartir ⬆️ y elegí "Agregar a inicio".',
+    'install.btn': 'Instalar',
     'done.stat.inicio': 'Inicio',
     'done.stat.inicioef': 'Inicio efectivo',
     'done.stat.cierreef': 'Cierre efectivo',
@@ -3274,6 +3280,11 @@ const TRANSLATIONS = {
     'cierre.sectores.continuar': '🔄 Continuo outro dia',
     'cierre.sectores.completar': '✅ Já está, encerrar assim',
     'done.btn': 'Ver meus serviços →',
+    'done.pdf.btn': 'Gerar relatório para o cliente',
+    'install.title': 'Instale o FlyClean',
+    'install.android': 'Adicione à tela inicial para abrir mais rápido.',
+    'install.ios': 'Toque em Compartilhar ⬆️ e escolha "Adicionar à tela de início".',
+    'install.btn': 'Instalar',
     'done.stat.inicio': 'Início',
     'done.stat.inicioef': 'Início efetivo',
     'done.stat.cierreef': 'Fechamento efetivo',
@@ -5288,6 +5299,8 @@ let _processQueueIntervalId = setInterval(() => { if (navigator.onLine) { proces
 function showScreen(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById('screen-' + id).classList.add('active');
+  // Banner de instalación: aparece solo en pantallas home, se retira al entrar al flujo de trabajo/login.
+  try { updateInstallBanner(); } catch (_) {}
 }
 
 // Auto-refresco al volver a la app (auditoría 2026-07-09): antes, si el coordinador asignaba/movía algo,
@@ -5463,6 +5476,8 @@ async function completarLogin(u) {
   markUserActive();
   await loadAppConfig(); // reglas/checklist/plantillas editadas (best-effort, nunca bloquea)
   await routeByRole(currentUser.role);
+  // El banner de instalación lo maneja showScreen (via routeByRole) según la pantalla — no molesta si ya
+  // está instalada, si el usuario lo descartó, ni en el flujo de trabajo/login.
 }
 
 function selectUser(userId) {
@@ -8850,6 +8865,10 @@ function showDoneScreen(continua) {
     if (titleEl) titleEl.textContent = t('done.title');
     if (subEl) subEl.textContent = t('done.sub');
   }
+  // Reporte PDF de devolución: el operario puede generarlo él mismo al cerrar (antes solo el coord podía).
+  // Oculto en jornada que sigue otro día (no hay cierre final que reportar).
+  const pdfBtn = document.getElementById('done-pdf-btn');
+  if (pdfBtn) pdfBtn.style.display = continua ? 'none' : 'block';
   showScreen('done');
 }
 
@@ -10880,7 +10899,10 @@ function applyCoordFilters(items, opts) {
     if (search) {
       const titleKey = isProps ? 'Nombre de propuesta' : 'Nombre del servicio';
       const nombre = (props[titleKey]?.title?.[0]?.plain_text || '').toLowerCase();
-      if (!nombre.includes(search)) return false;
+      // También por nombre de cliente (relación Contacto → map cacheado; degrada a '' si aún no cargó) y por Lugar.
+      const cliNombre = (clienteNombreDe(props['Contacto']?.relation?.[0]?.id || props['Contactos']?.relation?.[0]?.id) || '').toLowerCase();
+      const lugar = (props['Lugar']?.rich_text?.[0]?.plain_text || '').toLowerCase();
+      if (!nombre.includes(search) && !cliNombre.includes(search) && !lugar.includes(search)) return false;
     }
     if (coordFilters.estado.length) {
       const v = props[estadoKey]?.select?.name || '';
@@ -17811,6 +17833,60 @@ if ('serviceWorker' in navigator) {
   // El SW nuevo hace skipWaiting()+claim → dispara controllerchange. Solo recargamos si el usuario
   // pidió actualizar (evita recargas sorpresa mientras un operario sube fotos, etc.).
   navigator.serviceWorker.addEventListener('controllerchange', () => { if (_swReloading) location.reload(); });
+}
+
+// ── Guía para instalar la app (PWA) — banner discreto, dismissable, NUNCA si ya está instalada ──
+let _deferredInstallPrompt = null;
+// Solo pantallas "home" (sin barra de acciones fija abajo). Se EXCLUYEN a propósito: detail (flujo de
+// trabajo, tiene .bottom-bar), done (botones), pin (login) → ahí el banner taparía botones.
+const _INSTALL_SAFE_SCREENS = ['services', 'coordinator', 'ceo', 'finanzas', 'ventas'];
+function _isStandalone() { return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true; }
+function _isIOS() { return /iphone|ipad|ipod/i.test(navigator.userAgent) && !window.MSStream; }
+function _installWanted() {
+  if (_isStandalone()) return false;                                       // ya instalada (incluye la APK/TWA)
+  try { if (localStorage.getItem('fc_install_dismissed') === '1') return false; } catch (_) {}
+  return _isIOS() || !!_deferredInstallPrompt;                             // iOS = instrucciones; Android = prompt
+}
+function _activeScreenId() { return ((document.querySelector('.screen.active') || {}).id || '').replace(/^screen-/, ''); }
+window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); _deferredInstallPrompt = e; try { updateInstallBanner(); } catch (_) {} });
+window.addEventListener('appinstalled', () => {
+  _deferredInstallPrompt = null;
+  try { localStorage.setItem('fc_install_dismissed', '1'); } catch (_) {}
+  document.getElementById('install-banner')?.remove();
+});
+function dismissInstallBanner() {
+  try { localStorage.setItem('fc_install_dismissed', '1'); } catch (_) {}
+  document.getElementById('install-banner')?.remove();
+}
+async function doInstall() {
+  if (!_deferredInstallPrompt) return;
+  _deferredInstallPrompt.prompt();
+  try { await _deferredInstallPrompt.userChoice; } catch (_) {}
+  _deferredInstallPrompt = null;
+  dismissInstallBanner();
+}
+// Muestra/oculta el banner según la pantalla activa. z-index 99 < overlays (100) → un bottom-sheet abierto
+// lo tapa (no bloquea sus botones). Llamado desde showScreen y beforeinstallprompt.
+function updateInstallBanner() {
+  const existing = document.getElementById('install-banner');
+  const show = _installWanted() && _INSTALL_SAFE_SCREENS.includes(_activeScreenId());
+  if (!show) { existing?.remove(); return; }
+  if (existing) return;
+  const ios = _isIOS();
+  const banner = document.createElement('div');
+  banner.id = 'install-banner';
+  banner.style.cssText = 'position:fixed;left:12px;right:12px;bottom:12px;max-width:406px;margin:0 auto;z-index:99;background:var(--card);border:1px solid var(--border2);border-radius:14px;padding:12px 14px;display:flex;align-items:center;gap:10px;box-shadow:0 8px 24px rgba(0,0,0,.45);font-family:\'Exo 2\',sans-serif';
+  banner.innerHTML =
+    '<div style="font-size:22px">📲</div>' +
+    '<div style="flex:1;min-width:0">' +
+      '<div style="font-size:13px;font-weight:700;color:var(--text)">' + esc(t('install.title')) + '</div>' +
+      '<div style="font-size:11.5px;color:var(--text3);line-height:1.3">' + esc(ios ? t('install.ios') : t('install.android')) + '</div>' +
+    '</div>' +
+    (ios ? '' : '<button id="install-do-btn" style="background:var(--green);border:none;border-radius:8px;color:#04231a;font-size:12px;font-weight:700;padding:8px 12px;cursor:pointer;font-family:inherit;white-space:nowrap">' + esc(t('install.btn')) + '</button>') +
+    '<button id="install-x-btn" aria-label="Cerrar" style="background:none;border:none;color:var(--text3);font-size:18px;cursor:pointer;padding:2px 4px">✕</button>';
+  document.body.appendChild(banner);
+  document.getElementById('install-do-btn')?.addEventListener('click', doInstall);
+  document.getElementById('install-x-btn')?.addEventListener('click', dismissInstallBanner);
 }
 
 function showUpdateBanner() {
