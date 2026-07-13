@@ -8,7 +8,7 @@
     "node": "20.x"
   },
   "scripts": {
-    "test": "node tests/smoke.mjs && node tests/permisos.mjs",
+    "test": "node tests/calculos.test.mjs && node tests/smoke.mjs && node tests/permisos.mjs",
     "check": "node tests/check-html.mjs",
     "audit": "npm audit --audit-level=high"
   },

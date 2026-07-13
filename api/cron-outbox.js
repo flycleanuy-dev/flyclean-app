@@ -5,6 +5,9 @@
 // Por corrida: (0) resetea 'processing' colgados; (1) claim atómico (SKIP LOCKED); (2) coalescing por notion_id
 // (mergea los payloads pendientes en orden created_at → UN PATCH por página); (3) éxito→done, transitorio→
 // reintento con backoff, permanente/veneno(≥8)→error.
+import { sendEmail, emailLayout } from './_lib/email.js';
+import { getRecipients } from './_lib/recipients.js';
+
 const SUPABASE_URL  = (process.env.SUPABASE_URL || '').replace(/\/$/, '');
 const SERVICE_KEY   = process.env.SUPABASE_SERVICE_KEY || '';
 const NOTION_TOKEN  = process.env.NOTION_TOKEN || '';
@@ -109,6 +112,22 @@ export default async function handler(req, res) {
           }
         }
       }
+    }
+    // Alerta de observabilidad (auditoría 2026-07-13, R1): si el outbox envenenó filas (4xx permanente o
+    // reintentos agotados), avisar por email — esos servicios quedan atrás en Notion y hoy nadie se enteraría.
+    // Fail-safe: nunca rompe el cron.
+    if (errored > 0) {
+      try {
+        // Fallback a los mails del equipo si la lista editable (KV) está vacía — igual que cron-pipeline/report,
+        // sino la alerta quedaría muerta justo cuando más importa.
+        const to = (await getRecipients('pipeline')) || ['federicomaciel939@gmail.com', 'ihodieego@gmail.com'];
+        if (to.length) {
+          const body = `<p>El outbox Supabase→Notion marcó <b>${errored}</b> fila(s) como <b>error</b> en la última corrida ` +
+            `(propagación permanente fallida). Esos servicios quedan desincronizados en Notion hasta revisarlos.</p>` +
+            `<p style="color:#93a89f;font-size:13px">Revisar: <code>select * from outbox_notion where status='error'</code></p>`;
+          await sendEmail({ to, subject: `⚠️ FlyClean · Outbox: ${errored} fila(s) sin propagar a Notion`, html: emailLayout('Alerta de sincronización', body) });
+        }
+      } catch (e) { console.warn('[outbox] alerta falló', String(e?.message || e).slice(0, 120)); }
     }
     return res.status(200).json({ ok: true, claimed: claimed.length, done, retried, errored });
   } catch (e) {
