@@ -513,6 +513,25 @@ body::before {
   .photo-toggle:active { transform: scale(0.98); }
   .photo-arrow { font-size: 10px; color: var(--text3); }
   .photo-collapse .photo-gallery { margin-top: 8px; }
+  /* Visor de fotos (lightbox): navegación ◀▶, secciones y manejo del error de conexión. z-index alto (sobre sheets). */
+  .pv-overlay { display: none; position: fixed; inset: 0; z-index: 200; background: rgba(0,0,0,.93); flex-direction: column; align-items: center; justify-content: center; }
+  .pv-overlay.open { display: flex; }
+  .pv-stage { position: relative; width: 100%; flex: 1; display: flex; align-items: center; justify-content: center; padding: 8px; min-height: 0; }
+  .pv-stage img { max-width: 96vw; max-height: 78vh; object-fit: contain; border-radius: 6px; }
+  .pv-stage.pv-failed img { display: none; }
+  .pv-error { display: none; flex-direction: column; align-items: center; gap: 12px; color: #fff; text-align: center; padding: 32px; }
+  .pv-stage.pv-failed .pv-error { display: flex; }
+  .pv-error-icon { font-size: 40px; }
+  .pv-error-text { font-size: 14px; color: #cbd5cf; max-width: 22ch; }
+  .pv-retry { background: var(--green); border: none; color: #04231a; font-weight: 800; padding: 10px 22px; border-radius: 8px; font-family: 'Exo 2', sans-serif; font-size: 14px; cursor: pointer; }
+  .pv-close { position: absolute; top: 14px; right: 16px; background: rgba(255,255,255,.16); border: none; color: #fff; font-size: 19px; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; z-index: 2; }
+  .pv-arrow { position: absolute; top: 50%; transform: translateY(-50%); background: rgba(255,255,255,.16); border: none; color: #fff; font-size: 20px; width: 46px; height: 46px; border-radius: 50%; cursor: pointer; z-index: 2; display: flex; align-items: center; justify-content: center; }
+  .pv-arrow:active { background: rgba(255,255,255,.3); }
+  .pv-arrow-l { left: 10px; } .pv-arrow-r { right: 10px; }
+  .pv-caption { color: #fff; font-size: 14px; font-weight: 700; padding: 14px 0 22px; letter-spacing: .02em; text-align: center; }
+  .pv-caption .pv-count { color: #8aa; font-weight: 600; }
+  /* Etiqueta de sección en el desplegable "Ver fotos" — fuerza salto de fila en la galería (flex-wrap). */
+  .pg-sec-label { flex-basis: 100%; width: 100%; font-size: 10.5px; font-weight: 700; color: var(--text3); margin: 6px 0 2px; text-transform: uppercase; letter-spacing: .04em; }
 
   /* ── Historial del cliente (en sheet de Contacto) ── */
   .history-loading, .history-empty { font-size: 12px; color: var(--text3); padding: 12px; text-align: center; background: var(--bg); border-radius: 8px; }
@@ -1588,6 +1607,20 @@ body::before {
 </div>
 <!-- Paso previo al PDF: observación al cliente (+ monto en pruebas/relevamientos).
      Sibling de body para funcionar desde coord y CEO (igual que gasto-overlay). -->
+<div id="photo-viewer-overlay" class="pv-overlay">
+  <button class="pv-close" onclick="closePhotoViewer()" aria-label="Cerrar">✕</button>
+  <button id="pv-prev" class="pv-arrow pv-arrow-l" onclick="pvNav(-1)" aria-label="Anterior">◀</button>
+  <div id="pv-stage" class="pv-stage">
+    <img id="pv-img" alt="" onerror="document.getElementById('pv-stage').classList.add('pv-failed')">
+    <div class="pv-error">
+      <div class="pv-error-icon">⚠️</div>
+      <div class="pv-error-text" data-i18n="foto.viewer.error">No cargó — revisá la conexión</div>
+      <button class="pv-retry" onclick="pvRetry()" data-i18n="foto.viewer.retry">Reintentar</button>
+    </div>
+  </div>
+  <button id="pv-next" class="pv-arrow pv-arrow-r" onclick="pvNav(1)" aria-label="Siguiente">▶</button>
+  <div id="pv-caption" class="pv-caption"></div>
+</div>
 <div class="edit-overlay" id="report-step-overlay" onclick="reportStepOverlayClick(event)">
   <div class="edit-sheet" id="report-step-sheet">
     <button class="sheet-close-btn" type="button" aria-label="Cerrar" onclick="closeReportStep()">×</button>
@@ -2241,6 +2274,12 @@ const TRANSLATIONS = {
     'step.fotos.area.text': 'Subida de fotos',
     'step.fotos.area.note': 'La función de fotos se activa en la próxima versión.',
     'foto.borrar.confirm': '¿Borrar esta foto? No se puede deshacer.',
+    'foto.sec.antes': '📸 Antes',
+    'foto.sec.despues': '📸 Después',
+    'foto.sec.relev': '🔍 Relevamiento',
+    'foto.vertodas': 'Ver fotos',
+    'foto.viewer.error': 'No cargó — revisá la conexión',
+    'foto.viewer.retry': 'Reintentar',
     'step.inicioef.title': '🕐 Inicio Efectivo',
     'step.inicioef.sub': 'Confirmá el clima y registrá el inicio de operativa',
     'step.clima.label': '🌤️ CONDICIÓN CLIMÁTICA',
@@ -3191,6 +3230,12 @@ const TRANSLATIONS = {
     'step.fotos.area.text': 'Upload de fotos',
     'step.fotos.area.note': 'A função de fotos será ativada na próxima versão.',
     'foto.borrar.confirm': 'Apagar esta foto? Não dá para desfazer.',
+    'foto.sec.antes': '📸 Antes',
+    'foto.sec.despues': '📸 Depois',
+    'foto.sec.relev': '🔍 Levantamento',
+    'foto.vertodas': 'Ver fotos',
+    'foto.viewer.error': 'Não carregou — verifique a conexão',
+    'foto.viewer.retry': 'Tentar de novo',
     'step.inicioef.title': '🕐 Início Efetivo',
     'step.inicioef.sub': 'Confirme o clima e registre o início da operação',
     'step.clima.label': '🌤️ CONDIÇÃO CLIMÁTICA',
@@ -4641,6 +4686,21 @@ function removePhoto(fotoType, photoId) {
   refreshSectorOverlayIfOpen();
 }
 
+// Src de la miniatura: el blob LOCAL si existe (recién sacada); si no, la publicUrl POR EL PROXY /api/img.
+// El <img> directo al CDN falla dentro de la app → por eso al reabrir un servicio ya subido "se veía 1 de N".
+function photoThumbSrc(p) {
+  if (p.previewUrl) return p.previewUrl;
+  if (p.publicUrl) return '/api/img?u=' + encodeURIComponent(p.publicUrl);
+  return '';
+}
+// Abre el visor grande con las fotos de ESE tipo (pre/post/relevamiento), empezando en la tocada.
+function openPhotoViewerFor(fotoType, photoId) {
+  const arr = (serviceState.photos?.[fotoType] || []);
+  const fotos = arr.map(p => ({ url: photoThumbSrc(p), seccion: seccionLabel(fotoType) })).filter(f => f.url);
+  if (!fotos.length) return;
+  const idx = arr.findIndex(p => p.id === photoId);
+  openPhotoViewer(fotos, idx < 0 ? 0 : Math.min(idx, fotos.length - 1));
+}
 function renderPhotoUploader(fotoType, minPhotos) {
   const photos = serviceState.photos?.[fotoType] || [];
   const doneCount = photos.filter(p => p.status === 'done').length;
@@ -4655,7 +4715,7 @@ function renderPhotoUploader(fotoType, minPhotos) {
       <div class="photo-grid">
         ${photos.map(p => `
           <div class="photo-thumb status-${p.status}">
-            ${p.previewUrl || p.publicUrl ? `<img src="${p.previewUrl || p.publicUrl}" alt="">` : '<div class="photo-thumb-empty">📷</div>'}
+            ${photoThumbSrc(p) ? `<img src="${photoThumbSrc(p)}" alt="" style="cursor:zoom-in" onclick="openPhotoViewerFor('${fotoType}','${p.id}')">` : '<div class="photo-thumb-empty">📷</div>'}
             ${p.status === 'uploading' ? '<div class="photo-overlay"><div class="spinner-sm"></div></div>' : ''}
             ${p.status === 'done' ? '<div class="photo-badge photo-badge-ok">✓</div>' : ''}
             ${p.status === 'queued' ? `<div class="photo-badge" style="background:var(--amber)" title="${t('photos.queued')}">⏳</div>` : ''}
@@ -4691,7 +4751,7 @@ function renderSectorPhotoUploader(sectorId, fotoType, minPhotos) {
       <div class="photo-grid">
         ${photos.map(p => `
           <div class="photo-thumb status-${p.status}">
-            ${p.previewUrl || p.publicUrl ? `<img src="${p.previewUrl || p.publicUrl}" alt="">` : '<div class="photo-thumb-empty">📷</div>'}
+            ${photoThumbSrc(p) ? `<img src="${photoThumbSrc(p)}" alt="" style="cursor:zoom-in" onclick="openPhotoViewerFor('${fotoType}','${p.id}')">` : '<div class="photo-thumb-empty">📷</div>'}
             ${p.status === 'uploading' ? '<div class="photo-overlay"><div class="spinner-sm"></div></div>' : ''}
             ${p.status === 'done' ? '<div class="photo-badge photo-badge-ok">✓</div>' : ''}
             ${p.status === 'queued' ? `<div class="photo-badge" style="background:var(--amber)" title="${t('photos.queued')}">⏳</div>` : ''}
@@ -11587,17 +11647,88 @@ function extractServiceFiles(props) {
   };
 }
 
+// ── Visor de fotos (lightbox) — navegación ◀▶, secciones y manejo del error de conexión (2026-07-14) ──
+let _pv = { fotos: [], idx: 0, x0: null };
+let _pvSets = {}, _pvSetSeq = 0;
+function _pvRegister(fotos) { if (_pvSetSeq > 800) { _pvSets = {}; } const k = 'pv' + (_pvSetSeq++); _pvSets[k] = fotos; return k; }
+function seccionLabel(fotoType) {
+  return fotoType === 'post' ? t('foto.sec.despues') : fotoType === 'relevamiento' ? t('foto.sec.relev') : t('foto.sec.antes');
+}
+function openPhotoViewer(fotos, startIdx) {
+  fotos = (fotos || []).filter(f => f && f.url);
+  if (!fotos.length) return;
+  _pv = { fotos, idx: Math.max(0, Math.min(startIdx || 0, fotos.length - 1)), x0: null };
+  const ov = document.getElementById('photo-viewer-overlay');
+  if (!ov._pvBound) {
+    ov._pvBound = true;
+    const stage = document.getElementById('pv-stage');
+    stage.addEventListener('touchstart', e => { _pv.x0 = e.touches[0].clientX; }, { passive: true });
+    stage.addEventListener('touchend', e => { if (_pv.x0 == null) return; const dx = e.changedTouches[0].clientX - _pv.x0; if (Math.abs(dx) > 45) pvNav(dx < 0 ? 1 : -1); _pv.x0 = null; }, { passive: true });
+    ov.addEventListener('click', e => { if (e.target === ov) closePhotoViewer(); }); // tocar el fondo cierra
+  }
+  ov.classList.add('open');
+  renderPhotoViewer();
+  document.addEventListener('keydown', _pvKey);
+}
+function closePhotoViewer() {
+  document.getElementById('photo-viewer-overlay').classList.remove('open');
+  document.removeEventListener('keydown', _pvKey);
+  _pv = { fotos: [], idx: 0, x0: null };
+}
+function _pvKey(e) {
+  if (e.key === 'ArrowLeft') pvNav(-1);
+  else if (e.key === 'ArrowRight') pvNav(1);
+  else if (e.key === 'Escape') closePhotoViewer();
+}
+function pvNav(d) {
+  if (_pv.fotos.length < 2) return;
+  _pv.idx = (_pv.idx + d + _pv.fotos.length) % _pv.fotos.length;
+  renderPhotoViewer();
+}
+function pvRetry() {
+  const img = document.getElementById('pv-img'); const f = _pv.fotos[_pv.idx];
+  if (!img || !f) return;
+  document.getElementById('pv-stage').classList.remove('pv-failed');
+  const n = parseInt(img.dataset.r || '0', 10) + 1; img.dataset.r = n;
+  img.src = f.url + (f.url.includes('?') ? '&' : '?') + 'r=' + n;
+}
+function renderPhotoViewer() {
+  const f = _pv.fotos[_pv.idx]; if (!f) return;
+  const img = document.getElementById('pv-img');
+  document.getElementById('pv-stage').classList.remove('pv-failed');
+  img.dataset.r = '0'; img.src = f.url;
+  document.getElementById('pv-caption').innerHTML = esc(f.seccion || '') + ' <span class="pv-count">· ' + (_pv.idx + 1) + ' / ' + _pv.fotos.length + '</span>';
+  const multi = _pv.fotos.length > 1;
+  document.getElementById('pv-prev').style.display = multi ? '' : 'none';
+  document.getElementById('pv-next').style.display = multi ? '' : 'none';
+}
+// Abre el visor con TODAS las fotos de una galería, leyendo los thumbs del DOM (sin estado global).
+function openGalleryViewer(a) {
+  const gallery = a.closest('.photo-gallery') || a.parentElement;
+  const thumbs = [...gallery.querySelectorAll('a[data-url]')];
+  const fotos = thumbs.map(el => ({ url: el.dataset.url, seccion: el.dataset.seccion || '' }));
+  openPhotoViewer(fotos, Math.max(0, thumbs.indexOf(a)));
+}
+
 function renderPhotoGallery(props) {
   const files = extractServiceFiles(props);
-  const all = [...files.pre, ...files.post, ...files.relevamiento];
-  if (!all.length) return '';
-  // Las fotos NO se cargan hasta tocar "Ver fotos" (data-src), y van por el proxy
-  // same-origin /api/img (el <img> directo al CDN falla en la app → signo de pregunta).
   const px = (url) => '/api/img?u=' + encodeURIComponent(url);
-  const thumbs = all.slice(0, 12).map(url => `<a href="${px(url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()"><img loading="lazy" data-src="${px(url)}" alt=""></a>`).join('');
+  // Secciones SEPARADAS (antes / después / relevamiento) — antes iban todas mezcladas en una fila.
+  const secs = [
+    { label: t('foto.sec.antes'), urls: files.pre },
+    { label: t('foto.sec.despues'), urls: files.post },
+    { label: t('foto.sec.relev'), urls: files.relevamiento },
+  ].filter(s => s.urls.length);
+  const total = secs.reduce((n, s) => n + s.urls.length, 0);
+  if (!total) return '';
+  // Cada thumb abre el VISOR (no una pestaña nueva); el <img> carga perezoso al desplegar. La sección va en data-*.
+  const groups = secs.map(s => {
+    const thumbs = s.urls.map(url => `<a data-url="${px(url)}" data-seccion="${esc(s.label)}" onclick="openGalleryViewer(this);event.stopPropagation()"><img loading="lazy" data-src="${px(url)}" alt=""></a>`).join('');
+    return `<div class="pg-sec-label">${esc(s.label)} · ${s.urls.length}</div>${thumbs}`;
+  }).join('');
   return `<div class="photo-collapse">` +
-    `<button type="button" class="photo-toggle" onclick="togglePhotos(this, event)">📷 Ver fotos (${all.length}) <span class="photo-arrow">▾</span></button>` +
-    `<div class="photo-gallery" style="display:none">${thumbs}</div>` +
+    `<button type="button" class="photo-toggle" onclick="togglePhotos(this, event)">📷 ${t('foto.vertodas')} (${total}) <span class="photo-arrow">▾</span></button>` +
+    `<div class="photo-gallery" style="display:none">${groups}</div>` +
     `</div>`;
 }
 
@@ -11608,11 +11739,17 @@ function renderPhotoGallery(props) {
 // nueva; "+N" si hay más (el resto se ve al abrir el servicio). Reemplaza renderPhotoGallery en las cards.
 function coordCardThumb(props) {
   const files = extractServiceFiles(props);
-  const all = [...files.pre, ...files.post, ...files.relevamiento];
-  if (!all.length) return '';
-  const first = '/api/img?u=' + encodeURIComponent(all[0]);
-  const more = all.length > 1 ? `<span class="thumb-more">+${all.length - 1}</span>` : '';
-  return `<a class="coord-card-thumb" href="${first}" target="_blank" rel="noopener" onclick="event.stopPropagation()"><img loading="lazy" src="${first}" alt="">${more}</a>`;
+  const px = (u) => '/api/img?u=' + encodeURIComponent(u);
+  const fotos = [
+    ...files.pre.map(u => ({ url: px(u), seccion: t('foto.sec.antes') })),
+    ...files.post.map(u => ({ url: px(u), seccion: t('foto.sec.despues') })),
+    ...files.relevamiento.map(u => ({ url: px(u), seccion: t('foto.sec.relev') })),
+  ];
+  if (!fotos.length) return '';
+  // Tocar la miniatura abre el VISOR con TODAS las fotos del servicio (antes: abría 1 en pestaña nueva).
+  const key = _pvRegister(fotos);
+  const more = fotos.length > 1 ? `<span class="thumb-more">+${fotos.length - 1}</span>` : '';
+  return `<a class="coord-card-thumb" style="cursor:zoom-in" onclick="event.stopPropagation();openPhotoViewer(_pvSets['${key}'],0)"><img loading="lazy" src="${fotos[0].url}" alt="">${more}</a>`;
 }
 
 function togglePhotos(btn, ev) {
