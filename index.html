@@ -567,7 +567,8 @@ body::before {
   .coord-header { padding: 16px 20px 12px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; background: var(--bg); z-index: 10; }
   .coord-logo { font-size: 15px; font-weight: 700; color: var(--green); }
   .coord-user { font-size: 11px; color: var(--text3); background: var(--card); padding: 5px 12px; border-radius: 20px; cursor: pointer; }
-  .coord-tab-bar { display: flex; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; border-bottom: 1px solid var(--border); background: var(--bg); }
+  /* Fade en el borde derecho = señal visual de que la tira de tabs sigue (scroll horizontal). Se resetea en desktop (≥1400px) donde no hay scroll. */
+  .coord-tab-bar { display: flex; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; border-bottom: 1px solid var(--border); background: var(--bg); -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 22px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 22px), transparent); }
   .coord-tab-bar::-webkit-scrollbar { display: none; }
   .coord-tab { flex: 1 0 auto; white-space: nowrap; padding: 12px 8px; display: flex; align-items: center; justify-content: center; gap: 4px; line-height: 1.2; min-height: 44px; text-align: center; font-size: 13px; font-weight: 600; color: var(--text3); cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.15s; }
   .coord-tab.active { color: var(--green); border-bottom-color: var(--green); }
@@ -928,7 +929,7 @@ body::before {
   .ceo-country-tabs { display: flex; gap: 6px; padding: 10px 14px 0; background: var(--bg); }
   .ceo-country-tab { padding: 5px 12px; border-radius: 20px; border: 1px solid var(--border2); font-size: 12px; font-weight: 600; cursor: pointer; color: var(--text3); background: var(--bg); font-family: 'Exo 2', sans-serif; transition: all 0.15s; }
   .ceo-country-tab.active { background: var(--green-dark); border-color: var(--green); color: var(--green); }
-  .ceo-tab-bar { display: flex; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; border-bottom: 1px solid var(--border); background: var(--bg); }
+  .ceo-tab-bar { display: flex; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; border-bottom: 1px solid var(--border); background: var(--bg); -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 22px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 22px), transparent); }
   .ceo-tab-bar::-webkit-scrollbar { display: none; }
   .ceo-tab { flex: 1 0 auto; white-space: nowrap; padding: 10px 4px; display: flex; align-items: center; justify-content: center; gap: 3px; line-height: 1.2; min-height: 40px; text-align: center; font-size: 11px; font-weight: 600; color: var(--text3); cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.15s; }
   .ceo-tab.active { color: var(--green); border-bottom-color: var(--green); }
@@ -1077,7 +1078,7 @@ body::before {
 
     /* ── Coordinador: cabecera y tabs con más aire, sin scroll ── */
     .coord-header { padding: 18px 28px 14px; }
-    .coord-tab-bar, .ceo-tab-bar { overflow-x: visible; }
+    .coord-tab-bar, .ceo-tab-bar { overflow-x: visible; -webkit-mask-image: none; mask-image: none; }
     .coord-toolbar { padding: 14px 24px 8px; }
     .week-strip { overflow-x: visible; }
 
@@ -1258,8 +1259,8 @@ body::before {
       <div class="header-logo"><svg class="fly-mark" style="color:#00C98D"><use href="#fc-mark"/></svg>FlyClean</div>
     </div>
     <div style="display:flex;align-items:center;gap:8px">
-      <button onclick="openNuevoPedidoSheet()" title="Pedir insumo" style="background:none;border:1px solid var(--border2);border-radius:8px;color:var(--text3);font-size:11px;padding:5px 10px;cursor:pointer;font-family:'Exo 2',sans-serif">📦</button>
-      <button onclick="openGastos()" title="Gastos" style="background:none;border:1px solid var(--border2);border-radius:8px;color:var(--text3);font-size:11px;padding:5px 10px;cursor:pointer;font-family:'Exo 2',sans-serif">💸</button>
+      <button onclick="openNuevoPedidoSheet()" title="Pedir insumo" aria-label="Pedir insumo" style="background:none;border:1px solid var(--border2);border-radius:8px;color:var(--text3);font-size:11px;padding:5px 10px;cursor:pointer;font-family:'Exo 2',sans-serif;white-space:nowrap">📦 Pedir</button>
+      <button onclick="openGastos()" title="Gastos" aria-label="Gastos" style="background:none;border:1px solid var(--border2);border-radius:8px;color:var(--text3);font-size:11px;padding:5px 10px;cursor:pointer;font-family:'Exo 2',sans-serif;white-space:nowrap">💸 Gastos</button>
       <div class="header-user" id="header-user-name" onclick="openAccountMenu()">⋯</div>
     </div>
   </div>
@@ -1290,8 +1291,8 @@ body::before {
     <div class="coord-logo" id="coord-logo-title"><svg class="fly-mark" style="color:#00C98D"><use href="#fc-mark"/></svg>FlyClean — Coordinador</div>
     <div style="display:flex;align-items:center;gap:8px">
       <button id="coord-ceo-btn" onclick="goToCEOFromCoord()" style="display:none;background:none;border:1px solid var(--border2);border-radius:8px;color:var(--text2);font-size:11px;font-weight:600;padding:5px 10px;cursor:pointer;font-family:'Exo 2',sans-serif">📊 CEO</button>
-      <button id="coord-btn-pedidos" onclick="openNuevoPedidoSheet()" title="Pedir insumo" style="background:none;border:1px solid var(--border2);border-radius:8px;color:var(--text3);font-size:11px;padding:5px 10px;cursor:pointer;font-family:'Exo 2',sans-serif">📦</button>
-      <button id="coord-btn-gastos" onclick="openGastos()" title="Gastos" style="background:none;border:1px solid var(--border2);border-radius:8px;color:var(--text3);font-size:11px;padding:5px 10px;cursor:pointer;font-family:'Exo 2',sans-serif">💸</button>
+      <button id="coord-btn-pedidos" onclick="openNuevoPedidoSheet()" title="Pedir insumo" aria-label="Pedir insumo" style="background:none;border:1px solid var(--border2);border-radius:8px;color:var(--text3);font-size:11px;padding:5px 10px;cursor:pointer;font-family:'Exo 2',sans-serif">📦</button>
+      <button id="coord-btn-gastos" onclick="openGastos()" title="Gastos" aria-label="Gastos" style="background:none;border:1px solid var(--border2);border-radius:8px;color:var(--text3);font-size:11px;padding:5px 10px;cursor:pointer;font-family:'Exo 2',sans-serif">💸</button>
       <div class="coord-user" id="coord-user-name" onclick="openAccountMenu()">⋯</div>
     </div>
   </div>
@@ -1669,7 +1670,7 @@ body::before {
     <button class="ceo-back-btn" id="ceo-back-btn" onclick="backFromCEO()">←</button>
     <div class="ceo-brand" id="ceo-brand-title"><svg class="fly-mark" style="color:#00C98D"><use href="#fc-mark"/></svg>FlyClean</div>
     <div style="display:flex;align-items:center;gap:8px">
-      <button onclick="openGastos()" title="Gastos" style="background:none;border:1px solid var(--border2);border-radius:8px;color:var(--text3);font-size:11px;padding:5px 10px;cursor:pointer;font-family:'Exo 2',sans-serif">💸</button>
+      <button onclick="openGastos()" title="Gastos" aria-label="Gastos" style="background:none;border:1px solid var(--border2);border-radius:8px;color:var(--text3);font-size:11px;padding:5px 10px;cursor:pointer;font-family:'Exo 2',sans-serif">💸</button>
       <div class="ceo-user-tag" id="ceo-user-name" onclick="openAccountMenu()" style="cursor:pointer">CEO</div>
     </div>
   </div>
@@ -1694,7 +1695,7 @@ body::before {
     <button class="ceo-back-btn" onclick="openAccountMenu()">←</button>
     <div class="ceo-brand"><svg class="fly-mark" style="color:#00C98D"><use href="#fc-mark"/></svg>FlyClean</div>
     <div style="display:flex;align-items:center;gap:8px">
-      <button onclick="openGastos()" title="Gastos" style="background:none;border:1px solid var(--border2);border-radius:8px;color:var(--text3);font-size:11px;padding:5px 10px;cursor:pointer;font-family:'Exo 2',sans-serif">💸</button>
+      <button onclick="openGastos()" title="Gastos" aria-label="Gastos" style="background:none;border:1px solid var(--border2);border-radius:8px;color:var(--text3);font-size:11px;padding:5px 10px;cursor:pointer;font-family:'Exo 2',sans-serif">💸</button>
       <div class="ceo-user-tag" id="finanzas-header-user" onclick="openAccountMenu()" style="cursor:pointer">Finanzas</div>
     </div>
   </div>
@@ -2238,6 +2239,7 @@ const TRANSLATIONS = {
     'step.fotos.despues.hint': '📷 Mostrá claramente el trabajo terminado.',
     'step.fotos.area.text': 'Subida de fotos',
     'step.fotos.area.note': 'La función de fotos se activa en la próxima versión.',
+    'foto.borrar.confirm': '¿Borrar esta foto? No se puede deshacer.',
     'step.inicioef.title': '🕐 Inicio Efectivo',
     'step.inicioef.sub': 'Confirmá el clima y registrá el inicio de operativa',
     'step.clima.label': '🌤️ CONDICIÓN CLIMÁTICA',
@@ -3182,6 +3184,7 @@ const TRANSLATIONS = {
     'step.fotos.despues.hint': '📷 Mostre claramente o trabalho concluído.',
     'step.fotos.area.text': 'Upload de fotos',
     'step.fotos.area.note': 'A função de fotos será ativada na próxima versão.',
+    'foto.borrar.confirm': 'Apagar esta foto? Não dá para desfazer.',
     'step.inicioef.title': '🕐 Início Efetivo',
     'step.inicioef.sub': 'Confirme o clima e registre o início da operação',
     'step.clima.label': '🌤️ CONDIÇÃO CLIMÁTICA',
@@ -4616,6 +4619,7 @@ function retryPhoto(fotoType, photoId) {
 
 function removePhoto(fotoType, photoId) {
   if (!serviceState.photos?.[fotoType]) return;
+  if (!confirm(t('foto.borrar.confirm'))) return;
   const p = serviceState.photos[fotoType].find(x => x.id === photoId);
   if (p?.previewUrl) URL.revokeObjectURL(p.previewUrl);
   // Si estaba encolada offline, sacar también el binario de IndexedDB (evita que se suba una foto borrada).
