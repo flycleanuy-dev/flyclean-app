@@ -1290,6 +1290,9 @@ body::before {
     <div class="tab-btn" id="tab-relevamientos" data-i18n="services.tab.relevamientos" onclick="setTab('relevamientos')">🔍 Relevamientos</div>
   </div>
   <div id="alerts-banner-services"></div>
+  <!-- Agenda del piloto (Fase 2A): servicios donde participa SIN ser encargado (piloto/manual/ayudante).
+       Read-only estricto: las cards no abren la ficha (el flujo de ejecución es solo del encargado). -->
+  <div id="piloto-agenda" style="display:none"></div>
   <div class="services-header">
     <div class="services-title" data-i18n="services.title">Mis servicios</div>
     <div class="services-sub" id="services-sub" data-i18n="services.sub.loading">Cargando...</div>
@@ -2097,6 +2100,8 @@ const TRANSLATIONS = {
     'miseq.err.vacio': 'Cargá el número del contador o al menos una nota.',
     'miseq.confirm.menor': 'El valor anterior era mayor ({v}). ¿Seguro que está bien?',
     'miseq.alert': '🔧 Reporte semanal de tus equipos: {n} pendiente(s) — tocá acá',
+    'piloto.agenda.title': 'Próximos trabajos donde participás',
+    'piloto.agenda.encargado': 'Encargado',
     'miseq.prob.btn': 'Reportar un problema',
     'miseq.prob.title': '¿Qué le pasa al equipo?',
     'miseq.prob.ph': 'Contá qué pasó (ruido, golpe, falla…)',
@@ -3077,6 +3082,8 @@ const TRANSLATIONS = {
     'miseq.err.vacio': 'Informe o número do contador ou pelo menos uma nota.',
     'miseq.confirm.menor': 'O valor anterior era maior ({v}). Tem certeza?',
     'miseq.alert': '🔧 Relatório semanal dos seus equipamentos: {n} pendente(s) — toque aqui',
+    'piloto.agenda.title': 'Próximos trabalhos em que você participa',
+    'piloto.agenda.encargado': 'Encarregado',
     'miseq.prob.btn': 'Relatar um problema',
     'miseq.prob.title': 'O que há com o equipamento?',
     'miseq.prob.ph': 'Conte o que aconteceu (ruído, batida, falha…)',
@@ -7780,6 +7787,7 @@ async function loadServices() {
   document.getElementById('header-user-name').textContent = (currentUser.emoji + ' ' + currentUser.name.split(' ')[0]);
   document.getElementById('services-sub').textContent = t('services.sub.loading2');
   loadAlerts(currentUser.role, 'alerts-banner-services');
+  loadPilotoAgenda(); // agenda del piloto/participante — async aparte, no bloquea la lista principal
   document.getElementById('services-list').innerHTML = '<div style="text-align:center;padding:40px 0"><div class="spinner" style="margin:0 auto"></div></div>';
   document.getElementById('error-banner').classList.remove('visible');
 
@@ -7809,6 +7817,82 @@ async function loadServices() {
     }
   }
   if (services !== null) renderServices(services);
+}
+
+// ── 🚁 AGENDA DEL PILOTO (Fase 2A) ───────────────────────────────────────────
+// Servicios activos donde el usuario participa SIN ser el encargado (piloto / operario manual / ayudante).
+// Hoy no los ve en "Mis servicios" (getMyServices filtra por Operario App) → se entera por WhatsApp.
+// READ-ONLY estricto: cards informativas (fecha/hora/lugar/encargado + mapa), sin abrir la ficha ejecutable.
+// Fetch DIRECTO al proxy (patrón de openHistorialSheet): /api/db filtra operario=solo-encargado.
+let _pilotoAgendaOpen = true; // expandido por default; el toggle se recuerda durante la sesión
+async function loadPilotoAgenda() {
+  const cont = document.getElementById('piloto-agenda');
+  if (!cont) return;
+  try {
+    const tok = localStorage.getItem('fc_token') || '';
+    const resp = await fetch('/api/notion', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + tok },
+      body: JSON.stringify({ endpoint: `databases/${DB_ID}/query`, method: 'POST', body: { page_size: 100 } }),
+    });
+    if (!resp.ok) { cont.style.display = 'none'; return; } // fail silently — bloque secundario
+    const data = await resp.json();
+    const nombre = currentUser?.name || '';
+    const paisNotion = COUNTRY_NOTION_MAP[currentUser?.country] || null;
+    const validStates = ['📋 Pendiente', '🔄 Asignado', '✈️ En curso'];
+    const items = (data.results || []).filter(r => {
+      if (esArchivado(r)) return false;
+      const p = r.properties || {};
+      if (!validStates.includes(p['Estado']?.select?.name || '')) return false;
+      const pais = p['País']?.select?.name || '';
+      if (paisNotion && pais && pais !== paisNotion) return false; // cinturón país (patrón getMyServices)
+      if ((p['Operario App']?.select?.name || '') === nombre) return false; // encargado: ya está en su lista
+      return !!participaEn(p, nombre); // piloto / manual / ayudante
+    }).sort((a, b) => {
+      const fa = (a.properties?.['Fecha programada']?.date?.start || '9999') + (a.properties?.['Hora Inicio']?.date?.start || '');
+      const fb = (b.properties?.['Fecha programada']?.date?.start || '9999') + (b.properties?.['Hora Inicio']?.date?.start || '');
+      return fa.localeCompare(fb);
+    });
+    renderPilotoAgenda(items);
+  } catch (_) { cont.style.display = 'none'; } // sin conexión / error: no molestar
+}
+function togglePilotoAgenda() { _pilotoAgendaOpen = !_pilotoAgendaOpen; const b = document.getElementById('piloto-agenda-body'); const c = document.getElementById('piloto-agenda-chev'); if (b) b.style.display = _pilotoAgendaOpen ? 'block' : 'none'; if (c) c.textContent = _pilotoAgendaOpen ? '▾' : '▸'; }
+function renderPilotoAgenda(items) {
+  const cont = document.getElementById('piloto-agenda');
+  if (!cont) return;
+  if (!items || !items.length) { cont.style.display = 'none'; cont.innerHTML = ''; return; }
+  const nombre = currentUser?.name || '';
+  const dateLocale = currentLang === 'pt-BR' ? 'pt-BR' : 'es-UY';
+  const cards = items.map(r => {
+    const p = r.properties || {};
+    const svcNombre = p['Nombre del servicio']?.title?.[0]?.plain_text || t('common.sinnombre');
+    const rol = participaEn(p, nombre) || '';
+    const fecha = p['Fecha programada']?.date?.start || '';
+    const fechaFmt = fecha ? new Date(fecha + 'T00:00:00').toLocaleDateString(dateLocale, { weekday: 'short', day: 'numeric', month: 'short' }) : '';
+    const hora = (p['Hora Inicio']?.date?.start || '').slice(11, 16);
+    const lugar = p['Lugar']?.rich_text?.[0]?.plain_text || '';
+    const encargado = p['Operario App']?.select?.name || '';
+    const mapa = (p['Mapa']?.url || '').trim();
+    const mapaOk = /^https?:\/\//i.test(mapa); // solo http(s) — nunca javascript: u otros esquemas
+    return '<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:10px 12px;margin-bottom:7px">' +
+      '<div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline">' +
+        '<div style="font-size:13px;font-weight:700;min-width:0">' + esc(svcNombre) + '</div>' +
+        '<span class="gasto-tag" style="flex:none">' + esc(rol) + '</span></div>' +
+      '<div style="font-size:11.5px;color:var(--text2);margin-top:3px">' +
+        (fechaFmt ? '📅 ' + esc(fechaFmt) : '') + (hora ? ' · 🕐 ' + esc(hora) : '') +
+        (lugar ? ' · 📍 ' + esc(lugar) : '') + '</div>' +
+      (encargado ? '<div style="font-size:11px;color:var(--text3);margin-top:2px">👤 ' + esc(t('piloto.agenda.encargado')) + ': ' + esc(encargado) + '</div>' : '') +
+      (mapaOk ? '<a href="' + esc(mapa) + '" target="_blank" rel="noopener" style="display:inline-block;margin-top:7px;font-size:12px;color:#4da3ff;text-decoration:none">🗺️ ' + esc(t('step.info.abrirmapa')) + '</a>' : '') +
+      '</div>';
+  }).join('');
+  cont.innerHTML =
+    '<div style="margin:8px 16px 0">' +
+      '<div onclick="togglePilotoAgenda()" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;padding:8px 12px;background:rgba(77,163,255,0.08);border:1px solid rgba(77,163,255,0.3);border-radius:10px">' +
+        '<span style="font-size:12px;font-weight:700;color:#4da3ff">🚁 ' + esc(t('piloto.agenda.title')) + ' (' + items.length + ')</span>' +
+        '<span id="piloto-agenda-chev" style="color:#4da3ff">' + (_pilotoAgendaOpen ? '▾' : '▸') + '</span></div>' +
+      '<div id="piloto-agenda-body" style="margin-top:7px;display:' + (_pilotoAgendaOpen ? 'block' : 'none') + '">' + cards + '</div>' +
+    '</div>';
+  cont.style.display = 'block';
 }
 
 function getEstadoClass(estado) {
