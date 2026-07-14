@@ -108,6 +108,21 @@ const SERVICIOS = [
     'Resultado': sel('✅ Exitoso'),
     '% de avance': num(100),
   }},
+  // Juan Pablo participa como PILOTO (encargado: Francisco) → activa el bloque "🚁 Próximos donde participás"
+  { object: 'page', id: 'svc-piloto', created_time: AYER + 'T10:00:00Z', properties: {
+    'Nombre del servicio': title('Residencia Lomas — Fachada'),
+    'Tipo de registro': sel('📋 Orden de trabajo'),
+    'Estado': sel('🔄 Asignado'),
+    'Fecha programada': date(MANANA),
+    'Hora Inicio': { date: { start: MANANA + 'T10:00:00' } },
+    'Lugar': txt('Lomas de La Barra, lote 12'),
+    'Mapa': { url: 'https://maps.google.com/?q=demo2' },
+    'Operario App': sel('Francisco Rocha'),
+    'Piloto': sel('Juan Pablo'),
+    'Tipo de servicio': multi('🏢 Fachada'),
+    'País': sel('🇺🇾 Uruguay'),
+    'Contacto': rel('cli-2'),
+  }},
 ];
 
 const CLIENTES = [
@@ -388,11 +403,14 @@ async function buildOperario(browser) {
   sections.push(seccionLogin(imgLogin, 'Caés directo en MIS SERVICIOS.'));
 
   console.log('  [Operario] mis servicios...');
-  const imgLista = await snap(page, { wait: 800 });
+  const imgLista = await snap(page, { wait: 1600 }); // espera extra: el bloque 🚁 agenda carga async
   sections.push({
     title: 'Mis servicios — tu día de trabajo',
     intro: 'Ves SOLO los trabajos asignados a vos, agrupados por día (Hoy arriba). Las 4 pestañas separan por tipo: 📋 Órdenes · 📅 Jornadas · 🧪 Pruebas · 🔍 Relevamientos.',
-    steps: [{ title: 'Tocá una card para abrir el servicio', description: 'Cada card muestra el estado (🔄 Asignado / 🟡 En curso), la hora programada 🕐 y el lugar 📍. Las jornadas son días de un trabajo grande que sigue.', image: imgLista, wide: true }],
+    steps: [
+      { title: 'Tocá una card para abrir el servicio', description: 'Cada card muestra el estado (🔄 Asignado / 🟡 En curso), la hora programada 🕐 y el lugar 📍. Las jornadas son días de un trabajo grande que sigue.', image: imgLista, wide: true },
+      { title: '🚁 Próximos trabajos donde participás', description: 'Si te toca ir a un trabajo como PILOTO, operario manual o ayudante (pero el encargado es otro), lo ves en el bloque azul de arriba: cuándo, dónde (con 🗺️ mapa) y quién es el encargado. Es solo para que sepas tu agenda — el checklist lo hace el encargado.' },
+    ],
   });
 
   console.log('  [Operario] ficha del servicio...');
