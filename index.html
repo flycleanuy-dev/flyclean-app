@@ -2097,6 +2097,15 @@ const TRANSLATIONS = {
     'miseq.err.vacio': 'Cargá el número del contador o al menos una nota.',
     'miseq.confirm.menor': 'El valor anterior era mayor ({v}). ¿Seguro que está bien?',
     'miseq.alert': '🔧 Reporte semanal de tus equipos: {n} pendiente(s) — tocá acá',
+    'miseq.prob.btn': 'Reportar un problema',
+    'miseq.prob.title': '¿Qué le pasa al equipo?',
+    'miseq.prob.ph': 'Contá qué pasó (ruido, golpe, falla…)',
+    'miseq.prob.send': 'Enviar reporte',
+    'miseq.prob.abierto': 'Reporte abierto',
+    'miseq.prob.err.vacio': 'Escribí qué pasó.',
+    'eq.prob.byPiloto': 'reportó el piloto',
+    'eq.prob.resolver': 'Resuelto',
+    'eq.prob.resolver.confirm': '¿Marcar este reporte como resuelto?',
     'eq.f.proximo': 'Próximo mantenimiento (opcional)',
     'eq.f.snota': 'Qué se hizo (opcional)',
     'eq.err.tipo': 'Elegí el tipo de equipo.',
@@ -3068,6 +3077,15 @@ const TRANSLATIONS = {
     'miseq.err.vacio': 'Informe o número do contador ou pelo menos uma nota.',
     'miseq.confirm.menor': 'O valor anterior era maior ({v}). Tem certeza?',
     'miseq.alert': '🔧 Relatório semanal dos seus equipamentos: {n} pendente(s) — toque aqui',
+    'miseq.prob.btn': 'Relatar um problema',
+    'miseq.prob.title': 'O que há com o equipamento?',
+    'miseq.prob.ph': 'Conte o que aconteceu (ruído, batida, falha…)',
+    'miseq.prob.send': 'Enviar relatório',
+    'miseq.prob.abierto': 'Relatório aberto',
+    'miseq.prob.err.vacio': 'Escreva o que aconteceu.',
+    'eq.prob.byPiloto': 'relatado pelo piloto',
+    'eq.prob.resolver': 'Resolvido',
+    'eq.prob.resolver.confirm': 'Marcar este relatório como resolvido?',
     'eq.f.proximo': 'Próxima manutenção (opcional)',
     'eq.f.snota': 'O que foi feito (opcional)',
     'eq.err.tipo': 'Escolha o tipo de equipamento.',
@@ -12585,6 +12603,15 @@ const EQ_CHECK_DIAS = 30; // check mensual
 function eqHistParse(props) {
   try { const v = JSON.parse(props['Historial equipo']?.rich_text?.[0]?.plain_text || '[]'); return Array.isArray(v) ? v : []; } catch (_) { return []; }
 }
+// Equipos v2 — reporte de PROBLEMA del piloto: vive en el historial como evento 'problema' (lo abre el piloto)
+// y 'resuelto' (lo cierra el coordinador). Abierto = el último 'problema' es posterior al último 'resuelto'.
+// Cero property/permiso nuevo: 'Historial equipo' ya lo escriben tanto el operario (misEqSave) como el coord (eqPatch).
+function eqProblemaAbierto(props) {
+  const hist = eqHistParse(props);
+  let iP = -1, iR = -1;
+  hist.forEach((e, i) => { if (e.t === 'problema') iP = i; else if (e.t === 'resuelto') iR = i; });
+  return iP > iR ? hist[iP] : null;
+}
 function eqDiasDesdeCheck(props) {
   const f = props['Último check']?.date?.start || '';
   if (!f) return null;
@@ -12657,6 +12684,7 @@ function renderCoordEquiposList() {
       const histN = eqHistParse(p).length;
       const resp = p['Responsable App']?.select?.name || '';
       const paisTxt = esDireccion() ? ' · ' + esc(p['País']?.select?.name || '') : '';
+      const prob = eqProblemaAbierto(p); // problema reportado por el piloto, sin resolver
       h += '<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:11px 12px;margin:0 16px 8px">' +
         '<div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline">' +
           '<div style="font-size:13.5px;font-weight:700;color:var(--text);min-width:0">' + esc(nombre) + '</div>' +
@@ -12666,7 +12694,9 @@ function renderCoordEquiposList() {
           (esVehiculo ? '🛣️ ' + (km != null ? Number(km).toLocaleString('es-UY') + ' km' : '— km') + ' · ' : '') +
           (esDrone ? '🚁 ' + (hs != null ? hs + ' hs' : '— hs') + ' · ' : '') +
           esc(checkTxt) + (proxMant ? ' · 🔧 ' + esc(pedidoFmtFecha(proxMant)) : '') + '</div>' +
+        (prob ? '<div style="font-size:11.5px;color:#f59e0b;background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.35);border-radius:8px;padding:6px 9px;margin-top:6px">⚠️ ' + esc(prob.n || '') + ' <span style="opacity:.7">· ' + esc(t('eq.prob.byPiloto')) + '</span></div>' : '') +
         '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">' +
+          (prob ? '<button class="fin-svc-link" style="color:#00C98D" onclick="eqResolverProblema(\'' + esc(a.id) + '\')">✓ ' + esc(t('eq.prob.resolver')) + '</button>' : '') +
           '<button class="fin-svc-link" onclick="eqCheckForm(\'' + esc(a.id) + '\')">✅ ' + esc(t('eq.btn.check')) + '</button>' +
           '<button class="fin-svc-link" onclick="eqServiceForm(\'' + esc(a.id) + '\')">🔧 ' + esc(t('eq.btn.service')) + '</button>' +
           '<button class="fin-svc-link" onclick="eqEditForm(\'' + esc(a.id) + '\')">✏️</button>' +
@@ -12680,6 +12710,14 @@ function renderCoordEquiposList() {
 }
 
 function eqFind(id) { return (_coordAllActivos || []).find(x => x.id === id); }
+// Coordinador cierra un problema reportado por el piloto: evento 'resuelto' en el historial (eqPatch ya
+// escribe historial + optimista + re-render). El helper eqProblemaAbierto deja de verlo abierto.
+async function eqResolverProblema(id) {
+  const a = eqFind(id); if (!a) return;
+  const prob = eqProblemaAbierto(a.properties || {}); if (!prob) return;
+  if (!confirm(t('eq.prob.resolver.confirm'))) return;
+  await eqPatch(id, {}, { f: new Date().toISOString().slice(0, 10), t: 'resuelto', por: currentUser?.name || '', n: prob.n || '' });
+}
 function eqSlot(id) { return document.getElementById('eq-slot-' + id); }
 function eqCloseSlot(id) { const sl = eqSlot(id); if (sl) { sl.style.display = 'none'; sl.innerHTML = ''; } }
 const _eqInp = 'width:100%;box-sizing:border-box;padding:9px 11px;margin-bottom:7px;border:1px solid var(--border);border-radius:9px;background:var(--bg);color:var(--text);font-size:13px;font-family:inherit';
@@ -12841,7 +12879,7 @@ function eqHistToggle(id) {
   if (!sl || !a) return;
   if (sl.style.display !== 'none') { eqCloseSlot(id); return; }
   const hist = eqHistParse(a.properties || {}).slice().reverse();
-  const tipoTxt = { check: '✅ Check', service: '🔧 Service', estado: '🔄 Estado', alta: '➕ Alta', reporte: '📆 Reporte', resp: '👤 Responsable' };
+  const tipoTxt = { check: '✅ Check', service: '🔧 Service', estado: '🔄 Estado', alta: '➕ Alta', reporte: '📆 Reporte', resp: '👤 Responsable', problema: '⚠️ Problema', resuelto: '✅ Resuelto' };
   sl.innerHTML = '<div style="background:var(--bg);border:1px solid var(--border2);border-radius:10px;padding:10px;max-height:220px;overflow-y:auto">' +
     hist.map(e => '<div style="font-size:11px;color:var(--text2);padding:4px 0;border-bottom:1px solid var(--border)">' +
       '<b>' + esc(e.f || '') + '</b> · ' + esc(tipoTxt[e.t] || e.t || '') + (e.por ? ' · ' + esc(e.por) : '') +
@@ -12886,13 +12924,17 @@ function renderMisEquipos() {
     const d = eqDiasDesdeCheck(p);
     const prevTxt = esVeh ? (km != null ? Number(km).toLocaleString('es-UY') + ' km' : '—') : (esDrone ? (hs != null ? hs + ' hs' : '—') : '');
     const dTxt = d == null ? t('eq.check.nunca') : t('eq.check.hace').replace('{d}', d);
+    const prob = eqProblemaAbierto(p);
     return '<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:11px 12px;margin-bottom:9px">' +
       '<div style="font-size:13.5px;font-weight:700">' + esc(nombre) + '</div>' +
       '<div style="font-size:11px;color:var(--text3);margin:2px 0 8px">' + (prevTxt ? esc(t('miseq.antes').replace('{v}', prevTxt)) + ' · ' : '') + esc(dTxt) + '</div>' +
+      (prob ? '<div style="font-size:11px;color:#f59e0b;background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.35);border-radius:8px;padding:6px 9px;margin-bottom:8px">⚠️ ' + esc(t('miseq.prob.abierto')) + ': ' + esc(prob.n || '') + '</div>' : '') +
       (esVeh ? '<input id="meq-val-' + esc(a.id) + '" type="number" min="0" inputmode="numeric" placeholder="' + esc(t('miseq.ph.km')) + '" style="' + _eqInp + '">' : '') +
       (esDrone ? '<input id="meq-val-' + esc(a.id) + '" type="number" min="0" step="0.1" inputmode="decimal" placeholder="' + esc(t('miseq.ph.hs')) + '" style="' + _eqInp + '">' : '') +
       '<input id="meq-nota-' + esc(a.id) + '" maxlength="200" placeholder="' + esc(t('miseq.nota.ph')) + '" style="' + _eqInp + '">' +
       '<button class="pin-change-btn" style="margin-top:2px" onclick="misEqSave(\'' + esc(a.id) + '\', this)">' + esc(t('miseq.save')) + '</button>' +
+      '<button class="fin-svc-link" style="margin-top:8px;color:#f59e0b" onclick="misEqToggleProblem(\'' + esc(a.id) + '\')">⚠️ ' + esc(t('miseq.prob.btn')) + '</button>' +
+      '<div id="meq-slot-' + esc(a.id) + '" style="display:none;margin-top:8px"></div>' +
       '</div>';
   }).join('');
 }
@@ -12930,6 +12972,42 @@ async function misEqSave(id, btn) {
     btn.textContent = '✅ ' + t('miseq.saved');
     setTimeout(() => renderMisEquipos(), 1100);
   } catch (e) { alert(t('sheet.alert.save.error2') + e.message); btn.disabled = false; btn.textContent = t('miseq.save'); }
+}
+
+// Reporte de un PROBLEMA del dron/equipo por el piloto responsable (canal separado del reporte de horas).
+// Queda como evento 'problema' en el Historial equipo → alerta al coordinador (loadAlerts) hasta que lo resuelva.
+const MISEQ_PROB_TIPOS = ['⚠️ Anda mal', '🔧 Necesita mantenimiento', '🔄 Hay que actualizarlo', '📝 Otro'];
+function misEqToggleProblem(id) {
+  const sl = document.getElementById('meq-slot-' + id);
+  if (!sl) return;
+  if (sl.style.display !== 'none') { sl.style.display = 'none'; sl.innerHTML = ''; return; }
+  sl.innerHTML = '<div style="background:var(--bg);border:1px solid var(--border2);border-radius:10px;padding:10px">' +
+    '<div style="font-size:11px;font-weight:700;color:var(--text2);margin-bottom:7px">⚠️ ' + esc(t('miseq.prob.title')) + '</div>' +
+    '<select id="meq-ptipo-' + esc(id) + '" style="' + _eqInp + '">' + MISEQ_PROB_TIPOS.map(x => '<option>' + esc(x) + '</option>').join('') + '</select>' +
+    '<input id="meq-pdesc-' + esc(id) + '" maxlength="200" placeholder="' + esc(t('miseq.prob.ph')) + '" style="' + _eqInp + '">' +
+    '<button class="pin-change-btn" style="margin-top:2px" onclick="misEqReportProblem(\'' + esc(id) + '\', this)">' + esc(t('miseq.prob.send')) + '</button></div>';
+  sl.style.display = 'block';
+}
+async function misEqReportProblem(id, btn) {
+  const a = (_misEquipos || []).find(x => x.id === id); if (!a) return;
+  const tipo = document.getElementById('meq-ptipo-' + id)?.value || '';
+  const desc = (document.getElementById('meq-pdesc-' + id)?.value || '').trim();
+  if (/[<>]/.test(desc)) { alert(t('eq.err.nota')); return; }
+  if (!desc) { alert(t('miseq.prob.err.vacio')); return; }
+  const hoy = new Date().toISOString().slice(0, 10);
+  // "Otro" no aporta prefijo útil → solo la descripción.
+  const texto = (tipo && !tipo.includes('Otro')) ? tipo + ': ' + desc : desc;
+  const ev = { f: hoy, t: 'problema', por: currentUser?.name || '', n: texto };
+  const hist = eqHistParse(a.properties || {}); hist.push(ev);
+  const histJson = JSON.stringify(hist.slice(-100));
+  btn.disabled = true; btn.textContent = '⏳';
+  try {
+    await callNotion('pages/' + id, 'PATCH', { properties: { 'Historial equipo': { rich_text: [{ text: { content: histJson } }] } } });
+    a.properties['Historial equipo'] = { rich_text: [{ plain_text: histJson, text: { content: histJson } }] };
+    showSaving();
+    btn.textContent = '✅ ' + t('miseq.saved');
+    setTimeout(() => renderMisEquipos(), 1100);
+  } catch (e) { alert(t('sheet.alert.save.error2') + e.message); btn.disabled = false; btn.textContent = t('miseq.prob.send'); }
 }
 
 // ＋ Alta de equipo nuevo.
@@ -17101,6 +17179,16 @@ async function loadAlerts(role, bannerId) {
       } else if (fecha && fecha <= warnDate) {
         const days = Math.round((new Date(fecha) - new Date()) / 86400000);
         alerts.push({ level: 'warn', icon: '⚠️', message: nombre + ' — mantenimiento en ' + days + ' días (' + fecha + ')' });
+      }
+      // Equipos v2 — problema reportado por el piloto (evento 'problema' abierto en el historial): avisa a
+      // quien gestiona la flota (coord/CEO). esc() en el texto libre del piloto (defensa; el input ya rechaza <>).
+      if ((isCoord || isCEO) && !estado.includes('Fuera de servicio')) {
+        const prob = eqProblemaAbierto(r.properties || {});
+        if (prob) {
+          const clickable = (role.includes('Coordinador') || role.includes('Dirección'));
+          alerts.push({ level: 'warn', icon: '⚠️', message: esc(nombre) + ' — ' + esc(prob.n || '') + ' · ' + t('eq.prob.byPiloto'),
+            ...(clickable ? { onclick: "setCoordTab('equipos')" } : {}) });
+        }
       }
     });
     if (sinCheckN > 0 && (isCoord || isCEO)) {
