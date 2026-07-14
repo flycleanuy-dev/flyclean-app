@@ -9,8 +9,12 @@ import { getRecipients } from './_lib/recipients.js';
 
 // Fallback histórico si la lista editable (⚙️ Configuración → 📬 Destinatarios) está vacía o KV caído.
 const CEO_EMAIL = 'ihodieego@gmail.com';
+// El reporte del LUNES incluye "equipos sin reporte" → va a la gestión. Eduardo se suma en
+// ⚙️ Configuración → 📬 Destinatarios (falta su email); estos dos están confirmados en el repo.
+const GESTION_LUNES = ['ihodieego@gmail.com', 'federicomaciel939@gmail.com'];
 const SERVICIOS_DB = 'ccaf276c7f6a460caeb3d2800deab2e5';
 const PROPUESTAS_DB = '2c0a4257f4294941b994dfebc1098633';
+const ACTIVOS_DB = 'e75449eeb78143f1b74006a4796c1f95';
 const ESTADOS_ESPERANDO = ['📞 Contactado', '📤 Enviada al cliente', '🤝 Negociando'];
 const APP_URL = 'https://www.flyclean.app/';
 
@@ -48,6 +52,13 @@ function svcCard(s, { resultado = false } = {}) {
     ${ayud.length ? `<div style="font-size:13px;color:#9fb5ac;margin-top:2px">👥 Ayudantes: ${esc(ayud.join(', '))}</div>` : ''}
   </div>`;
 }
+// Activos (módulo 🔧 Equipos) — para el aviso "equipos sin reporte semanal"
+const actNombre = (a) => a.properties?.['Activo']?.title?.[0]?.plain_text || '(sin nombre)';
+const actTipo = (a) => a.properties?.['Tipo']?.select?.name || '';
+const actEstado = (a) => a.properties?.['Estado']?.select?.name || '';
+const actResp = (a) => a.properties?.['Responsable App']?.select?.name || '';
+const actCheck = (a) => a.properties?.['Último check']?.date?.start || '';
+
 const section = (title) => `<h2 style="font-size:15px;color:#ffffff;margin:22px 0 6px;border-top:1px solid #1d2a25;padding-top:16px">${title}</h2>`;
 const empty = (msg) => `<div style="color:#6f8a80;font-size:13px;padding:6px 0">${msg}</div>`;
 const BTN = `<div style="margin:18px 0 6px"><a href="${APP_URL}" style="display:inline-block;background:#00C98D;color:#062019;font-weight:800;text-decoration:none;padding:12px 26px;border-radius:8px;font-size:15px">Abrir FlyClean →</a></div>`;
@@ -96,13 +107,42 @@ export default async function handler(req, res) {
       ? `<ul style="margin:6px 0;padding-left:18px">${tallyEntries.map(([op, n]) => `<li style="margin:3px 0;color:#cfe0d9">${esc(op)}: <b>${n}</b> servicio${n > 1 ? 's' : ''}</li>`).join('')}</ul>`
       : empty('—');
 
+    // 🔧 Equipos sin reporte semanal — solo se audita los LUNES (el viernes el responsable recién carga).
+    // "Sin reporte" = tiene responsable asignado, no está fuera de servicio, y nunca cargó o hace +7 días.
+    let equiposHtml = '', equiposSinReporte = 0;
+    if (tipo === 'lunes') {
+      // fail-open PERO honesto: si la consulta cae, decir "no se pudo chequear" (no "todos al día").
+      let activos = null;
+      try { activos = await queryAll(ACTIVOS_DB); } catch { activos = null; }
+      if (activos === null) {
+        equiposHtml = section('🔧 Equipos') + empty('No se pudo consultar los equipos esta vez.');
+      } else {
+        const sinReporte = activos.filter(a =>
+          actResp(a) && !actEstado(a).includes('Fuera de servicio') && (!actCheck(a) || actCheck(a) < weekAgo)
+        ).sort((x, y) => (actCheck(x) || '').localeCompare(actCheck(y) || ''));
+        equiposSinReporte = sinReporte.length;
+        const eqLinea = (a) => {
+          const c = actCheck(a);
+          const dias = c ? Math.floor((Date.now() - new Date(c).getTime()) / 86400000) : null;
+          const cuando = dias == null ? 'nunca reportó' : `hace ${dias} día${dias === 1 ? '' : 's'}`;
+          return `<div style="padding:8px 0;border-bottom:1px solid #1d2a25">
+            <div style="font-weight:700;color:#ffffff">${esc(actNombre(a))}${actTipo(a) ? ` <span style="font-weight:400;color:#9fb5ac;font-size:13px">${esc(actTipo(a))}</span>` : ''}</div>
+            <div style="font-size:13px;color:#9fb5ac;margin-top:2px">👤 ${esc(actResp(a))} · último reporte: ${cuando}</div>
+          </div>`;
+        };
+        equiposHtml = section(`🔧 Equipos sin reporte esta semana (${sinReporte.length})`) +
+          (sinReporte.length ? sinReporte.map(eqLinea).join('') : empty('Todos al día ✅'));
+      }
+    }
+
     let subject, body;
     if (tipo === 'lunes') {
       subject = 'FlyClean · Lunes — pendientes de la semana';
       body = `<p style="color:#cfe0d9">Buen comienzo de semana 👋 Esto hay para esta semana:</p>${BTN}` +
         section(`🗓️ Próximos servicios (${svcProximos.length})`) + (svcProximos.length ? svcProximos.map(s => svcCard(s)).join('') : empty('Sin servicios programados.')) +
         section(`📋 Servicios sin operario asignado (${svcSinOp.length})`) + (svcSinOp.length ? svcSinOp.map(s => svcCard(s)).join('') : empty('Todos asignados ✅')) +
-        section(`📞 Propuestas para re-contactar (${recontactar.length})`) + recHtml;
+        section(`📞 Propuestas para re-contactar (${recontactar.length})`) + recHtml +
+        equiposHtml;
     } else {
       subject = 'FlyClean · Viernes — resumen de la semana';
       body = `<p style="color:#cfe0d9">Resumen de la semana 📊</p>${BTN}` +
@@ -113,10 +153,11 @@ export default async function handler(req, res) {
     }
 
     // Destinatarios: ?to= (test manual) > lista editable de la app (KV) > fallback histórico.
+    // El lunes cae a la gestión (incluye el aviso de equipos); el viernes, al CEO.
     const listaKV = toOverride ? null : await getRecipients(tipo === 'viernes' ? 'semanal' : 'lunes');
-    const to = toOverride || listaKV || CEO_EMAIL;
+    const to = toOverride || listaKV || (tipo === 'lunes' ? GESTION_LUNES : CEO_EMAIL);
     const emailRes = await sendEmail({ to, subject, html: emailLayout(subject, body) });
-    return res.status(200).json({ ok: true, tipo, to, svcDone: svcDone.length, svcSinOp: svcSinOp.length, svcProximos: svcProximos.length, recontactar: recontactar.length, email: emailRes });
+    return res.status(200).json({ ok: true, tipo, to, svcDone: svcDone.length, svcSinOp: svcSinOp.length, svcProximos: svcProximos.length, recontactar: recontactar.length, equiposSinReporte, email: emailRes });
   } catch (e) {
     console.error('[cron-report]', e);
     return res.status(500).json({ error: String(e.message || e) });

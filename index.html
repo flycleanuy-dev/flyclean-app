@@ -7507,7 +7507,18 @@ function detectDuplicateClients(list){
   Object.entries(byKey).forEach(([k, arr]) => {
     if (k.endsWith(':') || arr.length < 2) return;
     const ids = arr.map(c=>c.id).sort().join('|');
-    if (seen.has(ids)) return; seen.add(ids); groups.push(arr);
+    if (seen.has(ids)) return; seen.add(ids);
+    // Motivo del grupo (por qué se juntaron): tel | mail | name + un valor legible.
+    // Se adjunta al array (chooseWinner/startMerge lo siguen leyendo como lista de clientes).
+    const tipo = k.slice(0, k.indexOf(':'));
+    const p0 = arr[0].properties || {};
+    arr._motivo = {
+      tipo,
+      valor: tipo === 'tel' ? (p0['Teléfono / WhatsApp']?.phone_number || '')
+           : tipo === 'mail' ? (p0['Email']?.email || '')
+           : clienteNombre(arr[0]),
+    };
+    groups.push(arr);
   });
   return groups;
 }
@@ -7536,14 +7547,22 @@ async function renderLimpiezaDuplicados(){
       body.innerHTML = '<div style="padding:24px;color:var(--text3);text-align:center">✅ Sin clientes duplicados ('+list.length+' clientes revisados).</div>' + archivedHtml;
       return;
     }
-    body.innerHTML = groups.map((g,gi)=>`
+    body.innerHTML = groups.map((g,gi)=>{
+      const m = g._motivo || {};
+      // Por qué la app los juntó — evita confundir "3 clientes con el mismo portero" con un duplicado real.
+      const motivo = m.tipo === 'tel'  ? '📞 Comparten teléfono' + (m.valor ? ': ' + esc(m.valor) : '')
+                   : m.tipo === 'mail' ? '✉️ Comparten email' + (m.valor ? ': ' + esc(m.valor) : '')
+                   : '📝 Mismo nombre';
+      return `
       <div style="border:1px solid var(--border2);border-radius:12px;padding:12px;margin:10px 4px">
-        <div style="font-weight:700;margin-bottom:8px">Posible duplicado (${g.length})</div>
+        <div style="font-weight:700;margin-bottom:2px">Posible duplicado (${g.length})</div>
+        <div style="font-size:12px;color:var(--text3);margin-bottom:8px">${motivo}</div>
         ${g.map(c=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0">
           <span>${esc(clienteNombre(c)||'(sin nombre)')} <span style="color:var(--text3);font-size:11px">${esc(clientePais(c))}</span></span>
           <button class="estado-btn" onclick="chooseWinner('${gi}','${esc(c.id)}')">Queda este</button>
         </div>`).join('')}
-      </div>`).join('') + archivedHtml;
+      </div>`;
+    }).join('') + archivedHtml;
     window._limpiezaGroups = groups; // para chooseWinner/startMerge
   } catch(e){ body.innerHTML = '<div style="padding:24px;color:#c45">Error: '+esc(e.message)+'</div>'; }
 }
