@@ -14454,6 +14454,14 @@ function openPropSheet(pageId) {
   const posponerHasta = (props['Posponer aviso hasta']?.date?.start || '').split('T')[0];
 
   propEditState = { estado, pais, tipo, aprobacion, importe, fechaEnvio, ultimaInt, obs, serviciosAnio, comision, clienteSel, nombreCliente: '', tel: '', email: '', mapa: mapaProp, posponerHasta, _posponerHastaOrig: posponerHasta };
+  // F1 (escribir SOLO lo cambiado): snapshot de originales → al guardar no se re-escribe un campo que el usuario no
+  // tocó (evita el echo-back que pisaría datos cuando propuestas pase a Supabase-first). Números como String() para
+  // comparar sin falsos "cambió" por number-vs-string del input.
+  Object.assign(propEditState, {
+    _estadoOrig: estado, _paisOrig: pais, _tipoOrig: tipo, _aprobacionOrig: aprobacion,
+    _importeOrig: String(importe ?? ''), _serviciosAnioOrig: String(serviciosAnio ?? ''), _comisionOrig: String(comision ?? ''),
+    _fechaEnvioOrig: fechaEnvio, _ultimaIntOrig: ultimaInt, _obsOrig: obs, _mapaOrig: mapaProp,
+  });
 
   document.getElementById('prop-sheet-title').textContent = nombre;
   document.getElementById('prop-sheet-sub').textContent = pais || t('sheet.prop.subtitle.default');
@@ -15102,29 +15110,35 @@ async function savePropEdit() {
       await promoteClienteIfAceptada(clienteId, propEditState.estado);
     } else {
       const props = {};
-      if (propEditState.estado) props['Estado pipeline'] = { select: { name: propEditState.estado } };
-      if (propEditState.pais) props['País'] = { select: { name: propEditState.pais } };
-      props['Tipo'] = { select: propEditState.tipo ? { name: propEditState.tipo } : null };
-      props['Aprobación interna'] = { select: propEditState.aprobacion ? { name: propEditState.aprobacion } : null };
-      props['Importe estimado'] = { number: parseFloat(propEditState.importe) || null };
-      props['Servicios por año'] = { number: parseFloat(propEditState.serviciosAnio) || null };
-      props['Comisión %'] = { number: parseFloat(propEditState.comision) || null };
-      if (propEditState.fechaEnvio) props['Fecha de envío'] = { date: { start: propEditState.fechaEnvio } };
-      else if (propEditState.estado === '📤 Enviada al cliente') {
-        // Reloj de vida (spec dos-relojes 2026-07-02): al pasar a "Enviada" sin Fecha de envío previa
-        // y sin que el usuario haya cargado una en el form, se estampa hoy automáticamente — mismo
-        // patrón hoyISO que openNewServiceSheet (fecha LOCAL, no UTC). Si ya tenía una, no se toca.
+      // F1: en EDICIÓN cada campo se escribe SOLO si cambió vs su snapshot (_XOrig). Este bloque es solo edit.
+      const p = propEditState;
+      const chg = (cur, orig) => cur !== orig;
+      if (p.estado && chg(p.estado, p._estadoOrig)) props['Estado pipeline'] = { select: { name: p.estado } };
+      if (p.pais && chg(p.pais, p._paisOrig)) props['País'] = { select: { name: p.pais } };
+      if (chg(p.tipo, p._tipoOrig)) props['Tipo'] = { select: p.tipo ? { name: p.tipo } : null };
+      if (chg(p.aprobacion, p._aprobacionOrig)) props['Aprobación interna'] = { select: p.aprobacion ? { name: p.aprobacion } : null };
+      if (chg(String(p.importe ?? ''), p._importeOrig)) props['Importe estimado'] = { number: parseFloat(p.importe) || null };
+      if (chg(String(p.serviciosAnio ?? ''), p._serviciosAnioOrig)) props['Servicios por año'] = { number: parseFloat(p.serviciosAnio) || null };
+      if (chg(String(p.comision ?? ''), p._comisionOrig)) props['Comisión %'] = { number: parseFloat(p.comision) || null };
+      // Fecha de envío: escribir si el usuario la cambió; o auto-estampar hoy al pasar a "Enviada" sin fecha previa
+      // (reloj de vida, spec dos-relojes 2026-07-02) — el auto-estampado es acción del sistema, no echo-back.
+      if (chg(p.fechaEnvio, p._fechaEnvioOrig) && p.fechaEnvio) props['Fecha de envío'] = { date: { start: p.fechaEnvio } };
+      else if (!p.fechaEnvio && p.estado === '📤 Enviada al cliente') {
         const _hoy = new Date();
         const hoyISO = `${_hoy.getFullYear()}-${String(_hoy.getMonth() + 1).padStart(2, '0')}-${String(_hoy.getDate()).padStart(2, '0')}`;
         props['Fecha de envío'] = { date: { start: hoyISO } };
       }
-      if (propEditState.ultimaInt) props['Última interacción'] = { date: { start: propEditState.ultimaInt } };
+      if (chg(p.ultimaInt, p._ultimaIntOrig) && p.ultimaInt) props['Última interacción'] = { date: { start: p.ultimaInt } };
       // Posponer aviso: escribir SOLO si cambió (defensivo: si la property no existe en Notion aún, no se manda).
-      if (propEditState.posponerHasta !== propEditState._posponerHastaOrig)
-        props['Posponer aviso hasta'] = propEditState.posponerHasta ? { date: { start: propEditState.posponerHasta } } : { date: null };
-      props['Observaciones'] = { rich_text: propEditState.obs ? [{ text: { content: propEditState.obs } }] : [] };
-      props['Mapa'] = { url: (propEditState.mapa && propEditState.mapa.trim()) ? propEditState.mapa.trim() : null };
-      if (clienteId) props['Contacto'] = { relation: [{ id: clienteId }] };
+      if (p.posponerHasta !== p._posponerHastaOrig)
+        props['Posponer aviso hasta'] = p.posponerHasta ? { date: { start: p.posponerHasta } } : { date: null };
+      if (chg(p.obs, p._obsOrig)) props['Observaciones'] = { rich_text: p.obs ? [{ text: { content: p.obs } }] : [] };
+      if (chg(p.mapa, p._mapaOrig)) props['Mapa'] = { url: (p.mapa && p.mapa.trim()) ? p.mapa.trim() : null };
+      // Contacto: linkear si hay clienteId y DIFIERE del vínculo actual. Comparar contra el vínculo real (no
+      // clienteSel): en un alta inline/dedup, clienteSel queda en '__new__' aunque clienteId ya se resolvió a un id
+      // → mirar clienteSel dejaría la propuesta huérfana. Igual respeta F1 (no re-escribe si el vínculo no cambió).
+      const _contactoPrev = editingProp?.properties?.['Contacto']?.relation?.[0]?.id || editingProp?.properties?.['Contactos']?.relation?.[0]?.id || null;
+      if (clienteId && clienteId !== _contactoPrev) props['Contacto'] = { relation: [{ id: clienteId }] };
       const _updatedProp = await updateServiceProps(editingProp.id, props);
       _freshServiciosLen = (_updatedProp?.properties?.['Servicios']?.relation || editingProp?.properties?.['Servicios']?.relation || []).length;
       // En edición el cliente puede venir del selector (clienteId) o del vínculo previo de la propuesta.
@@ -15947,6 +15961,15 @@ async function openContactSheet(pageId) {
     _proximoContactoOrig: (props['Próximo contacto']?.date?.start || '').split('T')[0], // para escribir solo si cambió
     sectores: (() => { try { return JSON.parse(props['Sectores']?.rich_text?.[0]?.plain_text || '[]'); } catch (_) { return []; } })()
   };
+  // F1 (escribir SOLO lo cambiado): snapshot de los originales para que al guardar no se re-escriban campos que el
+  // usuario no tocó → evita el "echo-back" que pisaría datos buenos cuando la tabla clientes pase a Supabase-first.
+  Object.assign(contactEditState, {
+    _nombreOrig: contactEditState.nombre, _estadoOrig: contactEditState.estado, _tipoOrig: contactEditState.tipo,
+    _paisOrig: contactEditState.pais, _canalOrig: contactEditState.canal, _telOrig: contactEditState.tel,
+    _emailOrig: contactEditState.email, _ciudadOrig: contactEditState.ciudad, _interlocutorOrig: contactEditState.interlocutor,
+    _notasOrig: contactEditState.notas, _mapaOrig: contactEditState.mapa, _intermediarioOrig: contactEditState.intermediario,
+    _serviciosOrig: JSON.stringify(contactEditState.servicios || []), _sectoresOrig: JSON.stringify(contactEditState.sectores || []),
+  });
   const nombre = props['Nombre / Empresa']?.title?.[0]?.plain_text || t('common.sinnombre');
   document.getElementById('contact-sheet-title').textContent = nombre;
   document.getElementById('contact-sheet-sub').textContent = contactEditState.tipo || t('sheet.contact.title.default');
@@ -16141,29 +16164,33 @@ async function saveContactEdit() {
       closeContactSheet(); await refreshContactsView(); return;
     }
     const props = {};
-    if (s.estado) props['Estado'] = { select: { name: s.estado } };
-    props['Tipo de cliente'] = { select: s.tipo ? { name: s.tipo } : null };
-    if (s.pais) props['País'] = { select: { name: s.pais } };
-    props['Canal de captación'] = { select: s.canal ? { name: s.canal } : null };
-    props['Servicio de interés'] = { multi_select: s.servicios.map(n => ({ name: n })) };
-    props['Teléfono / WhatsApp'] = { phone_number: s.tel || null };
-    props['Email'] = { email: s.email || null };
-    props['Ciudad / Zona'] = { rich_text: s.ciudad ? [{ text: { content: s.ciudad } }] : [] };
-    props['Mapa'] = { url: s.mapa && s.mapa.trim() ? s.mapa.trim() : null };
-    if (contactSheetMode !== 'create')
+    // F1: en EDICIÓN cada campo se escribe SOLO si cambió vs su snapshot (_XOrig) → nunca re-escribe un valor
+    // que el usuario no tocó. En CREATE se escribe todo (registro nuevo, no hay echo-back). chg() decide.
+    const edit = contactSheetMode === 'edit';
+    const chg = (cur, orig) => !edit || cur !== orig;
+    if (chg(s.estado, s._estadoOrig) && s.estado) props['Estado'] = { select: { name: s.estado } };
+    if (chg(s.tipo, s._tipoOrig)) props['Tipo de cliente'] = { select: s.tipo ? { name: s.tipo } : null };
+    if (chg(s.pais, s._paisOrig) && s.pais) props['País'] = { select: { name: s.pais } };
+    if (chg(s.canal, s._canalOrig)) props['Canal de captación'] = { select: s.canal ? { name: s.canal } : null };
+    if (chg(JSON.stringify(s.servicios || []), s._serviciosOrig)) props['Servicio de interés'] = { multi_select: (s.servicios || []).map(n => ({ name: n })) };
+    if (chg(s.tel, s._telOrig)) props['Teléfono / WhatsApp'] = { phone_number: s.tel || null };
+    if (chg(s.email, s._emailOrig)) props['Email'] = { email: s.email || null };
+    if (chg(s.ciudad, s._ciudadOrig)) props['Ciudad / Zona'] = { rich_text: s.ciudad ? [{ text: { content: s.ciudad } }] : [] };
+    if (chg(s.mapa, s._mapaOrig)) props['Mapa'] = { url: s.mapa && s.mapa.trim() ? s.mapa.trim() : null };
+    if (contactSheetMode !== 'create' && chg(s.intermediario, s._intermediarioOrig))
       props['Intermediario'] = { relation: s.intermediario ? [{ id: s.intermediario }] : [] };
     // Recontacto: escribir SOLO si el usuario lo cambió (así no pisamos el snooze de Ventas sin querer).
     if (contactSheetMode !== 'create' && s.proximoContacto !== s._proximoContactoOrig)
       props['Próximo contacto'] = s.proximoContacto ? { date: { start: s.proximoContacto } } : { date: null };
-    props['Interlocutor'] = { rich_text: s.interlocutor ? [{ text: { content: s.interlocutor } }] : [] };
-    props['Notas'] = { rich_text: s.notas ? [{ text: { content: s.notas } }] : [] };
+    if (chg(s.interlocutor, s._interlocutorOrig)) props['Interlocutor'] = { rich_text: s.interlocutor ? [{ text: { content: s.interlocutor } }] : [] };
+    if (chg(s.notas, s._notasOrig)) props['Notas'] = { rich_text: s.notas ? [{ text: { content: s.notas } }] : [] };
     {
       const secs = (Array.isArray(s.sectores) ? s.sectores : [])
         .map(x => ({ id: x.id, nombre: String(x.nombre || '').trim() }))
         .filter(x => x.nombre);
-      props['Sectores'] = { rich_text: secs.length ? [{ text: { content: JSON.stringify(secs) } }] : [] };
+      if (chg(JSON.stringify(s.sectores || []), s._sectoresOrig)) props['Sectores'] = { rich_text: secs.length ? [{ text: { content: JSON.stringify(secs) } }] : [] };
     }
-    props['Nombre / Empresa'] = { title: [{ text: { content: nombre } }] };
+    if (chg(nombre, s._nombreOrig)) props['Nombre / Empresa'] = { title: [{ text: { content: nombre } }] };
 
     if (contactSheetMode === 'create') {
       const orf = [];
