@@ -227,7 +227,8 @@ const ACTIVOS = [
   { object: 'page', id: 'act-1', created_time: '2026-01-01T10:00:00Z', properties: {
     'Activo': title('Drone DJI M400'), 'Tipo': sel('🚁 Drone'), 'Estado': sel('✅ Operativo'),
     'Marca / Modelo': txt('DJI Matrice 400'), 'Nro. Serie / Matrícula': txt('SN-M400-01'),
-    'Horas de vuelo': num(48), 'Último check': date('2026-07-04'), 'País': sel('🇺🇾 UY') } },
+    'Horas de vuelo': num(48), 'Último check': date('2026-07-04'), 'País': sel('🇺🇾 UY'),
+    'Responsable App': sel('Juan Pablo') } },
   { object: 'page', id: 'act-2', created_time: '2026-01-01T10:00:00Z', properties: {
     'Activo': title('Drone DJI M350 #1'), 'Tipo': sel('🚁 Drone'), 'Estado': sel('✅ Operativo'),
     'Marca / Modelo': txt('DJI Matrice 350 RTK'), 'Nro. Serie / Matrícula': txt('SN-M350-01'),
@@ -235,7 +236,8 @@ const ACTIVOS = [
   { object: 'page', id: 'act-3', created_time: '2026-01-01T10:00:00Z', properties: {
     'Activo': title('Camioneta Changan Hunter'), 'Tipo': sel('🚗 Vehículo'), 'Estado': sel('✅ Operativo'),
     'Marca / Modelo': txt('Changan Hunter'), 'Nro. Serie / Matrícula': txt('SBA 1234'),
-    'Km actuales': num(12450), 'Último check': date('2026-07-04'), 'País': sel('🇺🇾 UY') } },
+    'Km actuales': num(12450), 'Último check': date('2026-07-04'), 'País': sel('🇺🇾 UY'),
+    'Responsable App': sel('Juan Pablo') } },
   { object: 'page', id: 'act-4', created_time: '2026-01-01T10:00:00Z', properties: {
     'Activo': title('Camioneta Hyundai H1'), 'Tipo': sel('🚗 Vehículo'), 'Estado': sel('✅ Operativo'),
     'Marca / Modelo': txt('Hyundai H1'), 'Nro. Serie / Matrícula': txt('SBB 5678'),
@@ -485,6 +487,18 @@ async function buildOperario(browser) {
     steps: [{ title: 'Producto + prioridad (+ proveedor y costo si los sabés)', description: '🔴 Urgente = frena el trabajo · 🟡 Normal · 🟢 Sugerente. Abajo ves tus últimos pedidos y en qué estado están (Pendiente → Comprado → Recibido).', image: imgPedido, wide: true }],
   });
 
+  console.log('  [Operario] mis equipos...');
+  await page.evaluate(() => { try { openMisEquipos(); } catch (_) {} });
+  await page.waitForTimeout(1400);
+  const imgMisEq = await snap(page, { wait: 300 });
+  sections.push({
+    title: '🔧 Reporte semanal de tus equipos',
+    intro: 'Si el coordinador te asignó un equipo (un dron, una camioneta), cada viernes te aparece un aviso para pasar los números. Son 30 segundos.',
+    steps: [{ title: 'El total de hoy + una nota si hay algo', description: 'Ponés los km que marca la camioneta o las horas del dron (ves “antes: …” para no equivocarte) y, si hay algo para avisar (un ruido, un service, un golpe), lo escribís en la nota. Guardás y listo — queda registrado a tu nombre. También lo tenés siempre en el menú (⋯ → Mis equipos).', image: imgMisEq, wide: true }],
+  });
+  await page.evaluate(() => { try { closeMisEquipos(); } catch (_) {} });
+  await page.waitForTimeout(300);
+
   console.log('  [Operario] menú...');
   const imgMenu = await snapAccountMenu(page);
   sections.push(seccionMenu(imgMenu));
@@ -578,8 +592,11 @@ async function buildCoordinador(browser) {
   const imgEquipos = await snap(page, { wait: 1200 });
   sections.push({
     title: '🔧 Equipos — la flota bajo control',
-    intro: 'Toda la flota del país en un lugar: drones, camionetas, hidrolavadoras, ósmosis y trailer. Cada equipo con su estado, matrícula, km (vehículos) u horas de vuelo (drones) y el semáforo del check mensual.',
-    steps: [{ title: 'Check mensual + km/horas + service + historial', description: 'Una vez al mes hacés el ✅ Check y cargás los km (vehículos) o las horas de vuelo (drones) que te pasa el piloto/chofer. El 🔧 registra un service, ✏️ edita o da de baja un equipo, y 📜 muestra el historial. Los que llevan +30 días sin check aparecen marcados arriba para que no se te pase.', image: imgEquipos, wide: true }],
+    intro: 'Toda la flota del país en un lugar: drones, camionetas, hidrolavadoras, ósmosis y trailer. Cada equipo con su estado, matrícula, km (vehículos) u horas de vuelo (drones), su responsable y el semáforo del reporte semanal.',
+    steps: [
+      { title: 'Asigná un responsable a cada equipo (una vez)', description: 'Entrá a ✏️ editar un equipo y elegí su 👤 Responsable — la persona de campo (piloto, chofer) que lo tiene a cargo. Desde ahí, esa persona es quien reporta los km/horas cada semana desde su propia app; vos ya no tenés que perseguir los números.', image: imgEquipos, wide: true },
+      { title: 'Vos controlás: semáforo + service + historial', description: 'La card muestra al responsable y un semáforo del último reporte (🟢 al día · 🟡 +1 semana · 🔴 +2). El 🔧 registra un service, ✏️ edita o da de baja un equipo, y 📜 muestra todo el historial (quién reportó qué y cuándo). Los que se atrasan aparecen marcados arriba para que no se te pase.' },
+    ],
   });
 
   console.log('  [Coord] menú...');
