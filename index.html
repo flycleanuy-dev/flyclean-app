@@ -777,6 +777,15 @@ body::before {
   .equipo-option:hover, .equipo-option:active { border-color: var(--green); color: var(--green); }
   .equipo-option.disabled { opacity: 0.5; cursor: not-allowed; }
   .equipos-empty { padding: 16px; text-align: center; color: var(--text3); font-size: 12px; font-style: italic; }
+  /* 🤖 Asistente IA — FAB flotante + burbujas de chat */
+  #ayuda-fab { position: fixed; right: 16px; bottom: 18px; width: 52px; height: 52px; border-radius: 50%;
+    border: none; background: var(--accent, #00C98D); color: #052018; font-size: 25px; cursor: pointer;
+    box-shadow: 0 6px 18px rgba(0,0,0,.28); z-index: 60; display: flex; align-items: center; justify-content: center; }
+  #ayuda-fab:active { transform: scale(.94); }
+  .ayuda-bubble { max-width: 84%; padding: 9px 12px; border-radius: 13px; font-size: 13.5px; line-height: 1.42; white-space: pre-wrap; word-wrap: break-word; }
+  .ayuda-bubble.bot { align-self: flex-start; background: var(--card2, #1b2823); color: var(--text); border-bottom-left-radius: 4px; }
+  .ayuda-bubble.me { align-self: flex-end; background: var(--accent, #00C98D); color: #052018; border-bottom-right-radius: 4px; font-weight: 600; }
+  .ayuda-bubble.err { align-self: flex-start; background: rgba(245,90,90,.12); color: #e5484d; border: 1px solid rgba(245,90,90,.35); }
   #jornada-overlay { z-index: 10001; }
   #equipo-overlay { z-index: 10002; }
   #gasto-overlay { z-index: 10003; }
@@ -1845,6 +1854,22 @@ body::before {
   </div>
 </div>
 
+<!-- 🤖 ASISTENTE IA (bot de ayuda "cómo usar la app", por rol) — FAB + panel, sibling de body -->
+<button id="ayuda-fab" type="button" onclick="openAyudaBot()" aria-label="Asistente" style="display:none">🤖</button>
+<div class="edit-overlay" id="ayuda-overlay" onclick="ayudaOverlayClick(event)">
+  <div class="pin-change-sheet" style="max-height:88vh;display:flex;flex-direction:column;padding-bottom:0">
+    <button class="sheet-close-btn" type="button" aria-label="Cerrar" onclick="closeAyudaBot()">×</button>
+    <div class="pin-change-handle"></div>
+    <div class="pin-change-title" data-i18n="ayuda.title">🤖 Asistente FlyClean</div>
+    <div class="pin-change-sub" data-i18n="ayuda.sub">Preguntame cómo hacer algo en la app. Te explico paso a paso.</div>
+    <div id="ayuda-msgs" style="flex:1;overflow-y:auto;padding:8px 2px;min-height:200px;display:flex;flex-direction:column;gap:8px"></div>
+    <div style="display:flex;gap:8px;padding:10px 0 14px;position:sticky;bottom:0;background:var(--card)">
+      <input id="ayuda-input" maxlength="500" data-i18n-placeholder="ayuda.ph" placeholder="¿Cómo hago…?" onkeydown="if(event.key==='Enter')sendAyuda()" style="flex:1;box-sizing:border-box;padding:11px 13px;border:1px solid var(--border);border-radius:10px;background:var(--bg);color:var(--text);font-size:14px;font-family:inherit">
+      <button id="ayuda-send" type="button" onclick="sendAyuda()" style="flex:none;padding:0 16px;border:none;border-radius:10px;background:var(--accent,#00C98D);color:#052018;font-weight:800;font-size:15px;cursor:pointer">➤</button>
+    </div>
+  </div>
+</div>
+
 <!-- AYUDA Y MANUALES (todos los roles) — sibling de body -->
 <div class="edit-overlay" id="help-overlay" onclick="helpOverlayClick(event)">
   <div class="pin-change-sheet">
@@ -2102,6 +2127,12 @@ const TRANSLATIONS = {
     'miseq.alert': '🔧 Reporte semanal de tus equipos: {n} pendiente(s) — tocá acá',
     'piloto.agenda.title': 'Próximos trabajos donde participás',
     'piloto.agenda.encargado': 'Encargado',
+    'ayuda.title': '🤖 Asistente FlyClean',
+    'ayuda.sub': 'Preguntame cómo hacer algo en la app. Te explico paso a paso.',
+    'ayuda.ph': '¿Cómo hago…?',
+    'ayuda.welcome': '¡Hola! Soy tu asistente. Preguntame cómo hacer cualquier cosa en la app y te guío paso a paso. 🙂',
+    'ayuda.typing': 'Escribiendo…',
+    'ayuda.error': 'No pude responder ahora. Probá de nuevo en un momento.',
     'miseq.prob.btn': 'Reportar un problema',
     'miseq.prob.title': '¿Qué le pasa al equipo?',
     'miseq.prob.ph': 'Contá qué pasó (ruido, golpe, falla…)',
@@ -3084,6 +3115,12 @@ const TRANSLATIONS = {
     'miseq.alert': '🔧 Relatório semanal dos seus equipamentos: {n} pendente(s) — toque aqui',
     'piloto.agenda.title': 'Próximos trabalhos em que você participa',
     'piloto.agenda.encargado': 'Encarregado',
+    'ayuda.title': '🤖 Assistente FlyClean',
+    'ayuda.sub': 'Pergunte como fazer algo no app. Eu explico passo a passo.',
+    'ayuda.ph': 'Como faço…?',
+    'ayuda.welcome': 'Olá! Sou seu assistente. Pergunte como fazer qualquer coisa no app e eu te guio passo a passo. 🙂',
+    'ayuda.typing': 'Escrevendo…',
+    'ayuda.error': 'Não consegui responder agora. Tente de novo em um momento.',
     'miseq.prob.btn': 'Relatar um problema',
     'miseq.prob.title': 'O que há com o equipamento?',
     'miseq.prob.ph': 'Conte o que aconteceu (ruído, batida, falha…)',
@@ -5428,6 +5465,7 @@ function showScreen(id) {
   document.getElementById('screen-' + id).classList.add('active');
   // Banner de instalación: aparece solo en pantallas home, se retira al entrar al flujo de trabajo/login.
   try { updateInstallBanner(); } catch (_) {}
+  try { updateAyudaFab(); } catch (_) {} // 🤖 FAB del asistente: solo en paneles de rol, con sesión
 }
 
 // Auto-refresco al volver a la app (auditoría 2026-07-09): antes, si el coordinador asignaba/movía algo,
@@ -17632,6 +17670,73 @@ function openHelpSheet() {
 }
 function closeHelpSheet() { document.getElementById('help-overlay').classList.remove('open'); }
 function helpOverlayClick(e) { if (e.target.id === 'help-overlay') closeHelpSheet(); }
+
+// ── 🤖 ASISTENTE IA (bot de ayuda "cómo usar la app") ────────────────────────
+// Solo texto: manda la pregunta a /api/ayuda-bot (que fija el rol desde la sesión y responde según el manual
+// de ESE rol). El bot no ejecuta nada ni ve datos → no puede romper la app. Historial en memoria de sesión.
+const AYUDA_FAB_SCREENS = ['services', 'coordinator', 'ceo', 'finanzas']; // paneles de rol (cubre los 6 roles)
+let _ayudaHist = [];
+let _ayudaBusy = false;
+function updateAyudaFab() {
+  const fab = document.getElementById('ayuda-fab');
+  if (!fab) return;
+  const scr = ((document.querySelector('.screen.active') || {}).id || '').replace('screen-', '');
+  fab.style.display = (currentUser && AYUDA_FAB_SCREENS.includes(scr)) ? 'flex' : 'none';
+}
+function ayudaOverlayClick(e) { if (e.target.id === 'ayuda-overlay') closeAyudaBot(); }
+function closeAyudaBot() { document.getElementById('ayuda-overlay').classList.remove('open'); }
+function openAyudaBot() {
+  const ov = document.getElementById('ayuda-overlay');
+  if (!ov) return;
+  ov.classList.add('open');
+  if (!_ayudaHist.length && !document.querySelector('#ayuda-msgs .ayuda-bubble')) ayudaAddBubble('bot', t('ayuda.welcome'));
+  setTimeout(() => { const i = document.getElementById('ayuda-input'); if (i) i.focus(); }, 100);
+}
+function ayudaAddBubble(cls, text) {
+  const box = document.getElementById('ayuda-msgs');
+  if (!box) return null;
+  const d = document.createElement('div');
+  d.className = 'ayuda-bubble ' + cls;
+  d.textContent = text; // textContent → la respuesta del bot nunca se interpreta como HTML
+  box.appendChild(d);
+  box.scrollTop = box.scrollHeight;
+  return d;
+}
+async function sendAyuda() {
+  if (_ayudaBusy) return;
+  const input = document.getElementById('ayuda-input');
+  const q = ((input && input.value) || '').trim();
+  if (!q) return;
+  input.value = '';
+  ayudaAddBubble('me', q);
+  _ayudaBusy = true;
+  const sendBtn = document.getElementById('ayuda-send');
+  if (sendBtn) sendBtn.disabled = true;
+  const typing = ayudaAddBubble('bot', t('ayuda.typing'));
+  try {
+    const tok = localStorage.getItem('fc_token') || '';
+    const resp = await fetch('/api/ayuda-bot', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + tok },
+      body: JSON.stringify({ pregunta: q, historial: _ayudaHist.slice(-6) }),
+    });
+    if (typing) typing.remove();
+    if (resp.status === 401) { closeAyudaBot(); if (typeof forceRelogin === 'function') forceRelogin(); return; }
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok) { ayudaAddBubble('err', data.error || t('ayuda.error')); return; }
+    const r = String(data.respuesta || '').trim() || t('ayuda.error');
+    ayudaAddBubble('bot', r);
+    _ayudaHist.push({ role: 'user', content: q }, { role: 'assistant', content: r });
+    if (_ayudaHist.length > 12) _ayudaHist = _ayudaHist.slice(-12);
+  } catch (_) {
+    if (typing) typing.remove();
+    ayudaAddBubble('err', t('ayuda.error'));
+  } finally {
+    _ayudaBusy = false;
+    if (sendBtn) sendBtn.disabled = false;
+    if (input) input.focus();
+  }
+}
 
 // ── 📋 MI HISTORIAL DE TRABAJOS ──────────────────────────────────────────────
 // SOLO LECTURA estricta: las cards NO abren el servicio (imposible reabrir/recomenzar por error).
