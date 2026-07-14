@@ -115,7 +115,9 @@ export const PERMISOS = {
   'Operario': {
     query: [DB.serviciosDb, DB.gastosDb, DB.solicitudesDb, DB.activos, DB.regTiempo],
     create: [DB.serviciosDb, DB.serviciosDs, DB.gastosDb, DB.gastosDs,
-             DB.solicitudesDb, DB.solicitudesDs],
+             // Equipos v2: DB.activos habilita el PATCH (reporte semanal km/horas/nota del responsable).
+             // SIN activosDs a propósito: el operario NO puede crear equipos, solo editar los existentes.
+             DB.solicitudesDb, DB.solicitudesDs, DB.activos],
     search: false,
   },
   'Administración': {

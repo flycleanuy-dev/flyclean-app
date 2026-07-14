@@ -52,6 +52,10 @@ const PROPUESTAS_NORM = '2c0a4257f4294941b994dfebc1098633';
 // pages/{id} de un servicio sigue bloqueado (no está en la rama de pages más abajo). El camino real de
 // lectura es el espejo (/api/db resource 'servicios'); este es el fallback si cae a Notion.
 const SERVICIOS_NORM = 'ccaf276c7f6a460caeb3d2800deab2e5';
+const ACTIVOS_NORM = 'e75449eeb78143f1b74006a4796c1f95';
+// Equipos v2 — backstop del OPERARIO sobre Activos: su PATCH solo puede escribir los campos del reporte
+// semanal (km/horas/fecha/historial). Cualquier otra property, in_trash, archived, etc. se rechaza.
+const ACTIVOS_OPERARIO_PROPS = ['Km actuales', 'Horas de vuelo', 'Último check', 'Historial equipo'];
 const norm = s => String(s || '').replace(/-/g, '').toLowerCase();
 
 // Margen amplio para que los reintentos no choquen con el límite de duración de la función.
@@ -233,6 +237,21 @@ export default async function handler(req, res) {
                 console.warn('[perms] DENEGARÍA', JSON.stringify({ rol: u?.rol, id: session?.id, tipo: 'page-patch-owner', db: parentDb, owner }));
               }
             }
+            // Equipos v2 — backstop OPERARIO↔ACTIVOS (hallazgo del review 2026-07-14): el permiso amplio de la
+            // matriz dejaría archivar/editar cualquier activo del país. Acá se ENFORCEA directo (capability
+            // nueva, sin período monitor, mismo criterio que el backstop de Ventas): (1) solo body {properties};
+            // (2) solo los campos del reporte semanal; (3) solo equipos donde ÉL es el Responsable App.
+            if ((u?.rol || '').includes('Operario') && parentDb === ACTIVOS_NORM) {
+              const topKeys = Object.keys(body || {});
+              const propKeys = Object.keys(body?.properties || {});
+              const soloReporte = topKeys.length === 1 && topKeys[0] === 'properties'
+                && propKeys.length > 0 && propKeys.every(k => ACTIVOS_OPERARIO_PROPS.includes(k));
+              const respPagina = pProps['Responsable App']?.select?.name || '';
+              if (!soloReporte || respPagina !== u.nombre) {
+                console.warn('[perms] DENEGADO', JSON.stringify({ rol: u?.rol, id: session?.id, tipo: 'activo-operario', db: parentDb, soloReporte, respPagina }));
+                return res.status(403).json({ error: 'forbidden: solo el reporte semanal de tus equipos' });
+              }
+            }
           }
         } catch (e) { if (ENFORCE_PERMS) return res.status(403).json({ error: 'forbidden: no verificable' }); }
       }
@@ -256,6 +275,12 @@ export default async function handler(req, res) {
       if (!perm.ok) {
         console.warn('[perms] DENEGARÍA', JSON.stringify({ rol: u?.rol, id: session?.id, tipo, db: norm(dbId), endpoint: endpointNorm, motivo: perm.motivo }));
         if (ENFORCE_PERMS) return res.status(403).json({ error: 'forbidden: tu rol no accede a esa base' });
+      }
+      // Equipos v2: el operario NO crea activos. DB.activos está en su matriz create SOLO para habilitar el
+      // PATCH del reporte semanal — el create real por database_id pasaría (hallazgo del review) → se corta acá.
+      if (tipo === 'create' && (u?.rol || '').includes('Operario') && norm(dbId) === ACTIVOS_NORM) {
+        console.warn('[perms] DENEGADO', JSON.stringify({ rol: u?.rol, id: session?.id, tipo: 'activo-operario-create', db: norm(dbId) }));
+        return res.status(403).json({ error: 'forbidden: tu rol no crea equipos' });
       }
     }
   }

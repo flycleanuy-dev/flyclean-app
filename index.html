@@ -1811,6 +1811,7 @@ body::before {
       <div class="am-row" onclick="amRegion()"><span class="am-ic">🌎</span><span class="am-lbl" data-i18n="am.region">Cambiar región / país</span><span class="am-chev">›</span></div>
       <div class="am-row" onclick="amUpdate()"><span class="am-ic">↻</span><span class="am-lbl"><span data-i18n="am.update">Buscar actualización</span><small id="am-version"></small></span><span class="am-chev">›</span></div>
       <div class="am-row" id="am-row-hist" onclick="amHistorial()"><span class="am-ic">📋</span><span class="am-lbl" data-i18n="am.hist">Mi historial de trabajos</span><span class="am-chev">›</span></div>
+      <div class="am-row" id="am-row-miseq" onclick="amMisEquipos()"><span class="am-ic">🔧</span><span class="am-lbl" data-i18n="miseq.menu">Mis equipos</span><span class="am-chev">›</span></div>
       <div class="am-row" id="am-row-help" onclick="amHelp()"><span class="am-ic">📖</span><span class="am-lbl" data-i18n="am.help">Ayuda y manuales</span><span class="am-chev">›</span></div>
       <div class="am-row am-admin" id="am-row-config" style="display:none" onclick="amConfig()"><span class="am-ic">⚙️</span><span class="am-lbl"><span data-i18n="am.config">Configuración</span><small data-i18n="am.config.sub">Cuentas · Reportes</small></span><span class="am-chev">›</span></div>
       <div class="am-row am-danger" onclick="amLogout()"><span class="am-ic">🚪</span><span class="am-lbl" data-i18n="am.logout">Cerrar sesión</span></div>
@@ -1827,6 +1828,17 @@ body::before {
     <div class="pin-change-sub" data-i18n="hist.sub">Los servicios en los que participaste. Solo lectura — acá no se puede tocar nada, solo tu nota.</div>
     <div id="hist-stats"></div>
     <div id="hist-list"><div class="spinner" style="margin:16px auto"></div></div>
+  </div>
+</div>
+
+<!-- MIS EQUIPOS (reporte semanal del responsable: km/horas + nota) — sibling de body -->
+<div class="edit-overlay" id="miseq-overlay" onclick="miseqOverlayClick(event)">
+  <div class="pin-change-sheet" style="max-height:86vh;overflow-y:auto">
+    <button class="sheet-close-btn" type="button" aria-label="Cerrar" onclick="closeMisEquipos()">×</button>
+    <div class="pin-change-handle"></div>
+    <div class="pin-change-title" data-i18n="miseq.title">🔧 Mis equipos</div>
+    <div class="pin-change-sub" data-i18n="miseq.sub">Una vez por semana (antes del viernes): cargá el total del contador y avisá si hay algo para notar.</div>
+    <div id="miseq-list"><div class="spinner" style="margin:16px auto"></div></div>
   </div>
 </div>
 
@@ -2070,6 +2082,21 @@ const TRANSLATIONS = {
     'eq.f.km': 'Km actuales del vehículo',
     'eq.f.hs': 'Horas de vuelo totales',
     'eq.f.nota': 'Nota del check (opcional)',
+    'eq.f.resp': 'Responsable (reporta km/horas cada semana)',
+    'eq.resp.none': '— Sin responsable —',
+    'miseq.title': '🔧 Mis equipos',
+    'miseq.sub': 'Una vez por semana (antes del viernes): cargá el total del contador y avisá si hay algo para notar.',
+    'miseq.menu': 'Mis equipos',
+    'miseq.empty': 'No tenés equipos asignados. El coordinador te puede asignar uno desde 🔧 Equipos.',
+    'miseq.antes': 'antes: {v}',
+    'miseq.ph.km': '¿Cuántos km marca el tablero hoy?',
+    'miseq.ph.hs': '¿Cuántas horas de vuelo marca hoy?',
+    'miseq.nota.ph': '¿Algo para avisar? (service, ruido, golpe…)',
+    'miseq.save': 'Guardar reporte',
+    'miseq.saved': 'Reporte guardado',
+    'miseq.err.vacio': 'Cargá el número del contador o al menos una nota.',
+    'miseq.confirm.menor': 'El valor anterior era mayor ({v}). ¿Seguro que está bien?',
+    'miseq.alert': '🔧 Reporte semanal de tus equipos: {n} pendiente(s) — tocá acá',
     'eq.f.proximo': 'Próximo mantenimiento (opcional)',
     'eq.f.snota': 'Qué se hizo (opcional)',
     'eq.err.tipo': 'Elegí el tipo de equipo.',
@@ -3026,6 +3053,21 @@ const TRANSLATIONS = {
     'eq.f.km': 'Km atuais do veículo',
     'eq.f.hs': 'Horas de voo totais',
     'eq.f.nota': 'Nota do check (opcional)',
+    'eq.f.resp': 'Responsável (reporta km/horas toda semana)',
+    'eq.resp.none': '— Sem responsável —',
+    'miseq.title': '🔧 Meus equipamentos',
+    'miseq.sub': 'Uma vez por semana (antes de sexta): informe o total do contador e avise se houver algo.',
+    'miseq.menu': 'Meus equipamentos',
+    'miseq.empty': 'Você não tem equipamentos atribuídos. O coordenador pode atribuir um em 🔧 Equipamentos.',
+    'miseq.antes': 'antes: {v}',
+    'miseq.ph.km': 'Quantos km marca o painel hoje?',
+    'miseq.ph.hs': 'Quantas horas de voo marca hoje?',
+    'miseq.nota.ph': 'Algo para avisar? (revisão, ruído, batida…)',
+    'miseq.save': 'Salvar relatório',
+    'miseq.saved': 'Relatório salvo',
+    'miseq.err.vacio': 'Informe o número do contador ou pelo menos uma nota.',
+    'miseq.confirm.menor': 'O valor anterior era maior ({v}). Tem certeza?',
+    'miseq.alert': '🔧 Relatório semanal dos seus equipamentos: {n} pendente(s) — toque aqui',
     'eq.f.proximo': 'Próxima manutenção (opcional)',
     'eq.f.snota': 'O que foi feito (opcional)',
     'eq.err.tipo': 'Escolha o tipo de equipamento.',
@@ -12590,14 +12632,17 @@ function renderCoordEquiposList() {
       const proxMant = p['Próximo mantenimiento']?.date?.start || '';
       const dCheck = eqDiasDesdeCheck(p);
       const esVehiculo = tp.includes('Vehículo'), esDrone = tp.includes('Drone');
-      const checkTxt = dCheck == null ? '🔴 ' + t('eq.check.nunca') : (dCheck > EQ_CHECK_DIAS ? '🔴 ' + t('eq.check.hace').replace('{d}', dCheck) : '🟢 ' + t('eq.check.hace').replace('{d}', dCheck));
+      // Semáforo del reporte SEMANAL (Equipos v2): verde ≤7 días · amarillo 8-14 · rojo >14/nunca.
+      const semaforo = dCheck == null ? '🔴' : (dCheck <= 7 ? '🟢' : (dCheck <= 14 ? '🟡' : '🔴'));
+      const checkTxt = dCheck == null ? semaforo + ' ' + t('eq.check.nunca') : semaforo + ' ' + t('eq.check.hace').replace('{d}', dCheck);
       const histN = eqHistParse(p).length;
+      const resp = p['Responsable App']?.select?.name || '';
       const paisTxt = esDireccion() ? ' · ' + esc(p['País']?.select?.name || '') : '';
       h += '<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:11px 12px;margin:0 16px 8px">' +
         '<div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline">' +
           '<div style="font-size:13.5px;font-weight:700;color:var(--text);min-width:0">' + esc(nombre) + '</div>' +
           '<span class="gasto-tag" style="flex:none">' + esc(estado) + '</span></div>' +
-        '<div style="font-size:11px;color:var(--text3);margin-top:3px">' + esc(marca) + (matricula ? ' · 🪪 ' + esc(matricula) : ' · <i>' + esc(t('eq.sinmatricula')) + '</i>') + paisTxt + '</div>' +
+        '<div style="font-size:11px;color:var(--text3);margin-top:3px">' + esc(marca) + (matricula ? ' · 🪪 ' + esc(matricula) : ' · <i>' + esc(t('eq.sinmatricula')) + '</i>') + (resp ? ' · 👤 ' + esc(resp) : '') + paisTxt + '</div>' +
         '<div style="font-size:11.5px;color:var(--text2);margin-top:4px">' +
           (esVehiculo ? '🛣️ ' + (km != null ? Number(km).toLocaleString('es-UY') + ' km' : '— km') + ' · ' : '') +
           (esDrone ? '🚁 ' + (hs != null ? hs + ' hs' : '— hs') + ' · ' : '') +
@@ -12711,11 +12756,18 @@ function eqEditForm(id) {
   const marca = p['Marca / Modelo']?.rich_text?.[0]?.plain_text || '';
   const matricula = p['Nro. Serie / Matrícula']?.rich_text?.[0]?.plain_text || '';
   const estado = p['Estado']?.select?.name || EQ_ESTADOS[0];
+  // Responsable (Equipos v2): la persona de campo que reporta km/horas cada semana. Solo gente del país del equipo.
+  const respAct = p['Responsable App']?.select?.name || '';
+  const shortPais = p['País']?.select?.name || '';
+  const respPool = USERS.filter(u => /Operario|Coordinador|Dirección/.test(u.role) && (!shortPais || COUNTRY_FINANCE_MAP[u.country] === shortPais));
   sl.innerHTML = '<div style="background:var(--bg);border:1px solid var(--border2);border-radius:10px;padding:10px">' +
     '<input id="eq-enombre-' + esc(id) + '" value="' + esc(nombre) + '" maxlength="80" placeholder="' + esc(t('eq.f.nombre')) + '" style="' + _eqInp + '">' +
     '<input id="eq-emarca-' + esc(id) + '" value="' + esc(marca) + '" maxlength="80" placeholder="' + esc(t('eq.f.marca')) + '" style="' + _eqInp + '">' +
     '<input id="eq-emat-' + esc(id) + '" value="' + esc(matricula) + '" maxlength="40" placeholder="' + esc(t('eq.f.matricula')) + '" style="' + _eqInp + '">' +
     '<select id="eq-eestado-' + esc(id) + '" style="' + _eqInp + '">' + EQ_ESTADOS.map(x => '<option' + (x === estado ? ' selected' : '') + '>' + esc(x) + '</option>').join('') + '</select>' +
+    '<label style="font-size:10px;color:var(--text3)">👤 ' + esc(t('eq.f.resp')) + '</label>' +
+    '<select id="eq-eresp-' + esc(id) + '" style="' + _eqInp + '"><option value="">' + esc(t('eq.resp.none')) + '</option>' +
+      respPool.map(u => '<option' + (u.name === respAct ? ' selected' : '') + '>' + esc(u.name) + '</option>').join('') + '</select>' +
     '<button class="pin-change-btn" style="margin-top:2px" onclick="eqEditSave(\'' + esc(id) + '\', this)">' + esc(t('cfg.user.save')) + '</button>' +
     '<button class="pin-change-link" style="width:100%;text-align:center;color:#e5484d;margin-top:8px" onclick="eqDeleteEquipo(\'' + esc(id) + '\')">🗑️ ' + esc(t('eq.delete.btn')) + '</button>' +
     '<div style="font-size:10px;color:var(--text3);text-align:center;margin-top:2px">' + esc(t('eq.delete.hint')) + '</div></div>';
@@ -12746,13 +12798,18 @@ async function eqEditSave(id, btn) {
   if (!nombre || /[<>]/.test(nombre + marca + matricula)) { alert(t('eq.err.nota')); return; }
   if (!EQ_ESTADOS.includes(estado)) { return; }
   const estadoPrev = a.properties?.['Estado']?.select?.name || '';
+  const resp = document.getElementById('eq-eresp-' + id)?.value || '';
+  const respPrev = a.properties?.['Responsable App']?.select?.name || '';
   const props = {
     'Activo': { title: [{ text: { content: nombre } }] },
     'Marca / Modelo': { rich_text: marca ? [{ text: { content: marca } }] : [] },
     'Nro. Serie / Matrícula': { rich_text: matricula ? [{ text: { content: matricula } }] : [] },
     'Estado': { select: { name: estado } },
+    'Responsable App': { select: resp ? { name: resp } : null },
   };
-  const ev = (estado !== estadoPrev) ? { f: new Date().toISOString().slice(0, 10), t: 'estado', por: currentUser?.name || '', n: estadoPrev + ' → ' + estado } : null;
+  const hoyEv = new Date().toISOString().slice(0, 10);
+  const ev = (estado !== estadoPrev) ? { f: hoyEv, t: 'estado', por: currentUser?.name || '', n: estadoPrev + ' → ' + estado }
+    : (resp !== respPrev) ? { f: hoyEv, t: 'resp', por: currentUser?.name || '', n: (respPrev || '—') + ' → ' + (resp || '—') } : null;
   btn.disabled = true; btn.textContent = '⏳';
   // Update optimista del title (eqPatch cubre rich_text/select; el title lo seteamos a mano)
   if (await eqPatch(id, props, ev)) { a.properties['Activo'] = { title: [{ plain_text: nombre, text: { content: nombre } }] }; renderCoordEquiposList(); return; }
@@ -12765,7 +12822,7 @@ function eqHistToggle(id) {
   if (!sl || !a) return;
   if (sl.style.display !== 'none') { eqCloseSlot(id); return; }
   const hist = eqHistParse(a.properties || {}).slice().reverse();
-  const tipoTxt = { check: '✅ Check', service: '🔧 Service', estado: '🔄 Estado', alta: '➕ Alta' };
+  const tipoTxt = { check: '✅ Check', service: '🔧 Service', estado: '🔄 Estado', alta: '➕ Alta', reporte: '📆 Reporte', resp: '👤 Responsable' };
   sl.innerHTML = '<div style="background:var(--bg);border:1px solid var(--border2);border-radius:10px;padding:10px;max-height:220px;overflow-y:auto">' +
     hist.map(e => '<div style="font-size:11px;color:var(--text2);padding:4px 0;border-bottom:1px solid var(--border)">' +
       '<b>' + esc(e.f || '') + '</b> · ' + esc(tipoTxt[e.t] || e.t || '') + (e.por ? ' · ' + esc(e.por) : '') +
@@ -12773,6 +12830,87 @@ function eqHistToggle(id) {
       (e.prox ? ' · próx: ' + esc(e.prox) : '') + (e.n ? '<br><span style="color:var(--text3)">' + esc(e.n) + '</span>' : '') +
       '</div>').join('') + '</div>';
   sl.style.display = 'block';
+}
+
+// ── 🔧 MIS EQUIPOS (Equipos v2) — reporte semanal del RESPONSABLE (operario/piloto): carga el TOTAL del
+// contador (km vehículo / horas dron) + nota opcional. Vence el viernes; la alerta la trae loadAlerts.
+let _misEquipos = null;
+function miseqOverlayClick(ev) { if (ev.target === ev.currentTarget) closeMisEquipos(); }
+function closeMisEquipos() { document.getElementById('miseq-overlay')?.classList.remove('open'); }
+async function openMisEquipos() {
+  const ov = document.getElementById('miseq-overlay');
+  const list = document.getElementById('miseq-list');
+  if (!ov || !list) return;
+  ov.classList.add('open');
+  list.innerHTML = '<div class="spinner" style="margin:16px auto"></div>';
+  try {
+    const short = COUNTRY_FINANCE_MAP[currentUser?.country] || null;
+    const d = await callNotion(`databases/${ACTIVOS_DB_ID}/query`, 'POST', short ? { filter: { property: 'País', select: { equals: short } } } : {});
+    _misEquipos = (d.results || []).filter(a => {
+      const p = a.properties || {};
+      if ((p['Responsable App']?.select?.name || '') !== (currentUser?.name || '')) return false;
+      return !(p['Estado']?.select?.name || '').includes('Fuera de servicio');
+    });
+    renderMisEquipos();
+  } catch (e) { list.innerHTML = '<div style="color:var(--red);font-size:12px;padding:12px">⚠️ ' + esc(e.message) + '</div>'; }
+}
+function renderMisEquipos() {
+  const list = document.getElementById('miseq-list');
+  if (!list) return;
+  if (!_misEquipos || !_misEquipos.length) { list.innerHTML = '<div style="text-align:center;color:var(--text3);font-size:13px;padding:24px 12px">' + esc(t('miseq.empty')) + '</div>'; return; }
+  list.innerHTML = _misEquipos.map(a => {
+    const p = a.properties || {};
+    const tp = p['Tipo']?.select?.name || '';
+    const esVeh = tp.includes('Vehículo'), esDrone = tp.includes('Drone');
+    const nombre = p['Activo']?.title?.[0]?.plain_text || t('common.sinnombre');
+    const km = p['Km actuales']?.number, hs = p['Horas de vuelo']?.number;
+    const d = eqDiasDesdeCheck(p);
+    const prevTxt = esVeh ? (km != null ? Number(km).toLocaleString('es-UY') + ' km' : '—') : (esDrone ? (hs != null ? hs + ' hs' : '—') : '');
+    const dTxt = d == null ? t('eq.check.nunca') : t('eq.check.hace').replace('{d}', d);
+    return '<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:11px 12px;margin-bottom:9px">' +
+      '<div style="font-size:13.5px;font-weight:700">' + esc(nombre) + '</div>' +
+      '<div style="font-size:11px;color:var(--text3);margin:2px 0 8px">' + (prevTxt ? esc(t('miseq.antes').replace('{v}', prevTxt)) + ' · ' : '') + esc(dTxt) + '</div>' +
+      (esVeh ? '<input id="meq-val-' + esc(a.id) + '" type="number" min="0" inputmode="numeric" placeholder="' + esc(t('miseq.ph.km')) + '" style="' + _eqInp + '">' : '') +
+      (esDrone ? '<input id="meq-val-' + esc(a.id) + '" type="number" min="0" step="0.1" inputmode="decimal" placeholder="' + esc(t('miseq.ph.hs')) + '" style="' + _eqInp + '">' : '') +
+      '<input id="meq-nota-' + esc(a.id) + '" maxlength="200" placeholder="' + esc(t('miseq.nota.ph')) + '" style="' + _eqInp + '">' +
+      '<button class="pin-change-btn" style="margin-top:2px" onclick="misEqSave(\'' + esc(a.id) + '\', this)">' + esc(t('miseq.save')) + '</button>' +
+      '</div>';
+  }).join('');
+}
+async function misEqSave(id, btn) {
+  const a = (_misEquipos || []).find(x => x.id === id); if (!a) return;
+  const p = a.properties || {};
+  const tp = p['Tipo']?.select?.name || '';
+  const esVeh = tp.includes('Vehículo'), esDrone = tp.includes('Drone');
+  const val = parseFloat(document.getElementById('meq-val-' + id)?.value);
+  const nota = (document.getElementById('meq-nota-' + id)?.value || '').trim();
+  if (/[<>]/.test(nota)) { alert(t('eq.err.nota')); return; }
+  const prev = esVeh ? p['Km actuales']?.number : (esDrone ? p['Horas de vuelo']?.number : null);
+  const tiene = Number.isFinite(val) && val >= 0;
+  if ((esVeh || esDrone) && !tiene && !nota) { alert(t('miseq.err.vacio')); return; }
+  // El contador solo sube: un valor menor al anterior suele ser error de tipeo.
+  if (tiene && prev != null && val < prev && !confirm(t('miseq.confirm.menor').replace('{v}', String(prev)))) return;
+  const hoy = new Date().toISOString().slice(0, 10);
+  const props = { 'Último check': { date: { start: hoy } } };
+  const ev = { f: hoy, t: 'reporte', por: currentUser?.name || '' };
+  if (esVeh && tiene) { props['Km actuales'] = { number: val }; ev.km = val; }
+  if (esDrone && tiene) { props['Horas de vuelo'] = { number: val }; ev.hs = val; }
+  if (nota) ev.n = nota;
+  const hist = eqHistParse(p); hist.push(ev);
+  const histJson = JSON.stringify(hist.slice(-100));
+  props['Historial equipo'] = { rich_text: [{ text: { content: histJson } }] };
+  btn.disabled = true; btn.textContent = '⏳';
+  try {
+    await callNotion('pages/' + id, 'PATCH', { properties: props });
+    // Update optimista local (shape read con plain_text) + feedback.
+    if (props['Km actuales']) a.properties['Km actuales'] = props['Km actuales'];
+    if (props['Horas de vuelo']) a.properties['Horas de vuelo'] = props['Horas de vuelo'];
+    a.properties['Último check'] = { date: { start: hoy } };
+    a.properties['Historial equipo'] = { rich_text: [{ plain_text: histJson, text: { content: histJson } }] };
+    showSaving();
+    btn.textContent = '✅ ' + t('miseq.saved');
+    setTimeout(() => renderMisEquipos(), 1100);
+  } catch (e) { alert(t('sheet.alert.save.error2') + e.message); btn.disabled = false; btn.textContent = t('miseq.save'); }
 }
 
 // ＋ Alta de equipo nuevo.
@@ -16953,6 +17091,23 @@ async function loadAlerts(role, bannerId) {
         ...(clickable ? { onclick: "setCoordTab('equipos')" } : {}) });
     }
 
+    // Equipos v2 — reporte SEMANAL del RESPONSABLE (operario/piloto): de viernes a domingo, si algún equipo
+    // suyo no tiene reporte/check esta semana (desde el lunes), alerta tocable que abre "🔧 Mis equipos".
+    if (isOperario && !esVentasRol) {
+      const dow = new Date().getDay(); // 5=vie · 6=sáb · 0=dom
+      if (dow === 5 || dow === 6 || dow === 0) {
+        const lunes = new Date(Date.now() - ((new Date().getDay() + 6) % 7) * 86400000).toISOString().split('T')[0];
+        const pendRep = (actData.results || []).filter(r => {
+          const p = r.properties || {};
+          if ((p['Responsable App']?.select?.name || '') !== (currentUser?.name || '')) return false;
+          if ((p['Estado']?.select?.name || '').includes('Fuera de servicio')) return false;
+          const uc = (p['Último check']?.date?.start || '').slice(0, 10);
+          return !uc || uc < lunes;
+        }).length;
+        if (pendRep) alerts.push({ level: 'warn', icon: '🔧', message: t('miseq.alert').replace('{n}', pendRep), onclick: 'openMisEquipos()' });
+      }
+    }
+
     // Servicios pendientes por gestionar: en Pendiente/Asignado que les falta fecha U operario (coord + CEO).
     // OJO: el proxy descarta el filtro server-side de la base Servicios (multi-data-source) → hay que
     // re-filtrar SIEMPRE en el cliente (antes solo se filtraba por país → contaba TODOS los servicios).
@@ -17211,6 +17366,9 @@ function openAccountMenu() {
   // Mi historial: solo roles de CAMPO (los que suman jornales). Ventas/CEO/Finanzas no operan.
   const rowHist = document.getElementById('am-row-hist');
   if (rowHist) rowHist.style.display = /Operario|Coordinador|Dirección/.test(currentUser.role || '') ? 'flex' : 'none';
+  // Mis equipos (reporte semanal): solo el OPERARIO — el coordinador ya tiene la tab 🔧 Equipos completa.
+  const rowMisEq = document.getElementById('am-row-miseq');
+  if (rowMisEq) rowMisEq.style.display = /Operario/.test(currentUser.role || '') ? 'flex' : 'none';
   _amRefreshLang();
   document.getElementById('account-menu-overlay').classList.add('open');
   markUserActive();
@@ -17290,6 +17448,7 @@ function helpOverlayClick(e) { if (e.target.id === 'help-overlay') closeHelpShee
 let _histItems = null;
 
 function amHistorial() { closeAccountMenu(); openHistorialSheet(); }
+function amMisEquipos() { closeAccountMenu(); openMisEquipos(); }
 function closeHistorialSheet() { document.getElementById('historial-overlay').classList.remove('open'); }
 function historialOverlayClick(e) { if (e.target.id === 'historial-overlay') closeHistorialSheet(); }
 
