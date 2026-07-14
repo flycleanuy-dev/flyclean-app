@@ -4822,7 +4822,7 @@ function captureRenewedToken(response) {
 async function callNotion(endpoint, method = 'GET', body = null) {
   if (method === 'POST') {
     const resource = _migResource(endpoint);
-    if (resource && dbFlag(resource) && (resource === 'servicios' || !body || !body.filter)) {
+    if (resource && dbFlag(resource) && (resource === 'servicios' || resource === 'clientes' || !body || !body.filter)) {
       try { return await callDb(resource); } catch (e) { /* fallback a Notion abajo */ }
     }
   }
@@ -16026,18 +16026,19 @@ async function renderIntermediarioVistas(pageId) {
         ? `<div style="font-size:12px;color:var(--text2);margin-bottom:6px;cursor:pointer" onclick="verClienteDesdeContacto('${esc(intId)}')">🤝 ${t('sheet.contact.traidopor')}: <span style="text-decoration:underline">${esc(clienteNombreDe(intId) || '…')}</span> ↗</div>`
         : '';
     }
-    // "Clientes traídos (N)" (lado inverso). El espejo podría no traer la relación → page GET puntual de fallback.
+    // "Clientes traídos (N)" (lado inverso del dual Intermediario↔Clientes traídos). Se COMPUTA escaneando la lista
+    // de clientes por su Intermediario (lado DIRECTO, siempre fresco en el espejo) en vez de leer la relación inversa
+    // del raw del intermediario: ese lado inverso no se re-mapea cuando clientes es Supabase-first → quedaría stale.
     const box = document.getElementById('contact-traidos-container');
     if (!box) return;
-    let rel = editingContact?.properties?.['Clientes traídos']?.relation;
-    if (!rel && pageId) { try { const c = await callNotion('pages/' + pageId, 'GET'); rel = c?.properties?.['Clientes traídos']?.relation; } catch (_) {} }
-    rel = rel || [];
-    if (!rel.length) { box.innerHTML = ''; return; }
-    const rows = rel.map(r => {
-      const nm = clienteNombreDe(r.id) || '(cliente)';
-      return `<div class="equipo-card" style="cursor:pointer" onclick="verClienteDesdeContacto('${esc(r.id)}')"><div style="flex:1;min-width:0"><div class="equipo-name">🏢 ${esc(nm)}</div></div><span class="user-arrow">↗</span></div>`;
+    const _normId = x => (x || '').replace(/-/g, '');
+    const traidos = (_coordAllContacts || []).filter(c => _normId(c.properties?.['Intermediario']?.relation?.[0]?.id) === _normId(pageId));
+    if (!traidos.length) { box.innerHTML = ''; return; }
+    const rows = traidos.map(c => {
+      const nm = c.properties?.['Nombre / Empresa']?.title?.[0]?.plain_text || '(cliente)';
+      return `<div class="equipo-card" style="cursor:pointer" onclick="verClienteDesdeContacto('${esc(c.id)}')"><div style="flex:1;min-width:0"><div class="equipo-name">🏢 ${esc(nm)}</div></div><span class="user-arrow">↗</span></div>`;
     }).join('');
-    box.innerHTML = `<div class="edit-section"><div class="edit-section-label">🤝 ${t('sheet.contact.traidos.title')} (${rel.length})</div>${rows}</div>`;
+    box.innerHTML = `<div class="edit-section"><div class="edit-section-label">🤝 ${t('sheet.contact.traidos.title')} (${traidos.length})</div>${rows}</div>`;
   } catch (_) {}
 }
 // Navegar de una ficha de cliente a otra (mismo overlay): cerrar → delay → reabrir con el id destino.
