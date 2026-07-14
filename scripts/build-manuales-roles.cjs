@@ -228,7 +228,9 @@ const ACTIVOS = [
     'Activo': title('Drone DJI M400'), 'Tipo': sel('🚁 Drone'), 'Estado': sel('✅ Operativo'),
     'Marca / Modelo': txt('DJI Matrice 400'), 'Nro. Serie / Matrícula': txt('SN-M400-01'),
     'Horas de vuelo': num(48), 'Último check': date('2026-07-04'), 'País': sel('🇺🇾 UY'),
-    'Responsable App': sel('Juan Pablo') } },
+    'Responsable App': sel('Juan Pablo'),
+    // Problema abierto reportado por el piloto (para mostrar el flujo en el manual)
+    'Historial equipo': txt(JSON.stringify([{ f: '2026-07-13', t: 'problema', por: 'Juan Pablo', n: '🔧 Necesita mantenimiento: la hélice 2 vibra un poco' }])) } },
   { object: 'page', id: 'act-2', created_time: '2026-01-01T10:00:00Z', properties: {
     'Activo': title('Drone DJI M350 #1'), 'Tipo': sel('🚁 Drone'), 'Estado': sel('✅ Operativo'),
     'Marca / Modelo': txt('DJI Matrice 350 RTK'), 'Nro. Serie / Matrícula': txt('SN-M350-01'),
@@ -494,7 +496,10 @@ async function buildOperario(browser) {
   sections.push({
     title: '🔧 Reporte semanal de tus equipos',
     intro: 'Si el coordinador te asignó un equipo (un dron, una camioneta), cada viernes te aparece un aviso para pasar los números. Son 30 segundos.',
-    steps: [{ title: 'El total de hoy + una nota si hay algo', description: 'Ponés los km que marca la camioneta o las horas del dron (ves “antes: …” para no equivocarte) y, si hay algo para avisar (un ruido, un service, un golpe), lo escribís en la nota. Guardás y listo — queda registrado a tu nombre. También lo tenés siempre en el menú (⋯ → Mis equipos).', image: imgMisEq, wide: true }],
+    steps: [
+      { title: 'El total de hoy + una nota si hay algo', description: 'Ponés los km que marca la camioneta o las horas del dron (ves “antes: …” para no equivocarte) y, si hay algo para avisar (un ruido, un service, un golpe), lo escribís en la nota. Guardás y listo — queda registrado a tu nombre. También lo tenés siempre en el menú (⋯ → Mis equipos).', image: imgMisEq, wide: true },
+      { title: '⚠️ Reportar un problema del dron', description: 'Si el equipo anda mal, necesita mantenimiento o hay que actualizarlo, tocá “⚠️ Reportar un problema”, elegí qué le pasa y describilo. Le llega al coordinador al instante y queda anotado hasta que lo resuelvan — así nadie vuela un dron con un problema sin avisar.' },
+    ],
   });
   await page.evaluate(() => { try { closeMisEquipos(); } catch (_) {} });
   await page.waitForTimeout(300);
@@ -596,6 +601,7 @@ async function buildCoordinador(browser) {
     steps: [
       { title: 'Asigná un responsable a cada equipo (una vez)', description: 'Entrá a ✏️ editar un equipo y elegí su 👤 Responsable — la persona de campo (piloto, chofer) que lo tiene a cargo. Desde ahí, esa persona es quien reporta los km/horas cada semana desde su propia app; vos ya no tenés que perseguir los números.', image: imgEquipos, wide: true },
       { title: 'Vos controlás: semáforo + service + historial', description: 'La card muestra al responsable y un semáforo del último reporte (🟢 al día · 🟡 +1 semana · 🔴 +2). El 🔧 registra un service, ✏️ edita o da de baja un equipo, y 📜 muestra todo el historial (quién reportó qué y cuándo). Los que se atrasan aparecen marcados arriba para que no se te pase.' },
+      { title: '⚠️ Cuando el piloto reporta un problema', description: 'Si un piloto reporta algo (⚠️ en la card + un aviso arriba de todo), lo ves con el detalle de qué le pasa al equipo. Cuando lo resolvés (lo mandás a service, se arregla), tocá “✓ Resuelto” y queda cerrado en el historial.' },
     ],
   });
 
