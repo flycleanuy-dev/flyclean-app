@@ -3783,10 +3783,19 @@ function captureRenewedToken(response) {
   } catch (_) {}
 }
 
+// ⚠️ REGLA (bug 14-15/07): `callDb` NO acepta filtros — devuelve la tabla entera. Rutear al espejo una query
+// CON `body.filter` significa DESCARTAR el filtro en silencio. Solo se rutea:
+//   · servicios → el proxy YA descarta el filtro (base multi-source) y cada pantalla re-filtra en cliente;
+//   · cualquier tabla SIN filtro server-side.
+// 'clientes' estuvo en la lista de excepción (fix del flip, 14/07) y rompió los DEDUP de clientes: las 3
+// queries "¿existe un cliente con este tel/email?" recibían TODOS los clientes → resolveOrCreateClienteId
+// vinculaba el servicio/propuesta a un cliente ARBITRARIO y saveContactEdit bloqueaba toda alta con
+// "ya existe un cliente...". Read-your-writes de clientes NO necesita esa excepción: las listas se leen sin
+// filtro (ya van al espejo) y cada write hace syncAfterWrite del registro.
 async function callNotion(endpoint, method = 'GET', body = null) {
   if (method === 'POST') {
     const resource = _migResource(endpoint);
-    if (resource && dbFlag(resource) && (resource === 'servicios' || resource === 'clientes' || !body || !body.filter)) {
+    if (resource && dbFlag(resource) && (resource === 'servicios' || !body || !body.filter)) {
       try { return await callDb(resource); } catch (e) { /* fallback a Notion abajo */ }
     }
   }
@@ -9014,7 +9023,19 @@ async function renderPorCobrar(containerId, opts = {}) {
     const precioBy = {};
     (prop.results || []).forEach(p => { precioBy[norm(p.id)] = { monto: p.properties?.['Importe estimado']?.number || 0, moneda: p.properties?.['Moneda']?.select?.name || '🇺🇸 USD' }; });
     const ingBy = {};
-    (ing.results || []).forEach(i => { ingBy[norm(i.id)] = { usd: i.properties?.['Monto USD']?.number || 0, uy: i.properties?.['Monto UY$ cobrado']?.number || 0 }; });
+    // Índice FORWARD ingreso→servicio ('Servicio vinculado' del ingreso). ⚠️ NO usar la relación INVERSA
+    // 'Ingresos' del servicio: bajo Supabase-first el raw del servicio solo recibe el delta de SUS PATCHes,
+    // así que la inversa (que la autogenera Notion) quedó CONGELADA al momento del flip → los cobros
+    // asociados después no se contaban y el servicio figuraba impago (bug detectado 15/07). El lado forward
+    // lo escribe la app en cada asociación (asociarCobro/saveCobroEdit) → siempre fresco. Mismo patrón que
+    // propTieneServicio (regla: derivar SIEMPRE del lado forward, nunca del inverso).
+    const ingBySvc = {};
+    (ing.results || []).forEach(i => {
+      const v = { usd: i.properties?.['Monto USD']?.number || 0, uy: i.properties?.['Monto UY$ cobrado']?.number || 0 };
+      ingBy[norm(i.id)] = v;
+      const svcId = norm(i.properties?.['Servicio vinculado']?.relation?.[0]?.id || '');
+      if (svcId) (ingBySvc[svcId] = ingBySvc[svcId] || []).push({ id: norm(i.id), ...v });
+    });
     const clientesById = {};
     (cli.results || []).forEach(c => {
       clientesById[norm(c.id)] = {
@@ -9045,7 +9066,7 @@ async function renderPorCobrar(containerId, opts = {}) {
       const precio = pr ? pr.monto : 0;
       const esUY = !!pr && pr.moneda === '🇺🇾 UY$';        // moneda del PRECIO (default USD)
       let cobUSD = 0, cobUY = 0;
-      (p['Ingresos']?.relation || []).forEach(r => { const v = ingBy[norm(r.id)]; if (v) { cobUSD += v.usd; cobUY += v.uy; } });
+      (ingBySvc[norm(s.id)] || []).forEach(v => { cobUSD += v.usd; cobUY += v.uy; }); // forward (ver ingBySvc)
       const cobrado = esUY ? cobUY : cobUSD;               // cobrado EN LA MONEDA DEL PRECIO (no mezclar)
       const cobradoOtra = esUY ? cobUSD : cobUY;           // lo cobrado en la otra moneda (informativo)
       const saldo = precio - cobrado;
@@ -9186,7 +9207,7 @@ async function renderPorCobrar(containerId, opts = {}) {
     const totalPC = rows.reduce((a, r) => { if (r.precio && r.saldo > 0) { if (r.esUY) a.uyu += r.saldo; else a.usd += r.saldo; } return a; }, { uyu: 0, usd: 0 });
     const nCli = cliIds.filter(c => { const s = saldoCli(byCli[c]); return s.usd || s.uyu; }).length;
 
-    _porCobrarData = { svc, prop, ing, clientesById, precioBy, ingBy, comp, readonly };
+    _porCobrarData = { svc, prop, ing, clientesById, precioBy, ingBy, ingBySvc, comp, readonly };
 
     content.innerHTML =
       (opts.headerless ? '' : ceoHeaderHTML('Por cobrar')) +
@@ -9205,17 +9226,14 @@ async function renderPorCobrar(containerId, opts = {}) {
     // en la moneda del precio, buscamos el cobro cruzado y ponemos el botón "✓ cubre" en el slot.
     if (!readonly) {
       const normS = x => (x || '').replace(/-/g, '');
-      // Construir índice svcId → svc.results entry para acceder a las relations de Ingresos.
-      const svcById = {};
-      (svc.results || []).forEach(s => { svcById[normS(s.id)] = s; });
       rows.forEach(r => {
         if (!r.precio || !r.cobradoOtra) return;      // no hay cruce de moneda → sin botón
         if (r.cobrado >= r.precio - 0.5) return;      // ya cobrado en la moneda correcta → sin botón
         const slot = content.querySelector('.pc-cubre-slot[data-svc="' + r.id + '"]');
         if (!slot) return;
         // Encontrar el primer cobro vinculado que tenga monto en la moneda OPUESTA al precio del servicio.
-        const svcEntry = svcById[normS(r.id)];
-        const linkedIds = (svcEntry?.properties?.['Ingresos']?.relation || []).map(x => normS(x.id));
+        // Desde el índice FORWARD (ingBySvc): la inversa 'Ingresos' del servicio está congelada bajo el flip.
+        const linkedIds = (ingBySvc[normS(r.id)] || []).map(x => x.id);
         const ingCruzado = linkedIds.find(iid => {
           const im = ingBy[iid] || { usd: 0, uy: 0 };
           return r.esUY ? im.usd > 0 : im.uy > 0;
@@ -9302,11 +9320,9 @@ function cubrirServicio(ingId, svcId) {
   if (!pr || !pr.monto) { alert('Este servicio no tiene precio (propuesta). Asigná el precio primero.'); return; }
   const precioEsUY = pr.moneda === '🇺🇾 UY$';
   // Suma de cobros ya registrados en la moneda del PRECIO para este servicio.
+  // Desde el índice FORWARD (ingBySvc): la inversa 'Ingresos' del servicio está congelada bajo el flip.
   let cobEnPrecio = 0;
-  (s.properties?.['Ingresos']?.relation || []).forEach(r => {
-    const v = D.ingBy[norm(r.id)];
-    if (v) cobEnPrecio += precioEsUY ? v.uy : v.usd;
-  });
+  (D.ingBySvc?.[norm(svcId)] || []).forEach(v => { cobEnPrecio += precioEsUY ? v.uy : v.usd; });
   // Monto real de ESTE cobro en la OTRA moneda (lo que se pagó de verdad en la moneda distinta al precio).
   const im = D.ingBy[norm(ingId)] || { usd: 0, uy: 0 };
   const montoOtra = precioEsUY ? im.usd : im.uy;
