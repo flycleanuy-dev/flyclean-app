@@ -18,7 +18,7 @@ import { supafirstSet, mergeProps, enqueueOutbox } from './_lib/supafirst.js';
 import { mirrorPage } from './_lib/mirror.js';
 
 // Escribe una propuesta respetando el flip Supabase-first (pre-flip de PROPUESTAS, 2026-07-15).
-// Con 'propuestas' en SUPAFIRST_TABLES, cron-db-sync la EXCLUYE del re-sync → si este cron escribiera
+// Con 'propuestas' en SUPAFIRST_TABLES, cron-db-sync solo INSERTA altas (no re-sincroniza ediciones) → si este cron escribiera
 // directo a Notion (updatePage), el espejo no se enteraría y la app (que lee del espejo) nunca vería el
 // auto-move a "Sin respuesta" ni el marcador de re-contacto. Camino flipeado: mergeProps (espejo) +
 // enqueueOutbox (→ Notion con reintentos), el MISMO camino que usa la app. Fallback ante cualquier falla:

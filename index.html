@@ -3752,7 +3752,11 @@ function _migResource(endpoint) {
 // Interruptor CENTRAL de lecturas/sync Supabase: se cambia acá y se deploya (todos los
 // dispositivos lo toman al actualizar el sw). localStorage fc_db_<x> = '1' fuerza ON y
 // '0' fuerza OFF por dispositivo (override para testing/rollback); sin valor → default central.
-const DB_FLAGS = { clientes: true, servicios: true, propuestas: true, writesync: true };
+// ingresos:true (pre-flip 15/07): las lecturas SIN filtro (Por cobrar, lista de ingresos) van al espejo →
+// read-your-writes al editar cobros bajo Supabase-first. Las CON filtro de fecha (KPIs CEO/Finanzas) siguen
+// en Notion hasta migrarlas con su filtro (lag ≤60s vía outbox, tolerable en dashboards). gastos queda
+// afuera a propósito: la app no edita gastos (create-only) — flipearlo era todo riesgo sin beneficio.
+const DB_FLAGS = { clientes: true, servicios: true, propuestas: true, ingresos: true, writesync: true };
 function dbFlag(name) {
   const ls = localStorage.getItem('fc_db_' + name);
   if (ls === '1') return true;
@@ -4599,7 +4603,10 @@ async function fetchIngresosForMonth() {
   const data = await callNotionAll(`databases/${INGRESOS_DB_ID}/query`, {
     sorts: [{ property: 'Fecha', direction: 'descending' }]
   });
-  return data.results || [];
+  // Orden defensivo client-side: con DB_FLAGS.ingresos la lectura sale del espejo (/api/db), que
+  // ignora los `sorts` de Notion — sin esto la lista quedaría desordenada.
+  return (data.results || []).slice().sort((a, b) =>
+    (b.properties?.['Fecha']?.date?.start || '').localeCompare(a.properties?.['Fecha']?.date?.start || ''));
 }
 
 function setFinanzasTab(tab) {

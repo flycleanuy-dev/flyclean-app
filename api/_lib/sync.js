@@ -41,13 +41,21 @@ async function searchByParent(dbId) {
   for (let i = 0; i < 5; i++) {
     results = []; cursor = undefined;
     do {
-      const { json } = await notionFetch('search', { page_size: 100, start_cursor: cursor, filter: { property: 'object', value: 'page' } });
+      const { ok, json } = await notionFetch('search', { page_size: 100, start_cursor: cursor, filter: { property: 'object', value: 'page' } });
+      // Fail-closed (review 15/07): un 429/5xx a mitad de paginación devolvía un set PARCIAL en silencio →
+      // reconcileDeletes veía como "stale" filas legítimas y podía borrarlas del espejo. Mejor tirar: el
+      // caller (syncTables) marca la tabla con error esta corrida y el próximo ciclo (10 min) reintenta.
+      if (!ok) throw new Error(`Notion search parcial (status en página ${results.length})`);
       results.push(...(json.results || []).filter(p => norm(p.parent?.database_id) === norm(dbId)));
       cursor = json.has_more ? json.next_cursor : null;
     } while (cursor);
     if (results.length) break;
     await new Promise(r => setTimeout(r, 1200));
   }
+  // Marca no-enumerable de "vino por search" (índice eventualmente consistente: una página creada hace
+  // segundos puede faltar) → syncTables NO reconcilia bajas sobre este resultado. No afecta a los callers
+  // que solo leen el array (health-reconcile usa .length).
+  Object.defineProperty(results, '_viaSearch', { value: true, enumerable: false });
   return results;
 }
 
@@ -151,24 +159,47 @@ async function reconcileDeletes(table, fetchedActiveIds) {
 // Tras un upsert exitoso, reconcilia bajas (ver reconcileDeletes) — si esa reconciliación en sí falla
 // (p.ej. Supabase caído en el DELETE), NO se marca la tabla como error total: el upsert ya escribió bien,
 // solo queda logueado `deleteError` para la próxima corrida.
-export async function syncTables(tables, { dry = false } = {}) {
+//
+// `altasOnly` (pre-flip INGRESOS 2026-07-15): tablas Supabase-first — el upsert completo las pisaría
+// (mergeProps fresco vs Notion atrasado), pero excluirlas del todo dejaba afuera las ALTAS hechas directo
+// en Notion (el cowork de Finanzas appendea gastos/ingresos ahí) y las bajas. En este modo solo se INSERTAN
+// las filas de Notion que NO existen en el espejo (una fila ausente jamás pudo ser editada por la app → no
+// tiene outbox pendiente → el mapRow de Notion es la verdad; mismo razonamiento que el mirror post-create
+// de api/notion.js) y reconcileDeletes sigue corriendo (bajas en Notion salen del espejo; opera por diff de
+// ids, nunca toca el raw). Bonus: recupera el self-heal de un mirrorPage post-create que haya fallado.
+export async function syncTables(tables, { dry = false, altasOnly = new Set() } = {}) {
+  const norm = s => String(s || '').replace(/-/g, '').toLowerCase();
   const perTable = {};
   let totalOk = 0, totalErr = 0;
   for (const tabla of tables) {
     try {
       const pages = await queryAll(DBS[tabla]);
-      const rows = pages.map(pg => MAP[tabla](pg.properties || {}, pg));
+      let rows = pages.map(pg => MAP[tabla](pg.properties || {}, pg));
+      if (altasOnly.has(tabla)) {
+        const mirror = new Set((await fetchMirrorIds(tabla)).map(norm));
+        rows = rows.filter(r => !mirror.has(norm(r.notion_id)));
+      }
       const n = dry ? rows.length : await upsert(tabla, rows);
       perTable[tabla] = { ok: n, err: 0 };
+      if (altasOnly.has(tabla)) perTable[tabla].mode = 'altas-only';
       totalOk += n;
       if (!dry) {
         perTable[tabla].deleted = 0;
-        try {
-          const { deleted, skippedDelete } = await reconcileDeletes(tabla, pages.map(pg => pg.id));
-          perTable[tabla].deleted = deleted;
-          if (skippedDelete) perTable[tabla].skippedDelete = skippedDelete;
-        } catch (e) {
-          perTable[tabla].deleteError = e.message;
+        // NO reconciliar bajas sobre un resultado del search fallback (review 15/07): el índice de search
+        // de Notion es eventualmente consistente — una página creada hace segundos puede faltar y sería
+        // borrada del espejo como "stale" (y en tablas altas-only NO se repondría con estado fresco).
+        // Servicios (multi-source) siempre viene por search → sus bajas se auditan a mano; el resto de las
+        // tablas usa databases/{id}/query (fail-closed) y reconcilia normal.
+        if (pages._viaSearch) {
+          perTable[tabla].reconcileSkipped = 'via-search';
+        } else {
+          try {
+            const { deleted, skippedDelete } = await reconcileDeletes(tabla, pages.map(pg => pg.id));
+            perTable[tabla].deleted = deleted;
+            if (skippedDelete) perTable[tabla].skippedDelete = skippedDelete;
+          } catch (e) {
+            perTable[tabla].deleteError = e.message;
+          }
         }
       }
     } catch (e) {

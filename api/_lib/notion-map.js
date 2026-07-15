@@ -34,11 +34,19 @@ const check  = (p, n) => !!P(p, n)?.checkbox;
 const relId  = (p, n) => (P(p, n)?.relation?.[0]?.id ?? null);
 
 // País → forma "plana" que usan las RLS policies y el JWT ('🇺🇾 Uruguay' → 'Uruguay').
+// Fix pre-flip INGRESOS (2026-07-15): Gastos/Ingresos/Activos/Solicitudes/Documentos guardan País en CÓDIGO
+// CORTO ('🇺🇾 UY') — la versión solo-nombre devolvía null para TODAS esas filas (pais nunca poblado → el
+// filtro por país de /api/db dejaba a UY viendo todo y al resto viendo nada). Misma familia que el fix
+// paisCoincide de users.js (2026-07-12).
 const PAISES = ['Uruguay', 'Brasil', 'Panamá', 'Guatemala', 'México'];
+const PAIS_CODE = { UY: 'Uruguay', BR: 'Brasil', PA: 'Panamá', GT: 'Guatemala', MX: 'México' };
 const pais = (p, n = 'País') => {
   const v = sel(p, n);
   if (!v) return null;
-  return PAISES.find(c => v.includes(c)) || null;
+  const porNombre = PAISES.find(c => v.includes(c));
+  if (porNombre) return porNombre;
+  const m = v.match(/\b(UY|BR|PA|GT|MX)\b/);
+  return m ? PAIS_CODE[m[1]] : null;
 };
 
 // Mapeo por tabla (props de Notion + page → fila Postgres). Cada fila guarda `raw` (lossless).
