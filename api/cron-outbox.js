@@ -4,9 +4,10 @@
 //
 // Por corrida: (0) resetea 'processing' colgados; (1) claim atómico (SKIP LOCKED); (2) coalescing por notion_id
 // (mergea los payloads pendientes en orden created_at → UN PATCH por página); (3) éxito→done, transitorio→
-// reintento con backoff, permanente/veneno(≥8)→error.
+// reintento con backoff, permanente/veneno(≥8)→error; (4) re-espejo post-propagación (ver abajo).
 import { sendEmail, emailLayout } from './_lib/email.js';
 import { getRecipients } from './_lib/recipients.js';
+import { mirrorPage } from './_lib/mirror.js';
 
 const SUPABASE_URL  = (process.env.SUPABASE_URL || '').replace(/\/$/, '');
 const SERVICE_KEY   = process.env.SUPABASE_SERVICE_KEY || '';
@@ -20,6 +21,7 @@ const sbHeaders = () => ({ apikey: SERVICE_KEY, Authorization: 'Bearer ' + SERVI
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
 // PATCH a Notion con backoff ante 429/5xx. 4xx (property inexistente / página borrada) = permanente.
+// Si ok, devuelve también la PÁGINA actualizada (el response del PATCH) para el re-espejo post-propagación.
 async function notionPatch(pageId, properties) {
   for (let i = 0; i < 3; i++) {
     const r = await fetch(`https://api.notion.com/v1/pages/${pageId}`, {
@@ -27,7 +29,7 @@ async function notionPatch(pageId, properties) {
       headers: { Authorization: 'Bearer ' + NOTION_TOKEN, 'Notion-Version': NOTION_VERSION, 'Content-Type': 'application/json' },
       body: JSON.stringify({ properties }),
     });
-    if (r.ok) return { ok: true, status: r.status };
+    if (r.ok) return { ok: true, status: r.status, page: await r.json().catch(() => null) };
     // Transitorio: 429 (rate-limit), 5xx, y 409 conflict_error / 408 timeout (Notion los marca reintentables).
     if (r.status === 429 || r.status === 409 || r.status === 408 || r.status >= 500) {
       const ra = parseInt(r.headers.get('retry-after') || '0', 10);
@@ -93,6 +95,19 @@ export default async function handler(req, res) {
       if (pr.ok) {
         await sbPatch(`id=in.(${ids.join(',')})`, { status: 'done', last_error: null });
         done += ids.length;
+        // (4) RE-ESPEJO post-propagación (pulido 2026-07-15): bajo el flip, cron-db-sync excluye la tabla →
+        // mergeProps solo mantiene fresco lo EDITADO; columnas planas (mapRow), fórmulas y relaciones
+        // inversas del raw quedaban RANCIAS para siempre. El response del PATCH ya trae la página completa
+        // actualizada → mirrorPage la re-espeja (upsert full: raw + columnas) gratis, sin requests extra.
+        // Guarda anti-carrera: si entró OTRO write pendiente para esta página después del claim, NO espejar
+        // (pisaría ese merge más nuevo del raw) — el drain de ese write hará el re-espejo. Best-effort.
+        if (pr.page) {
+          try {
+            const chk = await fetch(`${SUPABASE_URL}/rest/v1/outbox_notion?notion_id=eq.${encodeURIComponent(notionId)}&status=in.(pending,processing)&select=id&limit=1`, { headers: sbHeaders() });
+            const conPendientes = chk.ok && (await chk.json().catch(() => [])).length > 0;
+            if (!conPendientes) await mirrorPage(rows[0].resource, pr.page);
+          } catch (e) { console.warn('[outbox] re-espejo falló (no crítico)', String(e?.message || e).slice(0, 120)); }
+        }
       } else if (pr.permanent) {
         // 4xx: no tiene sentido reintentar → veneno directo (inspección: status='error').
         await sbPatch(`id=in.(${ids.join(',')})`, { status: 'error', last_error: `notion ${pr.status}: ${pr.detail || ''}`.slice(0, 300) });
