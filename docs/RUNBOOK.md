@@ -143,8 +143,17 @@ retry con backoff, veneno a los 8 intentos → `status='error'`). Las lecturas `
 también se sirven del espejo. Los creates siguen Notion-first + mirror (hasta 3b). Notion queda DOWNSTREAM:
 puede caerse o romperse sin frenar a la app.
 
-**Estado actual:** `SUPAFIRST_TABLES=servicios` · `MIRROR_ON_WRITE=1` (espejo garantizado para el resto) ·
+**Estado actual (2026-07-15):** `SUPAFIRST_TABLES=servicios,clientes,propuestas,ingresos` (~70% de la
+migración; los 4 flips verificados en vivo) · `MIRROR_ON_WRITE=1` (espejo garantizado para el resto) ·
 `SUPAFIRST_VERBOSE=1` (log `[supafirst] ok` por guardado — quitar cuando termine la convivencia).
+
+**GASTOS no se flipea** (decisión 15/07, no es solo el contrato del cowork): la app **no edita gastos** —
+son create-only desde el front (cero PATCH) → flipearlo agrega superficie sin ningún beneficio.
+
+**El sync de las tablas flipeadas NO se excluye: corre en modo SOLO-ALTAS** (`syncTables({altasOnly})`,
+`api/_lib/sync.js`) → las filas que el cowork agrega directo en Notion siguen entrando al espejo, sin pisar
+los `mergeProps` frescos. Y `reconcileDeletes` NO corre sobre resultados del search fallback (índice
+eventualmente consistente → podría borrar filas recién creadas).
 
 **Monitoreo (convivencia):**
 ```
