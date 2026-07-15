@@ -4496,6 +4496,7 @@ async function loginSubmit() {
 async function completarLogin(u) {
   pinAttempts = 0;
   await purgeReadCaches(); // sesión nueva → no servir cachés de lectura del usuario anterior
+  resetAyudaBot();         // ídem para el chat del bot (cinturón: logout ya lo limpia, esto cubre cualquier otra ruta)
   currentUser = { id: u.id, name: u.name, role: u.role, emoji: u.emoji, country: u.country };
   localStorage.setItem('fc_user', JSON.stringify(currentUser));
   markUserActive();
@@ -6702,6 +6703,7 @@ function logout() {
   activeCoordTab = 'inicio';
   _coordVisibleLimit = COORD_PAGE_SIZE;
   pinAttempts = 0;
+  resetAyudaBot(); // 🤖 el chat del bot es de ESA sesión: no debe sobrevivir al cambio de usuario
   // M10 — Limpiar interval de processQueue. Se vuelve a crear al próximo login
   // si hace falta, pero por simplicidad lo dejamos vivo (es cheap).
   // No clearInterval acá para que la queue siga procesándose offline-online
@@ -16626,6 +16628,18 @@ function updateAyudaFab() {
 }
 function ayudaOverlayClick(e) { if (e.target.id === 'ayuda-overlay') closeAyudaBot(); }
 function closeAyudaBot() { document.getElementById('ayuda-overlay').classList.remove('open'); }
+// Borra la conversación (memoria + burbujas + input) y cierra el panel. La app es una SPA: al cerrar sesión
+// NO se recarga la página, así que sin esto el chat del usuario anterior seguía visible para el siguiente
+// (bug reportado 2026-07-15: el chat del CEO aparecía en el coordinador). El chat pertenece a la sesión.
+function resetAyudaBot() {
+  _ayudaHist = [];
+  _ayudaBusy = false;
+  const box = document.getElementById('ayuda-msgs');
+  if (box) box.innerHTML = '';
+  const inp = document.getElementById('ayuda-input');
+  if (inp) inp.value = '';
+  closeAyudaBot();
+}
 function openAyudaBot() {
   const ov = document.getElementById('ayuda-overlay');
   if (!ov) return;
