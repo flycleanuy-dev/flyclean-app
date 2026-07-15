@@ -15872,6 +15872,11 @@ function renderCoordPropuestasList(keepLimit) {
     const estadoClass = estado.includes('Aceptada') ? 'aceptada' :
       estado.includes('Negociando') ? 'negociando' :
       estado.toLowerCase().includes('enviada') ? 'enviada' : '';
+    // Propuesta CERRADA (ganada/perdida/muerta + estados legacy pre-limpieza): el contador "N días sin
+    // respuesta" no aplica — el trato ya no espera respuesta de nadie. Mostrarlo asustaba ("¿qué estamos
+    // haciendo mal?") en tratos GANADOS (caso Ava La Caleta, 2026-07-15). Solo se muestra la última
+    // interacción como dato histórico, sin contador ni alarma.
+    const propCerrada = PROP_ESTADOS_TERMINALES.includes(estado) || estado === '✅ Completado' || estado === 'Servicio Pendiente';
     // Badge recordatorio (auditoría 2026-07-09): propuesta Aceptada que todavía NO generó servicio.
     const aceptadaSinSvc = estado.includes('Aceptada') && !propTieneServicio(p.id, props); // espejo-safe (flip)
     // Snooze por registro: pospuesta hasta una fecha futura → badge para entender por qué no avisa.
@@ -15888,8 +15893,8 @@ function renderCoordPropuestasList(keepLimit) {
         ${pais ? `<span class="coord-tag">${esc(pais)}</span>` : ''}
         ${importe ? `<span class="prop-importe">$${importe.toLocaleString()}</span>` : ''}
       </div>
-      <div class="prop-dias ${dias != null && dias > 14 ? 'alert' : ''}">
-        ${ultimaFmt ? `${t('coord.prop.lastint.prefix')}${ultimaFmt}` : ''}${dias != null ? ` · ${dias}${t('coord.prop.days.suffix')}` : ''}
+      <div class="prop-dias ${!propCerrada && dias != null && dias > 14 ? 'alert' : ''}">
+        ${ultimaFmt ? `${t('coord.prop.lastint.prefix')}${ultimaFmt}` : ''}${!propCerrada && dias != null ? ` · ${dias}${t('coord.prop.days.suffix')}` : ''}
       </div>
       ${pospuestaBadge}
       ${aceptadaSinSvc ? `<div style="margin-top:5px;font-size:11px;font-weight:700;color:var(--amber)">⚠️ ${t('coord.prop.falta.svc')}</div>` : ''}
