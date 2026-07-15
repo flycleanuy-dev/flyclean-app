@@ -1,37 +1,46 @@
-// Chequeo de sintaxis del JS del front (no hay build step que lo valide). Lo corre el CI en cada PR.
+// Chequeo de sintaxis del front + coherencia del index.html. Lo corre el CI en cada PR.
 //
-// Desde la extracción del 15/07 (modularización), el JS del front vive en /src/main.js y el index.html solo
-// lo referencia (`<script src="/app.js">`). Este test:
-//   1. verifica que app.js parsee;
-//   2. verifica que index.html NO tenga JS inline suelto (si alguien vuelve a meter un <script> con código,
-//      lo chequea igual — no queremos que el monolito vuelva por la ventana);
-//   3. FALLA si index.html dejó de referenciar app.js (un extract a medias dejaría la app sin código).
-import { readFileSync } from 'node:fs';
+// Layout actual (modularización 15/07): el JS vive en src/ como MÓDULOS ES (Vite los bundlea) y el
+// index.html solo referencia el entry (`<script type="module" src="/src/main.js">`). Este test:
+//   1. verifica que TODOS los módulos de src/ parseen — con `node --check`, que respeta el "type":"module"
+//      del package.json (`new Function()` ya no sirve: no admite `import`);
+//   2. verifica que index.html referencie el entry (si un refactor queda a medias, la app cargaría SIN
+//      JavaScript y ningún otro test lo notaría);
+//   3. verifica que no haya JS inline suelto en index.html (que el monolito no vuelva por la ventana).
+import { readFileSync, readdirSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { execFileSync } from 'node:child_process';
 
-const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
-const appJs = readFileSync(new URL('../src/main.js', import.meta.url), 'utf8');
+const root = new URL('../', import.meta.url);
+const html = readFileSync(new URL('index.html', root), 'utf8');
+const srcDir = fileURLToPath(new URL('src/', root));
 
-// 3) La referencia tiene que estar (si no, la app carga sin JS y no lo notaría ningún otro test).
+// 2) El entry tiene que estar referenciado.
 if (!/<script[^>]*\bsrc=["']\/src\/main\.js["']/.test(html)) {
   console.error('❌ index.html no referencia /src/main.js — la app quedaría sin JavaScript.');
   process.exit(1);
 }
 
-// 1) src/main.js parsea.
-try {
-  new Function(appJs);
-} catch (e) {
-  console.error('❌ SYNTAX ERROR en src/main.js:', e.message);
-  process.exit(1);
+// 1) Todos los módulos de src/ parsean.
+const modulos = readdirSync(srcDir).filter(f => f.endsWith('.js'));
+let lineas = 0;
+for (const f of modulos) {
+  try {
+    execFileSync(process.execPath, ['--check', srcDir + f], { stdio: 'pipe' });
+  } catch (e) {
+    console.error(`❌ SYNTAX ERROR en src/${f}:\n${(e.stderr || '').toString().slice(0, 600)}`);
+    process.exit(1);
+  }
+  lineas += readFileSync(srcDir + f, 'utf8').split('\n').length;
 }
 
-// 2) JS inline residual en index.html (debería ser 0, pero si aparece se valida igual).
+// 3) JS inline residual en index.html (debería ser 0; si aparece, se valida igual).
 const re = /<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/gi;
 let m,
   inline = '',
   n = 0;
 while ((m = re.exec(html))) {
-  if (!m[1].trim()) continue; // <script> vacío: ignorar
+  if (!m[1].trim()) continue;
   inline += '\n;{\n' + m[1] + '\n};\n';
   n++;
 }
@@ -44,8 +53,7 @@ if (n) {
   }
 }
 
-const kb = (appJs.length / 1024).toFixed(0);
 console.log(
-  `✅ src/main.js parsea (${appJs.split('\n').length} líneas, ${kb} KB) · index.html lo referencia OK` +
-    (n ? ` · ${n} bloque(s) inline residual(es) OK` : ' · sin JS inline')
+  `✅ src/: ${modulos.length} módulo(s) parsean (${lineas} líneas) — ${modulos.join(', ')} · index.html referencia el entry` +
+    (n ? ` · ${n} bloque(s) inline OK` : ' · sin JS inline')
 );
