@@ -10,7 +10,7 @@ PWA (app web instalable) para la operación de **FlyClean** — limpieza de fach
 
 ## Qué es y cómo está armado
 
-No hay framework ni paso de build del frontend: **todo el frontend es un solo archivo** (`index.html`), mobile-first, con Service Worker para funcionar como PWA instalable y offline-tolerante. El backend son **funciones serverless** en `api/` (Vercel).
+El frontend es una PWA mobile-first con Service Worker (instalable + offline-tolerante). Hoy la lógica vive mayormente en `index.html` (los estilos ya se extrajeron a `styles.css`); **está en marcha una modularización incremental hacia el estándar profesional** — módulos ES + bundler (Vite) + linter, sin framework — hecha de a poco sin frenar la operación (ver `docs/` y la memoria del proyecto). El backend son **funciones serverless** en `api/` (Vercel), ya modularizadas en ESM (`api/_lib/`).
 
 ```
 Navegador (index.html, PWA)
@@ -23,15 +23,17 @@ Navegador (index.html, PWA)
 
 | Archivo / carpeta | Qué hace |
 |---|---|
-| `index.html` | Frontend completo (UI + lógica). Pantallas por rol; i18n es/pt. |
+| `index.html` | Frontend (UI + lógica). Pantallas por rol; i18n es/pt. **En proceso de modularización.** |
+| `styles.css` | Estilos del frontend (extraídos de `index.html` — paso 1 de la modularización). |
 | `sw.js` | Service Worker. Cachea el "shell" + lecturas de Notion (stale-while-revalidate). Versionado `flyclean-vNN`. |
-| `api/notion.js` | Proxy a la API de Notion (allow-list de endpoints; timeout + reintentos). |
+| `api/notion.js` | Proxy a la API de Notion (allow-list de endpoints; permisos por rol; timeout + reintentos). |
 | `api/upload-url.js` | Genera URLs firmadas (PUT) a R2 para subir fotos/recibos. |
-| `api/extract-receipt.js` | OCR de recibos con Claude. |
+| `api/extract-receipt.js` | OCR de recibos con Claude (Anthropic). |
+| `api/ayuda-bot.js` | Bot de ayuda con IA ("cómo usar la app" por rol). Sin acciones ni acceso a datos: solo devuelve texto. |
 | `api/img.js` | Proxy de imágenes same-origin (allow-list a `cdn.flyclean.app`). |
 | `api/version.js` | Endpoint público de versión (lo usa el APK/TWA). |
-| `api/cron-pipeline.js`, `api/cron-report.js` | Automatizaciones por cron (mover propuestas, emails). |
-| `api/_lib/` | Helpers compartidos de los crons (`notion.js`, `email.js`). |
+| `api/cron-*.js` | Automatizaciones por cron (pipeline de propuestas, reportes por email, sync/outbox Supabase, reconciliación). |
+| `api/_lib/` | Helpers compartidos (ESM): `session`, `users`, `permisos`, `notion`, `notion-map`, `supafirst`, `mirror`, `sync`, `email`, `recipients`, `pins`, `appconfig`… |
 | `vendor/jspdf.umd.min.js` | jsPDF self-hosted (genera el PDF de devolución en el cliente). |
 | `manifest.json`, `icon-*.png`, `splash.png` | PWA installable. |
 | `privacy.html`, `terms.html`, `.well-known/assetlinks.json` | Legales + Digital Asset Links (APK). |
@@ -97,9 +99,11 @@ Cuando cambia `index.html` o `sw.js`, **subí el número de versión del Service
 ## Tests
 
 ```bash
-npm test      # smoke (node fetch, solo lectura — no tocan datos de Notion)
+npm test      # calculos (lógica de dinero) + smoke + permisos — solo lectura, no tocan datos
 npm run check # valida la sintaxis del JS embebido en index.html
 ```
+
+Corren en CI (`.github/workflows/ci.yml`) en cada push/PR a `main`. Regla del equipo: correr los tests antes de cada push (no hay branch protection — se prioriza velocidad de deploy con la red de tests).
 
 ## Licencia
 
