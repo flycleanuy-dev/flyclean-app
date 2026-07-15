@@ -5,7 +5,7 @@
   "description": "FlyClean PWA — Notion proxy + R2 photo uploads + Claude AI receipt OCR",
   "type": "module",
   "engines": {
-    "node": "20.x"
+    "node": "24.x"
   },
   "scripts": {
     "lint": "eslint api scripts tests",
