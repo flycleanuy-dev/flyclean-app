@@ -6,7 +6,7 @@
 // Devuelve { results: [{ object:'page', id:notion_id, properties:raw }] } → idéntico a la respuesta de Notion,
 // gracias a que el sync guardó `raw` = las properties tal cual de Notion. Así el render de la app NO cambia.
 import { verifySession, tokenFromReq, maybeRenewSession } from './_lib/session.js';
-import { userById, resolveUser, esGlobal, esVentas } from './_lib/users.js';
+import { resolveUser, esGlobal, esVentas } from './_lib/users.js';
 import { checkPermiso, DB } from './_lib/permisos.js';
 import crypto from 'node:crypto';
 
@@ -16,25 +16,48 @@ const ALLOWED_ORIGINS = [
   'https://flyclean-app.vercel.app',
 ];
 const ALLOWED_ORIGIN_REGEX = /^https:\/\/flyclean-app-[a-z0-9]+-fly-clean-app-s-projects\.vercel\.app$/;
-function originAllowed(o) { return !!o && (ALLOWED_ORIGINS.includes(o) || ALLOWED_ORIGIN_REGEX.test(o)); }
+function originAllowed(o) {
+  return !!o && (ALLOWED_ORIGINS.includes(o) || ALLOWED_ORIGIN_REGEX.test(o));
+}
 
 // Allow-list: qué "resource" de la app mapea a qué tabla de Supabase.
 const RESOURCES = {
-  clientes: 'clientes', servicios: 'servicios', propuestas: 'propuestas',
-  ingresos: 'ingresos', gastos: 'gastos',
+  clientes: 'clientes',
+  servicios: 'servicios',
+  propuestas: 'propuestas',
+  ingresos: 'ingresos',
+  gastos: 'gastos',
 };
 
 const SUPABASE_URL = (process.env.SUPABASE_URL || '').replace(/\/$/, '');
-const SERVICE_KEY  = process.env.SUPABASE_SERVICE_KEY || '';
-const ANON_KEY     = process.env.SUPABASE_ANON_KEY || '';
-const JWT_SECRET   = process.env.SUPABASE_JWT_SECRET || '';
+const SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY || '';
+const ANON_KEY = process.env.SUPABASE_ANON_KEY || '';
+const JWT_SECRET = process.env.SUPABASE_JWT_SECRET || '';
 
-function b64url(buf) { return Buffer.from(buf).toString('base64').replace(/=+$/, '').replace(/\+/g, '-').replace(/\//g, '_'); }
+function b64url(buf) {
+  return Buffer.from(buf).toString('base64').replace(/=+$/, '').replace(/\+/g, '-').replace(/\//g, '_');
+}
 function mintUserJWT(u, id) {
   const now = Math.floor(Date.now() / 1000);
-  const header  = b64url(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
-  const payload = b64url(JSON.stringify({ role: 'authenticated', aud: 'authenticated', sub: id, iat: now, exp: now + 300, pais: u.pais, rol: u.rol, nombre: u.nombre }));
-  const sig = b64url(crypto.createHmac('sha256', JWT_SECRET).update(header + '.' + payload).digest());
+  const header = b64url(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
+  const payload = b64url(
+    JSON.stringify({
+      role: 'authenticated',
+      aud: 'authenticated',
+      sub: id,
+      iat: now,
+      exp: now + 300,
+      pais: u.pais,
+      rol: u.rol,
+      nombre: u.nombre,
+    })
+  );
+  const sig = b64url(
+    crypto
+      .createHmac('sha256', JWT_SECRET)
+      .update(header + '.' + payload)
+      .digest()
+  );
   return header + '.' + payload + '.' + sig;
 }
 
@@ -60,7 +83,8 @@ function operarioFilterServicios(u, resource) {
 // corta, concatenando. Misma URL y headers en cada página; solo cambia el Range.
 async function fetchPaged(url, headers) {
   const PAGE = 1000;
-  let rows = [], offset = 0;
+  let rows = [],
+    offset = 0;
   for (;;) {
     const r = await fetch(url, {
       headers: { ...headers, 'Range-Unit': 'items', Range: `${offset}-${offset + PAGE - 1}` },
@@ -101,7 +125,10 @@ export default async function handler(req, res) {
   // Servicios (2026-07-06, solo-lectura para el cruce de "clientes para recontactar"/mantenimiento —
   // NO ve la operativa ni edita; los servicios no tienen plata). Sigue cerrado: ingresos/gastos.
   // (ver docs/superpowers/specs/2026-07-03-backstop-ventas-serverside-design.md)
-  if (esVentas(u) && !['clientes', 'propuestas', 'servicios'].includes(resource)) return res.status(403).json({ error: 'forbidden: rol Ventas solo clientes, propuestas y servicios (lectura)' });
+  if (esVentas(u) && !['clientes', 'propuestas', 'servicios'].includes(resource))
+    return res
+      .status(403)
+      .json({ error: 'forbidden: rol Ventas solo clientes, propuestas y servicios (lectura)' });
 
   // Matriz de permisos por rol — la MISMA de /api/notion (api/_lib/permisos.js), acá en ENFORCE directo
   // (2026-07-07, hallazgo Codex R2 #1: /api/db servía ingresos/gastos a cualquier autenticado y la RLS
@@ -109,11 +136,20 @@ export default async function handler(req, res) {
   // real de pantallas y /api/db sirve exactamente esas pantallas — y los resources SIN flujo legítimo por
   // acá (ingresos/gastos: DB_FLAGS del front no los incluye) son justamente la fuga financiera a cerrar.
   // Ventas no pasa por acá (su backstop corta primero). Rollback: comentar este bloque.
-  const RESOURCE_DB = { clientes: DB.contactos, servicios: DB.serviciosDb, propuestas: DB.propuestas, ingresos: DB.ingresosDb, gastos: DB.gastosDb };
+  const RESOURCE_DB = {
+    clientes: DB.contactos,
+    servicios: DB.serviciosDb,
+    propuestas: DB.propuestas,
+    ingresos: DB.ingresosDb,
+    gastos: DB.gastosDb,
+  };
   if (!esVentas(u)) {
     const perm = checkPermiso(u, { tipo: 'query', dbId: RESOURCE_DB[resource] });
     if (!perm.ok) {
-      console.warn('[perms] DENEGADO /api/db', JSON.stringify({ rol: u?.rol, id: session.id, resource, motivo: perm.motivo }));
+      console.warn(
+        '[perms] DENEGADO /api/db',
+        JSON.stringify({ rol: u?.rol, id: session.id, resource, motivo: perm.motivo })
+      );
       return res.status(403).json({ error: 'forbidden: tu rol no accede a esa base' });
     }
   }
@@ -131,21 +167,30 @@ export default async function handler(req, res) {
         authPath = 'jwt-rls';
         const jwt = mintUserJWT(u, session.id);
         rows = await fetchPaged(`${SUPABASE_URL}/rest/v1/${table}?select=notion_id,raw`, {
-          apikey: ANON_KEY, Authorization: 'Bearer ' + jwt,
+          apikey: ANON_KEY,
+          Authorization: 'Bearer ' + jwt,
         });
       } catch (e) {
         console.error('[db] jwt-rls falló (' + String(e.message || e).slice(0, 60) + ') → service fallback');
         authPath = 'service-fallback';
-        rows = await fetchPaged(`${SUPABASE_URL}/rest/v1/${table}?select=notion_id,raw${paisQuery(u)}${operarioFilterServicios(u, resource)}`, {
-          apikey: SERVICE_KEY, Authorization: 'Bearer ' + SERVICE_KEY,
-        });
+        rows = await fetchPaged(
+          `${SUPABASE_URL}/rest/v1/${table}?select=notion_id,raw${paisQuery(u)}${operarioFilterServicios(u, resource)}`,
+          {
+            apikey: SERVICE_KEY,
+            Authorization: 'Bearer ' + SERVICE_KEY,
+          }
+        );
       }
     } else {
       // Usuario global (o sin JWT config): service_role + filtro país + (si operario) filtro por operario.
       authPath = 'service';
-      rows = await fetchPaged(`${SUPABASE_URL}/rest/v1/${table}?select=notion_id,raw${paisQuery(u)}${operarioFilterServicios(u, resource)}`, {
-        apikey: SERVICE_KEY, Authorization: 'Bearer ' + SERVICE_KEY,
-      });
+      rows = await fetchPaged(
+        `${SUPABASE_URL}/rest/v1/${table}?select=notion_id,raw${paisQuery(u)}${operarioFilterServicios(u, resource)}`,
+        {
+          apikey: SERVICE_KEY,
+          Authorization: 'Bearer ' + SERVICE_KEY,
+        }
+      );
     }
     // Formato Notion → el render de la app no cambia. _auth = diagnóstico de qué camino se tomó
     // (jwt-rls = la base filtra por claims; service = filtro server-side) — no expone datos.

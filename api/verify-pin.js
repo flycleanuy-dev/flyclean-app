@@ -50,13 +50,19 @@ async function registerFailedAttempt(id) {
       const bucket = Math.floor(Date.now() / WINDOW_MS);
       const key = `rl:pin:${id}:${bucket}`;
       const count = Number(await kvCmd(['INCR', key]));
-      if (count === 1) { try { await kvCmd(['EXPIRE', key, Math.ceil(WINDOW_MS / 1000) + 30]); } catch (_) {} }
+      if (count === 1) {
+        try {
+          await kvCmd(['EXPIRE', key, Math.ceil(WINDOW_MS / 1000) + 30]);
+        } catch (_) {}
+      }
       return; // el conteo vive en KV; blocked() lo consulta
-    } catch (_) { /* KV caído → fallback abajo */ }
+    } catch (_) {
+      /* KV caído → fallback abajo */
+    }
   }
   const now = Date.now();
   const prev = attempts.get(id);
-  const windowed = prev && (now - prev.ts) < WINDOW_MS;
+  const windowed = prev && now - prev.ts < WINDOW_MS;
   attempts.set(id, { count: (windowed ? prev.count : 0) + 1, ts: now });
 }
 
@@ -67,10 +73,12 @@ async function isRateLimited(id) {
       const bucket = Math.floor(Date.now() / WINDOW_MS);
       const count = Number(await kvCmd(['GET', `rl:pin:${id}:${bucket}`]));
       return Number.isFinite(count) && count >= MAX_ATTEMPTS;
-    } catch (_) { /* KV caído → fallback abajo */ }
+    } catch (_) {
+      /* KV caído → fallback abajo */
+    }
   }
   const prev = attempts.get(id);
-  return !!(prev && (Date.now() - prev.ts) < WINDOW_MS && prev.count >= MAX_ATTEMPTS);
+  return !!(prev && Date.now() - prev.ts < WINDOW_MS && prev.count >= MAX_ATTEMPTS);
 }
 
 export default async function handler(req, res) {
@@ -100,7 +108,11 @@ export default async function handler(req, res) {
     valid = verifyPinHash(pin, customHash);
   } else {
     let map = {};
-    try { map = JSON.parse(process.env.USER_PINS || '{}'); } catch (_) { map = {}; }
+    try {
+      map = JSON.parse(process.env.USER_PINS || '{}');
+    } catch (_) {
+      map = {};
+    }
     const expected = map[id];
     valid = typeof expected === 'string' && expected.length > 0 && safeEqual(pin, expected);
   }

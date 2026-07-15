@@ -36,7 +36,11 @@ async function patchPropuesta(pageId, props) {
       console.warn('[cron-pipeline] supafirst error → Notion-first', String(e?.message || e).slice(0, 120));
     }
     const page = await updatePage(pageId, props);
-    try { await mirrorPage('propuestas', page); } catch (_) { /* best-effort */ }
+    try {
+      await mirrorPage('propuestas', page);
+    } catch (_) {
+      /* best-effort */
+    }
     return;
   }
   await updatePage(pageId, props);
@@ -57,8 +61,8 @@ const DIAS_AUTOMOVE = 45;
 const NEGOCIANDO = '🤝 Negociando';
 const MS_DIA = 86400000;
 
-const titleOf = (p) => p?.['Nombre de propuesta']?.title?.[0]?.plain_text || '(sin nombre)';
-const diasOf = (p) => p?.['Días sin respuesta']?.formula?.number ?? null; // misma fórmula que usa el in-app (reloj de SEGUIMIENTO)
+const titleOf = p => p?.['Nombre de propuesta']?.title?.[0]?.plain_text || '(sin nombre)';
+const diasOf = p => p?.['Días sin respuesta']?.formula?.number ?? null; // misma fórmula que usa el in-app (reloj de SEGUIMIENTO)
 
 // Reloj de VIDA: días desde 'Fecha de envío' (fallback: created_time de la página). Solo se usa para
 // el auto-move de Contactado/Enviada — Negociando sigue con diasOf() de siempre.
@@ -82,13 +86,20 @@ export default async function handler(req, res) {
     // Umbrales editables desde la app (⚙️ Configuración → Reglas). Fallback a las constantes históricas
     // si KV está vacío/caído — el cron NUNCA deja de funcionar por la config.
     const reglas = await getReglas().catch(() => null);
-    const diasAlerta = Number.isInteger(reglas?.pipelineAviso) && reglas.pipelineAviso >= 1 ? reglas.pipelineAviso : DIAS_ALERTA;
-    const diasAutomove = Number.isInteger(reglas?.pipelineSinRespuesta) && reglas.pipelineSinRespuesta >= 1 ? reglas.pipelineSinRespuesta : DIAS_AUTOMOVE;
+    const diasAlerta =
+      Number.isInteger(reglas?.pipelineAviso) && reglas.pipelineAviso >= 1
+        ? reglas.pipelineAviso
+        : DIAS_ALERTA;
+    const diasAutomove =
+      Number.isInteger(reglas?.pipelineSinRespuesta) && reglas.pipelineSinRespuesta >= 1
+        ? reglas.pipelineSinRespuesta
+        : DIAS_AUTOMOVE;
     const propuestas = await queryAll(PROPUESTAS_DB, {
       filter: { or: ESTADOS_ESPERANDO.map(s => ({ property: 'Estado pipeline', select: { equals: s } })) },
     });
     const today = new Date().toISOString().slice(0, 10);
-    const movidas = [], nuevasRecontacto = [];
+    const movidas = [],
+      nuevasRecontacto = [];
 
     for (const p of propuestas) {
       const pr = p.properties || {};
@@ -134,12 +145,28 @@ export default async function handler(req, res) {
     if (!dryRun && (movidas.length || nuevasRecontacto.length)) {
       // esc: los nombres vienen de Notion (texto libre) → escapar antes de interpolar en el HTML
       // del email (mismo criterio que cron-report.js).
-      const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-      const li = (arr) => arr.map(x => `<li style="margin:3px 0;color:#cfe0d9"><b>${esc(x.nombre)}</b> — ${Number(x.dias)} días</li>`).join('');
+      const esc = s =>
+        String(s ?? '')
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;');
+      const li = arr =>
+        arr
+          .map(
+            x =>
+              `<li style="margin:3px 0;color:#cfe0d9"><b>${esc(x.nombre)}</b> — ${Number(x.dias)} días</li>`
+          )
+          .join('');
       const btn = `<div style="margin:8px 0 16px"><a href="https://www.flyclean.app/" style="display:inline-block;background:#00C98D;color:#062019;font-weight:800;text-decoration:none;padding:12px 26px;border-radius:8px;font-size:15px">Abrir FlyClean →</a></div>`;
-      const body = btn +
-        (nuevasRecontacto.length ? `<p><b>📞 Para re-contactar (${nuevasRecontacto.length})</b></p><ul>${li(nuevasRecontacto)}</ul>` : '') +
-        (movidas.length ? `<p><b>😶 Movidas a "Sin respuesta" automáticamente (${movidas.length})</b></p><ul>${li(movidas)}</ul>` : '');
+      const body =
+        btn +
+        (nuevasRecontacto.length
+          ? `<p><b>📞 Para re-contactar (${nuevasRecontacto.length})</b></p><ul>${li(nuevasRecontacto)}</ul>`
+          : '') +
+        (movidas.length
+          ? `<p><b>😶 Movidas a "Sin respuesta" automáticamente (${movidas.length})</b></p><ul>${li(movidas)}</ul>`
+          : '');
       // Destinatarios: lista editable de la app (KV) > fallback histórico (Federico + Diego).
       const listaKV = await getRecipients('pipeline');
       await sendEmail({
@@ -150,7 +177,15 @@ export default async function handler(req, res) {
       emailed = true;
     }
 
-    return res.status(200).json({ ok: true, dryRun, revisadas: propuestas.length, nuevasRecontacto: nuevasRecontacto.length, movidas: movidas.length, emailed, detalle: { nuevasRecontacto, movidas } });
+    return res.status(200).json({
+      ok: true,
+      dryRun,
+      revisadas: propuestas.length,
+      nuevasRecontacto: nuevasRecontacto.length,
+      movidas: movidas.length,
+      emailed,
+      detalle: { nuevasRecontacto, movidas },
+    });
   } catch (e) {
     console.error('[cron-pipeline]', e);
     return res.status(500).json({ error: String(e.message || e) });

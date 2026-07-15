@@ -13,7 +13,9 @@ const ALLOWED_ORIGINS = [
   'https://flyclean-app.vercel.app',
 ];
 const ALLOWED_ORIGIN_REGEX = /^https:\/\/flyclean-app-[a-z0-9]+-fly-clean-app-s-projects\.vercel\.app$/;
-function originAllowed(o) { return !!o && (ALLOWED_ORIGINS.includes(o) || ALLOWED_ORIGIN_REGEX.test(o)); }
+function originAllowed(o) {
+  return !!o && (ALLOWED_ORIGINS.includes(o) || ALLOWED_ORIGIN_REGEX.test(o));
+}
 function safeEqual(a, b) {
   // Compara hash SHA-256 (largo fijo) → tiempo constante sin filtrar la longitud del PIN.
   const ha = crypto.createHash('sha256').update(String(a)).digest();
@@ -39,8 +41,10 @@ export default async function handler(req, res) {
   const id = session.id;
 
   const { currentPin, newPin } = req.body || {};
-  if (typeof currentPin !== 'string' || typeof newPin !== 'string') return res.status(400).json({ ok: false });
-  if (!/^(\d{4}|\d{6})$/.test(newPin)) return res.status(400).json({ ok: false, error: 'El PIN debe ser de 4 o 6 dígitos' });
+  if (typeof currentPin !== 'string' || typeof newPin !== 'string')
+    return res.status(400).json({ ok: false });
+  if (!/^(\d{4}|\d{6})$/.test(newPin))
+    return res.status(400).json({ ok: false, error: 'El PIN debe ser de 4 o 6 dígitos' });
 
   // Validar el PIN ACTUAL: contra el custom (KV) si existe, si no contra el default (USER_PINS).
   let okCurrent = false;
@@ -48,7 +52,10 @@ export default async function handler(req, res) {
   if (customHash) {
     okCurrent = verifyPinHash(currentPin, customHash);
   } else {
-    let map = {}; try { map = JSON.parse(process.env.USER_PINS || '{}'); } catch (_) {}
+    let map = {};
+    try {
+      map = JSON.parse(process.env.USER_PINS || '{}');
+    } catch (_) {}
     const expected = map[id];
     okCurrent = typeof expected === 'string' && expected.length > 0 && safeEqual(currentPin, expected);
   }

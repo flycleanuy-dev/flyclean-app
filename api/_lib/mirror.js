@@ -5,9 +5,11 @@
 import { mapRow } from './notion-map.js';
 
 const SUPABASE_URL = (process.env.SUPABASE_URL || '').replace(/\/$/, '');
-const SERVICE_KEY  = process.env.SUPABASE_SERVICE_KEY || '';
+const SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY || '';
 
-export function mirrorConfigured() { return !!(SUPABASE_URL && SERVICE_KEY); }
+export function mirrorConfigured() {
+  return !!(SUPABASE_URL && SERVICE_KEY);
+}
 
 // Upsert de una fila YA mapeada (por notion_id). Devuelve { ok, status }.
 export async function upsertRow(table, row) {
@@ -15,8 +17,10 @@ export async function upsertRow(table, row) {
   const ur = await fetch(`${SUPABASE_URL}/rest/v1/${table}?on_conflict=notion_id`, {
     method: 'POST',
     headers: {
-      apikey: SERVICE_KEY, Authorization: 'Bearer ' + SERVICE_KEY,
-      'Content-Type': 'application/json', Prefer: 'resolution=merge-duplicates,return=minimal',
+      apikey: SERVICE_KEY,
+      Authorization: 'Bearer ' + SERVICE_KEY,
+      'Content-Type': 'application/json',
+      Prefer: 'resolution=merge-duplicates,return=minimal',
     },
     body: JSON.stringify([row]),
   });
@@ -30,7 +34,11 @@ export async function upsertRow(table, row) {
 export async function mirrorPage(resource, page) {
   if (!resource || !page) return { ok: false, status: 0, reason: 'args' };
   let row;
-  try { row = mapRow(resource, page); } catch (_) { return { ok: false, status: 0, reason: 'map' }; }
+  try {
+    row = mapRow(resource, page);
+  } catch (_) {
+    return { ok: false, status: 0, reason: 'map' };
+  }
   if (!row) return { ok: false, status: 0, reason: 'map' };
   return upsertRow(resource, row);
 }

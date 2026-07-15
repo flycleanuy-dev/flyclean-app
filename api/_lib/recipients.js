@@ -28,7 +28,9 @@ export async function getAllRecipients() {
       out[t] = arr;
     }
     return out;
-  } catch { return {}; }
+  } catch {
+    return {};
+  }
 }
 
 // Lista de UN tipo, o null si está vacía/no configurada → el caller usa su fallback histórico.

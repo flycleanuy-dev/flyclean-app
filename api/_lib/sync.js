@@ -20,9 +20,13 @@ async function notionFetch(path, body) {
 
 // Exportada para la reconciliación M1 (api/health-reconcile.js): cuenta páginas activas de una base (.length).
 export async function queryAll(dbId) {
-  let results = [], cursor;
+  let results = [],
+    cursor;
   do {
-    const { ok, json } = await notionFetch(`databases/${dbId}/query`, { page_size: 100, start_cursor: cursor });
+    const { ok, json } = await notionFetch(`databases/${dbId}/query`, {
+      page_size: 100,
+      start_cursor: cursor,
+    });
     if (!ok) {
       if ((json?.code || '').includes('multiple_data_sources') || json?.message?.includes('data source')) {
         return await searchByParent(dbId);
@@ -37,11 +41,17 @@ export async function queryAll(dbId) {
 
 async function searchByParent(dbId) {
   const norm = s => (s || '').replace(/-/g, '');
-  let results = [], cursor;
+  let results = [],
+    cursor;
   for (let i = 0; i < 5; i++) {
-    results = []; cursor = undefined;
+    results = [];
+    cursor = undefined;
     do {
-      const { ok, json } = await notionFetch('search', { page_size: 100, start_cursor: cursor, filter: { property: 'object', value: 'page' } });
+      const { ok, json } = await notionFetch('search', {
+        page_size: 100,
+        start_cursor: cursor,
+        filter: { property: 'object', value: 'page' },
+      });
       // Fail-closed (review 15/07): un 429/5xx a mitad de paginación devolvía un set PARCIAL en silencio →
       // reconcileDeletes veía como "stale" filas legítimas y podía borrarlas del espejo. Mejor tirar: el
       // caller (syncTables) marca la tabla con error esta corrida y el próximo ciclo (10 min) reintenta.
@@ -69,8 +79,10 @@ async function upsert(table, rows) {
     const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}?on_conflict=notion_id`, {
       method: 'POST',
       headers: {
-        apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`,
-        'Content-Type': 'application/json', Prefer: 'resolution=merge-duplicates,return=minimal',
+        apikey: SUPABASE_KEY,
+        Authorization: `Bearer ${SUPABASE_KEY}`,
+        'Content-Type': 'application/json',
+        Prefer: 'resolution=merge-duplicates,return=minimal',
       },
       body: JSON.stringify(chunk),
     });
@@ -87,12 +99,15 @@ async function fetchMirrorIds(table) {
   const SUPABASE_URL = (process.env.SUPABASE_URL || '').replace(/\/$/, '');
   const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY;
   const PAGE = 1000;
-  let ids = [], offset = 0;
+  let ids = [],
+    offset = 0;
   for (;;) {
     const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}?select=notion_id`, {
       headers: {
-        apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`,
-        'Range-Unit': 'items', Range: `${offset}-${offset + PAGE - 1}`,
+        apikey: SUPABASE_KEY,
+        Authorization: `Bearer ${SUPABASE_KEY}`,
+        'Range-Unit': 'items',
+        Range: `${offset}-${offset + PAGE - 1}`,
       },
     });
     if (!r.ok) throw new Error(`Supabase ${table} (mirror ids): ${r.status} ${await r.text()}`);
@@ -115,7 +130,8 @@ async function deleteRows(table, notionIds) {
     const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}?notion_id=in.(${list})`, {
       method: 'DELETE',
       headers: {
-        apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`,
+        apikey: SUPABASE_KEY,
+        Authorization: `Bearer ${SUPABASE_KEY}`,
         Prefer: 'return=minimal',
       },
     });
@@ -141,7 +157,10 @@ async function deleteRows(table, notionIds) {
 //      "reponía" → espejo oscilando lleno/vacío. Las bajas reales son de a unas pocas por día; todo
 //      lo que supere 20 se reporta en skippedDelete y se audita a mano. NUNCA volver al porcentaje.
 async function reconcileDeletes(table, fetchedActiveIds) {
-  const norm = s => String(s || '').replace(/-/g, '').toLowerCase();
+  const norm = s =>
+    String(s || '')
+      .replace(/-/g, '')
+      .toLowerCase();
   if (!fetchedActiveIds.length) return { deleted: 0 };
   const mirrorIds = await fetchMirrorIds(table);
   const activeSet = new Set(fetchedActiveIds.map(norm));
@@ -168,9 +187,13 @@ async function reconcileDeletes(table, fetchedActiveIds) {
 // de api/notion.js) y reconcileDeletes sigue corriendo (bajas en Notion salen del espejo; opera por diff de
 // ids, nunca toca el raw). Bonus: recupera el self-heal de un mirrorPage post-create que haya fallado.
 export async function syncTables(tables, { dry = false, altasOnly = new Set() } = {}) {
-  const norm = s => String(s || '').replace(/-/g, '').toLowerCase();
+  const norm = s =>
+    String(s || '')
+      .replace(/-/g, '')
+      .toLowerCase();
   const perTable = {};
-  let totalOk = 0, totalErr = 0;
+  let totalOk = 0,
+    totalErr = 0;
   for (const tabla of tables) {
     try {
       const pages = await queryAll(DBS[tabla]);
@@ -194,7 +217,10 @@ export async function syncTables(tables, { dry = false, altasOnly = new Set() } 
           perTable[tabla].reconcileSkipped = 'via-search';
         } else {
           try {
-            const { deleted, skippedDelete } = await reconcileDeletes(tabla, pages.map(pg => pg.id));
+            const { deleted, skippedDelete } = await reconcileDeletes(
+              tabla,
+              pages.map(pg => pg.id)
+            );
             perTable[tabla].deleted = deleted;
             if (skippedDelete) perTable[tabla].skippedDelete = skippedDelete;
           } catch (e) {

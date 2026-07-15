@@ -8,12 +8,21 @@ import { getAppConfig, setAppConfig, validateAppConfig } from './_lib/appconfig.
 
 export const config = { maxDuration: 10 };
 
-const ALLOWED_ORIGINS = ['https://flyclean.app', 'https://www.flyclean.app', 'https://flyclean-app.vercel.app'];
+const ALLOWED_ORIGINS = [
+  'https://flyclean.app',
+  'https://www.flyclean.app',
+  'https://flyclean-app.vercel.app',
+];
 const ALLOWED_ORIGIN_REGEX = /^https:\/\/flyclean-app-[a-z0-9]+-fly-clean-app-s-projects\.vercel\.app$/;
-function originAllowed(o) { return !!o && (ALLOWED_ORIGINS.includes(o) || ALLOWED_ORIGIN_REGEX.test(o)); }
+function originAllowed(o) {
+  return !!o && (ALLOWED_ORIGINS.includes(o) || ALLOWED_ORIGIN_REGEX.test(o));
+}
 
 function adminIds() {
-  return String(process.env.ADMIN_IDS || 'diego-laxalt,eduardo-cabral').split(',').map(s => s.trim()).filter(Boolean);
+  return String(process.env.ADMIN_IDS || 'diego-laxalt,eduardo-cabral')
+    .split(',')
+    .map(s => s.trim())
+    .filter(Boolean);
 }
 
 export default async function handler(req, res) {
@@ -39,10 +48,13 @@ export default async function handler(req, res) {
   }
 
   // POST: REEMPLAZA la config completa. Solo admins.
-  if (!adminIds().includes(session.id)) return res.status(403).json({ ok: false, error: 'solo un admin puede cambiar la configuración' });
+  if (!adminIds().includes(session.id))
+    return res.status(403).json({ ok: false, error: 'solo un admin puede cambiar la configuración' });
   const incoming = (req.body || {}).config;
-  if (!incoming || typeof incoming !== 'object') return res.status(400).json({ ok: false, error: 'config inválida' });
-  if (JSON.stringify(incoming).length > 20000) return res.status(400).json({ ok: false, error: 'config demasiado grande' });
+  if (!incoming || typeof incoming !== 'object')
+    return res.status(400).json({ ok: false, error: 'config inválida' });
+  if (JSON.stringify(incoming).length > 20000)
+    return res.status(400).json({ ok: false, error: 'config demasiado grande' });
   const err = validateAppConfig(incoming);
   if (err) return res.status(400).json({ ok: false, error: err });
 

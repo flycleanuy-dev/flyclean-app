@@ -9,7 +9,10 @@ const FROM = process.env.RESEND_FROM || 'FlyClean <onboarding@resend.dev>';
 
 export async function sendEmail({ to, subject, html }) {
   const key = process.env.RESEND_API_KEY;
-  if (!key) { console.warn('[email] RESEND_API_KEY no configurada — email salteado:', subject); return { skipped: true }; }
+  if (!key) {
+    console.warn('[email] RESEND_API_KEY no configurada — email salteado:', subject);
+    return { skipped: true };
+  }
   const recipients = Array.isArray(to) ? to : [to];
   const r = await fetch(RESEND_URL, {
     method: 'POST',
@@ -17,7 +20,10 @@ export async function sendEmail({ to, subject, html }) {
     body: JSON.stringify({ from: FROM, to: recipients, subject, html }),
   });
   const d = await r.json().catch(() => ({}));
-  if (!r.ok) { console.error('[email] Resend error', r.status, d); throw new Error(`Resend ${r.status}: ${d.message || ''}`); }
+  if (!r.ok) {
+    console.error('[email] Resend error', r.status, d);
+    throw new Error(`Resend ${r.status}: ${d.message || ''}`);
+  }
   return d;
 }
 

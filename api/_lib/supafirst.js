@@ -2,14 +2,25 @@
 // y encola la propagación a Notion en outbox_notion (la drena api/cron-outbox.js). Detrás del env
 // SUPAFIRST_TABLES (CSV por tabla). Con el CSV vacío, NADA de esto se ejecuta (inerte).
 const SUPABASE_URL = (process.env.SUPABASE_URL || '').replace(/\/$/, '');
-const SERVICE_KEY  = process.env.SUPABASE_SERVICE_KEY || '';
-const _H = () => ({ apikey: SERVICE_KEY, Authorization: 'Bearer ' + SERVICE_KEY, 'Content-Type': 'application/json' });
+const SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY || '';
+const _H = () => ({
+  apikey: SERVICE_KEY,
+  Authorization: 'Bearer ' + SERVICE_KEY,
+  'Content-Type': 'application/json',
+});
 
 // Conjunto de tablas Supabase-first (env CSV). Vacío = 3a.2 apagado.
 export function supafirstSet() {
-  return new Set((process.env.SUPAFIRST_TABLES || '').split(',').map(s => s.trim()).filter(Boolean));
+  return new Set(
+    (process.env.SUPAFIRST_TABLES || '')
+      .split(',')
+      .map(s => s.trim())
+      .filter(Boolean)
+  );
 }
-export function supafirstConfigured() { return !!(SUPABASE_URL && SERVICE_KEY); }
+export function supafirstConfigured() {
+  return !!(SUPABASE_URL && SERVICE_KEY);
+}
 
 // HOTFIX 2026-07-11: el front escribe en FORMATO DE ESCRITURA de Notion (title/rich_text = [{text:{content}}],
 // SIN plain_text). En Notion-first la respuesta volvía normalizada por Notion; bajo Supabase-first el patch va
@@ -20,9 +31,23 @@ export function normalizePatchForRaw(patch) {
   const out = {};
   for (const [k, v] of Object.entries(patch || {})) {
     if (v && Array.isArray(v.title)) {
-      out[k] = { ...v, title: v.title.map(x => ({ type: 'text', ...x, plain_text: x?.plain_text ?? x?.text?.content ?? '' })) };
+      out[k] = {
+        ...v,
+        title: v.title.map(x => ({
+          type: 'text',
+          ...x,
+          plain_text: x?.plain_text ?? x?.text?.content ?? '',
+        })),
+      };
     } else if (v && Array.isArray(v.rich_text)) {
-      out[k] = { ...v, rich_text: v.rich_text.map(x => ({ type: 'text', ...x, plain_text: x?.plain_text ?? x?.text?.content ?? '' })) };
+      out[k] = {
+        ...v,
+        rich_text: v.rich_text.map(x => ({
+          type: 'text',
+          ...x,
+          plain_text: x?.plain_text ?? x?.text?.content ?? '',
+        })),
+      };
     } else {
       out[k] = v; // select/date/multi_select/relation/number/url/checkbox: formato write == lo que lee el front
     }
@@ -35,10 +60,14 @@ export function normalizePatchForRaw(patch) {
 export async function mergeProps(table, notionId, patch) {
   if (!supafirstConfigured()) return { ok: false, found: false, reason: 'config' };
   const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/merge_props`, {
-    method: 'POST', headers: _H(),
+    method: 'POST',
+    headers: _H(),
     body: JSON.stringify({ p_table: table, p_notion_id: notionId, p_patch: normalizePatchForRaw(patch) }),
   });
-  if (!r.ok) { const detail = await r.text().catch(() => ''); return { ok: false, found: false, status: r.status, detail: detail.slice(0, 200) }; }
+  if (!r.ok) {
+    const detail = await r.text().catch(() => '');
+    return { ok: false, found: false, status: r.status, detail: detail.slice(0, 200) };
+  }
   const raw = await r.json().catch(() => null); // la RPC devuelve el raw mergeado, o null si 0 filas
   if (raw == null) return { ok: true, found: false };
   return { ok: true, found: true, raw };
@@ -48,7 +77,8 @@ export async function mergeProps(table, notionId, patch) {
 export async function enqueueOutbox(notionId, resource, patch) {
   if (!supafirstConfigured()) return { ok: false };
   const r = await fetch(`${SUPABASE_URL}/rest/v1/outbox_notion`, {
-    method: 'POST', headers: { ..._H(), Prefer: 'return=minimal' },
+    method: 'POST',
+    headers: { ..._H(), Prefer: 'return=minimal' },
     body: JSON.stringify([{ notion_id: notionId, resource, op: 'patch', payload: patch }]),
   });
   return { ok: r.ok, status: r.status };
@@ -61,11 +91,16 @@ export async function getMirrorRaw(tables, notionId) {
   if (!supafirstConfigured() || !notionId) return null;
   for (const t of tables) {
     try {
-      const r = await fetch(`${SUPABASE_URL}/rest/v1/${t}?notion_id=eq.${encodeURIComponent(notionId)}&select=raw&limit=1`, { headers: _H() });
+      const r = await fetch(
+        `${SUPABASE_URL}/rest/v1/${t}?notion_id=eq.${encodeURIComponent(notionId)}&select=raw&limit=1`,
+        { headers: _H() }
+      );
       if (!r.ok) continue;
       const rows = await r.json().catch(() => []);
       if (Array.isArray(rows) && rows.length && rows[0].raw) return { resource: t, raw: rows[0].raw };
-    } catch (_) { /* probar la siguiente tabla */ }
+    } catch (_) {
+      /* probar la siguiente tabla */
+    }
   }
   return null;
 }
@@ -74,9 +109,13 @@ export async function getMirrorRaw(tables, notionId) {
 // propagar sus patches viejos a Notion fallaría con 400 y quedarían envenenadas; mejor cancelarlas).
 export async function cancelOutboxForPage(notionId) {
   if (!supafirstConfigured() || !notionId) return { ok: false };
-  const r = await fetch(`${SUPABASE_URL}/rest/v1/outbox_notion?notion_id=eq.${encodeURIComponent(notionId)}&status=in.(pending,processing)`, {
-    method: 'PATCH', headers: { ..._H(), Prefer: 'return=minimal' },
-    body: JSON.stringify({ status: 'done', last_error: 'cancelada: página archivada/borrada' }),
-  });
+  const r = await fetch(
+    `${SUPABASE_URL}/rest/v1/outbox_notion?notion_id=eq.${encodeURIComponent(notionId)}&status=in.(pending,processing)`,
+    {
+      method: 'PATCH',
+      headers: { ..._H(), Prefer: 'return=minimal' },
+      body: JSON.stringify({ status: 'done', last_error: 'cancelada: página archivada/borrada' }),
+    }
+  );
   return { ok: r.ok, status: r.status };
 }

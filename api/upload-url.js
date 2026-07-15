@@ -65,7 +65,10 @@ async function notionGetPage(pageId) {
     if (r.status === 404) return { notFound: true };
     if (!r.ok) throw new Error('notion ' + r.status);
     return await r.json();
-  } catch (e) { clearTimeout(timer); throw e; }
+  } catch (e) {
+    clearTimeout(timer);
+    throw e;
+  }
 }
 
 // Devuelve null si OK; si no, { status, error } para responder.
@@ -80,8 +83,11 @@ async function checkServiceOwnership(serviceId, userId) {
   if (hit && Date.now() - hit < OWN_CACHE_MS) return null;
 
   let page;
-  try { page = await notionGetPage(serviceId); }
-  catch (_) { return { status: 503, error: 'no se pudo verificar el servicio, reintentá' }; }
+  try {
+    page = await notionGetPage(serviceId);
+  } catch (_) {
+    return { status: 503, error: 'no se pudo verificar el servicio, reintentá' };
+  }
   if (page.notFound || page.object !== 'page') return { status: 403, error: 'servicio inexistente' };
   const p = page.properties || {};
   if (p['🗄️ Archivado']?.checkbox === true) return { status: 403, error: 'servicio archivado' };
@@ -93,7 +99,7 @@ async function checkServiceOwnership(serviceId, userId) {
       p['Operario App']?.select?.name,
       p['Piloto']?.select?.name,
       p['Operario manual']?.select?.name,
-      ...((p['Operarios participantes']?.multi_select || []).map(o => o.name)),
+      ...(p['Operarios participantes']?.multi_select || []).map(o => o.name),
     ].filter(Boolean);
     if (!nombres.includes(u.nombre)) return { status: 403, error: 'servicio no asignado a este operario' };
   } else if (!esGlobal(u)) {
@@ -180,7 +186,9 @@ export default async function handler(req, res) {
   // (index.html fotos + recibos); un shell PWA muy viejo cacheado recibe 400 con instrucción de recargar.
   const n = Number(contentLength);
   if (contentLength == null || !Number.isFinite(n) || n <= 0) {
-    return res.status(400).json({ error: 'falta el tamaño del archivo — actualizá la app (recargala) e intentá de nuevo' });
+    return res
+      .status(400)
+      .json({ error: 'falta el tamaño del archivo — actualizá la app (recargala) e intentá de nuevo' });
   }
   if (n > MAX_UPLOAD_BYTES) {
     return res.status(400).json({ error: 'archivo demasiado grande (máx 15MB)' });

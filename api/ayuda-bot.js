@@ -56,7 +56,11 @@ async function rateLimitCheck(userId) {
     const bucket = Math.floor(Date.now() / RL_WINDOW_MS);
     const key = `rl:ayuda:${userId}:${bucket}`;
     const count = Number(await kvCmd(['INCR', key]));
-    if (count === 1) { try { await kvCmd(['EXPIRE', key, Math.ceil(RL_WINDOW_MS / 1000) + 60]); } catch (_) {} }
+    if (count === 1) {
+      try {
+        await kvCmd(['EXPIRE', key, Math.ceil(RL_WINDOW_MS / 1000) + 60]);
+      } catch (_) {}
+    }
     return !(Number.isFinite(count) && count > RL_MAX_CALLS);
   } catch (_) {
     return rateLimitInMemory();
@@ -117,7 +121,9 @@ export default async function handler(req, res) {
     return res.status(429).json({ error: 'Alcanzaste el límite de preguntas por ahora. Probá en un rato.' });
   }
 
-  const pregunta = String((req.body && req.body.pregunta) || '').trim().slice(0, 500);
+  const pregunta = String((req.body && req.body.pregunta) || '')
+    .trim()
+    .slice(0, 500);
   if (!pregunta) return res.status(400).json({ error: 'Falta la pregunta' });
   const historial = sanitizeHistorial(req.body && req.body.historial);
 
@@ -130,8 +136,9 @@ export default async function handler(req, res) {
       messages: [...historial, { role: 'user', content: pregunta }],
     });
     const textBlock = (response.content || []).find(b => b.type === 'text');
-    const respuesta = (textBlock && textBlock.text ? textBlock.text : '').trim()
-      || 'No estoy seguro de eso. Preguntale al coordinador o a Diego.';
+    const respuesta =
+      (textBlock && textBlock.text ? textBlock.text : '').trim() ||
+      'No estoy seguro de eso. Preguntale al coordinador o a Diego.';
     return res.status(200).json({ respuesta });
   } catch (err) {
     console.error('[ayuda-bot] error:', err && err.message ? String(err.message).slice(0, 200) : 'unknown');

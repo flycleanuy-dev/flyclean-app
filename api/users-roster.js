@@ -19,10 +19,17 @@ const ALLOWED_ORIGINS = [
 ];
 
 function hardcodedRoster() {
-  return Object.entries(USERS).map(([id, u]) => ({ id, nombre: u.nombre, rol: u.rol, pais: u.pais, emoji: null }));
+  return Object.entries(USERS).map(([id, u]) => ({
+    id,
+    nombre: u.nombre,
+    rol: u.rol,
+    pais: u.pais,
+    emoji: null,
+  }));
 }
 
-let _cache = null, _cacheAt = 0;
+let _cache = null,
+  _cacheAt = 0;
 const TTL = 60_000;
 
 export default async function handler(req, res) {
@@ -39,14 +46,23 @@ export default async function handler(req, res) {
   // probe NO pegamos a Supabase (servimos hardcoded directo). Si el fetch falla, dbRoster queda null → hardcoded.
   let dbRoster = null;
   if (USERS_FROM_DB || probe) {
-    if (_cache && (Date.now() - _cacheAt) < TTL) {
+    if (_cache && Date.now() - _cacheAt < TTL) {
       dbRoster = _cache;
     } else {
       try {
         const map = await loadUsersFromDb();
-        dbRoster = Object.entries(map).map(([id, u]) => ({ id, nombre: u.nombre, rol: u.rol, pais: u.pais, emoji: u.emoji || null }));
-        _cache = dbRoster; _cacheAt = Date.now();
-      } catch (_) { /* Supabase caído → servimos hardcoded */ }
+        dbRoster = Object.entries(map).map(([id, u]) => ({
+          id,
+          nombre: u.nombre,
+          rol: u.rol,
+          pais: u.pais,
+          emoji: u.emoji || null,
+        }));
+        _cache = dbRoster;
+        _cacheAt = Date.now();
+      } catch (_) {
+        /* Supabase caído → servimos hardcoded */
+      }
     }
   }
 

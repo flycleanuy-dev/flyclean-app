@@ -74,26 +74,29 @@
 //   (el request del cliente sigue siendo databases/{id}/query) → la matriz evalúa el endpoint PEDIDO,
 //   así que search queda en false para todos los roles enumerados.
 
-const norm = (s) => String(s || '').replace(/-/g, '').toLowerCase();
+const norm = s =>
+  String(s || '')
+    .replace(/-/g, '')
+    .toLowerCase();
 
 // IDs normalizados (sin guiones, lowercase). db = database_id · ds = data_source_id (los creates
 // de servicios/gastos/ingresos/solicitudes van por data_source_id; el resto por database_id).
 export const DB = {
-  serviciosDb:   'ccaf276c7f6a460caeb3d2800deab2e5',
-  serviciosDs:   '2fbc8a035c4f445c851671dd9b2eea78',
-  gastosDb:      '1e20cdabad5d41528d070ed2f6e9dad3',
-  gastosDs:      '58fd94759baf4d0e9128486185bf7ed8',
-  ingresosDb:    'd1e15376e83a408a8a52f47da33c249a',
-  ingresosDs:    '6bb3da36186546689d43cc6bb9966784',
-  propuestas:    '2c0a4257f4294941b994dfebc1098633',
-  contactos:     '250115612de74e0582366549bbe5e389',
-  activos:       'e75449eeb78143f1b74006a4796c1f95',
-  activosDs:     'c3cf41a0a16041668d3d1bbd90af45ff', // data source de Activos (módulo 🔧 Equipos crea con data_source_id)
-  equipo:        'cfff6e26dbc84eedb7eabcb6c51db1eb',
-  regTiempo:     '57bc613af5d04908a9f2342cf6a1a5a7',
+  serviciosDb: 'ccaf276c7f6a460caeb3d2800deab2e5',
+  serviciosDs: '2fbc8a035c4f445c851671dd9b2eea78',
+  gastosDb: '1e20cdabad5d41528d070ed2f6e9dad3',
+  gastosDs: '58fd94759baf4d0e9128486185bf7ed8',
+  ingresosDb: 'd1e15376e83a408a8a52f47da33c249a',
+  ingresosDs: '6bb3da36186546689d43cc6bb9966784',
+  propuestas: '2c0a4257f4294941b994dfebc1098633',
+  contactos: '250115612de74e0582366549bbe5e389',
+  activos: 'e75449eeb78143f1b74006a4796c1f95',
+  activosDs: 'c3cf41a0a16041668d3d1bbd90af45ff', // data source de Activos (módulo 🔧 Equipos crea con data_source_id)
+  equipo: 'cfff6e26dbc84eedb7eabcb6c51db1eb',
+  regTiempo: '57bc613af5d04908a9f2342cf6a1a5a7',
   solicitudesDb: '0f5cd38362ab430293a5dec7140ac18f',
   solicitudesDs: '0d49d6121fea40d78b94d2b0dcae1b12',
-  documentosDb:  'f888bd9c89e0497a9d2c57594aacd663',
+  documentosDb: 'f888bd9c89e0497a9d2c57594aacd663',
 };
 
 // Clave de rol → permisos. La clave se matchea por .includes() contra u.rol de api/_lib/users.js
@@ -101,30 +104,70 @@ export const DB = {
 // En los creates se listan db id Y ds id: el cliente crea con data_source_id en unas bases y con
 // database_id en otras — aceptar ambos evita falsos DENEGARÍA por la forma del parent.
 export const PERMISOS = {
-  'Dirección': '*',
-  'CEO': '*',
-  'Coordinador': {
-    query: [DB.serviciosDb, DB.propuestas, DB.contactos, DB.ingresosDb, DB.gastosDb,
-            DB.solicitudesDb, DB.activos, DB.regTiempo, DB.documentosDb],
-    create: [DB.serviciosDb, DB.serviciosDs, DB.contactos, DB.propuestas,
-             DB.gastosDb, DB.gastosDs, DB.solicitudesDb, DB.solicitudesDs, DB.regTiempo,
-             // Módulo 🔧 Equipos (v167): alta de activo + check mensual/service/estado (PATCH pages de Activos)
-             DB.activos, DB.activosDs],
+  Dirección: '*',
+  CEO: '*',
+  Coordinador: {
+    query: [
+      DB.serviciosDb,
+      DB.propuestas,
+      DB.contactos,
+      DB.ingresosDb,
+      DB.gastosDb,
+      DB.solicitudesDb,
+      DB.activos,
+      DB.regTiempo,
+      DB.documentosDb,
+    ],
+    create: [
+      DB.serviciosDb,
+      DB.serviciosDs,
+      DB.contactos,
+      DB.propuestas,
+      DB.gastosDb,
+      DB.gastosDs,
+      DB.solicitudesDb,
+      DB.solicitudesDs,
+      DB.regTiempo,
+      // Módulo 🔧 Equipos (v167): alta de activo + check mensual/service/estado (PATCH pages de Activos)
+      DB.activos,
+      DB.activosDs,
+    ],
     search: false,
   },
-  'Operario': {
+  Operario: {
     query: [DB.serviciosDb, DB.gastosDb, DB.solicitudesDb, DB.activos, DB.regTiempo],
-    create: [DB.serviciosDb, DB.serviciosDs, DB.gastosDb, DB.gastosDs,
-             // Equipos v2: DB.activos habilita el PATCH (reporte semanal km/horas/nota del responsable).
-             // SIN activosDs a propósito: el operario NO puede crear equipos, solo editar los existentes.
-             DB.solicitudesDb, DB.solicitudesDs, DB.activos],
+    create: [
+      DB.serviciosDb,
+      DB.serviciosDs,
+      DB.gastosDb,
+      DB.gastosDs,
+      // Equipos v2: DB.activos habilita el PATCH (reporte semanal km/horas/nota del responsable).
+      // SIN activosDs a propósito: el operario NO puede crear equipos, solo editar los existentes.
+      DB.solicitudesDb,
+      DB.solicitudesDs,
+      DB.activos,
+    ],
     search: false,
   },
-  'Administración': {
-    query: [DB.gastosDb, DB.ingresosDb, DB.serviciosDb, DB.propuestas, DB.contactos,
-            DB.activos, DB.regTiempo],
-    create: [DB.ingresosDb, DB.ingresosDs, DB.gastosDb, DB.gastosDs,
-             DB.serviciosDb, DB.serviciosDs, DB.contactos],
+  Administración: {
+    query: [
+      DB.gastosDb,
+      DB.ingresosDb,
+      DB.serviciosDb,
+      DB.propuestas,
+      DB.contactos,
+      DB.activos,
+      DB.regTiempo,
+    ],
+    create: [
+      DB.ingresosDb,
+      DB.ingresosDs,
+      DB.gastosDb,
+      DB.gastosDs,
+      DB.serviciosDb,
+      DB.serviciosDs,
+      DB.contactos,
+    ],
     search: false,
   },
 };
@@ -136,7 +179,7 @@ export const PERMISOS = {
 //   dbId: database_id o data_source_id del request (con o sin guiones; se normaliza acá).
 export function checkPermiso(u, { tipo, dbId } = {}) {
   const rol = String(u?.rol || '');
-  const clave = Object.keys(PERMISOS).find((k) => rol.includes(k));
+  const clave = Object.keys(PERMISOS).find(k => rol.includes(k));
   if (!u || !clave) return { ok: false, motivo: 'rol desconocido' };
   const p = PERMISOS[clave];
   if (p === '*') return { ok: true };

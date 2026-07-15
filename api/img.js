@@ -6,7 +6,11 @@ export default async function handler(req, res) {
   const u = req.query?.u;
   if (!u || typeof u !== 'string') return res.status(400).send('missing u');
   let url;
-  try { url = new URL(u); } catch { return res.status(400).send('bad url'); }
+  try {
+    url = new URL(u);
+  } catch {
+    return res.status(400).send('bad url');
+  }
   if (url.protocol !== 'https:' || url.hostname !== 'cdn.flyclean.app') {
     return res.status(403).send('forbidden host');
   }

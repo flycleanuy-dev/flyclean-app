@@ -7,7 +7,9 @@ import crypto from 'node:crypto';
 const KV_URL = process.env.KV_REST_API_URL || '';
 const KV_TOKEN = process.env.KV_REST_API_TOKEN || '';
 
-export function kvConfigured() { return !!(KV_URL && KV_TOKEN); }
+export function kvConfigured() {
+  return !!(KV_URL && KV_TOKEN);
+}
 
 // Upstash REST: POST <url> con body ["CMD", arg, ...] y Authorization: Bearer <token>.
 // Exportado: también lo usa api/_lib/recipients.js (destinatarios de reportes) — mismo KV, mismo patrón.
@@ -36,13 +38,19 @@ export function verifyPinHash(pin, stored) {
     const dk = crypto.scryptSync(String(pin), Buffer.from(saltHex, 'hex'), 32);
     const a = Buffer.from(hashHex, 'hex');
     return a.length === dk.length && crypto.timingSafeEqual(a, dk);
-  } catch { return false; }
+  } catch {
+    return false;
+  }
 }
 
 // Devuelve el hash custom del usuario (o null si no tiene / KV no disponible).
 export async function getUserPinHash(id) {
   if (!kvConfigured()) return null;
-  try { return await kvCmd(['GET', `pin:${id}`]); } catch { return null; }
+  try {
+    return await kvCmd(['GET', `pin:${id}`]);
+  } catch {
+    return null;
+  }
 }
 
 export async function setUserPinHash(id, hash) {

@@ -4,8 +4,13 @@ import { readFileSync } from 'node:fs';
 
 const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
 const re = /<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/gi;
-let m, all = '', n = 0;
-while ((m = re.exec(html))) { all += '\n;{\n' + m[1] + '\n};\n'; n++; }
+let m,
+  all = '',
+  n = 0;
+while ((m = re.exec(html))) {
+  all += '\n;{\n' + m[1] + '\n};\n';
+  n++;
+}
 
 try {
   new Function(all); // lanza SyntaxError si algún bloque no parsea

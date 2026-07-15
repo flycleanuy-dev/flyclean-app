@@ -6,7 +6,13 @@ import { kvCmd, kvConfigured } from './pins.js';
 
 const KV_KEY = 'config:app:v1';
 
-export const REGLAS_KEYS = ['pipelineAviso', 'pipelineSinRespuesta', 'mantenimientoDias', 'ventasSnoozeDias', 'prospectoDias'];
+export const REGLAS_KEYS = [
+  'pipelineAviso',
+  'pipelineSinRespuesta',
+  'mantenimientoDias',
+  'ventasSnoozeDias',
+  'prospectoDias',
+];
 export const WA_KEYS = ['prop', 'prospecto', 'cliente'];
 const MAX_CHECKLIST_ITEMS = 40;
 const MAX_ITEM_LEN = 140;
@@ -19,14 +25,16 @@ export async function getAppConfig() {
     const raw = await kvCmd(['GET', KV_KEY]);
     if (!raw) return {};
     const obj = JSON.parse(raw);
-    return (obj && typeof obj === 'object' && !Array.isArray(obj)) ? obj : {};
-  } catch { return {}; }
+    return obj && typeof obj === 'object' && !Array.isArray(obj) ? obj : {};
+  } catch {
+    return {};
+  }
 }
 
 // Solo las reglas (para cron-pipeline). null si no hay override → el cron usa sus constantes.
 export async function getReglas() {
   const c = await getAppConfig();
-  return (c.reglas && typeof c.reglas === 'object') ? c.reglas : null;
+  return c.reglas && typeof c.reglas === 'object' ? c.reglas : null;
 }
 
 const MAX_TARIFAS = 60;
@@ -38,11 +46,13 @@ const COSTO_KEYS = ['m2Dron', 'm2Manual', 'margen', 'minimo'];
 export function validateAppConfig(cfg) {
   if (!cfg || typeof cfg !== 'object' || Array.isArray(cfg)) return 'config inválida';
   const allowedTop = ['reglas', 'checklistPre', 'checklistPost', 'waTemplates', 'tarifas', 'costos'];
-  for (const k of Object.keys(cfg)) if (!allowedTop.includes(k)) return `clave desconocida: ${String(k).slice(0, 30)}`;
+  for (const k of Object.keys(cfg))
+    if (!allowedTop.includes(k)) return `clave desconocida: ${String(k).slice(0, 30)}`;
 
   // tarifas: { <operarioId>: { dron:number, manual:number } } — jornal por método.
   if (cfg.tarifas !== undefined) {
-    if (!cfg.tarifas || typeof cfg.tarifas !== 'object' || Array.isArray(cfg.tarifas)) return 'tarifas inválidas';
+    if (!cfg.tarifas || typeof cfg.tarifas !== 'object' || Array.isArray(cfg.tarifas))
+      return 'tarifas inválidas';
     const ids = Object.keys(cfg.tarifas);
     if (ids.length > MAX_TARIFAS) return `máximo ${MAX_TARIFAS} tarifas`;
     for (const id of ids) {
@@ -51,7 +61,8 @@ export function validateAppConfig(cfg) {
       if (!v || typeof v !== 'object' || Array.isArray(v)) return `tarifa de "${id}" inválida`;
       for (const [mk, mv] of Object.entries(v)) {
         if (!['dron', 'manual'].includes(mk)) return `método desconocido en "${id}"`;
-        if (typeof mv !== 'number' || !isFinite(mv) || mv < 0 || mv > 10000000) return `tarifa de "${id}" fuera de rango`;
+        if (typeof mv !== 'number' || !isFinite(mv) || mv < 0 || mv > 10000000)
+          return `tarifa de "${id}" fuera de rango`;
       }
     }
   }
@@ -73,8 +84,10 @@ export function validateAppConfig(cfg) {
       if (!REGLAS_KEYS.includes(k)) return `regla desconocida: ${String(k).slice(0, 30)}`;
       if (!Number.isInteger(v) || v < 1 || v > 3650) return `"${k}" debe ser un entero entre 1 y 3650 días`;
     }
-    const a = cfg.reglas.pipelineAviso, s = cfg.reglas.pipelineSinRespuesta;
-    if (Number.isInteger(a) && Number.isInteger(s) && a >= s) return 'el aviso de seguimiento debe ser MENOR que los días de "sin respuesta"';
+    const a = cfg.reglas.pipelineAviso,
+      s = cfg.reglas.pipelineSinRespuesta;
+    if (Number.isInteger(a) && Number.isInteger(s) && a >= s)
+      return 'el aviso de seguimiento debe ser MENOR que los días de "sin respuesta"';
   }
 
   for (const key of ['checklistPre', 'checklistPost']) {
@@ -82,20 +95,23 @@ export function validateAppConfig(cfg) {
       if (!Array.isArray(cfg[key])) return `${key} debe ser una lista`;
       if (cfg[key].length > MAX_CHECKLIST_ITEMS) return `máximo ${MAX_CHECKLIST_ITEMS} ítems de checklist`;
       for (const it of cfg[key]) {
-        if (typeof it !== 'string' || !it.trim() || it.length > MAX_ITEM_LEN) return 'cada ítem debe ser texto de 1 a 140 caracteres';
+        if (typeof it !== 'string' || !it.trim() || it.length > MAX_ITEM_LEN)
+          return 'cada ítem debe ser texto de 1 a 140 caracteres';
         if (/[<>]/.test(it)) return 'los ítems no pueden contener < o >';
       }
     }
   }
 
   if (cfg.waTemplates !== undefined) {
-    if (!cfg.waTemplates || typeof cfg.waTemplates !== 'object' || Array.isArray(cfg.waTemplates)) return 'plantillas inválidas';
+    if (!cfg.waTemplates || typeof cfg.waTemplates !== 'object' || Array.isArray(cfg.waTemplates))
+      return 'plantillas inválidas';
     for (const [k, v] of Object.entries(cfg.waTemplates)) {
       if (!WA_KEYS.includes(k)) return `plantilla desconocida: ${String(k).slice(0, 30)}`;
       if (!v || typeof v !== 'object' || Array.isArray(v)) return `plantilla "${k}" inválida`;
       for (const [lang, txt] of Object.entries(v)) {
         if (!['es', 'pt'].includes(lang)) return `idioma desconocido en "${k}"`;
-        if (typeof txt !== 'string' || txt.length > MAX_WA_LEN) return `la plantilla "${k}" (${lang}) supera ${MAX_WA_LEN} caracteres`;
+        if (typeof txt !== 'string' || txt.length > MAX_WA_LEN)
+          return `la plantilla "${k}" (${lang}) supera ${MAX_WA_LEN} caracteres`;
         if (/[<>]/.test(txt)) return 'las plantillas no pueden contener < o >';
       }
     }

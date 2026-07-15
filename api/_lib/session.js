@@ -19,7 +19,7 @@ function signingKey() {
   return crypto.createHmac('sha256', base).update('flyclean-session-v1').digest();
 }
 
-const b64u = (buf) => Buffer.from(buf).toString('base64url');
+const b64u = buf => Buffer.from(buf).toString('base64url');
 
 export function signSession(payload) {
   const body = b64u(JSON.stringify({ ...payload, exp: Date.now() + TTL_MS }));
@@ -35,12 +35,20 @@ export function verifySession(token) {
   const body = token.slice(0, i);
   const sig = token.slice(i + 1);
   let expected;
-  try { expected = b64u(crypto.createHmac('sha256', signingKey()).update(body).digest()); } catch { return null; }
+  try {
+    expected = b64u(crypto.createHmac('sha256', signingKey()).update(body).digest());
+  } catch {
+    return null;
+  }
   const a = Buffer.from(sig);
   const b = Buffer.from(expected);
   if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return null;
   let payload;
-  try { payload = JSON.parse(Buffer.from(body, 'base64url').toString('utf8')); } catch { return null; }
+  try {
+    payload = JSON.parse(Buffer.from(body, 'base64url').toString('utf8'));
+  } catch {
+    return null;
+  }
   if (!payload || typeof payload.exp !== 'number' || Date.now() > payload.exp) return null;
   return payload;
 }
@@ -61,5 +69,7 @@ export function maybeRenewSession(res, session) {
     res.setHeader('X-Session-Renew', signSession({ id: session.id }));
     // CORS: sin esto el browser no deja leer el header custom desde fetch.
     res.setHeader('Access-Control-Expose-Headers', 'X-Session-Renew');
-  } catch (_) { /* sin secreto de firma → no renovar (fail-quiet; la sesión vigente sigue) */ }
+  } catch (_) {
+    /* sin secreto de firma → no renovar (fail-quiet; la sesión vigente sigue) */
+  }
 }

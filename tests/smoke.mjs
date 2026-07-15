@@ -24,10 +24,17 @@ function loadNotionDbs() {
 }
 const NOTION_DBS = loadNotionDbs();
 
-let pass = 0, fail = 0;
+let pass = 0,
+  fail = 0;
 async function test(name, fn) {
-  try { await fn(); console.log('  ✓', name); pass++; }
-  catch (e) { console.error('  ✗', name, '—', e.message); fail++; }
+  try {
+    await fn();
+    console.log('  ✓', name);
+    pass++;
+  } catch (e) {
+    console.error('  ✗', name, '—', e.message);
+    fail++;
+  }
 }
 
 // El proxy /api/notion ahora EXIGE token de sesión (auth #1). Sin token responde 401 (enforce).

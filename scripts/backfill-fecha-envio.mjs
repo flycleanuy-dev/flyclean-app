@@ -20,13 +20,18 @@ if (!process.env.NOTION_TOKEN) {
 }
 const dry = ['1', 'true', 'yes'].includes(String(process.env.DRY || '').toLowerCase());
 
-console.log(`Backfill 'Fecha de envío' · estados de espera (${ESTADOS_ESPERA.join(', ')}) · ${dry ? 'DRY RUN (no escribe)' : 'ESCRIBIENDO EN NOTION'}\n`);
+console.log(
+  `Backfill 'Fecha de envío' · estados de espera (${ESTADOS_ESPERA.join(', ')}) · ${dry ? 'DRY RUN (no escribe)' : 'ESCRIBIENDO EN NOTION'}\n`
+);
 
 const propuestas = await queryAll(PROPUESTAS_DB, {
   filter: { or: ESTADOS_ESPERA.map(s => ({ property: 'Estado pipeline', select: { equals: s } })) },
 });
 
-let candidatas = 0, escritas = 0, errores = 0, sinCreatedTime = 0;
+let candidatas = 0,
+  escritas = 0,
+  errores = 0,
+  sinCreatedTime = 0;
 
 for (const p of propuestas) {
   const pr = p.properties || {};
@@ -56,9 +61,12 @@ for (const p of propuestas) {
   }
 }
 
-console.log(`\nListo. ${propuestas.length} propuesta(s) en estados de espera revisadas · ${candidatas} sin 'Fecha de envío'` +
-  (dry ? ' (simuladas, nada escrito)' : ` · ${escritas} escrita(s)`) +
-  (sinCreatedTime ? ` · ${sinCreatedTime} sin created_time` : '') +
-  (errores ? ` · ${errores} error(es)` : '') + '.');
+console.log(
+  `\nListo. ${propuestas.length} propuesta(s) en estados de espera revisadas · ${candidatas} sin 'Fecha de envío'` +
+    (dry ? ' (simuladas, nada escrito)' : ` · ${escritas} escrita(s)`) +
+    (sinCreatedTime ? ` · ${sinCreatedTime} sin created_time` : '') +
+    (errores ? ` · ${errores} error(es)` : '') +
+    '.'
+);
 
 process.exit(errores ? 1 : 0);

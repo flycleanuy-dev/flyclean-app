@@ -6,7 +6,11 @@ const NOTION_VERSION = '2022-06-28';
 function headers() {
   const token = process.env.NOTION_TOKEN;
   if (!token) throw new Error('NOTION_TOKEN no configurado');
-  return { Authorization: `Bearer ${token}`, 'Notion-Version': NOTION_VERSION, 'Content-Type': 'application/json' };
+  return {
+    Authorization: `Bearer ${token}`,
+    'Notion-Version': NOTION_VERSION,
+    'Content-Type': 'application/json',
+  };
 }
 
 // Query con paginación. Devuelve TODAS las páginas.
@@ -15,15 +19,20 @@ function headers() {
 // filtra por parent database id (igual que api/notion.js). OJO: en ese caso el
 // `filter` server-side NO aplica → hay que filtrar client-side.
 export async function queryAll(databaseId, body = {}) {
-  let results = [], cursor;
+  let results = [],
+    cursor;
   do {
     const r = await fetch(`${NOTION_BASE}/databases/${databaseId}/query`, {
-      method: 'POST', headers: headers(),
+      method: 'POST',
+      headers: headers(),
       body: JSON.stringify({ ...body, page_size: 100, ...(cursor ? { start_cursor: cursor } : {}) }),
     });
     const d = await r.json();
     if (!r.ok) {
-      if (d.code === 'validation_error' && d.additional_data?.error_type === 'multiple_data_sources_for_database') {
+      if (
+        d.code === 'validation_error' &&
+        d.additional_data?.error_type === 'multiple_data_sources_for_database'
+      ) {
         return searchByParent(databaseId);
       }
       throw new Error(`Notion query ${databaseId}: ${d.message || r.status}`);
@@ -35,13 +44,19 @@ export async function queryAll(databaseId, body = {}) {
 }
 
 async function searchByParent(dbId) {
-  const norm = (s) => (s || '').replace(/-/g, '');
+  const norm = s => (s || '').replace(/-/g, '');
   const target = norm(dbId);
-  let all = [], cursor;
+  let all = [],
+    cursor;
   do {
     const r = await fetch(`${NOTION_BASE}/search`, {
-      method: 'POST', headers: headers(),
-      body: JSON.stringify({ filter: { property: 'object', value: 'page' }, page_size: 100, ...(cursor ? { start_cursor: cursor } : {}) }),
+      method: 'POST',
+      headers: headers(),
+      body: JSON.stringify({
+        filter: { property: 'object', value: 'page' },
+        page_size: 100,
+        ...(cursor ? { start_cursor: cursor } : {}),
+      }),
     });
     const d = await r.json();
     if (!r.ok) throw new Error(`Notion search: ${d.message || r.status}`);
@@ -53,7 +68,9 @@ async function searchByParent(dbId) {
 
 export async function updatePage(pageId, properties) {
   const r = await fetch(`${NOTION_BASE}/pages/${pageId}`, {
-    method: 'PATCH', headers: headers(), body: JSON.stringify({ properties }),
+    method: 'PATCH',
+    headers: headers(),
+    body: JSON.stringify({ properties }),
   });
   const d = await r.json();
   if (!r.ok) throw new Error(`Notion update ${pageId}: ${d.message || r.status}`);

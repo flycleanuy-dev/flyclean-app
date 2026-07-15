@@ -15,9 +15,7 @@ export default function handler(req, res) {
     'https://flyclean-app.vercel.app',
     /^https:\/\/flyclean-app-[a-z0-9]+-fly-clean-app-s-projects\.vercel\.app$/,
   ];
-  const originAllowed = allowedOrigins.some(o =>
-    typeof o === 'string' ? o === origin : o.test(origin)
-  );
+  const originAllowed = allowedOrigins.some(o => (typeof o === 'string' ? o === origin : o.test(origin)));
   res.setHeader('Access-Control-Allow-Origin', originAllowed ? origin : 'https://flyclean.app');
   res.setHeader('Vary', 'Origin');
   res.setHeader('Cache-Control', 'public, max-age=60');
@@ -28,6 +26,6 @@ export default function handler(req, res) {
   return res.status(200).json({
     web: APP_VERSION,
     minApkRequired: MIN_APK_VERSION_REQUIRED,
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   });
 }

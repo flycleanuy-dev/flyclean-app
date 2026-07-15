@@ -1,9 +1,15 @@
 import { verifySession, tokenFromReq, maybeRenewSession } from './_lib/session.js';
-import { userById, resolveUser, esVentas, esGlobal, paisCoincide } from './_lib/users.js';
+import { resolveUser, esVentas, esGlobal, paisCoincide } from './_lib/users.js';
 import { checkPermiso } from './_lib/permisos.js';
 import { resourceFromPage, DBS } from './_lib/notion-map.js';
 import { mirrorPage, deleteRowByNotionId } from './_lib/mirror.js';
-import { mergeProps, enqueueOutbox, supafirstSet, getMirrorRaw, cancelOutboxForPage } from './_lib/supafirst.js';
+import {
+  mergeProps,
+  enqueueOutbox,
+  supafirstSet,
+  getMirrorRaw,
+  cancelOutboxForPage,
+} from './_lib/supafirst.js';
 
 // Fase 3a.1 — espejo garantizado: tras un PATCH/POST EXITOSO a Notion, reflejar esa página en Supabase desde
 // el proxy (cierra los huecos de syncAfterWrite: operario, gastos, drain offline, creates). await inline con
@@ -56,12 +62,15 @@ const ACTIVOS_NORM = 'e75449eeb78143f1b74006a4796c1f95';
 // Equipos v2 — backstop del OPERARIO sobre Activos: su PATCH solo puede escribir los campos del reporte
 // semanal (km/horas/fecha/historial). Cualquier otra property, in_trash, archived, etc. se rechaza.
 const ACTIVOS_OPERARIO_PROPS = ['Km actuales', 'Horas de vuelo', 'Último check', 'Historial equipo'];
-const norm = s => String(s || '').replace(/-/g, '').toLowerCase();
+const norm = s =>
+  String(s || '')
+    .replace(/-/g, '')
+    .toLowerCase();
 
 // Margen amplio para que los reintentos no choquen con el límite de duración de la función.
 export const config = { maxDuration: 30 };
 
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 // fetch a Notion con timeout (AbortController) + reintento ante 429 (rate-limit), 5xx o error de red.
 // La API de Notion se rate-limitea / se cuelga bajo carga (sobre todo la search API que usa el
@@ -85,7 +94,10 @@ async function notionFetch(url, options, { retries = 1, timeoutMs = 9000 } = {})
     } catch (e) {
       clearTimeout(timer);
       lastErr = e;
-      if (attempt < retries) { await sleep(500 * (attempt + 1)); continue; }
+      if (attempt < retries) {
+        await sleep(500 * (attempt + 1));
+        continue;
+      }
       throw e;
     }
   }
@@ -100,9 +112,7 @@ export default async function handler(req, res) {
     'https://flyclean-app.vercel.app',
     /^https:\/\/flyclean-app-[a-z0-9]+-fly-clean-app-s-projects\.vercel\.app$/,
   ];
-  const originAllowed = allowedOrigins.some(o =>
-    typeof o === 'string' ? o === origin : o.test(origin)
-  );
+  const originAllowed = allowedOrigins.some(o => (typeof o === 'string' ? o === origin : o.test(origin)));
 
   res.setHeader('Access-Control-Allow-Origin', originAllowed ? origin : 'https://flyclean.app');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -152,11 +162,15 @@ export default async function handler(req, res) {
     const mQuery = endpointNorm.match(/^databases\/([a-f0-9-]{32,36})(\/query)?$/);
     const mPage = endpointNorm.match(/^pages\/([a-f0-9-]{32,36})$/);
     if (mQuery) {
-      if (![CONTACTOS_NORM, PROPUESTAS_NORM, SERVICIOS_NORM].includes(norm(mQuery[1]))) return res.status(403).json({ error: 'forbidden: rol Ventas solo accede a clientes, propuestas y servicios' });
+      if (![CONTACTOS_NORM, PROPUESTAS_NORM, SERVICIOS_NORM].includes(norm(mQuery[1])))
+        return res
+          .status(403)
+          .json({ error: 'forbidden: rol Ventas solo accede a clientes, propuestas y servicios' });
     } else if (endpointNorm === 'pages') {
       // crear página: solo Contactos por database_id, y SIN data_source_id (evita smuggling a otra base)
       const p = body?.parent || {};
-      if (norm(p.database_id) !== CONTACTOS_NORM || p.data_source_id) return res.status(403).json({ error: 'forbidden: rol Ventas solo crea clientes' });
+      if (norm(p.database_id) !== CONTACTOS_NORM || p.data_source_id)
+        return res.status(403).json({ error: 'forbidden: rol Ventas solo crea clientes' });
     } else if (mPage) {
       // leer/editar una página por id: verificar server-side el parent real de la página. Sin esto,
       // Ventas podía cosechar ids de servicios/ingresos desde relaciones y leerlos/editarlos por
@@ -178,14 +192,22 @@ export default async function handler(req, res) {
           if (httpMethod === 'PATCH') {
             const topKeys = Object.keys(body || {});
             const propKeys = Object.keys(body?.properties || {});
-            const soloSeguimiento = topKeys.length === 1 && topKeys[0] === 'properties'
-              && propKeys.length === 1 && propKeys[0] === 'Última interacción';
-            if (!soloSeguimiento) return res.status(403).json({ error: 'forbidden: rol Ventas solo registra seguimiento en propuestas' });
+            const soloSeguimiento =
+              topKeys.length === 1 &&
+              topKeys[0] === 'properties' &&
+              propKeys.length === 1 &&
+              propKeys[0] === 'Última interacción';
+            if (!soloSeguimiento)
+              return res
+                .status(403)
+                .json({ error: 'forbidden: rol Ventas solo registra seguimiento en propuestas' });
           }
         } else {
           return res.status(403).json({ error: 'forbidden: rol Ventas solo clientes y propuestas' });
         }
-      } catch (e) { return res.status(403).json({ error: 'forbidden' }); }
+      } catch (e) {
+        return res.status(403).json({ error: 'forbidden' });
+      }
     } else if (endpointNorm === 'search') {
       return res.status(403).json({ error: 'forbidden: rol Ventas' });
     }
@@ -206,7 +228,8 @@ export default async function handler(req, res) {
       if (mPagePatch) {
         try {
           const metaRes = await notionFetch(`https://api.notion.com/v1/pages/${mPagePatch[1]}`, {
-            method: 'GET', headers: { Authorization: `Bearer ${token}`, 'Notion-Version': '2022-06-28' },
+            method: 'GET',
+            headers: { Authorization: `Bearer ${token}`, 'Notion-Version': '2022-06-28' },
           });
           const meta = await metaRes.json();
           patchMeta = meta;
@@ -214,8 +237,19 @@ export default async function handler(req, res) {
           if (parentDb) {
             const perm = checkPermiso(u, { tipo: 'create', dbId: parentDb });
             if (!perm.ok) {
-              console.warn('[perms] DENEGARÍA', JSON.stringify({ rol: u?.rol, id: session?.id, tipo: 'page-patch', db: parentDb, endpoint: endpointNorm, motivo: perm.motivo }));
-              if (ENFORCE_PERMS) return res.status(403).json({ error: 'forbidden: tu rol no puede editar esa base' });
+              console.warn(
+                '[perms] DENEGARÍA',
+                JSON.stringify({
+                  rol: u?.rol,
+                  id: session?.id,
+                  tipo: 'page-patch',
+                  db: parentDb,
+                  endpoint: endpointNorm,
+                  motivo: perm.motivo,
+                })
+              );
+              if (ENFORCE_PERMS)
+                return res.status(403).json({ error: 'forbidden: tu rol no puede editar esa base' });
             }
             // Nivel PÁGINA (Codex R2 #2, 2026-07-07) — el meta ya está descargado, los checks son gratis:
             // (a) PAÍS: un rol no-global no debería editar una página de otro país. Acompaña el flag
@@ -228,13 +262,32 @@ export default async function handler(req, res) {
             // ("🇺🇾 UY"). Antes solo el nombre → un coord editando Activos/Solicitudes/Documentos/Gastos/
             // Ingresos (código corto) daba 403 "otro país" siendo del MISMO país (bug del módulo Equipos).
             if (!esGlobal(u) && paisPagina && u?.pais && !paisCoincide(paisPagina, u.pais)) {
-              console.warn('[perms] DENEGARÍA', JSON.stringify({ rol: u?.rol, id: session?.id, tipo: 'page-patch-pais', db: parentDb, paisPagina, paisUser: u.pais }));
+              console.warn(
+                '[perms] DENEGARÍA',
+                JSON.stringify({
+                  rol: u?.rol,
+                  id: session?.id,
+                  tipo: 'page-patch-pais',
+                  db: parentDb,
+                  paisPagina,
+                  paisUser: u.pais,
+                })
+              );
               if (ENFORCE_PERMS) return res.status(403).json({ error: 'forbidden: página de otro país' });
             }
             if ((u?.rol || '').includes('Operario') && parentDb === SERVICIOS_NORM) {
               const owner = pProps['Operario App']?.select?.name || '';
               if (owner && owner !== u.nombre) {
-                console.warn('[perms] DENEGARÍA', JSON.stringify({ rol: u?.rol, id: session?.id, tipo: 'page-patch-owner', db: parentDb, owner }));
+                console.warn(
+                  '[perms] DENEGARÍA',
+                  JSON.stringify({
+                    rol: u?.rol,
+                    id: session?.id,
+                    tipo: 'page-patch-owner',
+                    db: parentDb,
+                    owner,
+                  })
+                );
               }
             }
             // Equipos v2 — backstop OPERARIO↔ACTIVOS (hallazgo del review 2026-07-14): el permiso amplio de la
@@ -244,25 +297,45 @@ export default async function handler(req, res) {
             if ((u?.rol || '').includes('Operario') && parentDb === ACTIVOS_NORM) {
               const topKeys = Object.keys(body || {});
               const propKeys = Object.keys(body?.properties || {});
-              const soloReporte = topKeys.length === 1 && topKeys[0] === 'properties'
-                && propKeys.length > 0 && propKeys.every(k => ACTIVOS_OPERARIO_PROPS.includes(k));
+              const soloReporte =
+                topKeys.length === 1 &&
+                topKeys[0] === 'properties' &&
+                propKeys.length > 0 &&
+                propKeys.every(k => ACTIVOS_OPERARIO_PROPS.includes(k));
               const respPagina = pProps['Responsable App']?.select?.name || '';
               if (!soloReporte || respPagina !== u.nombre) {
-                console.warn('[perms] DENEGADO', JSON.stringify({ rol: u?.rol, id: session?.id, tipo: 'activo-operario', db: parentDb, soloReporte, respPagina }));
+                console.warn(
+                  '[perms] DENEGADO',
+                  JSON.stringify({
+                    rol: u?.rol,
+                    id: session?.id,
+                    tipo: 'activo-operario',
+                    db: parentDb,
+                    soloReporte,
+                    respPagina,
+                  })
+                );
                 return res.status(403).json({ error: 'forbidden: solo el reporte semanal de tus equipos' });
               }
             }
           }
-        } catch (e) { if (ENFORCE_PERMS) return res.status(403).json({ error: 'forbidden: no verificable' }); }
+        } catch (e) {
+          if (ENFORCE_PERMS) return res.status(403).json({ error: 'forbidden: no verificable' });
+        }
       }
     }
 
-    let tipo = null, dbId = '';
+    let tipo = null,
+      dbId = '';
     const mQuery = endpointNorm.match(/^databases\/([a-f0-9-]{32,36})\/query$/);
     const mSchema = endpointNorm.match(/^databases\/([a-f0-9-]{32,36})$/);
-    if (mQuery) { tipo = 'query'; dbId = mQuery[1]; }
-    else if (mSchema) { tipo = 'schema'; dbId = mSchema[1]; }
-    else if (endpointNorm === 'pages' && httpMethod === 'POST') {
+    if (mQuery) {
+      tipo = 'query';
+      dbId = mQuery[1];
+    } else if (mSchema) {
+      tipo = 'schema';
+      dbId = mSchema[1];
+    } else if (endpointNorm === 'pages' && httpMethod === 'POST') {
       // create: el parent puede venir por database_id o por data_source_id (servicios/gastos/
       // ingresos/solicitudes crean por data source) — la matriz acepta ambos ids normalizados.
       tipo = 'create';
@@ -273,13 +346,26 @@ export default async function handler(req, res) {
     if (tipo) {
       const perm = checkPermiso(u, { tipo, dbId });
       if (!perm.ok) {
-        console.warn('[perms] DENEGARÍA', JSON.stringify({ rol: u?.rol, id: session?.id, tipo, db: norm(dbId), endpoint: endpointNorm, motivo: perm.motivo }));
+        console.warn(
+          '[perms] DENEGARÍA',
+          JSON.stringify({
+            rol: u?.rol,
+            id: session?.id,
+            tipo,
+            db: norm(dbId),
+            endpoint: endpointNorm,
+            motivo: perm.motivo,
+          })
+        );
         if (ENFORCE_PERMS) return res.status(403).json({ error: 'forbidden: tu rol no accede a esa base' });
       }
       // Equipos v2: el operario NO crea activos. DB.activos está en su matriz create SOLO para habilitar el
       // PATCH del reporte semanal — el create real por database_id pasaría (hallazgo del review) → se corta acá.
       if (tipo === 'create' && (u?.rol || '').includes('Operario') && norm(dbId) === ACTIVOS_NORM) {
-        console.warn('[perms] DENEGADO', JSON.stringify({ rol: u?.rol, id: session?.id, tipo: 'activo-operario-create', db: norm(dbId) }));
+        console.warn(
+          '[perms] DENEGADO',
+          JSON.stringify({ rol: u?.rol, id: session?.id, tipo: 'activo-operario-create', db: norm(dbId) })
+        );
         return res.status(403).json({ error: 'forbidden: tu rol no crea equipos' });
       }
     }
@@ -300,10 +386,16 @@ export default async function handler(req, res) {
           if (eq.ok) {
             if (SUPAFIRST_VERBOSE) console.log('[supafirst] ok', { id: mId[1], resource });
             // Respuesta con forma de página (raw mergeado) para no romper los call sites que leen updated.properties.
-            return res.status(200).json({ object: 'page', id: mId[1], properties: mp.raw, _source: 'supabase-first' });
+            return res
+              .status(200)
+              .json({ object: 'page', id: mId[1], properties: mp.raw, _source: 'supabase-first' });
           }
           supafirstMiss = 'enqueue';
-          console.warn('[supafirst] enqueue fail → Notion-first', { id: mId[1], resource, status: eq.status });
+          console.warn('[supafirst] enqueue fail → Notion-first', {
+            id: mId[1],
+            resource,
+            status: eq.status,
+          });
         } else if (mp.ok && !mp.found) {
           supafirstMiss = 'notfound';
           console.warn('[supafirst] fila no espejada → Notion-first', { id: mId[1], resource });
@@ -313,7 +405,11 @@ export default async function handler(req, res) {
         }
       } catch (e) {
         supafirstMiss = 'error';
-        console.warn('[supafirst] error → Notion-first', { id: mId[1], resource, msg: String(e?.message || e).slice(0, 120) });
+        console.warn('[supafirst] error → Notion-first', {
+          id: mId[1],
+          resource,
+          msg: String(e?.message || e).slice(0, 120),
+        });
       }
     }
   }
@@ -329,12 +425,16 @@ export default async function handler(req, res) {
         const hit = await getMirrorRaw([...SUPAFIRST], mIdGet[1]);
         if (hit) {
           return res.status(200).json({
-            object: 'page', id: mIdGet[1],
+            object: 'page',
+            id: mIdGet[1],
             parent: { type: 'database_id', database_id: DBS[hit.resource] || null },
-            properties: hit.raw, _source: 'supabase',
+            properties: hit.raw,
+            _source: 'supabase',
           });
         }
-      } catch (e) { /* cae a Notion */ }
+      } catch (e) {
+        /* cae a Notion */
+      }
     }
   }
 
@@ -357,12 +457,15 @@ export default async function handler(req, res) {
     // NO a creates ni updates. Notion responde con el mismo error_type para creates pero
     // el fallback de search devolvería resultados inválidos en ese caso.
     const isQuery = /^databases\/[a-f0-9-]{32,36}\/query$/.test(endpointNorm);
-    if (isQuery && data.code === 'validation_error' &&
-        data.additional_data?.error_type === 'multiple_data_sources_for_database') {
+    if (
+      isQuery &&
+      data.code === 'validation_error' &&
+      data.additional_data?.error_type === 'multiple_data_sources_for_database'
+    ) {
       const dbId = endpointNorm.split('/')[1];
       // Comparar ids sin guiones (robustez; alinea con searchByParent de api/_lib/notion.js,
       // que ya normalizaba — antes acá era === crudo y solo funcionaba por coincidencia).
-      const norm = (s) => (s || '').replace(/-/g, '');
+      const norm = s => (s || '').replace(/-/g, '');
       // La search API bajo carga a veces devuelve [] (sin error) → reintentar la búsqueda
       // completa hasta traer resultados (la DB Servicios siempre tiene datos). Esto mata el
       // "la lista de servicios aparece vacía / con error y recién al recargar aparece".
@@ -385,7 +488,7 @@ export default async function handler(req, res) {
           cursor = sd.has_more ? sd.next_cursor : null;
         } while (cursor && allResults.length < 2000);
         truncated = cursor !== null;
-        if (allResults.length) break;            // ok → salir
+        if (allResults.length) break; // ok → salir
         if (fb < 2) await sleep(500 * (fb + 1)); // vacío (rate-limit) → reintentar
       }
       // Si quedó cursor pendiente al alcanzar el cap (allResults.length === 2000),
@@ -396,12 +499,21 @@ export default async function handler(req, res) {
 
     // Diagnóstico: un WRITE (PATCH/POST pages) rechazado por Notion con 4xx queda logueado con su motivo —
     // sin esto, el usuario ve "API error 400" y en los logs solo el status (imposible diagnosticar).
-    if (response.status >= 400 && response.status < 500
-        && (httpMethod === 'PATCH' || (httpMethod === 'POST' && endpointNorm === 'pages'))) {
-      console.warn('[proxy] notion 4xx en write', JSON.stringify({
-        endpoint: endpointNorm, method: httpMethod, status: response.status,
-        code: data?.code, message: String(data?.message || '').slice(0, 300),
-      }));
+    if (
+      response.status >= 400 &&
+      response.status < 500 &&
+      (httpMethod === 'PATCH' || (httpMethod === 'POST' && endpointNorm === 'pages'))
+    ) {
+      console.warn(
+        '[proxy] notion 4xx en write',
+        JSON.stringify({
+          endpoint: endpointNorm,
+          method: httpMethod,
+          status: response.status,
+          code: data?.code,
+          message: String(data?.message || '').slice(0, 300),
+        })
+      );
     }
 
     // Fases 3a.1/3a.2 — post-write en el espejo (best-effort, NO altera la respuesta ni el guardado en Notion).
@@ -411,11 +523,13 @@ export default async function handler(req, res) {
     // opcional). Papelera/archivado (fix #3): se borra la fila del espejo (que no re-aparezca) y se cancela su
     // outbox pendiente.
     if (session && response.status >= 200 && response.status < 300 && data?.id) {
-      const isWrite = (httpMethod === 'PATCH' && /^pages\/[a-f0-9-]{32,36}$/.test(endpointNorm))
-        || (httpMethod === 'POST' && endpointNorm === 'pages');
+      const isWrite =
+        (httpMethod === 'PATCH' && /^pages\/[a-f0-9-]{32,36}$/.test(endpointNorm)) ||
+        (httpMethod === 'POST' && endpointNorm === 'pages');
       if (isWrite) {
         let tid;
-        try { // TODO adentro del try (resourceFromPage incluido): un throw acá JAMÁS debe volver 502 al usuario.
+        try {
+          // TODO adentro del try (resourceFromPage incluido): un throw acá JAMÁS debe volver 502 al usuario.
           const resource = resourceFromPage(data);
           const flipped = !!(resource && SUPAFIRST.has(resource));
           if (resource && (flipped || MIRROR_ON_WRITE)) {
@@ -423,30 +537,58 @@ export default async function handler(req, res) {
             let action;
             if (isTrash) {
               // Borrado/archivado de página: fuera del espejo + cancelar el outbox de esa página (si flipeada).
-              action = deleteRowByNotionId(resource, data.id).then(async (r) => {
-                if (flipped) { try { await cancelOutboxForPage(data.id); } catch (_) {} }
+              action = deleteRowByNotionId(resource, data.id).then(async r => {
+                if (flipped) {
+                  try {
+                    await cancelOutboxForPage(data.id);
+                  } catch (_) {}
+                }
                 return r;
               });
-            } else if (flipped && httpMethod === 'PATCH' && supafirstMiss !== 'notfound'
-                       && body?.in_trash !== false && body?.archived !== false) {
+            } else if (
+              flipped &&
+              httpMethod === 'PATCH' &&
+              supafirstMiss !== 'notfound' &&
+              body?.in_trash !== false &&
+              body?.archived !== false
+            ) {
               // Fallback de tabla flipeada: aplicar SOLO el delta (idempotente con el camino feliz).
               // El RESTORE (in_trash:false / archived:false) queda EXCLUIDO → cae al else (full upsert):
               // la fila fue borrada del espejo al trashear y solo el upsert completo puede resucitarla.
               action = body?.properties
-                ? mergeProps(resource, data.id, body.properties).then(mp => ({ ok: !!(mp.ok && mp.found), status: mp.status || 200, reason: mp.ok && !mp.found ? 'notfound' : mp.reason }))
+                ? mergeProps(resource, data.id, body.properties).then(mp => ({
+                    ok: !!(mp.ok && mp.found),
+                    status: mp.status || 200,
+                    reason: mp.ok && !mp.found ? 'notfound' : mp.reason,
+                  }))
                 : Promise.resolve({ ok: true, status: 0, reason: 'patch sin properties' });
             } else {
               // Página completa SEGURA: creates (página nueva, sin outbox posible), restore de papelera,
               // fila no espejada (el upsert la repone), o tabla no flipeada (3a.1 clásico).
-              action = data?.properties ? mirrorPage(resource, data) : Promise.resolve({ ok: false, status: 0, reason: 'sin properties' });
+              action = data?.properties
+                ? mirrorPage(resource, data)
+                : Promise.resolve({ ok: false, status: 0, reason: 'sin properties' });
             }
-            const to = new Promise(r => { tid = setTimeout(() => r({ ok: false, status: 0, reason: 'timeout' }), MIRROR_TIMEOUT_MS); });
+            const to = new Promise(r => {
+              tid = setTimeout(() => r({ ok: false, status: 0, reason: 'timeout' }), MIRROR_TIMEOUT_MS);
+            });
             const r = await Promise.race([action, to]);
-            if (!r?.ok) console.warn('[mirror] fail', { id: data.id, resource, flipped, status: r?.status, reason: r?.reason });
-            else if (MIRROR_VERBOSE) console.log('[mirror] ok', { id: data.id, resource, flipped, status: r?.status });
+            if (!r?.ok)
+              console.warn('[mirror] fail', {
+                id: data.id,
+                resource,
+                flipped,
+                status: r?.status,
+                reason: r?.reason,
+              });
+            else if (MIRROR_VERBOSE)
+              console.log('[mirror] ok', { id: data.id, resource, flipped, status: r?.status });
           }
-        } catch (e) { console.warn('[mirror] error', { id: data?.id, msg: String(e?.message || e).slice(0, 120) }); }
-        finally { if (tid) clearTimeout(tid); }
+        } catch (e) {
+          console.warn('[mirror] error', { id: data?.id, msg: String(e?.message || e).slice(0, 120) });
+        } finally {
+          if (tid) clearTimeout(tid);
+        }
       }
     }
 

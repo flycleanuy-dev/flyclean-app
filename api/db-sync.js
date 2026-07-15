@@ -19,20 +19,25 @@ const ALLOWED_ORIGINS = [
   'https://flyclean-app.vercel.app',
 ];
 const ALLOWED_ORIGIN_REGEX = /^https:\/\/flyclean-app-[a-z0-9]+-fly-clean-app-s-projects\.vercel\.app$/;
-function originAllowed(o) { return !!o && (ALLOWED_ORIGINS.includes(o) || ALLOWED_ORIGIN_REGEX.test(o)); }
+function originAllowed(o) {
+  return !!o && (ALLOWED_ORIGINS.includes(o) || ALLOWED_ORIGIN_REGEX.test(o));
+}
 
 // Allow-list: qué "resource" de la app mapea a qué tabla de Supabase (mismo set que /api/db).
 const RESOURCES = {
-  clientes: 'clientes', servicios: 'servicios', propuestas: 'propuestas',
-  ingresos: 'ingresos', gastos: 'gastos',
+  clientes: 'clientes',
+  servicios: 'servicios',
+  propuestas: 'propuestas',
+  ingresos: 'ingresos',
+  gastos: 'gastos',
 };
 
-const SUPABASE_URL  = (process.env.SUPABASE_URL || '').replace(/\/$/, '');
-const SERVICE_KEY   = process.env.SUPABASE_SERVICE_KEY || '';
-const NOTION_TOKEN  = process.env.NOTION_TOKEN || '';
+const SUPABASE_URL = (process.env.SUPABASE_URL || '').replace(/\/$/, '');
+const SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY || '';
+const NOTION_TOKEN = process.env.NOTION_TOKEN || '';
 const NOTION_VERSION = '2022-06-28';
 
-const isNotionId = (s) => /^[0-9a-f]{32}$|^[0-9a-f-]{36}$/i.test(String(s || ''));
+const isNotionId = s => /^[0-9a-f]{32}$|^[0-9a-f-]{36}$/i.test(String(s || ''));
 
 export default async function handler(req, res) {
   const origin = req.headers.origin || '';
@@ -65,7 +70,8 @@ export default async function handler(req, res) {
     return res.status(200).json({ ok: true, resource, skipped: 'supafirst' });
   }
 
-  if (!SUPABASE_URL || !SERVICE_KEY || !NOTION_TOKEN) return res.status(500).json({ error: 'no configurado' });
+  if (!SUPABASE_URL || !SERVICE_KEY || !NOTION_TOKEN)
+    return res.status(500).json({ error: 'no configurado' });
 
   try {
     // 1) Traer la página de Notion (fuente de verdad).
@@ -74,8 +80,15 @@ export default async function handler(req, res) {
     });
     if (!nr.ok) {
       const j = await nr.json().catch(() => ({}));
-      console.error('[db-sync] notion fetch', { notion_id: notionId, resource, status: nr.status, code: j.code });
-      return res.status(502).json({ error: 'notion fetch', detail: String(j.code || nr.status).slice(0, 60) });
+      console.error('[db-sync] notion fetch', {
+        notion_id: notionId,
+        resource,
+        status: nr.status,
+        code: j.code,
+      });
+      return res
+        .status(502)
+        .json({ error: 'notion fetch', detail: String(j.code || nr.status).slice(0, 60) });
     }
     const page = await nr.json();
 
@@ -88,9 +101,14 @@ export default async function handler(req, res) {
     //     este gate evita que alguien fuerce el re-sync de un registro de otro país.
     if (!esGlobal(u)) {
       const rp = row.pais || null;
-      const okPais = u.pais === 'Uruguay' ? (rp === 'Uruguay' || rp === null) : (rp === u.pais);
+      const okPais = u.pais === 'Uruguay' ? rp === 'Uruguay' || rp === null : rp === u.pais;
       if (!okPais) {
-        console.error('[db-sync] país mismatch', { notion_id: notionId, resource, userPais: u.pais, rowPais: rp });
+        console.error('[db-sync] país mismatch', {
+          notion_id: notionId,
+          resource,
+          userPais: u.pais,
+          rowPais: rp,
+        });
         return res.status(403).json({ error: 'país' });
       }
     }
@@ -99,12 +117,18 @@ export default async function handler(req, res) {
     const { ok, status, detail } = await upsertRow(table, row);
     if (!ok) {
       console.error('[db-sync] supabase upsert', { notion_id: notionId, resource, status, detail });
-      return res.status(502).json({ error: 'supabase upsert', detail: String(detail || status).slice(0, 120) });
+      return res
+        .status(502)
+        .json({ error: 'supabase upsert', detail: String(detail || status).slice(0, 120) });
     }
     res.setHeader('Cache-Control', 'no-store');
     return res.status(200).json({ ok: true, resource }); // respuesta mínima (no devuelve datos del registro)
   } catch (e) {
-    console.error('[db-sync] error', { notion_id: notionId, resource, msg: String(e.message || e).slice(0, 160) });
+    console.error('[db-sync] error', {
+      notion_id: notionId,
+      resource,
+      msg: String(e.message || e).slice(0, 160),
+    });
     return res.status(502).json({ error: 'sync failed', detail: String(e.message || e).slice(0, 120) });
   }
 }

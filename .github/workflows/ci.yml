@@ -24,6 +24,15 @@ jobs:
       - name: Security audit (high+)
         run: npm audit --audit-level=high
 
+      # F0 de la modularización (15/07). Alcance: el código YA modularizado (api/, scripts/, tests/).
+      # index.html queda fuera hasta que la modularización lo parta en /src (ver .prettierignore).
+      # Local, antes de pushear: `npm run lint` y `npm run format` (o `npm run lint:fix`).
+      - name: Lint (eslint)
+        run: npm run lint
+
+      - name: Format check (prettier)
+        run: npm run format:check
+
       - name: Syntax check api/*.js
         run: |
           for f in $(find api -name '*.js'); do

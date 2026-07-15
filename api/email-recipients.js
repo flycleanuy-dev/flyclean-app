@@ -4,16 +4,31 @@
 // NO toca nada más (ni Notion, ni Supabase, ni la IA): solo lee/escribe la clave KV de destinatarios.
 import { verifySession, tokenFromReq } from './_lib/session.js';
 import { kvConfigured } from './_lib/pins.js';
-import { getAllRecipients, setAllRecipients, RECIPIENT_TYPES, MAX_PER_TYPE, isValidEmail } from './_lib/recipients.js';
+import {
+  getAllRecipients,
+  setAllRecipients,
+  RECIPIENT_TYPES,
+  MAX_PER_TYPE,
+  isValidEmail,
+} from './_lib/recipients.js';
 
 export const config = { maxDuration: 10 };
 
-const ALLOWED_ORIGINS = ['https://flyclean.app', 'https://www.flyclean.app', 'https://flyclean-app.vercel.app'];
+const ALLOWED_ORIGINS = [
+  'https://flyclean.app',
+  'https://www.flyclean.app',
+  'https://flyclean-app.vercel.app',
+];
 const ALLOWED_ORIGIN_REGEX = /^https:\/\/flyclean-app-[a-z0-9]+-fly-clean-app-s-projects\.vercel\.app$/;
-function originAllowed(o) { return !!o && (ALLOWED_ORIGINS.includes(o) || ALLOWED_ORIGIN_REGEX.test(o)); }
+function originAllowed(o) {
+  return !!o && (ALLOWED_ORIGINS.includes(o) || ALLOWED_ORIGIN_REGEX.test(o));
+}
 
 function adminIds() {
-  return String(process.env.ADMIN_IDS || 'diego-laxalt,eduardo-cabral').split(',').map(s => s.trim()).filter(Boolean);
+  return String(process.env.ADMIN_IDS || 'diego-laxalt,eduardo-cabral')
+    .split(',')
+    .map(s => s.trim())
+    .filter(Boolean);
 }
 
 export default async function handler(req, res) {
@@ -33,7 +48,8 @@ export default async function handler(req, res) {
 
   const session = verifySession(tokenFromReq(req));
   if (!session || !session.id) return res.status(401).json({ ok: false, error: 'sesión requerida' });
-  if (!adminIds().includes(session.id)) return res.status(403).json({ ok: false, error: 'solo un admin puede gestionar destinatarios' });
+  if (!adminIds().includes(session.id))
+    return res.status(403).json({ ok: false, error: 'solo un admin puede gestionar destinatarios' });
 
   if (req.method === 'GET') {
     const recipients = await getAllRecipients();
@@ -47,19 +63,27 @@ export default async function handler(req, res) {
   if (!incoming || typeof incoming !== 'object' || Array.isArray(incoming)) {
     return res.status(400).json({ ok: false, error: 'recipients inválido' });
   }
-  if (JSON.stringify(incoming).length > 5000) return res.status(400).json({ ok: false, error: 'payload demasiado grande' });
+  if (JSON.stringify(incoming).length > 5000)
+    return res.status(400).json({ ok: false, error: 'payload demasiado grande' });
   for (const [t, arr] of Object.entries(incoming)) {
-    if (!RECIPIENT_TYPES.includes(t)) return res.status(400).json({ ok: false, error: `tipo desconocido: ${String(t).slice(0, 30)}` });
+    if (!RECIPIENT_TYPES.includes(t))
+      return res.status(400).json({ ok: false, error: `tipo desconocido: ${String(t).slice(0, 30)}` });
     if (!Array.isArray(arr)) return res.status(400).json({ ok: false, error: `lista inválida en ${t}` });
-    if (arr.length > MAX_PER_TYPE) return res.status(400).json({ ok: false, error: `máximo ${MAX_PER_TYPE} destinatarios por reporte` });
+    if (arr.length > MAX_PER_TYPE)
+      return res.status(400).json({ ok: false, error: `máximo ${MAX_PER_TYPE} destinatarios por reporte` });
     for (const e of arr) {
-      if (!isValidEmail(e)) return res.status(400).json({ ok: false, error: `email inválido: ${String(e).slice(0, 60)}` });
+      if (!isValidEmail(e))
+        return res.status(400).json({ ok: false, error: `email inválido: ${String(e).slice(0, 60)}` });
     }
   }
 
   try {
     const saved = await setAllRecipients(incoming);
-    console.log('[email-recipients] actualizado por', session.id, JSON.stringify(Object.fromEntries(Object.entries(saved).map(([k, v]) => [k, v.length]))));
+    console.log(
+      '[email-recipients] actualizado por',
+      session.id,
+      JSON.stringify(Object.fromEntries(Object.entries(saved).map(([k, v]) => [k, v.length])))
+    );
     return res.status(200).json({ ok: true, recipients: saved });
   } catch (e) {
     return res.status(502).json({ ok: false, error: 'no se pudo guardar (KV)' });

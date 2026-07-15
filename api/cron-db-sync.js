@@ -22,7 +22,12 @@ export default async function handler(req, res) {
   // pero SÍ corre en modo "solo ALTAS": inserta las filas nuevas de Notion que el espejo no tiene (el cowork
   // de Finanzas appendea gastos/ingresos directo en Notion) y reconcilia bajas. Ver syncTables en _lib/sync.js.
   // Con SUPAFIRST_TABLES vacío, comportamiento idéntico al histórico (upsert completo de todo).
-  const supafirst = new Set((process.env.SUPAFIRST_TABLES || '').split(',').map(s => s.trim()).filter(Boolean));
+  const supafirst = new Set(
+    (process.env.SUPAFIRST_TABLES || '')
+      .split(',')
+      .map(s => s.trim())
+      .filter(Boolean)
+  );
   try {
     const result = await syncTables(TABLES, { dry, altasOnly: supafirst });
     console.log('cron-db-sync', JSON.stringify(result));

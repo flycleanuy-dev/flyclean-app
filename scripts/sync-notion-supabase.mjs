@@ -8,7 +8,10 @@ if (!process.env.NOTION_TOKEN || !process.env.SUPABASE_URL || !process.env.SUPAB
   console.error('Faltan envs: NOTION_TOKEN, SUPABASE_URL, SUPABASE_SERVICE_KEY');
   process.exit(1);
 }
-const only = (process.env.SYNC_ONLY || '').split(',').map(s => s.trim()).filter(Boolean);
+const only = (process.env.SYNC_ONLY || '')
+  .split(',')
+  .map(s => s.trim())
+  .filter(Boolean);
 const tablas = Object.keys(DBS).filter(t => !only.length || only.includes(t));
 // Guard supafirst (fix 15/07): una corrida manual con upsert completo PISARÍA los mergeProps frescos de
 // las tablas Supabase-first con el Notion atrasado (mismo motivo que cron-db-sync). FAIL-CLOSED (review):
@@ -19,14 +22,25 @@ const tablas = Object.keys(DBS).filter(t => !only.length || only.includes(t));
 const rawSupafirst = process.env.SUPAFIRST_TABLES;
 if (rawSupafirst === undefined && process.env.SYNC_FORCE_FULL !== '1') {
   console.error('SUPAFIRST_TABLES no está seteado — no puedo saber qué tablas son Supabase-first.');
-  console.error('Corré: SUPAFIRST_TABLES=servicios,clientes,propuestas node scripts/sync-notion-supabase.mjs');
+  console.error(
+    'Corré: SUPAFIRST_TABLES=servicios,clientes,propuestas node scripts/sync-notion-supabase.mjs'
+  );
   console.error('(o SYNC_FORCE_FULL=1 para upsert completo consciente).');
   process.exit(1);
 }
-const supafirst = process.env.SYNC_FORCE_FULL === '1'
-  ? new Set()
-  : new Set((rawSupafirst || '').split(',').map(s => s.trim()).filter(Boolean));
-if (supafirst.size) console.log(`(modo solo-altas para: ${[...supafirst].join(', ')} — SYNC_FORCE_FULL=1 para upsert completo)\n`);
+const supafirst =
+  process.env.SYNC_FORCE_FULL === '1'
+    ? new Set()
+    : new Set(
+        (rawSupafirst || '')
+          .split(',')
+          .map(s => s.trim())
+          .filter(Boolean)
+      );
+if (supafirst.size)
+  console.log(
+    `(modo solo-altas para: ${[...supafirst].join(', ')} — SYNC_FORCE_FULL=1 para upsert completo)\n`
+  );
 console.log(`Sync Notion → Supabase · ${tablas.length} tabla(s)\n`);
 const { perTable, totalOk, totalErr } = await syncTables(tablas, { dry: false, altasOnly: supafirst });
 for (const t of tablas) {

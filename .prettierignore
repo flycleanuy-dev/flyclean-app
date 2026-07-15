@@ -1,0 +1,11 @@
+# ⚠️ index.html NO se formatea todavía: hoy es el monolito (17k líneas de HTML+JS inline). Prettier lo
+# reformatearía entero → diff gigante y riesgo puro sin beneficio. Su turno llega con la modularización:
+# cada módulo que se extraiga a /src nace formateado (y ahí se saca de esta lista).
+index.html
+
+# Terceros / generados / no-código
+vendor/
+node_modules/
+docs/manuales/
+package-lock.json
+*.min.js

@@ -20,7 +20,11 @@ const BASE = (process.env.SMOKE_URL || 'https://www.flyclean.app').replace(/\/$/
 // ── Secreto de firma desde .env.local (sin imprimirlo jamás) ─────────────────────────────
 function loadEnvLocal() {
   let raw = '';
-  try { raw = readFileSync(new URL('../.env.local', import.meta.url), 'utf8'); } catch { return {}; }
+  try {
+    raw = readFileSync(new URL('../.env.local', import.meta.url), 'utf8');
+  } catch {
+    return {};
+  }
   const env = {};
   for (const line of raw.split('\n')) {
     const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*)\s*$/);
@@ -33,15 +37,18 @@ const env = loadEnvLocal();
 // OJO: .env.local local puede no tener CRON_SECRET (solo NOTION_TOKEN) → los tokens firmados con el
 // fallback NO valen contra prod (allá firma CRON_SECRET). En ese caso correr:
 //   CRON_SECRET=... node tests/permisos.mjs   (sin imprimir el valor)
-const SECRET = process.env.CRON_SECRET || process.env.NOTION_TOKEN || env.CRON_SECRET || env.NOTION_TOKEN || '';
+const SECRET =
+  process.env.CRON_SECRET || process.env.NOTION_TOKEN || env.CRON_SECRET || env.NOTION_TOKEN || '';
 if (!SECRET) {
-  console.log('\nFlyClean — tests de permisos: SKIP (falta CRON_SECRET/NOTION_TOKEN en el entorno o .env.local para firmar tokens)\n');
+  console.log(
+    '\nFlyClean — tests de permisos: SKIP (falta CRON_SECRET/NOTION_TOKEN en el entorno o .env.local para firmar tokens)\n'
+  );
   process.exit(0);
 }
 
 // ── Réplica de signSession (api/_lib/session.js) ─────────────────────────────────────────
 const TTL_MS = 7 * 24 * 60 * 60 * 1000;
-const b64u = (buf) => Buffer.from(buf).toString('base64url');
+const b64u = buf => Buffer.from(buf).toString('base64url');
 const signingKey = () => crypto.createHmac('sha256', SECRET).update('flyclean-session-v1').digest();
 function signSession(payload) {
   const body = b64u(JSON.stringify({ ...payload, exp: Date.now() + TTL_MS }));
@@ -67,7 +74,11 @@ async function queryDb(dbId, pageSize, token) {
   return fetch(BASE + '/api/notion', {
     method: 'POST',
     headers,
-    body: JSON.stringify({ endpoint: `databases/${dbId}/query`, method: 'POST', body: { page_size: pageSize } }),
+    body: JSON.stringify({
+      endpoint: `databases/${dbId}/query`,
+      method: 'POST',
+      body: { page_size: pageSize },
+    }),
   });
 }
 
@@ -79,10 +90,17 @@ async function queryEspejo(resource, token) {
   return fetch(BASE + '/api/db?resource=' + encodeURIComponent(resource), { headers });
 }
 
-let pass = 0, fail = 0;
+let pass = 0,
+  fail = 0;
 async function test(name, fn) {
-  try { await fn(); console.log('  ✓', name); pass++; }
-  catch (e) { console.error('  ✗', name, '—', e.message); fail++; }
+  try {
+    await fn();
+    console.log('  ✓', name);
+    pass++;
+  } catch (e) {
+    console.error('  ✗', name, '—', e.message);
+    fail++;
+  }
 }
 
 console.log(`\nFlyClean — tests de permisos por rol contra ${BASE} (EXPECT_ENFORCE=${EXPECT_ENFORCE})\n`);
@@ -101,7 +119,9 @@ await test('sin token → /api/notion 401', async () => {
   const probe = await queryDb(DBS.propuestas, 11, signSession({ id: 'federico-maciel' }));
   if (probe.status === 401) {
     console.log('\n  ⚠ SKIP casos autenticados: prod rechazó el token firmado localmente (401).');
-    console.log('    Falta el CRON_SECRET real en .env.local/entorno (el fallback NOTION_TOKEN no es la clave de firma de prod).');
+    console.log(
+      '    Falta el CRON_SECRET real en .env.local/entorno (el fallback NOTION_TOKEN no es la clave de firma de prod).'
+    );
     console.log(`\n${pass} ok · ${fail} fallaron · resto salteado\n`);
     process.exit(fail ? 1 : 0);
   }

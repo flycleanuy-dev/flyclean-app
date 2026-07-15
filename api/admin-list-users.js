@@ -11,9 +11,14 @@ const ALLOWED_ORIGINS = [
   'https://flyclean-app.vercel.app',
 ];
 const ALLOWED_ORIGIN_REGEX = /^https:\/\/flyclean-app-[a-z0-9]+-fly-clean-app-s-projects\.vercel\.app$/;
-function originAllowed(o) { return !!o && (ALLOWED_ORIGINS.includes(o) || ALLOWED_ORIGIN_REGEX.test(o)); }
+function originAllowed(o) {
+  return !!o && (ALLOWED_ORIGINS.includes(o) || ALLOWED_ORIGIN_REGEX.test(o));
+}
 function adminIds() {
-  return String(process.env.ADMIN_IDS || 'diego-laxalt,eduardo-cabral').split(',').map(s => s.trim()).filter(Boolean);
+  return String(process.env.ADMIN_IDS || 'diego-laxalt,eduardo-cabral')
+    .split(',')
+    .map(s => s.trim())
+    .filter(Boolean);
 }
 
 const SB_URL = (process.env.SUPABASE_URL || '').replace(/\/$/, '');
@@ -39,9 +44,12 @@ export default async function handler(req, res) {
   if (!adminIds().includes(session.id)) return res.status(403).json({ ok: false, error: 'solo un admin' });
 
   try {
-    const r = await fetch(`${SB_URL}/rest/v1/usuarios?select=id,nombre,rol,pais,emoji,activo&order=activo.desc,nombre.asc`, {
-      headers: { apikey: SB_KEY, Authorization: 'Bearer ' + SB_KEY },
-    });
+    const r = await fetch(
+      `${SB_URL}/rest/v1/usuarios?select=id,nombre,rol,pais,emoji,activo&order=activo.desc,nombre.asc`,
+      {
+        headers: { apikey: SB_KEY, Authorization: 'Bearer ' + SB_KEY },
+      }
+    );
     if (!r.ok) return res.status(500).json({ ok: false, error: 'supabase ' + r.status });
     const rows = await r.json();
     return res.status(200).json({ ok: true, users: rows });
