@@ -9,3 +9,7 @@ node_modules/
 docs/manuales/
 package-lock.json
 *.min.js
+
+# app.js: el JS del front recién extraído del HTML (16.7k líneas). Se formatea cuando se parta en módulos
+# (mismo criterio que index.html) — formatearlo entero hoy sería un diff gigante sin beneficio.
+app.js
