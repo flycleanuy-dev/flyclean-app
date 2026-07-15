@@ -36,7 +36,7 @@ try {
 
 const APP_URL = 'https://flyclean.app/';
 const VIEWPORT = { width: 430, height: 900 };
-const OUTPUT_DIR = path.join(__dirname, '..', 'docs', 'manuales');
+const OUTPUT_DIR = path.join(__dirname, '..', 'public', 'docs', 'manuales');
 const MANUAL_VERSION = 'v2 (uso)';
 const TODAY = new Date().toLocaleDateString('es-UY', { day: '2-digit', month: 'long', year: 'numeric' });
 
