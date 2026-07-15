@@ -14034,6 +14034,29 @@ async function submitNewService() {
   }
 }
 
+// Pre-flip PROPUESTAS Supabase-first (2026-07-15): al crear un servicio/prueba/relevamiento desde una
+// propuesta, Notion autogenera la relación inversa 'Servicios' — pero bajo el flip esa inversa NO vuelve
+// al espejo (cron-db-sync excluye las tablas flipeadas). ⚠️ NO se debe PATCHear 'Servicios' con la lista
+// del espejo: es un REEMPLAZO total y el espejo puede tener menos que Notion (jornadas, vínculos de Por
+// cobrar) → borraría relaciones en Notion (lost-update, hallazgo del review 15/07). En cambio:
+// (1) update EN MEMORIA (apaga el badge y actualiza el contador en la sesión), y (2) el badge/contador
+// además derivan del lado SERVICIOS del espejo (que sí está fresco) — ver propTieneServicio().
+async function linkServicioEnPropuesta(prop, svcId) {
+  try {
+    const rel = (prop.properties?.['Servicios']?.relation || []).map(r => ({ id: r.id }));
+    if (!rel.some(r => r.id === svcId)) rel.push({ id: svcId });
+    prop.properties['Servicios'] = { relation: rel }; // solo memoria — NUNCA escribir esta relación
+  } catch (_) { /* best-effort */ }
+}
+// ¿La propuesta tiene al menos un servicio creado? Mira la relación (congelada al flip pero con lo
+// histórico) + los servicios en memoria (frescos del espejo: su property 'Propuesta' la escribe la app).
+function propTieneServicio(propId, props) {
+  if ((props?.['Servicios']?.relation || []).length > 0) return true;
+  const nid = String(propId || '').replace(/-/g, ''); // normalizar (patrón norm() del resto del archivo)
+  return Array.isArray(_coordAllServices) && _coordAllServices.some(s =>
+    (s.properties?.['Propuesta']?.relation || []).some(r => String(r.id || '').replace(/-/g, '') === nid));
+}
+
 async function createServicioFromPropuesta(propPageId) {
   const prop = (editingProp && editingProp.id === propPageId) ? editingProp : _coordAllProps?.find(p => p.id === propPageId);
   if (!prop) { alert('Propuesta no encontrada en memoria. Recargá la lista.'); return; }
@@ -14069,6 +14092,7 @@ async function createServicioFromPropuesta(propPageId) {
     // Refrescar el espejo del lado propuesta (su relación Servicios) para que el badge "falta crear el
     // servicio" se apague pronto y una futura oferta no lea 0 servicios stale (auditoría 2026-07-09).
     if (typeof syncAfterWrite === 'function') { try { syncAfterWrite(propPageId, 'propuestas'); syncAfterWrite(created.id, 'servicios'); } catch (_) {} }
+    await linkServicioEnPropuesta(prop, created.id); // espejo-safe bajo el flip (ver helper)
 
     closePropSheet();
     // Cambiar a tab Servicios y refrescar
@@ -14119,6 +14143,7 @@ async function createPruebaFromPropuesta(propPageId) {
       parent: { type: 'data_source_id', data_source_id: SERVICIOS_DS_ID },
       properties
     });
+    await linkServicioEnPropuesta(prop, created.id); // espejo-safe bajo el flip (ver helper)
 
     closePropSheet();
     // Un solo render de la tab correcta + update optimista + editingService poblado (mismo patrón que
@@ -14166,6 +14191,7 @@ async function createRelevamientoFromPropuesta(propPageId) {
       parent: { type: 'data_source_id', data_source_id: SERVICIOS_DS_ID },
       properties
     });
+    await linkServicioEnPropuesta(prop, created.id); // espejo-safe bajo el flip (ver helper)
 
     closePropSheet();
     // BUG arreglado (auditoría 2026-07-09): iba a la tab 'servicios' (que FILTRA afuera los
@@ -15840,14 +15866,14 @@ function renderCoordPropuestasList(keepLimit) {
     const estado = props['Estado pipeline']?.select?.name || '—';
     const pais = props['País']?.select?.name || '';
     const importe = props['Importe estimado']?.number;
-    const dias = props['Días sin respuesta']?.formula?.number ?? null;
+    const dias = propDias(props);
     const ultimaInteraccion = (props['Última interacción']?.date?.start || '').split('T')[0];
     const ultimaFmt = ultimaInteraccion ? new Date(ultimaInteraccion + 'T00:00:00').toLocaleDateString(dateLocale, { day: 'numeric', month: 'short' }) : '';
     const estadoClass = estado.includes('Aceptada') ? 'aceptada' :
       estado.includes('Negociando') ? 'negociando' :
       estado.toLowerCase().includes('enviada') ? 'enviada' : '';
     // Badge recordatorio (auditoría 2026-07-09): propuesta Aceptada que todavía NO generó servicio.
-    const aceptadaSinSvc = estado.includes('Aceptada') && (props['Servicios']?.relation || []).length === 0;
+    const aceptadaSinSvc = estado.includes('Aceptada') && !propTieneServicio(p.id, props); // espejo-safe (flip)
     // Snooze por registro: pospuesta hasta una fecha futura → badge para entender por qué no avisa.
     const _pospProp = (props['Posponer aviso hasta']?.date?.start || '').split('T')[0];
     const _hoyProp = new Date().toISOString().split('T')[0];
@@ -15873,9 +15899,23 @@ function renderCoordPropuestasList(keepLimit) {
     '<div style="height:8px"></div>' + cards + renderCargarMasButton(remaining);
 }
 
+// Días sin respuesta de una propuesta — versión ESPEJO-safe (pre-flip propuestas Supabase-first 2026-07-15).
+// Bajo el flip, la fórmula 'Días sin respuesta' del espejo queda CONGELADA (Notion no recalcula el raw
+// espejado y cron-db-sync excluye las tablas flipeadas). 'Última interacción' SÍ está fresca (la escribe la
+// app vía el espejo) → calcular desde ahí; fallback a la fórmula para propuestas sin 'Última interacción'.
+// La fórmula de Notion cuenta desde 'Última interacción' (CLAUDE/spec dos-relojes) → mismo criterio.
+function propDias(props) {
+  const ui = (props?.['Última interacción']?.date?.start || '').split('T')[0];
+  if (ui) {
+    const d = Math.floor((Date.now() - new Date(ui + 'T00:00:00').getTime()) / 86400000);
+    return d >= 0 ? d : 0;
+  }
+  return props?.['Días sin respuesta']?.formula?.number ?? null;
+}
+
 // Bloque "📞 A contactar hoy" (arriba de la lista de Propuestas del coord): propuestas esperando
 // respuesta del cliente hace 15+ días — mismo criterio que loadAlerts()/el cron diario
-// (api/cron-pipeline.js): estado en ESPERANDO + 'Días sin respuesta' (fórmula) >= 15.
+// (api/cron-pipeline.js): estado en ESPERANDO + días sin respuesta >= 15 (propDias, espejo-safe).
 // Devuelve '' si no hay ninguna (no se renderiza bloque vacío).
 function renderContactarHoyHTML() {
   const ESPERANDO = ['📞 Contactado', '📤 Enviada al cliente', '🤝 Negociando'];
@@ -15883,12 +15923,12 @@ function renderContactarHoyHTML() {
   const items = (_coordAllProps || []).filter(p => {
     const props = p.properties || {};
     const estado = props['Estado pipeline']?.select?.name || '';
-    const dias = props['Días sin respuesta']?.formula?.number;
+    const dias = propDias(props);
     // Snooze por registro: 'Posponer aviso hasta' futuro = no molestar hasta esa fecha (vuelve sola al vencer).
     const posp = (props['Posponer aviso hasta']?.date?.start || '').split('T')[0];
     if (posp && posp > hoyISO) return false;
     return ESPERANDO.includes(estado) && dias != null && dias >= cfgRegla('pipelineAviso');
-  }).sort((a, b) => (b.properties?.['Días sin respuesta']?.formula?.number || 0) - (a.properties?.['Días sin respuesta']?.formula?.number || 0));
+  }).sort((a, b) => (propDias(b.properties) || 0) - (propDias(a.properties) || 0));
   if (!items.length) return '';
   // Reloj de VIDA (spec dos-relojes 2026-07-02): días restantes antes de que el cron diario
   // (api/cron-pipeline.js) la mueva sola a 😶 Sin respuesta a los 45, contados desde 'Fecha de envío'
@@ -15903,7 +15943,7 @@ function renderContactarHoyHTML() {
   // Negociando (sin reloj de vida) mantiene el criterio de siempre — 40+ días sin respuesta.
   const esVencer = (p) => {
     const estado = p.properties?.['Estado pipeline']?.select?.name || '';
-    if (estado.includes('Negociando')) return (p.properties?.['Días sin respuesta']?.formula?.number || 0) >= 40;
+    if (estado.includes('Negociando')) return (propDias(p.properties) || 0) >= 40;
     const vida = vidaRestante(p);
     return vida != null && vida <= 5;
   };
@@ -15912,7 +15952,7 @@ function renderContactarHoyHTML() {
     const props = p.properties || {};
     const nombre = props['Nombre de propuesta']?.title?.[0]?.plain_text || t('common.sinnombre');
     const estado = props['Estado pipeline']?.select?.name || '';
-    const dias = props['Días sin respuesta']?.formula?.number;
+    const dias = propDias(props);
     const negociando = estado.includes('Negociando');
     const vencido = esVencer(p);
     // Negociando: sin reloj de vida — muestra solo la línea de seguimiento, igual que siempre.

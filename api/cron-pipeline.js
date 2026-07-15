@@ -14,6 +14,33 @@ import { queryAll, updatePage } from './_lib/notion.js';
 import { sendEmail, emailLayout } from './_lib/email.js';
 import { getRecipients } from './_lib/recipients.js';
 import { getReglas } from './_lib/appconfig.js';
+import { supafirstSet, mergeProps, enqueueOutbox } from './_lib/supafirst.js';
+import { mirrorPage } from './_lib/mirror.js';
+
+// Escribe una propuesta respetando el flip Supabase-first (pre-flip de PROPUESTAS, 2026-07-15).
+// Con 'propuestas' en SUPAFIRST_TABLES, cron-db-sync la EXCLUYE del re-sync → si este cron escribiera
+// directo a Notion (updatePage), el espejo no se enteraría y la app (que lee del espejo) nunca vería el
+// auto-move a "Sin respuesta" ni el marcador de re-contacto. Camino flipeado: mergeProps (espejo) +
+// enqueueOutbox (→ Notion con reintentos), el MISMO camino que usa la app. Fallback ante cualquier falla:
+// updatePage a Notion + mirrorPage (espeja la página completa) → ambos lados consistentes igual.
+async function patchPropuesta(pageId, props) {
+  if (supafirstSet().has('propuestas')) {
+    try {
+      const mp = await mergeProps('propuestas', pageId, props);
+      if (mp.ok && mp.found) {
+        const eq = await enqueueOutbox(pageId, 'propuestas', props);
+        if (eq.ok) return;
+      }
+      console.warn('[cron-pipeline] supafirst miss → Notion-first + mirror', { id: pageId });
+    } catch (e) {
+      console.warn('[cron-pipeline] supafirst error → Notion-first', String(e?.message || e).slice(0, 120));
+    }
+    const page = await updatePage(pageId, props);
+    try { await mirrorPage('propuestas', page); } catch (_) { /* best-effort */ }
+    return;
+  }
+  await updatePage(pageId, props);
+}
 
 const PROPUESTAS_DB = '2c0a4257f4294941b994dfebc1098633';
 // Fallback histórico si la lista editable (⚙️ Configuración → 📬 Destinatarios) está vacía o KV caído.
@@ -77,7 +104,7 @@ export default async function handler(req, res) {
       const posp = (pr['Posponer aviso hasta']?.date?.start || '').split('T')[0];
       if (posp && posp > today) {
         // Si ya tenía el marcador de aviso, limpiarlo: al vencer el snooze reavisa FRESCO (email incluido).
-        if (yaAvisado && !dryRun) await updatePage(p.id, { 'Aviso re-contacto': { date: null } });
+        if (yaAvisado && !dryRun) await patchPropuesta(p.id, { 'Aviso re-contacto': { date: null } });
         continue;
       }
 
@@ -86,7 +113,7 @@ export default async function handler(req, res) {
       const diasVida = esNegociando ? dias : diasDeVida(p, pr);
 
       if (diasVida != null && diasVida >= diasAutomove) {
-        if (!dryRun) await updatePage(p.id, { 'Estado pipeline': { select: { name: SIN_RESPUESTA } } });
+        if (!dryRun) await patchPropuesta(p.id, { 'Estado pipeline': { select: { name: SIN_RESPUESTA } } });
         movidas.push({ nombre, dias: diasVida });
         continue; // ya se movió — no evaluar el reloj de seguimiento sobre esta.
       }
@@ -94,12 +121,12 @@ export default async function handler(req, res) {
       if (dias == null) continue; // sin 'Última interacción' no hay nada más que evaluar (alerta 15d).
       if (dias >= diasAlerta) {
         if (!yaAvisado) {
-          if (!dryRun) await updatePage(p.id, { 'Aviso re-contacto': { date: { start: today } } });
+          if (!dryRun) await patchPropuesta(p.id, { 'Aviso re-contacto': { date: { start: today } } });
           nuevasRecontacto.push({ nombre, dias });
         }
       } else if (yaAvisado) {
         // Volvió a estar fresca (re-contactada) → limpiar marcador para el próximo ciclo.
-        if (!dryRun) await updatePage(p.id, { 'Aviso re-contacto': { date: null } });
+        if (!dryRun) await patchPropuesta(p.id, { 'Aviso re-contacto': { date: null } });
       }
     }
 
