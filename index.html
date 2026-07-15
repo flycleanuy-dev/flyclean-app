@@ -7714,6 +7714,12 @@ async function executeMerge(){
     body.innerHTML = '<p style="color:#c45">❌ Se detuvo: '+esc(e.message)+'. Lo ya hecho quedó; podés reintentar (es idempotente).</p><button class="estado-btn" onclick="closeMergePlan()">Cerrar</button>';
   }
 }
+// "Servicios a revisar" — grupos que Dirección marcó "✓ Están bien" (legítimos): se ocultan SIN tocar los
+// servicios (no se renombran ni archivan). Se guarda por id de cliente en este dispositivo (localStorage).
+const LIMP_SVC_OK_KEY = 'fc_limp_svc_ok';
+function limpSvcOkSet(){ try { return new Set(JSON.parse(localStorage.getItem(LIMP_SVC_OK_KEY)||'[]')); } catch(_) { return new Set(); } }
+function limpSvcMarkOk(cid){ const s = limpSvcOkSet(); s.add(cid); localStorage.setItem(LIMP_SVC_OK_KEY, JSON.stringify([...s])); renderLimpieza(); }
+function limpSvcResetOk(){ localStorage.removeItem(LIMP_SVC_OK_KEY); renderLimpieza(); }
 async function renderLimpiezaServicios(){
   const body = document.getElementById('limpieza-body');
   const showArch = document.getElementById('limpieza-show-archived')?.checked;
@@ -7724,8 +7730,12 @@ async function renderLimpiezaServicios(){
   // Agrupar por cliente (Contacto[0]); marcar nombres inconsistentes dentro del grupo.
   const byCli = {};
   svc.forEach(s => { const cid = s.properties?.['Contacto']?.relation?.[0]?.id || 'sin-cliente'; (byCli[cid] = byCli[cid] || []).push(s); });
-  const grupos = Object.entries(byCli).filter(([,arr]) => arr.length>1 || arr.some(s => /\s{2,}|\s$/.test(s.properties?.['Nombre del servicio']?.title?.[0]?.plain_text||'')));
-  body.innerHTML = grupos.map(([cid,arr]) => {
+  const okSet = limpSvcOkSet();
+  const todos = Object.entries(byCli).filter(([,arr]) => arr.length>1 || arr.some(s => /\s{2,}|\s$/.test(s.properties?.['Nombre del servicio']?.title?.[0]?.plain_text||'')));
+  const ocultos = todos.filter(([cid]) => okSet.has(cid)).length;
+  const grupos = todos.filter(([cid]) => !okSet.has(cid));
+  const verOcultos = ocultos ? `<div style="text-align:center;margin:12px 4px"><button class="estado-btn" onclick="limpSvcResetOk()">👁 Ver ${ocultos} grupo(s) que marcaste ✓ Están bien</button></div>` : '';
+  body.innerHTML = (grupos.map(([cid,arr]) => {
     const nombres = [...new Set(arr.map(s => (s.properties?.['Nombre del servicio']?.title?.[0]?.plain_text||'').trim()))];
     const inconsistente = nombres.length > 1;
     return `<div style="border:1px solid var(--border2);border-radius:12px;padding:12px;margin:10px 4px">
@@ -7744,8 +7754,9 @@ async function renderLimpiezaServicios(){
         <input id="bulk-${esc(cid)}" class="edit-date-input" placeholder="Renombrar TODOS a…" style="flex:1"/>
         <button class="estado-btn active" onclick="bulkRenameServices('${esc(cid)}')">Aplicar</button>
       </div>
+      <button class="estado-btn" style="width:100%;margin-top:8px;color:#00C98D" onclick="limpSvcMarkOk('${esc(cid)}')">✓ Están bien — sacar de la lista (no cambia nada)</button>
     </div>`;
-  }).join('') || '<div style="padding:24px;color:var(--text3);text-align:center">✅ Nada para revisar.</div>';
+  }).join('') || '<div style="padding:24px;color:var(--text3);text-align:center">✅ Nada para revisar.</div>') + verOcultos;
 }
 async function renameOneService(id, nombre){
   const n = String(nombre||'').trim(); if(!n) return;
