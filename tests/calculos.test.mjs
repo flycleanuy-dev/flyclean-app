@@ -2,13 +2,13 @@
 // /* @calculos:start … @calculos:end */ de app.js y lo evalúa en un sandbox — testea el CÓDIGO REAL
 // sin moverlo. Si un cambio rompe una cuenta (inferencia de moneda, mezcla UY$/USD, exclusión de KPIs),
 // el CI lo atrapa antes de prod. Cero red externa; corre en cualquier lado.
-// (El JS del front vive en /app.js desde la extracción del 15/07; antes estaba inline en index.html.)
+// (El JS del front vive en /src/main.js desde la extracción del 15/07; antes estaba inline en index.html.)
 import { readFileSync } from 'node:fs';
 
-const src = readFileSync(new URL('../app.js', import.meta.url), 'utf8');
+const src = readFileSync(new URL('../src/main.js', import.meta.url), 'utf8');
 const m = src.match(/@calculos:start[\s\S]*?\*\/([\s\S]*?)\/\* @calculos:end \*\//);
 if (!m) {
-  console.error('❌ No encontré el bloque @calculos en app.js (¿se movieron los marcadores?)');
+  console.error('❌ No encontré el bloque @calculos en src/main.js (¿se movieron los marcadores?)');
   process.exit(1);
 }
 

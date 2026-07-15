@@ -145,11 +145,11 @@
 // v133: Ventas también ve el destacado "🔁 para recontactar" (mantenimiento 9m) + su alerta. Requirió darle
 // LECTURA de servicios (backstop: api/db.js resource 'servicios' + api/notion.js query SERVICIOS_NORM) —
 // solo la lista para el cruce; NO abre servicios individuales (pages/{id} sigue bloqueado), no edita, sin plata.
-const CACHE = 'flyclean-v190';
+const CACHE = 'flyclean-v191';
 const SHELL = [
   '/',
   '/index.html',
-  '/app.js',
+  '/assets/main.js', // bundle de Vite (nombre FIJO sin hash — ver vite.config.js: el sw precachea rutas literales)
   '/styles.css',
   '/manifest.json',
   '/icon-192.png',

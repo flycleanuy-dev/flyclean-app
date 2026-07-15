@@ -12,9 +12,12 @@
     "lint:fix": "eslint api scripts tests --fix",
     "format": "prettier --write \"api/**/*.js\" \"scripts/**/*.{js,cjs,mjs}\" \"tests/**/*.mjs\" \"*.json\"",
     "format:check": "prettier --check \"api/**/*.js\" \"scripts/**/*.{js,cjs,mjs}\" \"tests/**/*.mjs\" \"*.json\"",
-    "test": "node tests/calculos.test.mjs && node tests/smoke.mjs && node tests/permisos.mjs",
+    "test": "node tests/globals.test.mjs && node tests/calculos.test.mjs && node tests/smoke.mjs && node tests/permisos.mjs",
     "check": "node tests/check-html.mjs",
-    "audit": "npm audit --audit-level=high"
+    "audit": "npm audit --audit-level=high",
+    "dev": "vite",
+    "build": "node scripts/gen-globals.cjs && vite build",
+    "preview": "vite preview"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.105.0",
@@ -26,6 +29,7 @@
     "eslint": "^10.7.0",
     "eslint-config-prettier": "^10.1.8",
     "globals": "^17.7.0",
-    "prettier": "^3.9.5"
+    "prettier": "^3.9.5",
+    "vite": "^8.1.4"
   }
 }

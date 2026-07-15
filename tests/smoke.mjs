@@ -13,11 +13,11 @@ import { readFileSync } from 'node:fs';
 const BASE = (process.env.SMOKE_URL || 'https://www.flyclean.app').replace(/\/$/, '');
 
 // Deriva los IDs de la ÚNICA fuente de verdad (app.js → const NOTION_DBS), así no se duplican ni
-// divergen; testea todas las bases declaradas ahí. (El JS del front vive en /app.js desde el 15/07.)
+// divergen; testea todas las bases declaradas ahí. (El JS del front vive en /src/main.js desde el 15/07.)
 function loadNotionDbs() {
-  const html = readFileSync(new URL('../app.js', import.meta.url), 'utf8');
+  const html = readFileSync(new URL('../src/main.js', import.meta.url), 'utf8');
   const block = html.match(/const NOTION_DBS = \{([\s\S]*?)\};/);
-  if (!block) throw new Error('No se encontró NOTION_DBS en app.js');
+  if (!block) throw new Error('No se encontró NOTION_DBS en src/main.js');
   const dbs = {};
   for (const m of block[1].matchAll(/(\w+)\s*:\s*'([a-f0-9-]{32,36})'/g)) dbs[m[1]] = m[2];
   return dbs;

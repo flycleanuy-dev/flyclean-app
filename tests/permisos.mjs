@@ -56,12 +56,12 @@ function signSession(payload) {
   return `${body}.${sig}`;
 }
 
-// ── IDs de bases (misma fuente de verdad que el smoke: app.js → NOTION_DBS) ──────────
-// (El JS del front vive en /app.js desde la extracción del 15/07; antes estaba inline en index.html.)
+// ── IDs de bases (misma fuente de verdad que el smoke: src/main.js → NOTION_DBS) ──────────
+// (El JS del front vive en /src/main.js desde la extracción del 15/07; antes estaba inline en index.html.)
 function loadNotionDbs() {
-  const html = readFileSync(new URL('../app.js', import.meta.url), 'utf8');
+  const html = readFileSync(new URL('../src/main.js', import.meta.url), 'utf8');
   const block = html.match(/const NOTION_DBS = \{([\s\S]*?)\};/);
-  if (!block) throw new Error('No se encontró NOTION_DBS en app.js');
+  if (!block) throw new Error('No se encontró NOTION_DBS en src/main.js');
   const dbs = {};
   for (const m of block[1].matchAll(/(\w+)\s*:\s*'([a-f0-9-]{32,36})'/g)) dbs[m[1]] = m[2];
   return dbs;
