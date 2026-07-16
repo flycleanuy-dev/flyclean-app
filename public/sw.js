@@ -162,7 +162,11 @@
 // photoQueue) sale a src/offline-queue.js con initOfflineQueue() (callNotion/DB_ID/putPhotoToR2/
 // finalizePhotoUpload/updateServiceProps/isNetworkError inyectados). La base local NO cambia → los items ya
 // encolados sobreviven. Verificado en navegador real (sembrar+online+badge). Sin cambio funcional.
-const CACHE = 'flyclean-v198';
+// v199: modularización — la CAPA DE RED (callNotion/callDb/callNotionAll/updateServiceProps/syncAfterWrite/
+// dbFlag+DB_FLAGS/captureRenewedToken/putPhotoToR2/isNetworkError) sale a src/api.js con initApi()
+// (forceRelogin + dbIds inyectados). Módulo HOJA: los cortes de rol que vienen la importan sin ciclo.
+// Sin cambio funcional.
+const CACHE = 'flyclean-v199';
 const SHELL = [
   '/',
   '/index.html',
