@@ -1,6 +1,26 @@
-// i18n — diccionario de textos (es + pt-BR). Extraído de main.js el 2026-07-15 (modularización):
-// es DATA pura (sin lógica) y son ~2.000 líneas → el corte más seguro y el más grande.
-// La función t() y currentLang siguen en main.js (currentLang muta con setLang, y un import es read-only).
+// i18n — diccionario de textos (es + pt-BR) + runtime de idioma. Extraído de main.js en dos pasos:
+// el diccionario el 2026-07-15, y t()/currentLang/setCurrentLang el 2026-07-16.
+// currentLang se exporta como binding VIVO: main.js lo LEE directo (refleja el valor actual) pero NO puede
+// reasignarlo (un import es read-only) → para cambiar el idioma se llama setCurrentLang(). El setLang() rico
+// (persiste preferencia + re-renderiza la UI) sigue en main.js y llama a este setter. Este módulo es una HOJA
+// (no importa nada de la app) → cualquier módulo futuro puede importar t() sin crear un import circular.
+
+// Idioma activo: 'es' (default) | 'pt-BR'.
+export let currentLang = 'es';
+
+// Traduce una key al idioma activo; cae a español y, si no existe, devuelve la key misma.
+export function t(key) {
+  return (TRANSLATIONS[currentLang] && TRANSLATIONS[currentLang][key]) || TRANSLATIONS['es'][key] || key;
+}
+
+// Setea SOLO el valor del idioma (+ el atributo lang del documento). Los efectos ricos (persistir la
+// preferencia, re-render de la UI) los hace setLang() en main.js, que invoca a este setter.
+export function setCurrentLang(lang) {
+  currentLang = lang === 'pt-BR' ? 'pt-BR' : 'es';
+  if (typeof document !== 'undefined') document.documentElement.lang = currentLang;
+  return currentLang;
+}
+
 // ─────────────────────────────────────────────
 // i18n — Spanish (default) + Portuguese (Brasil)
 // ─────────────────────────────────────────────

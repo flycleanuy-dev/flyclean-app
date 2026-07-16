@@ -147,7 +147,9 @@
 // solo la lista para el cruce; NO abre servicios individuales (pages/{id} sigue bloqueado), no edita, sin plata.
 // v193: modularización — se extrajeron src/util.js (esc/toArr/msNames/compareVersions) y src/calculos.js
 // (lógica de dinero) fuera de main.js. Sin cambio funcional; bump para invalidar el /assets/main.js cacheado.
-const CACHE = 'flyclean-v193';
+// v194: modularización — t() + currentLang + setCurrentLang movidos a src/i18n.js (destraba futuros cortes).
+// currentLang pasa a binding vivo de solo lectura; los cambios de idioma van por setCurrentLang(). Sin cambio funcional.
+const CACHE = 'flyclean-v194';
 const SHELL = [
   '/',
   '/index.html',

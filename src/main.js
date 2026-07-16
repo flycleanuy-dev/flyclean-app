@@ -76,37 +76,32 @@ const COUNTRY_NOTION_MAP = {
   'México':    '🇲🇽 México'
 };
 
-import { TRANSLATIONS } from './i18n.js'; // diccionario es/pt-BR (~2.000 líneas) — ver src/i18n.js
+import { TRANSLATIONS, t, currentLang, setCurrentLang } from './i18n.js'; // diccionario + runtime de idioma — ver src/i18n.js
 import { esc, toArr, msNames, compareVersions } from './util.js'; // utilidades puras — ver src/util.js
 import { // lógica de dinero (pura, testeada por tests/calculos.test.mjs) — ver src/calculos.js
   tipoServicioList, tipoServicioStr, montoOf, esFinanciamiento, tipoInterno, esArchivado,
   kpiIncluido, kpiBadgeHTML, fmtMoneda, sumByMoneda, fmtTotalSplit,
 } from './calculos.js';
 
-let currentLang = 'es';
-
-function t(key) {
-  return (TRANSLATIONS[currentLang] && TRANSLATIONS[currentLang][key]) || TRANSLATIONS['es'][key] || key;
-}
+// currentLang, t() y setCurrentLang viven en src/i18n.js (importados arriba). currentLang es un binding
+// vivo de solo lectura: para CAMBIARLO se llama setCurrentLang(). setLang() (abajo) es el cambio "rico".
 
 function initLang() {
   const savedCountry = localStorage.getItem('fc_country');
   if (savedCountry === 'Brasil') {
     const savedBr = localStorage.getItem('fc_lang_Brasil');
-    currentLang = (savedBr === 'es') ? 'es' : 'pt-BR';
+    setCurrentLang(savedBr === 'es' ? 'es' : 'pt-BR');
   } else {
-    currentLang = 'es';
+    setCurrentLang('es');
   }
-  document.documentElement.lang = currentLang === 'pt-BR' ? 'pt-BR' : 'es';
 }
 
 function setLang(lang) {
   if (lang !== 'pt-BR' && lang !== 'es') return;
-  currentLang = lang;
+  setCurrentLang(lang);
   if (selectedCountry === 'Brasil') {
     localStorage.setItem('fc_lang_Brasil', lang);
   }
-  document.documentElement.lang = lang === 'pt-BR' ? 'pt-BR' : 'es';
   applyTranslations();
   updateLangToggleUI();
   rerenderActiveContent();
@@ -1582,11 +1577,10 @@ function selectCountry(country) {
 function applyLangForCountry(country) {
   if (country === 'Brasil') {
     const saved = localStorage.getItem('fc_lang_Brasil');
-    currentLang = (saved === 'es') ? 'es' : 'pt-BR';
+    setCurrentLang(saved === 'es' ? 'es' : 'pt-BR');
   } else {
-    currentLang = 'es';
+    setCurrentLang('es');
   }
-  document.documentElement.lang = currentLang === 'pt-BR' ? 'pt-BR' : 'es';
   applyTranslations();
   updateLangToggleUI();
 }
@@ -1597,8 +1591,7 @@ function backToCountry() {
   selectedCountry = null;
   pinUser = null;
   currentUser = null;
-  currentLang = 'es';
-  document.documentElement.lang = 'es';
+  setCurrentLang('es');
   applyTranslations();
   updateLangToggleUI();
   showScreen('country');
