@@ -179,7 +179,10 @@
 // GALERÍA (subirlas después, sin estar en el lugar), notas, ubicación editable (pegar link de Google Maps →
 // property Mapa) y Finalizar. Sin clima/checklist/iniciar. Todo auto-guardado; mismas properties Notion y
 // mismo PDF. Estreno hoy: relevamientos de Francarlos (Salvador Livio + CAIF).
-const CACHE = 'flyclean-v202';
+// v203: ficha de relevamiento — FINALIZAR pide confirmación; tras finalizar, el MISMO operario puede
+// re-abrir/editar/guardar HASTA EL FIN DEL DÍA (la ficha vuelve hidratada de Notion y su lista lo sigue
+// mostrando ese día); desde el día siguiente, solo el coordinador. Banner + botón "Guardar cambios".
+const CACHE = 'flyclean-v203';
 const SHELL = [
   '/',
   '/index.html',

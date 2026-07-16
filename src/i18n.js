@@ -988,6 +988,10 @@ export const TRANSLATIONS = {
     'relev.ficha.ubicacion.error': 'No se pudo guardar la ubicación:',
     'relev.ficha.fotos.hint': 'Sacalas ahora con la cámara o subilas después desde la galería — como te quede cómodo.',
     'relev.ficha.finalizar': 'Finalizar relevamiento',
+    'relev.ficha.confirm': '¿Finalizar el relevamiento?\n\nVas a poder editarlo y agregarle cosas hasta el final del día de hoy. Después, solo el coordinador podrá modificarlo.',
+    'relev.ficha.confirm.editar': '¿Guardar los cambios del relevamiento?',
+    'relev.ficha.editable.banner': '✔️ Relevamiento finalizado hoy — podés editarlo y guardar cambios hasta el final del día. Mañana solo el coordinador podrá modificarlo.',
+    'relev.ficha.guardar': 'Guardar cambios',
     'photos.add.gallery': 'Subir de la galería',
     'relev.step.fotos.sub': 'Mínimo 3 fotos del lugar y dificultades',
     'relev.step.fotos.hint':
@@ -2029,6 +2033,10 @@ export const TRANSLATIONS = {
     'relev.ficha.ubicacion.error': 'Não foi possível salvar a localização:',
     'relev.ficha.fotos.hint': 'Tire agora com a câmera ou envie depois da galeria — como for mais fácil.',
     'relev.ficha.finalizar': 'Finalizar levantamento',
+    'relev.ficha.confirm': 'Finalizar o levantamento?\n\nVocê poderá editá-lo e adicionar coisas até o final do dia de hoje. Depois, somente o coordenador poderá modificá-lo.',
+    'relev.ficha.confirm.editar': 'Salvar as alterações do levantamento?',
+    'relev.ficha.editable.banner': '✔️ Levantamento finalizado hoje — você pode editá-lo e salvar alterações até o final do dia. Amanhã somente o coordenador poderá modificá-lo.',
+    'relev.ficha.guardar': 'Salvar alterações',
     'photos.add.gallery': 'Enviar da galeria',
     'relev.step.fotos.sub': 'Mínimo 3 fotos do local e dificuldades',
     'relev.step.fotos.hint':

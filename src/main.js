@@ -999,7 +999,9 @@ async function getMyServices(userId) {
           or: [
             { property: 'Estado', select: { equals: '📋 Pendiente' } },
             { property: 'Estado', select: { equals: '🔄 Asignado' } },
-            { property: 'Estado', select: { equals: '✈️ En curso' } }
+            { property: 'Estado', select: { equals: '✈️ En curso' } },
+            // Relevamientos finalizados HOY: siguen visibles para su operario hasta fin del día (re-edición).
+            { property: 'Estado', select: { equals: '✅ Completado' } }
           ]
         }
       ]
@@ -1019,7 +1021,8 @@ async function getMyServices(userId) {
     const esAsignado = operarioApp === userName ||
       (legacyId && operarios.some(p => p.id === legacyId));
     const paisOk = userCountryNotion ? paisServicio === userCountryNotion : true;
-    return validStates.includes(estado) && esAsignado && paisOk;
+    const editableHoy = relevEditableHoy(props); // relevamiento ✅ de HOY: editable por su operario hasta fin del día
+    return (validStates.includes(estado) || editableHoy) && esAsignado && paisOk;
   });
 
   results.sort((a, b) => {
@@ -3668,6 +3671,17 @@ async function openService(idx) {
   if (m2Existing != null && !serviceState.relevamiento.m2) {
     serviceState.relevamiento.m2 = String(m2Existing);
   }
+  // Hidratar el resto de la FICHA de relevamiento desde Notion (re-edición del mismo día: al finalizar se
+  // limpia el localStorage, así que lo ya guardado vuelve de las properties — solo si el campo está vacío).
+  if (tipoReg.includes('Relevamiento')) {
+    const pr = currentService.properties || {};
+    const rr = serviceState.relevamiento;
+    const alturaEx = pr['Altura / Pisos']?.number;
+    if (alturaEx != null && !rr.altura) rr.altura = String(alturaEx);
+    if (!rr.dificultades.length) rr.dificultades = (pr['Dificultad de acceso']?.multi_select || []).map(o => o.name).filter(Boolean);
+    if (!rr.servicioSugerido.length) rr.servicioSugerido = (pr['Servicio sugerido']?.multi_select || []).map(o => o.name).filter(Boolean);
+    if (!rr.notasComercial) rr.notasComercial = pr['Notas pre-servicio']?.rich_text?.[0]?.plain_text || '';
+  }
 
   // Saltar al paso correcto según el progreso ya hecho
   if (serviceState.horaInicio) {
@@ -4120,7 +4134,7 @@ function renderStep() {
     content.innerHTML = `
       <div class="step-title">🔍 ${t('relev.ficha.title')}</div>
       <div class="step-sub">${esc(nombre)}${serviceState.clienteNombre ? ' · 🏢 ' + esc(serviceState.clienteNombre) : ''}</div>
-      <div class="hint hint-blue">${t('relev.ficha.autosave')}</div>
+      ${relevEditableHoy() ? `<div class="hint hint-amber">${t('relev.ficha.editable.banner')}</div>` : `<div class="hint hint-blue">${t('relev.ficha.autosave')}</div>`}
 
       <div class="info-block" style="margin-bottom:14px">
         <div class="info-row"><span class="info-label">${t('step.info.fecha')}</span><span class="info-val">${fechaFmt}</span></div>
@@ -4180,7 +4194,7 @@ function renderStep() {
       <div style="height:20px"></div>
     `;
     bar.innerHTML = `
-      <button id="ficha-finalizar-btn" class="btn-main btn-green" onclick="cerrarServicio()">✅ ${t('relev.ficha.finalizar')}</button>
+      <button id="ficha-finalizar-btn" class="btn-main btn-green" onclick="fichaRelevFinalizar()">${relevEditableHoy() ? '💾 ' + t('relev.ficha.guardar') : '✅ ' + t('relev.ficha.finalizar')}</button>
     `;
   }
 
@@ -4457,6 +4471,28 @@ function relevToggleDif(val) {
   if (idx === -1) arr.push(val); else arr.splice(idx, 1);
   persistServiceState();
   renderStep();
+}
+
+// ¿Este relevamiento está Completado pero todavía dentro de su ventana de edición del operario?
+// Regla (Diego 16/07): el operario que lo finalizó puede editar/agregar HASTA EL FIN DE ESE DÍA
+// (fecha local de 'Hora Fin'); después, solo el coordinador. Devuelve false para no-relevamientos.
+function relevEditableHoy(props) {
+  const p = props || currentService?.properties || {};
+  if (!(p['Tipo de registro']?.select?.name || '').includes('Relevamiento')) return false;
+  if ((p['Estado']?.select?.name || '') !== '✅ Completado') return false;
+  const fin = p['Hora Fin']?.date?.start;
+  if (!fin) return false;
+  const d = new Date(fin);
+  const hoy = new Date();
+  return d.getFullYear() === hoy.getFullYear() && d.getMonth() === hoy.getMonth() && d.getDate() === hoy.getDate();
+}
+
+// Finalizar la ficha con confirmación (pedido Diego 16/07). Si ya estaba finalizada (re-edición del mismo
+// día), el texto es de "guardar cambios" — cerrarServicio re-escribe las mismas properties, es idempotente.
+async function fichaRelevFinalizar() {
+  const yaCerrado = (currentService?.properties?.['Estado']?.select?.name || '') === '✅ Completado';
+  if (!confirm(t(yaCerrado ? 'relev.ficha.confirm.editar' : 'relev.ficha.confirm'))) return;
+  await cerrarServicio();
 }
 
 // Ficha de relevamiento: guardar el link de Google Maps como property 'Mapa' del servicio (no hace falta
@@ -12144,6 +12180,7 @@ Object.assign(window, {
   equipoOverlayClick,
   esc,
   executeMerge,
+  fichaRelevFinalizar,
   fichaRelevGuardarMapa,
   filterContacts,
   finishAndGoBack,
