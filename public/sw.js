@@ -170,7 +170,11 @@
 // Rentabilidad, Comercial, Servicios, Finanzas, Por cobrar, Equipo, Cuentas) salen a src/dashboards.js con
 // el PATRÓN PUENTE: el estado y las consts quedan en main (los accesores de window no cambian) y el módulo
 // los accede vía M (initDashboards). Sin cambio funcional.
-const CACHE = 'flyclean-v200';
+// v201: FIX del corte v200 — a dashboards.js le faltaban tipoServicioList y PROSPECCION_ESTADOS (Métricas
+// CEO daba "Can't find variable"), y reporte.js tenía tipoServicioList sin importar desde v197 (habría
+// fallado el próximo PDF). + Test permanente tests/no-undef.test.mjs: ningún módulo puede deployar con
+// identificadores sin resolver.
+const CACHE = 'flyclean-v201';
 const SHELL = [
   '/',
   '/index.html',

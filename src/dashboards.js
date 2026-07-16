@@ -14,7 +14,7 @@ import { t, currentLang } from './i18n.js';
 import { esc } from './util.js';
 import {
   esArchivado, esFinanciamiento, fmtMoneda, fmtTotalSplit, kpiIncluido, montoOf, sumByMoneda,
-  tipoInterno, tipoServicioStr,
+  tipoInterno, tipoServicioList, tipoServicioStr,
 } from './calculos.js';
 import { callDb, callNotion, callNotionAll, syncAfterWrite } from './api.js';
 
@@ -133,7 +133,7 @@ export async function renderCEOMetricas() {
     const prospClientesPromise = (async () => {
       try {
         const cfp = getCEOFilter();
-        const estadoOr = { or: PROSPECCION_ESTADOS.map(e => ({ property: 'Estado', select: { equals: e } })) };
+        const estadoOr = { or: M.PROSPECCION_ESTADOS.map(e => ({ property: 'Estado', select: { equals: e } })) };
         const filter = cfp ? { and: [cfp, estadoOr] } : estadoOr;
         const data = await callNotion(`databases/${M.CONTACTOS_DB_ID}/query`, 'POST', { filter });
         return (data.results || []).filter(c => !esArchivado(c));
@@ -525,8 +525,8 @@ function computeComercial(allProps) {
 function computeProspeccionMetrics(clientes) {
   const estadoDe = c => c.properties?.['Estado']?.select?.name || '';
   const porEstado = {};
-  PROSPECCION_ESTADOS.forEach(e => { porEstado[e] = 0; });
-  (clientes || []).forEach(c => { const e = estadoDe(c); if (PROSPECCION_ESTADOS.includes(e)) porEstado[e]++; });
+  M.PROSPECCION_ESTADOS.forEach(e => { porEstado[e] = 0; });
+  (clientes || []).forEach(c => { const e = estadoDe(c); if (M.PROSPECCION_ESTADOS.includes(e)) porEstado[e]++; });
   const total = (clientes || []).length;
   // "Nuevos esta semana": requiere created_time (el path Notion lo trae; un espejo/mirror podría no
   // traerlo) — si ningún registro lo tiene, degradamos a null y el render omite esa línea.
@@ -543,7 +543,7 @@ function computeProspeccionMetrics(clientes) {
 function prospeccionSubBlockHTML() {
   const pd = M._ceoProspData;
   if (!pd) return '';
-  const filas = PROSPECCION_ESTADOS.map(e => '<div class="ec-row"><span>' + esc(e) + '</span><span>' + (pd.porEstado[e] || 0) + '</span></div>').join('');
+  const filas = M.PROSPECCION_ESTADOS.map(e => '<div class="ec-row"><span>' + esc(e) + '</span><span>' + (pd.porEstado[e] || 0) + '</span></div>').join('');
   const nuevosHTML = pd.nuevosSemana != null ? '<div class="kpi-sub" style="padding-top:4px">' + pd.nuevosSemana + ' ' + t('ceo.com.prosp.nuevos') + '</div>' : '';
   return '<div class="ec-title" style="padding:14px 16px 2px">' + t('ceo.com.prosp.title') + '</div><div style="padding:0 16px 8px">' + filas + nuevosHTML + '</div>';
 }

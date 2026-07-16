@@ -4755,6 +4755,7 @@ initDashboards({
   get INGRESOS_DB_ID() { return INGRESOS_DB_ID; },
   get PROPUESTAS_DB_ID() { return PROPUESTAS_DB_ID; },
   get USERS() { return USERS; },
+  get PROSPECCION_ESTADOS() { return PROSPECCION_ESTADOS; },
   clienteNombreDe, ensureClienteNombres, finRecEnPais, generateReportPDFFromCEO, getCEOFilter, getCEOFinanceFilter, jobCompleto, loadCEO, loadRoster, logout, openAccountMenu, openCobroSheet, openContactSheet, openEditSheetFromFinanzas, openNuevoGastoSheet, propTieneServicio, recEnPaisNotion, renderClientesView, saveCobroEdit, showScreen, translateRole,
 });
 

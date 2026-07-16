@@ -12,6 +12,7 @@
 // t() y currentLang se importan de i18n.js (hoja).
 
 import { t, currentLang } from './i18n.js';
+import { tipoServicioList } from './calculos.js';
 
 let _callNotion = () => Promise.reject(new Error('reporte: callNotion no inyectado'));
 let _getEditingService = () => null;
