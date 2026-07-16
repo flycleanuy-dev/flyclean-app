@@ -6278,6 +6278,12 @@ async function openEditSheet(pageId) {
   editState._pilotoOrig = editState.piloto || '';
   editState._operarioManualOrig = editState.operarioManual || '';
   editState._participantesOrigJson = JSON.stringify(editState.participantes || []);
+  // Precio acordado + moneda (16/07): darle precio a los trabajos SUELTOS (sin propuesta) para "Por cobrar".
+  // Moneda default por país (Uruguay→UY$, resto→USD), editable. F1: escribir solo si cambió.
+  editState.precioAcordado = (props['Precio acordado']?.number != null) ? String(props['Precio acordado'].number) : '';
+  editState.moneda = props['Moneda']?.select?.name || ((editState.pais || '').includes('Uruguay') ? '🇺🇾 UY$' : '🇺🇸 USD');
+  editState._precioOrig = editState.precioAcordado;
+  editState._monedaOrig = editState.moneda;
   document.getElementById('edit-sheet-title').textContent = nombre || t('common.sinnombre');
   const dateLocale = currentLang === 'pt-BR' ? 'pt-BR' : 'es-UY';
   document.getElementById('edit-sheet-sub').textContent = fecha ? new Date(fecha + 'T00:00:00').toLocaleDateString(dateLocale, { weekday: 'long', day: 'numeric', month: 'long' }) : t('sheet.alert.fecha');
@@ -6291,6 +6297,8 @@ async function openEditSheet(pageId) {
   const TIPOS_SVC_EDIT = ['🏢 Fachada', '🪟 Vidrios', '☀️ Paneles solares'];
   const tsEl = document.getElementById('edit-tiposervicio-btns');
   if (tsEl) tsEl.innerHTML = TIPOS_SVC_EDIT.map(o => `<button class="estado-btn ${editState.tipoServicios.includes(o) ? 'active' : ''}" onclick="selectEditTipoServicio('${o.replace(/'/g,"\\'")}')">${o}</button>`).join('');
+  const precioEl = document.getElementById('edit-precio'); if (precioEl) precioEl.value = editState.precioAcordado || '';
+  renderEditMonedaBtns();
   const npEl = document.getElementById('edit-notaspre'); if (npEl) npEl.value = editState.notasPreServicio || '';
   const ocEl = document.getElementById('edit-obscliente'); if (ocEl) ocEl.value = editState.observacionCliente || '';
   const nombreInput = document.getElementById('edit-nombre'); if (nombreInput) { nombreInput.value = nombre; nombreInput.placeholder = t('common.sinnombre'); }
@@ -7437,6 +7445,16 @@ function selectEditTipoServicio(val) {
   if (i === -1) editState.tipoServicios.push(val); else editState.tipoServicios.splice(i, 1);
   document.querySelectorAll('#edit-tiposervicio-btns .estado-btn').forEach(b => b.classList.toggle('active', editState.tipoServicios.includes(b.textContent.trim())));
 }
+// Selector de moneda del precio acordado (UY$/USD) en el sheet de edición.
+function renderEditMonedaBtns() {
+  const el = document.getElementById('edit-moneda-btns'); if (!el) return;
+  el.innerHTML = ['🇺🇾 UY$', '🇺🇸 USD'].map(m =>
+    `<button class="estado-btn ${editState.moneda === m ? 'active' : ''}" onclick="selectEditMoneda('${m}')">${m}</button>`).join('');
+}
+function selectEditMoneda(m) {
+  editState.moneda = m;
+  document.querySelectorAll('#edit-moneda-btns .estado-btn').forEach(b => b.classList.toggle('active', b.textContent.trim() === m));
+}
 function selectEditOperario(name, el) {
   editState.operario = name;
   document.querySelectorAll('#edit-operario-btns .operario-btn').forEach(b => b.classList.remove('active'));
@@ -7526,6 +7544,13 @@ async function saveServiceEdit() {
     // SIEMPRE, y abrir un servicio con lectura rota (tipo → []) + guardar otra cosa lo borraba en Notion.
     if (JSON.stringify(editState.tipoServicios || []) !== editState._tipoServiciosOrigJson)
       props['Tipo de servicio'] = { multi_select: (editState.tipoServicios || []).map(name => ({ name })) };
+    // Precio acordado + Moneda (16/07): trabajos sueltos sin propuesta pueden tener precio para Por cobrar. F1: solo si cambió.
+    if ((editState.precioAcordado || '') !== editState._precioOrig) {
+      const nPrecio = parseFloat(editState.precioAcordado);
+      props['Precio acordado'] = (editState.precioAcordado !== '' && !isNaN(nPrecio)) ? { number: nPrecio } : { number: null };
+    }
+    if ((editState.moneda || '') !== editState._monedaOrig)
+      props['Moneda'] = editState.moneda ? { select: { name: editState.moneda } } : { select: null };
     if ((editState.notasPreServicio || '') !== editState._notasPreOrig) // fix F1: solo si cambió
       props['Notas pre-servicio'] = editState.notasPreServicio ? { rich_text: [{ text: { content: editState.notasPreServicio } }] } : { rich_text: [] };
     if ((editState.observacionCliente || '') !== editState._obsCliOrig) // fix F1: solo si cambió
@@ -8628,7 +8653,7 @@ function openNewServiceSheet(prefillContactId = null) {
   const today = new Date();
   const hoyISO = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
   const paisCoord = COUNTRY_NOTION_MAP[selectedCountry] || '';
-  newSvcState = { tipoRegistro: '📋 Orden de trabajo', clienteSel: prefillContactId || '__new__', nombreCliente: '', tel: '', email: '', nombre: '', tipoServicios: [], fecha: hoyISO, pais: paisCoord };
+  newSvcState = { tipoRegistro: '📋 Orden de trabajo', clienteSel: prefillContactId || '__new__', nombreCliente: '', tel: '', email: '', nombre: '', tipoServicios: [], fecha: hoyISO, pais: paisCoord, precioAcordado: '', moneda: (paisCoord.includes('Uruguay') ? '🇺🇾 UY$' : '🇺🇸 USD') };
 
   const TIPOS_REG = [
     { label: '🏢 Servicio', val: '📋 Orden de trabajo' },
@@ -8638,6 +8663,7 @@ function openNewServiceSheet(prefillContactId = null) {
   const TIPOS_SVC = ['🏢 Fachada', '🪟 Vidrios', '☀️ Paneles solares'];
   const tipoRegBtns = TIPOS_REG.map(o => `<button class="estado-btn ${newSvcState.tipoRegistro === o.val ? 'active' : ''}" onclick="newSvcSetTipoReg(this,'${o.val.replace(/'/g,"\\'")}')">${o.label}</button>`).join('');
   const tipoSvcBtns = TIPOS_SVC.map(o => `<button class="estado-btn ${newSvcState.tipoServicios.includes(o) ? 'active' : ''}" onclick="newSvcSetTipoSvc(this,'${o.replace(/'/g,"\\'")}')">${o}</button>`).join('');
+  const monedaBtns = ['🇺🇾 UY$', '🇺🇸 USD'].map(m => `<button class="estado-btn ${newSvcState.moneda === m ? 'active' : ''}" onclick="newSvcSetMoneda(this,'${m}')">${m}</button>`).join('');
 
   document.getElementById('new-service-sheet-body').innerHTML =
     `<div class="edit-section"><div class="edit-section-label">${t('sheet.newsvc.section.tipo')}</div><div class="estado-btns" id="newsvc-tiporeg-btns">${tipoRegBtns}</div></div>` +
@@ -8646,7 +8672,10 @@ function openNewServiceSheet(prefillContactId = null) {
       <input type="text" class="edit-date-input" placeholder="${t('sheet.newsvc.nombre.placeholder')}" oninput="newSvcState.nombre=this.value" style="font-size:14px"/></div>` +
     `<div class="edit-section"><div class="edit-section-label">${t('sheet.newsvc.section.tiposervicio')}</div><div class="estado-btns" id="newsvc-tiposvc-btns">${tipoSvcBtns}</div></div>` +
     `<div class="edit-section"><div class="edit-section-label">${t('sheet.newsvc.section.fecha')}</div>
-      <input type="date" class="edit-date-input" value="${newSvcState.fecha}" onchange="newSvcState.fecha=this.value"/></div>`;
+      <input type="date" class="edit-date-input" value="${newSvcState.fecha}" onchange="newSvcState.fecha=this.value"/></div>` +
+    `<div class="edit-section"><div class="edit-section-label">${t('sheet.newsvc.section.precio')}</div>
+      <input type="number" min="0" step="1" class="edit-date-input" placeholder="${t('sheet.newsvc.precio.placeholder')}" oninput="newSvcState.precioAcordado=this.value"/>
+      <div class="estado-btns" id="newsvc-moneda-btns" style="margin-top:6px">${monedaBtns}</div></div>`;
 
   const btn = document.getElementById('new-service-save-btn');
   btn.textContent = t('btn.create.notion'); btn.disabled = false;
@@ -8672,6 +8701,11 @@ function newSvcSetTipoSvc(el, val) {
   if (i === -1) newSvcState.tipoServicios.push(val); else newSvcState.tipoServicios.splice(i, 1);
   if (el) el.classList.toggle('active');
 }
+function newSvcSetMoneda(el, m) {
+  newSvcState.moneda = m;
+  document.querySelectorAll('#newsvc-moneda-btns .estado-btn').forEach(b => b.classList.remove('active'));
+  if (el) el.classList.add('active');
+}
 
 async function submitNewService() {
   if (esVentas()) return; // backstop: Ventas no crea trabajos (encierro rol B2)
@@ -8691,6 +8725,12 @@ async function submitNewService() {
     };
     if ((s.tipoServicios || []).length) properties['Tipo de servicio'] = { multi_select: s.tipoServicios.map(name => ({ name })) };
     if (s.pais) properties['País'] = { select: { name: s.pais } };
+    // Precio acordado (trabajos sueltos): si se cargó, va con su moneda → Por cobrar lo toma sin propuesta.
+    const nPrecioNew = parseFloat(s.precioAcordado);
+    if ((s.precioAcordado || '') !== '' && !isNaN(nPrecioNew)) {
+      properties['Precio acordado'] = { number: nPrecioNew };
+      properties['Moneda'] = { select: { name: s.moneda || '🇺🇸 USD' } };
+    }
     if (clienteId) properties['Contacto'] = { relation: [{ id: clienteId }] };
     const created = await callNotion('pages', 'POST', { parent: { type: 'data_source_id', data_source_id: SERVICIOS_DS_ID }, properties });
     closeNewServiceSheet();
@@ -12267,6 +12307,7 @@ Object.assign(window, {
   miseqOverlayClick,
   newServiceOverlayClick,
   newSvcClienteChanged,
+  newSvcSetMoneda,
   newSvcSetTipoReg,
   newSvcSetTipoSvc,
   nextStep,
@@ -12363,6 +12404,7 @@ Object.assign(window, {
   selectClima,
   selectCountry,
   selectEditEstado,
+  selectEditMoneda,
   selectEditOperario,
   selectEditOperarioManual,
   selectEditPiloto,

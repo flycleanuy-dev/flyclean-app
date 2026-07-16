@@ -287,6 +287,11 @@
       <div class="edit-section-label" data-i18n="sheet.edit.section.tiposervicio">TIPO DE SERVICIO</div>
       <div class="estado-btns" id="edit-tiposervicio-btns"></div>
     </div>
+    <div class="edit-section">
+      <div class="edit-section-label" data-i18n="sheet.edit.section.precio">💵 PRECIO ACORDADO (para "Por cobrar")</div>
+      <input type="number" min="0" step="1" class="edit-date-input" id="edit-precio" placeholder="Ej. 5000" oninput="editState.precioAcordado=this.value"/>
+      <div class="estado-btns" id="edit-moneda-btns" style="margin-top:6px"></div>
+    </div>
     <div class="edit-section" id="edit-cliente-ubicacion"></div>
     <button type="button" class="ceo-acc-head edit-acc-head" onclick="toggleCeoAcc(this)"><span data-i18n="sheet.edit.acc.notas">📝 NOTAS Y OBSERVACIÓN</span><span class="fin-arrow">▾</span></button>
     <div class="ceo-acc-body" style="display:none">

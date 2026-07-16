@@ -189,7 +189,11 @@
 // se aísla por país server-side (coord/CEO/Finanzas) como ya hacen ingresos/cobros (antes viajaban todos los
 // países). (3) saveServiceEdit escribe Tipo de servicio + piloto/operarios SOLO si cambiaron (guarda F1) →
 // una lectura rota ya no puede borrarlos al asignar un piloto. Sin cambio visible.
-const CACHE = 'flyclean-v205';
+// v206: PRECIO en trabajos sueltos (auditoría 16/07) — un "＋ Nuevo trabajo" sin propuesta ya puede tener
+// precio: 2 properties Notion nuevas en Servicios (Precio acordado + Moneda UY$/USD), campo en el alta y en
+// el sheet de edición (moneda default por país, editable; guardado F1 solo-si-cambió), y "Por cobrar" toma
+// ese precio como fallback cuando no hay propuesta (antes: siempre "sin precio"). Sin migración del espejo.
+const CACHE = 'flyclean-v206';
 const SHELL = [
   '/',
   '/index.html',

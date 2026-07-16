@@ -1031,8 +1031,14 @@ export async function renderPorCobrar(containerId, opts = {}) {
       const clienteId = norm(p['Contacto']?.relation?.[0]?.id || '');
       const propId = p['Propuesta']?.relation?.[0]?.id;
       const pr = propId ? precioBy[norm(propId)] : null;
-      const precio = pr ? pr.monto : 0;
-      const esUY = !!pr && pr.moneda === '🇺🇾 UY$';        // moneda del PRECIO (default USD)
+      // Precio: 1º el de la propuesta vinculada; si no hay (trabajo SUELTO), el "Precio acordado" del servicio
+      // (fix 16/07 — antes los sueltos quedaban SIEMPRE en "sin precio"). La moneda sale de la misma fuente.
+      let precio = 0, esUY = false;
+      if (pr && pr.monto) { precio = pr.monto; esUY = pr.moneda === '🇺🇾 UY$'; }
+      else {
+        const svcPrecio = p['Precio acordado']?.number || 0;
+        if (svcPrecio) { precio = svcPrecio; esUY = (p['Moneda']?.select?.name || '') === '🇺🇾 UY$'; }
+      }
       let cobUSD = 0, cobUY = 0;
       (ingBySvc[norm(s.id)] || []).forEach(v => { cobUSD += v.usd; cobUY += v.uy; }); // forward (ver ingBySvc)
       const cobrado = esUY ? cobUY : cobUSD;               // cobrado EN LA MONEDA DEL PRECIO (no mezclar)
