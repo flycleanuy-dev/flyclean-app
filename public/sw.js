@@ -158,7 +158,11 @@
 // v197: modularización — el núcleo del PDF de devolución (jsPDF/marca/REPORT_LBL/buildReportDoc/
 // generateReportPDF) sale a src/reporte.js con initReporte() (callNotion + editingService inyectados).
 // El modal previo y la variante CEO quedan en main. Sin cambio funcional.
-const CACHE = 'flyclean-v197';
+// v198: modularización — la COLA OFFLINE del operario sin señal (IndexedDB fc-offline-v1: writeQueue +
+// photoQueue) sale a src/offline-queue.js con initOfflineQueue() (callNotion/DB_ID/putPhotoToR2/
+// finalizePhotoUpload/updateServiceProps/isNetworkError inyectados). La base local NO cambia → los items ya
+// encolados sobreviven. Verificado en navegador real (sembrar+online+badge). Sin cambio funcional.
+const CACHE = 'flyclean-v198';
 const SHELL = [
   '/',
   '/index.html',
