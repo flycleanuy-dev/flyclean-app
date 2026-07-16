@@ -151,7 +151,11 @@
 // currentLang pasa a binding vivo de solo lectura; los cambios de idioma van por setCurrentLang(). Sin cambio funcional.
 // v195: modularización — el bot de ayuda IA sale a src/ayuda-bot.js. Sus 2 dependencias (usuario, forceRelogin)
 // se inyectan con initAyudaBot() → primer módulo que estrena inyección de dependencias. Sin cambio funcional.
-const CACHE = 'flyclean-v195';
+// v196: 🚨 FIX regresión de Vite (v191): 27 variables de estado usadas por handlers inline
+// (oninput="editState.nombre=this.value") quedaron fuera del scope global como módulo → los formularios no
+// guardaban lo tipeado ("el nombre es obligatorio" al crear cliente/prospecto; notas del operario; gastos…).
+// gen-globals ahora las publica como ACCESORES VIVOS en window y escanea TODO evento on* (faltaba onkeydown).
+const CACHE = 'flyclean-v196';
 const SHELL = [
   '/',
   '/index.html',

@@ -14573,9 +14573,8 @@ function showUpdateBanner() {
 })();
 
 /* @globals:start — GENERADO por scripts/gen-globals.cjs · NO editar a mano */
-// Los handlers inline (onclick="…") buscan estas funciones en window. Ver scripts/gen-globals.cjs.
+// Los handlers inline (onclick="…") buscan estas FUNCIONES en window. Ver scripts/gen-globals.cjs.
 Object.assign(window, {
-  _porCobrarOnConfirm,
   abrirProspectoMapa,
   abrirWhatsAppCliente,
   abrirWhatsAppProp,
@@ -14690,7 +14689,6 @@ Object.assign(window, {
   eqToggleAlta,
   equipoOverlayClick,
   esc,
-  escAttrEdit,
   executeMerge,
   filterContacts,
   finishAndGoBack,
@@ -14882,5 +14880,36 @@ Object.assign(window, {
   verClienteDesdeServicio,
   verMasKanban,
   verPropuestaDesdeServicio,
+});
+// ESTADO de módulo usado por handlers inline (oninput="editState.x=this.value"): accesores VIVOS,
+// no copias — leen y escriben la variable ACTUAL del módulo aunque se reasigne (editState = {...}).
+Object.defineProperties(window, {
+  COORD_PAGE_SIZE: { get: () => COORD_PAGE_SIZE, configurable: true },
+  _docState: { get: () => _docState, set: v => { _docState = v; }, configurable: true },
+  _finanzasFilterCategoria: { get: () => _finanzasFilterCategoria, set: v => { _finanzasFilterCategoria = v; }, configurable: true },
+  _finanzasFilterClase: { get: () => _finanzasFilterClase, set: v => { _finanzasFilterClase = v; }, configurable: true },
+  _finanzasFilterTipo: { get: () => _finanzasFilterTipo, set: v => { _finanzasFilterTipo = v; }, configurable: true },
+  _finanzasVisibleLimit: { get: () => _finanzasVisibleLimit, set: v => { _finanzasVisibleLimit = v; }, configurable: true },
+  _porCobrarOnConfirm: { get: () => _porCobrarOnConfirm, set: v => { _porCobrarOnConfirm = v; }, configurable: true },
+  _pvSets: { get: () => _pvSets, set: v => { _pvSets = v; }, configurable: true },
+  ceoPeriod: { get: () => ceoPeriod, set: v => { ceoPeriod = v; }, configurable: true },
+  cobroState: { get: () => cobroState, set: v => { cobroState = v; }, configurable: true },
+  contactEditState: { get: () => contactEditState, set: v => { contactEditState = v; }, configurable: true },
+  coordFilters: { get: () => coordFilters, set: v => { coordFilters = v; }, configurable: true },
+  currentService: { get: () => currentService, set: v => { currentService = v; }, configurable: true },
+  currentStep: { get: () => currentStep, set: v => { currentStep = v; }, configurable: true },
+  editState: { get: () => editState, set: v => { editState = v; }, configurable: true },
+  editingContact: { get: () => editingContact, set: v => { editingContact = v; }, configurable: true },
+  editingProp: { get: () => editingProp, set: v => { editingProp = v; }, configurable: true },
+  editingService: { get: () => editingService, set: v => { editingService = v; }, configurable: true },
+  gastoState: { get: () => gastoState, set: v => { gastoState = v; }, configurable: true },
+  ingresoState: { get: () => ingresoState, set: v => { ingresoState = v; }, configurable: true },
+  jornadaState: { get: () => jornadaState, set: v => { jornadaState = v; }, configurable: true },
+  newSvcState: { get: () => newSvcState, set: v => { newSvcState = v; }, configurable: true },
+  pedidoState: { get: () => pedidoState, set: v => { pedidoState = v; }, configurable: true },
+  propEditState: { get: () => propEditState, set: v => { propEditState = v; }, configurable: true },
+  prospectoState: { get: () => prospectoState, set: v => { prospectoState = v; }, configurable: true },
+  reportStepState: { get: () => reportStepState, set: v => { reportStepState = v; }, configurable: true },
+  serviceState: { get: () => serviceState, set: v => { serviceState = v; }, configurable: true },
 });
 /* @globals:end */
