@@ -182,7 +182,9 @@
 // v203: ficha de relevamiento — FINALIZAR pide confirmación; tras finalizar, el MISMO operario puede
 // re-abrir/editar/guardar HASTA EL FIN DEL DÍA (la ficha vuelve hidratada de Notion y su lista lo sigue
 // mostrando ese día); desde el día siguiente, solo el coordinador. Banner + botón "Guardar cambios".
-const CACHE = 'flyclean-v203';
+// v204: fix ficha de relevamiento — el link de ubicación se guarda AL FINALIZAR aunque no se toque el botón
+// "Guardar ubicación" (antes: todo autoguardaba menos el link, se perdía en silencio). Auditoría operativa 16/07.
+const CACHE = 'flyclean-v204';
 const SHELL = [
   '/',
   '/index.html',

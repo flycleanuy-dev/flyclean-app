@@ -4490,6 +4490,19 @@ function relevEditableHoy(props) {
 // Finalizar la ficha con confirmación (pedido Diego 16/07). Si ya estaba finalizada (re-edición del mismo
 // día), el texto es de "guardar cambios" — cerrarServicio re-escribe las mismas properties, es idempotente.
 async function fichaRelevFinalizar() {
+  // Auto-guardar el link de ubicación si el operario lo pegó pero NO tocó "Guardar ubicación": todo lo demás
+  // de la ficha autoguarda, así que el link también debe (antes se perdía en silencio al finalizar).
+  const inp = document.getElementById('relev-mapa-input');
+  const link = (inp?.value || '').trim();
+  const saved = (currentService?.properties?.['Mapa']?.url || '').trim();
+  if (link && link !== saved) {
+    if (!/^https?:\/\//i.test(link)) { alert(t('relev.ficha.ubicacion.invalido')); return; }
+    try {
+      await queueableUpdateServiceProps(currentService.id, { 'Mapa': { url: link } });
+      if (currentService?.properties) currentService.properties['Mapa'] = { url: link };
+      syncAfterWrite(currentService.id, 'servicios');
+    } catch (e) { alert(t('relev.ficha.ubicacion.error') + ' ' + esc(e.message || '')); return; }
+  }
   const yaCerrado = (currentService?.properties?.['Estado']?.select?.name || '') === '✅ Completado';
   if (!confirm(t(yaCerrado ? 'relev.ficha.confirm.editar' : 'relev.ficha.confirm'))) return;
   await cerrarServicio();
