@@ -184,7 +184,12 @@
 // mostrando ese día); desde el día siguiente, solo el coordinador. Banner + botón "Guardar cambios".
 // v204: fix ficha de relevamiento — el link de ubicación se guarda AL FINALIZAR aunque no se toque el botón
 // "Guardar ubicación" (antes: todo autoguardaba menos el link, se perdía en silencio). Auditoría operativa 16/07.
-const CACHE = 'flyclean-v204';
+// v205: paquete de seguridad de la auditoría 16/07 — (1) el operario ya NO recibe todos los gastos de la
+// empresa: la query filtra server-side por 'Cargado por' (antes solo se escondían en cliente). (2) Gastos
+// se aísla por país server-side (coord/CEO/Finanzas) como ya hacen ingresos/cobros (antes viajaban todos los
+// países). (3) saveServiceEdit escribe Tipo de servicio + piloto/operarios SOLO si cambiaron (guarda F1) →
+// una lectura rota ya no puede borrarlos al asignar un piloto. Sin cambio visible.
+const CACHE = 'flyclean-v205';
 const SHELL = [
   '/',
   '/index.html',

@@ -242,6 +242,20 @@ function getCEOFinanceFilter() {
   if (ceoViewCountry === 'Uruguay') return { or: [{ property: 'País', select: { equals: val } }, { property: 'País', select: { is_empty: true } }] };
   return { property: 'País', select: { equals: val } };
 }
+// Filtro Notion de país para la pantalla "💸 Gastos" (operario/coord/CEO). Basado en el país del USUARIO
+// (no en ceoViewCountry, que es el selector del CEO). Global (Dirección / CEO Uruguay) = null (ve todos).
+// Gastos NO está en el espejo → sin este filtro, la query trae los gastos de TODOS los países (fuga).
+function gastosUserPaisFilter() {
+  const isGlobal = currentUser?.role?.includes('Dirección') ||
+                   (currentUser?.role?.includes('CEO') && currentUser?.country === 'Uruguay');
+  if (isGlobal) return null;
+  const c = currentUser?.country || selectedCountry;
+  const val = COUNTRY_FINANCE_MAP[c];
+  if (!val) return null;
+  if (c === 'Uruguay') return { or: [{ property: 'País', select: { equals: val } }, { property: 'País', select: { is_empty: true } }] };
+  return { property: 'País', select: { equals: val } };
+}
+
 // Espejo cliente-side de getCEOFinanceFilter: ¿este gasto/ingreso pertenece al país que se está viendo?
 // Aísla las listas de Gastos/Ingresos por país (socios). UY (HQ) incluye los registros sin País.
 function finRecEnPais(r) {
@@ -1332,14 +1346,19 @@ let _finanzasFilterClase = '';
 let _finanzasFilterTipo = '';
 
 async function fetchGastosForMonth() {
-  // Trae los gastos del mes actual. Para v1 sin filtro server-side de mes
-  // (Notion devuelve max 100 sin paginar) — toda la lista del último mes.
   // Pagina TODO (antes se cortaba en 100 → faltaban gastos cuando hay >100).
-  const data = await callNotionAll(`databases/${GASTOS_DB_ID}/query`, {
-    sorts: [{ property: 'Fecha', direction: 'descending' }]
-  });
+  // Filtro SERVER-SIDE de país (Gastos no está en el espejo → sin esto el payload traía todos los países):
+  // usa getCEOFinanceFilter (ceoViewCountry). El caché se resetea al cambiar de país (resetGastosCache).
+  const paisF = getCEOFinanceFilter();
+  const body = { sorts: [{ property: 'Fecha', direction: 'descending' }] };
+  if (paisF) body.filter = paisF;
+  const data = await callNotionAll(`databases/${GASTOS_DB_ID}/query`, body);
   return data.results || [];
 }
+
+// Resetea el caché de gastos de Finanzas — se llama al cambiar el país en el CEO/Finanzas para que la lista
+// se re-fetchee con el filtro server-side del nuevo país (si no, mostraría el país anterior).
+function resetGastosCache() { _gastosCache = null; }
 
 async function fetchIngresosForMonth() {
   const data = await callNotionAll(`databases/${INGRESOS_DB_ID}/query`, {
@@ -2079,8 +2098,13 @@ async function renderGastosScreen(skipFetch) {
     content.innerHTML = '<div style="text-align:center;padding:40px 0"><div class="spinner" style="margin:0 auto"></div></div>';
     try {
       const dateFrom = gastosDaysAgo(_gastosScreenRangeDays);
+      // Filtro SERVER-SIDE (antes solo se escondía en cliente → el payload traía TODOS los gastos de la
+      // empresa, sueldos incluidos): el operario solo los SUYOS; coord/CEO no-global, solo los de SU país.
+      const conds = [{ property: 'Fecha', date: { on_or_after: dateFrom } }];
+      if (isOperario) conds.push({ property: 'Cargado por', select: { equals: currentUser?.name || '' } });
+      else { const pf = gastosUserPaisFilter(); if (pf) conds.push(pf); }
       const data = await callNotion(`databases/${GASTOS_DB_ID}/query`, 'POST', {
-        filter: { property: 'Fecha', date: { on_or_after: dateFrom } },
+        filter: conds.length === 1 ? conds[0] : { and: conds },
         sorts: [{ property: 'Fecha', direction: 'descending' }],
         page_size: 100,
       });
@@ -4834,7 +4858,7 @@ initDashboards({
   get PROPUESTAS_DB_ID() { return PROPUESTAS_DB_ID; },
   get USERS() { return USERS; },
   get PROSPECCION_ESTADOS() { return PROSPECCION_ESTADOS; },
-  clienteNombreDe, ensureClienteNombres, finRecEnPais, generateReportPDFFromCEO, getCEOFilter, getCEOFinanceFilter, jobCompleto, loadCEO, loadRoster, logout, openAccountMenu, openCobroSheet, openContactSheet, openEditSheetFromFinanzas, openNuevoGastoSheet, propTieneServicio, recEnPaisNotion, renderClientesView, saveCobroEdit, showScreen, translateRole,
+  clienteNombreDe, ensureClienteNombres, finRecEnPais, generateReportPDFFromCEO, getCEOFilter, getCEOFinanceFilter, jobCompleto, loadCEO, loadRoster, logout, openAccountMenu, openCobroSheet, openContactSheet, openEditSheetFromFinanzas, openNuevoGastoSheet, propTieneServicio, recEnPaisNotion, renderClientesView, resetGastosCache, saveCobroEdit, showScreen, translateRole,
 });
 
 // ─────────────────────────────────────────────
@@ -6246,6 +6270,14 @@ async function openEditSheet(pageId) {
   editState._notasPreOrig = editState.notasPreServicio || '';
   editState._obsCliOrig = editState.observacionCliente || '';
   editState._sectoresOrigJson = JSON.stringify((editState.sectores || []).map(x => ({ id: x.id, nombre: String(x.nombre || '').trim(), estado: x.estado || 'pendiente' })).filter(x => x.nombre));
+  // Fix F1 (extendido, auditoría 16/07): tipo de servicio y piloto/operarios TAMBIÉN se escriben solo si
+  // cambiaron — antes se escribían siempre, así que abrir un servicio con el raw incompleto (lectura del
+  // espejo) y guardar OTRA cosa (ej. asignar un piloto) borraba el Tipo de servicio a vacío en Notion.
+  editState._tipoServiciosOrigJson = JSON.stringify(editState.tipoServicios || []);
+  editState._operarioOrig = editState.operario || '';
+  editState._pilotoOrig = editState.piloto || '';
+  editState._operarioManualOrig = editState.operarioManual || '';
+  editState._participantesOrigJson = JSON.stringify(editState.participantes || []);
   document.getElementById('edit-sheet-title').textContent = nombre || t('common.sinnombre');
   const dateLocale = currentLang === 'pt-BR' ? 'pt-BR' : 'es-UY';
   document.getElementById('edit-sheet-sub').textContent = fecha ? new Date(fecha + 'T00:00:00').toLocaleDateString(dateLocale, { weekday: 'long', day: 'numeric', month: 'long' }) : t('sheet.alert.fecha');
@@ -7447,17 +7479,22 @@ async function saveServiceEdit() {
     if ((editState.lugar || '') !== editState._lugarOrig) // fix F1: solo si cambió (una lectura rota no borra el dato)
       props['Lugar'] = editState.lugar ? { rich_text: [{ text: { content: editState.lugar } }] } : { rich_text: [] };
     props['Mapa'] = editState.mapa ? { url: editState.mapa } : { url: null };
-    props['Operario App'] = editState.operario ? { select: { name: editState.operario } } : { select: null };
-    props['Piloto'] = editState.piloto ? { select: { name: editState.piloto } } : { select: null };
-    props['Operario manual'] = editState.operarioManual ? { select: { name: editState.operarioManual } } : { select: null };
-    const userForOp = editState.operario ? USERS.find(u => u.name === editState.operario) : null;
-    if (userForOp?.notionId) {
-      props['Operario(s)'] = { people: [{ object: 'user', id: userForOp.notionId }] };
+    // Fix F1: piloto/operarios solo si cambiaron (una lectura rota no los borra al guardar otra cosa).
+    if ((editState.operario || '') !== editState._operarioOrig)
+      props['Operario App'] = editState.operario ? { select: { name: editState.operario } } : { select: null };
+    if ((editState.piloto || '') !== editState._pilotoOrig)
+      props['Piloto'] = editState.piloto ? { select: { name: editState.piloto } } : { select: null };
+    if ((editState.operarioManual || '') !== editState._operarioManualOrig)
+      props['Operario manual'] = editState.operarioManual ? { select: { name: editState.operarioManual } } : { select: null };
+    if ((editState.operario || '') !== editState._operarioOrig) {
+      const userForOp = editState.operario ? USERS.find(u => u.name === editState.operario) : null;
+      if (userForOp?.notionId) props['Operario(s)'] = { people: [{ object: 'user', id: userForOp.notionId }] };
     }
-    // Operarios participantes (multi_select). Si la property no existe en Notion,
+    // Operarios participantes (multi_select), solo si cambiaron. Si la property no existe en Notion,
     // Notion ignora la key silenciosamente sin romper el resto del PATCH.
     const participantes = Array.isArray(editState.participantes) ? editState.participantes : [];
-    props['Operarios participantes'] = { multi_select: participantes.map(name => ({ name })) };
+    if (JSON.stringify(participantes) !== editState._participantesOrigJson)
+      props['Operarios participantes'] = { multi_select: participantes.map(name => ({ name })) };
     // Al asignar un operario, si el servicio seguía Pendiente, moverlo a 🔄 Asignado (auditoría 2026-07-09):
     // antes el coord tenía que cambiar el estado a mano y a veces quedaba Pendiente con piloto puesto. Solo
     // promovemos Pendiente→Asignado; NO tocamos En curso/Completado/Cancelado (estados fijados a propósito).
@@ -7485,8 +7522,10 @@ async function saveServiceEdit() {
         if (typeof syncAfterWrite === 'function') { try { syncAfterWrite(editState.contactoId, 'clientes'); } catch (_) {} }
       } catch (_) { /* no bloquear el guardado del servicio si el cliente falla */ }
     }
-    // multi_select desde 2026-07-04 (antes select). Se escribe SIEMPRE: array vacío = limpiar el campo.
-    props['Tipo de servicio'] = { multi_select: (editState.tipoServicios || []).map(name => ({ name })) };
+    // multi_select desde 2026-07-04 (antes select). Fix F1 (16/07): solo si cambió — antes se escribía
+    // SIEMPRE, y abrir un servicio con lectura rota (tipo → []) + guardar otra cosa lo borraba en Notion.
+    if (JSON.stringify(editState.tipoServicios || []) !== editState._tipoServiciosOrigJson)
+      props['Tipo de servicio'] = { multi_select: (editState.tipoServicios || []).map(name => ({ name })) };
     if ((editState.notasPreServicio || '') !== editState._notasPreOrig) // fix F1: solo si cambió
       props['Notas pre-servicio'] = editState.notasPreServicio ? { rich_text: [{ text: { content: editState.notasPreServicio } }] } : { rich_text: [] };
     if ((editState.observacionCliente || '') !== editState._obsCliOrig) // fix F1: solo si cambió

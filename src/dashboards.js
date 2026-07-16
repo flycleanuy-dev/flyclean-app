@@ -43,6 +43,7 @@ const renderClientesView = (...a) => M.renderClientesView(...a);
 const saveCobroEdit = (...a) => M.saveCobroEdit(...a);
 const showScreen = (...a) => M.showScreen(...a);
 const translateRole = (...a) => M.translateRole(...a);
+const resetGastosCache = (...a) => M.resetGastosCache(...a);
 
 export function renderCEOCountryTabs() {
   const container = document.getElementById('ceo-country-tabs');
@@ -56,6 +57,7 @@ export function renderCEOCountryTabs() {
 
 export async function setCEOCountry(country) {
   M.ceoViewCountry = country;
+  resetGastosCache(); // Gastos tiene filtro server-side de país → refetchear con el país nuevo (ingresos va por el espejo/RLS, no necesita)
   renderCEOCountryTabs();
   if (M.activeCEOTab === 'metricas') await renderCEOMetricas();
   else if (M.activeCEOTab === 'servicios') await renderCEOServicios();
