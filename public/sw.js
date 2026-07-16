@@ -149,7 +149,9 @@
 // (lógica de dinero) fuera de main.js. Sin cambio funcional; bump para invalidar el /assets/main.js cacheado.
 // v194: modularización — t() + currentLang + setCurrentLang movidos a src/i18n.js (destraba futuros cortes).
 // currentLang pasa a binding vivo de solo lectura; los cambios de idioma van por setCurrentLang(). Sin cambio funcional.
-const CACHE = 'flyclean-v194';
+// v195: modularización — el bot de ayuda IA sale a src/ayuda-bot.js. Sus 2 dependencias (usuario, forceRelogin)
+// se inyectan con initAyudaBot() → primer módulo que estrena inyección de dependencias. Sin cambio funcional.
+const CACHE = 'flyclean-v195';
 const SHELL = [
   '/',
   '/index.html',

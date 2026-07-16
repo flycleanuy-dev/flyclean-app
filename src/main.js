@@ -82,6 +82,9 @@ import { // lógica de dinero (pura, testeada por tests/calculos.test.mjs) — v
   tipoServicioList, tipoServicioStr, montoOf, esFinanciamiento, tipoInterno, esArchivado,
   kpiIncluido, kpiBadgeHTML, fmtMoneda, sumByMoneda, fmtTotalSplit,
 } from './calculos.js';
+import { // asistente IA de ayuda — ver src/ayuda-bot.js (dependencias inyectadas con initAyudaBot)
+  initAyudaBot, updateAyudaFab, resetAyudaBot, openAyudaBot, closeAyudaBot, ayudaOverlayClick, sendAyuda,
+} from './ayuda-bot.js';
 
 // currentLang, t() y setCurrentLang viven en src/i18n.js (importados arriba). currentLang es un binding
 // vivo de solo lectura: para CAMBIARLO se llama setCurrentLang(). setLang() (abajo) es el cambio "rico".
@@ -13745,84 +13748,10 @@ function openHelpSheet() {
 function closeHelpSheet() { document.getElementById('help-overlay').classList.remove('open'); }
 function helpOverlayClick(e) { if (e.target.id === 'help-overlay') closeHelpSheet(); }
 
-// ── 🤖 ASISTENTE IA (bot de ayuda "cómo usar la app") ────────────────────────
-// Solo texto: manda la pregunta a /api/ayuda-bot (que fija el rol desde la sesión y responde según el manual
-// de ESE rol). El bot no ejecuta nada ni ve datos → no puede romper la app. Historial en memoria de sesión.
-const AYUDA_FAB_SCREENS = ['services', 'coordinator', 'ceo', 'finanzas']; // paneles de rol (cubre los 6 roles)
-let _ayudaHist = [];
-let _ayudaBusy = false;
-function updateAyudaFab() {
-  const fab = document.getElementById('ayuda-fab');
-  if (!fab) return;
-  const scr = ((document.querySelector('.screen.active') || {}).id || '').replace('screen-', '');
-  fab.style.display = (currentUser && AYUDA_FAB_SCREENS.includes(scr)) ? 'flex' : 'none';
-}
-function ayudaOverlayClick(e) { if (e.target.id === 'ayuda-overlay') closeAyudaBot(); }
-function closeAyudaBot() { document.getElementById('ayuda-overlay').classList.remove('open'); }
-// Borra la conversación (memoria + burbujas + input) y cierra el panel. La app es una SPA: al cerrar sesión
-// NO se recarga la página, así que sin esto el chat del usuario anterior seguía visible para el siguiente
-// (bug reportado 2026-07-15: el chat del CEO aparecía en el coordinador). El chat pertenece a la sesión.
-function resetAyudaBot() {
-  _ayudaHist = [];
-  _ayudaBusy = false;
-  const box = document.getElementById('ayuda-msgs');
-  if (box) box.innerHTML = '';
-  const inp = document.getElementById('ayuda-input');
-  if (inp) inp.value = '';
-  closeAyudaBot();
-}
-function openAyudaBot() {
-  const ov = document.getElementById('ayuda-overlay');
-  if (!ov) return;
-  ov.classList.add('open');
-  if (!_ayudaHist.length && !document.querySelector('#ayuda-msgs .ayuda-bubble')) ayudaAddBubble('bot', t('ayuda.welcome'));
-  setTimeout(() => { const i = document.getElementById('ayuda-input'); if (i) i.focus(); }, 100);
-}
-function ayudaAddBubble(cls, text) {
-  const box = document.getElementById('ayuda-msgs');
-  if (!box) return null;
-  const d = document.createElement('div');
-  d.className = 'ayuda-bubble ' + cls;
-  d.textContent = text; // textContent → la respuesta del bot nunca se interpreta como HTML
-  box.appendChild(d);
-  box.scrollTop = box.scrollHeight;
-  return d;
-}
-async function sendAyuda() {
-  if (_ayudaBusy) return;
-  const input = document.getElementById('ayuda-input');
-  const q = ((input && input.value) || '').trim();
-  if (!q) return;
-  input.value = '';
-  ayudaAddBubble('me', q);
-  _ayudaBusy = true;
-  const sendBtn = document.getElementById('ayuda-send');
-  if (sendBtn) sendBtn.disabled = true;
-  const typing = ayudaAddBubble('bot', t('ayuda.typing'));
-  try {
-    const tok = localStorage.getItem('fc_token') || '';
-    const resp = await fetch('/api/ayuda-bot', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + tok },
-      body: JSON.stringify({ pregunta: q, historial: _ayudaHist.slice(-6) }),
-    });
-    if (typing) typing.remove();
-    if (resp.status === 401) { closeAyudaBot(); if (typeof forceRelogin === 'function') forceRelogin(); return; }
-    const data = await resp.json().catch(() => ({}));
-    if (!resp.ok) { ayudaAddBubble('err', data.error || t('ayuda.error')); return; }
-    const r = String(data.respuesta || '').trim() || t('ayuda.error');
-    ayudaAddBubble('bot', r);
-    _ayudaHist.push({ role: 'user', content: q }, { role: 'assistant', content: r });
-    if (_ayudaHist.length > 12) _ayudaHist = _ayudaHist.slice(-12);
-  } catch (_) {
-    if (typing) typing.remove();
-    ayudaAddBubble('err', t('ayuda.error'));
-  } finally {
-    _ayudaBusy = false;
-    if (sendBtn) sendBtn.disabled = false;
-    if (input) input.focus();
-  }
-}
+// ── 🤖 ASISTENTE IA — movido a src/ayuda-bot.js el 16/07. main.js le inyecta sus 2 dependencias:
+// quién es el usuario logueado (getter lazy, para el FAB) y qué hacer ante un 401 (forceRelogin).
+// El getter lee currentUser en cada llamada → refleja el usuario actual aunque cambie de sesión.
+initAyudaBot({ getUser: () => currentUser, onRelogin: forceRelogin });
 
 // ── 📋 MI HISTORIAL DE TRABAJOS ──────────────────────────────────────────────
 // SOLO LECTURA estricta: las cards NO abren el servicio (imposible reabrir/recomenzar por error).
