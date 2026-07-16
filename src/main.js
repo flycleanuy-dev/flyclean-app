@@ -7,17 +7,6 @@
 const APP_VERSION = '1.2.9';
 const MIN_APK_VERSION_REQUIRED = '1.0.0';
 
-// Helper semver simple para comparar "x.y.z" (devuelve <0, 0, >0).
-function compareVersions(a, b) {
-  const pa = String(a || '0.0.0').split('.').map(n => parseInt(n, 10) || 0);
-  const pb = String(b || '0.0.0').split('.').map(n => parseInt(n, 10) || 0);
-  for (let i = 0; i < 3; i++) {
-    if ((pa[i] || 0) > (pb[i] || 0)) return 1;
-    if ((pa[i] || 0) < (pb[i] || 0)) return -1;
-  }
-  return 0;
-}
-
 // El APK puede exponer su versión nativa vía un meta tag inyectado por el wrapper TWA,
 // o vía Digital Asset Links / navigator.getInstalledRelatedApps. Si no hay info, asumimos
 // "running on web" y no hay version-gate.
@@ -88,6 +77,11 @@ const COUNTRY_NOTION_MAP = {
 };
 
 import { TRANSLATIONS } from './i18n.js'; // diccionario es/pt-BR (~2.000 líneas) — ver src/i18n.js
+import { esc, toArr, msNames, compareVersions } from './util.js'; // utilidades puras — ver src/util.js
+import { // lógica de dinero (pura, testeada por tests/calculos.test.mjs) — ver src/calculos.js
+  tipoServicioList, tipoServicioStr, montoOf, esFinanciamiento, tipoInterno, esArchivado,
+  kpiIncluido, kpiBadgeHTML, fmtMoneda, sumByMoneda, fmtTotalSplit,
+} from './calculos.js';
 
 let currentLang = 'es';
 
@@ -411,14 +405,6 @@ let currentService = null;
 let currentStep = 0;
 // Normaliza a array de strings: array→igual, string→[string], null/''→[]. Usado por los campos que
 // pasaron de select (string) a multi_select (array): metodoTrabajo, herramientaManual (tolera legacy).
-function toArr(v) { return Array.isArray(v) ? v.filter(Boolean) : (v ? [v] : []); }
-// Lee una property Notion multi_select devolviendo los nombres. Fallback a select (registros legacy que
-// quedaron como single antes de la conversión a multi_select).
-function msNames(prop) {
-  if (prop?.multi_select) return prop.multi_select.map(o => o.name).filter(Boolean);
-  if (prop?.select?.name) return [prop.select.name];
-  return [];
-}
 let serviceState = {};
 let activeTab = 'ordenes';
 let _allServices = [];
@@ -2375,79 +2361,7 @@ const GASTO_MONEDA_MAP = {
 // (los pesos se veían como dólares). Estos helpers respetan la moneda real.
 // Fallback a "Monto USD" para registros legacy aún no migrados.
 // ─────────────────────────────────────────────
-/* @calculos:start — bloque de lógica de dinero (puro, sin DOM). Lo extrae y testea tests/calculos.test.mjs;
-   si cambia algo acá que rompa una cuenta, el CI lo atrapa. NO meter funciones que usen el DOM adentro. */
-const MONEDA_LABEL = { '🇺🇾 UY$': 'UY$', '🇺🇸 USD': 'USD', '🔀 Mixto': 'USD' };
-const MONTO_FIELDS = {
-  gasto:   { moneda: 'Moneda',       uy: 'Monto UY$',         usd: 'Monto USD' },
-  ingreso: { moneda: 'Moneda cobro', uy: 'Monto UY$ cobrado', usd: 'Monto USD' },
-};
-// Devuelve { moneda, esUY, monto } leyendo el campo de monto que corresponde a la moneda.
-// Tipo(s) de servicio — la property Notion pasó de select a MULTI_SELECT (2026-07-04): un servicio
-// puede ser Fachada + Vidrios (+ Paneles). Lector defensivo: acepta multi_select (nuevo) y select
-// (legacy: espejo Supabase / cachés todavía sin resync). Única fuente de lectura en toda la app.
-function tipoServicioList(props) {
-  const p = props?.['Tipo de servicio'];
-  if (Array.isArray(p?.multi_select) && p.multi_select.length) return p.multi_select.map(o => o.name).filter(Boolean);
-  return p?.select?.name ? [p.select.name] : [];
-}
-function tipoServicioStr(props) { return tipoServicioList(props).join(' + '); }
-
-function montoOf(props, kind = 'gasto') {
-  const F = MONTO_FIELDS[kind] || MONTO_FIELDS.gasto;
-  const tag = props?.[F.moneda]?.select?.name || null;
-  const uyVal = props?.[F.uy]?.number;
-  const usdVal = props?.[F.usd]?.number;
-  // Moneda: 1) etiqueta explícita si existe; 2) inferir del campo de monto poblado
-  //   (legacy: ingresos cargados en "Monto USD" sin etiqueta = USD; gastos en "Monto UY$" = pesos);
-  //   3) default UY$ si no hay datos.
-  let moneda;
-  if (tag) moneda = tag;
-  else if (usdVal != null && uyVal == null) moneda = '🇺🇸 USD';
-  else moneda = '🇺🇾 UY$';
-  const esUY = moneda === '🇺🇾 UY$';
-  const monto = esUY ? (uyVal ?? usdVal ?? 0) : (usdVal ?? uyVal ?? 0);
-  return { moneda, esUY, monto };
-}
-// Filas que NO cuentan en el RESULTADO OPERATIVO: movimientos internos marcados "Excluir de KPIs"
-// (cambios de moneda, depósitos propios) Y el financiamiento (préstamos de socios). El financiamiento
-// se muestra aparte en su propio bloque (deuda). Las filas siguen visibles en las listas (con badge).
-function esFinanciamiento(r) { return !!(r?.properties?.['Financiamiento']?.select?.name); }
-// Tipo interno: cambio de moneda / depósito propio / traspaso → NO es gasto ni ingreso real.
-function tipoInterno(r) { return r?.properties?.['Tipo interno']?.select?.name || ''; }
-function esArchivado(r) { return r?.properties?.['🗄️ Archivado']?.checkbox === true; }
-function kpiIncluido(r) { return !(esArchivado(r) || r?.properties?.['Excluir de KPIs']?.checkbox === true || esFinanciamiento(r) || !!tipoInterno(r)); }
-// Badge para una card: financiamiento (préstamo) / tipo interno (💱 cambio, 🏦 depósito, 🔁 traspaso) / interno genérico.
-function kpiBadgeHTML(props) {
-  if (props?.['Financiamiento']?.select?.name) return ' <span class="kpi-excluido-tag">🏦 préstamo</span>';
-  const ti = props?.['Tipo interno']?.select?.name;
-  if (ti) return ' <span class="kpi-excluido-tag">' + esc(ti) + '</span>';
-  if (props?.['Excluir de KPIs']?.checkbox === true) return ' <span class="kpi-excluido-tag">🔁 interno</span>';
-  return '';
-}
-// Formatea un monto con su etiqueta de moneda. UY$ sin decimales, USD con hasta 2.
-function fmtMoneda(monto, moneda) {
-  const esUY = moneda === '🇺🇾 UY$';
-  const loc = esUY ? 'es-UY' : 'en-US';
-  return (MONEDA_LABEL[moneda] || 'USD') + ' ' + Math.abs(monto).toLocaleString(loc, { maximumFractionDigits: esUY ? 0 : 2 });
-}
-// Suma montos separando por moneda. Devuelve { uyu, usd }. NUNCA mezcla pesos y dólares.
-function sumByMoneda(results, kind = 'gasto') {
-  const tot = { uyu: 0, usd: 0 };
-  (results || []).filter(kpiIncluido).forEach(r => { const { esUY, monto } = montoOf(r.properties || {}, kind); if (esUY) tot.uyu += monto; else tot.usd += monto; });
-  return tot;
-}
-// HTML de un total separado por moneda (dos importes). Omite la línea cuyo total es 0.
-// opts.sign = '+' para anteponer un signo (ingresos). Si ambos son 0 muestra UY$ 0.
-function fmtTotalSplit(tot, opts = {}) {
-  const sign = opts.sign || '';
-  const parts = [];
-  if (tot.uyu) parts.push('<strong>' + sign + fmtMoneda(tot.uyu, '🇺🇾 UY$') + '</strong>');
-  if (tot.usd) parts.push('<strong>' + sign + fmtMoneda(tot.usd, '🇺🇸 USD') + '</strong>');
-  if (!parts.length) parts.push('<strong>' + fmtMoneda(0, '🇺🇾 UY$') + '</strong>');
-  return parts.join(' <span style="color:var(--text3)">·</span> ');
-}
-/* @calculos:end */
+// (Bloque de dinero movido a src/calculos.js el 16/07 — importado arriba. Test: tests/calculos.test.mjs)
 
 const GASTO_FORMA_PAGO = ['💳 Débito', '🏦 Transferencia', '💵 Efectivo'];
 const GASTO_CATEGORIAS = [
@@ -8365,11 +8279,6 @@ function escAttrEdit(s) {
 // Notion (nombres de servicio/contacto/propuesta, notas, lugar, etc) dentro de
 // innerHTML. Sin esto un usuario con acceso a Notion puede romper la app o
 // inyectar HTML metiendo `<img>` o `<script>` en un campo de texto.
-function esc(s) {
-  return String(s == null ? '' : s)
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-}
 
 // Id corto y único para un sector (solo para distinguir filas en el JSON de sectores).
 function genSectorId() {

@@ -1,23 +1,8 @@
-// Tests UNITARIOS de la lógica de dinero (el corazón financiero). Extrae el bloque marcado
-// /* @calculos:start … @calculos:end */ de app.js y lo evalúa en un sandbox — testea el CÓDIGO REAL
-// sin moverlo. Si un cambio rompe una cuenta (inferencia de moneda, mezcla UY$/USD, exclusión de KPIs),
-// el CI lo atrapa antes de prod. Cero red externa; corre en cualquier lado.
-// (El JS del front vive en /src/main.js desde la extracción del 15/07; antes estaba inline en index.html.)
-import { readFileSync } from 'node:fs';
-
-const src = readFileSync(new URL('../src/main.js', import.meta.url), 'utf8');
-const m = src.match(/@calculos:start[\s\S]*?\*\/([\s\S]*?)\/\* @calculos:end \*\//);
-if (!m) {
-  console.error('❌ No encontré el bloque @calculos en src/main.js (¿se movieron los marcadores?)');
-  process.exit(1);
-}
-
-// kpiBadgeHTML (dentro del bloque) usa esc() del DOM → se define pero NO se testea. Le pasamos un esc no-op.
-const factory = new Function(
-  'esc',
-  `${m[1]}\n return { montoOf, fmtMoneda, sumByMoneda, kpiIncluido, fmtTotalSplit, tipoServicioStr };`
-);
-const C = factory(s => String(s ?? ''));
+// Tests UNITARIOS de la lógica de dinero (el corazón financiero). Importa el CÓDIGO REAL directo
+// desde src/calculos.js (módulo puro). Si un cambio rompe una cuenta (inferencia de moneda, mezcla
+// UY$/USD, exclusión de KPIs), el CI lo atrapa antes de prod. Cero red externa; corre en cualquier lado.
+// (El bloque vivía como @calculos dentro de main.js hasta el 16/07; ahora es su propio módulo.)
+import * as C from '../src/calculos.js';
 
 let pass = 0,
   fail = 0;

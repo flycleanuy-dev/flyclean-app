@@ -145,7 +145,9 @@
 // v133: Ventas también ve el destacado "🔁 para recontactar" (mantenimiento 9m) + su alerta. Requirió darle
 // LECTURA de servicios (backstop: api/db.js resource 'servicios' + api/notion.js query SERVICIOS_NORM) —
 // solo la lista para el cruce; NO abre servicios individuales (pages/{id} sigue bloqueado), no edita, sin plata.
-const CACHE = 'flyclean-v192';
+// v193: modularización — se extrajeron src/util.js (esc/toArr/msNames/compareVersions) y src/calculos.js
+// (lógica de dinero) fuera de main.js. Sin cambio funcional; bump para invalidar el /assets/main.js cacheado.
+const CACHE = 'flyclean-v193';
 const SHELL = [
   '/',
   '/index.html',
