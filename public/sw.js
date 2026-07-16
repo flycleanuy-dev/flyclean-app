@@ -166,7 +166,11 @@
 // dbFlag+DB_FLAGS/captureRenewedToken/putPhotoToR2/isNetworkError) sale a src/api.js con initApi()
 // (forceRelogin + dbIds inyectados). Módulo HOJA: los cortes de rol que vienen la importan sin ciclo.
 // Sin cambio funcional.
-const CACHE = 'flyclean-v199';
+// v200: modularización — PRIMER CORTE DE ÁREA: los dashboards CEO/Finanzas (~1.760 líneas: Métricas,
+// Rentabilidad, Comercial, Servicios, Finanzas, Por cobrar, Equipo, Cuentas) salen a src/dashboards.js con
+// el PATRÓN PUENTE: el estado y las consts quedan en main (los accesores de window no cambian) y el módulo
+// los accede vía M (initDashboards). Sin cambio funcional.
+const CACHE = 'flyclean-v200';
 const SHELL = [
   '/',
   '/index.html',
