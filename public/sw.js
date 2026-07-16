@@ -193,7 +193,11 @@
 // precio: 2 properties Notion nuevas en Servicios (Precio acordado + Moneda UY$/USD), campo en el alta y en
 // el sheet de edición (moneda default por país, editable; guardado F1 solo-si-cambió), y "Por cobrar" toma
 // ese precio como fallback cuando no hay propuesta (antes: siempre "sin precio"). Sin migración del espejo.
-const CACHE = 'flyclean-v206';
+// v207: modularización — el subsistema de FOTOS (uploader por servicio/sector, subida R2, cola offline de
+// fotos, visor lightbox, galería) sale a src/fotos.js (patrón puente initFotos). serviceState/currentService
+// quedan en main; _pv (visor) se va con el módulo. finalizePhotoUpload se sigue inyectando a la cola offline.
+// Sin cambio funcional.
+const CACHE = 'flyclean-v207';
 const SHELL = [
   '/',
   '/index.html',
