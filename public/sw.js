@@ -197,7 +197,10 @@
 // fotos, visor lightbox, galería) sale a src/fotos.js (patrón puente initFotos). serviceState/currentService
 // quedan en main; _pv (visor) se va con el módulo. finalizePhotoUpload se sigue inyectando a la cola offline.
 // Sin cambio funcional.
-const CACHE = 'flyclean-v207';
+// v208: modularización — PROSPECCIÓN/VENTAS (lista de prospectos, tarjeta, sheet de alta, acciones) sale a
+// src/prospeccion.js (patrón puente initProspeccion). prospectoState y el resto del estado quedan en main;
+// el módulo los accede vía M. Sin cambio funcional.
+const CACHE = 'flyclean-v208';
 const SHELL = [
   '/',
   '/index.html',
