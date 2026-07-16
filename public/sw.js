@@ -155,7 +155,10 @@
 // (oninput="editState.nombre=this.value") quedaron fuera del scope global como módulo → los formularios no
 // guardaban lo tipeado ("el nombre es obligatorio" al crear cliente/prospecto; notas del operario; gastos…).
 // gen-globals ahora las publica como ACCESORES VIVOS en window y escanea TODO evento on* (faltaba onkeydown).
-const CACHE = 'flyclean-v196';
+// v197: modularización — el núcleo del PDF de devolución (jsPDF/marca/REPORT_LBL/buildReportDoc/
+// generateReportPDF) sale a src/reporte.js con initReporte() (callNotion + editingService inyectados).
+// El modal previo y la variante CEO quedan en main. Sin cambio funcional.
+const CACHE = 'flyclean-v197';
 const SHELL = [
   '/',
   '/index.html',
