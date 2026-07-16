@@ -369,12 +369,13 @@ const STEPS_SERVICIO = [
   { id: 'cerrar', label: 'CERRAR', icon: '🏁' }
 ];
 
+// Relevamiento = FICHA ÚNICA (pedido Diego 16/07): no es un servicio ni una prueba — es recolección de
+// información para presupuestar. Sin clima, sin checklist, sin "iniciar": una sola pantalla tipo planilla
+// que se llena libre (los datos se guardan solos), las fotos pueden subirse después desde la galería, y la
+// ubicación se puede pegar como link de Google Maps sin estar en el lugar. "Finalizar" cierra y con esa
+// info el coordinador arma el presupuesto (los campos van a las mismas properties Notion de siempre).
 const STEPS_RELEVAMIENTO = [
-  { id: 'inicio', label: 'LUGAR', icon: '📍' },
-  { id: 'relev_datos', label: 'DATOS', icon: '🔍' },
-  { id: 'fotos_relevamiento', label: 'FOTOS', icon: '📸' },
-  { id: 'relev_notas', label: 'NOTAS', icon: '📝' },
-  { id: 'cerrar', label: 'CERRAR', icon: '🏁' }
+  { id: 'ficha_relev', label: 'FICHA', icon: '🔍' }
 ];
 
 // Flujo del operario cuando el servicio tiene SECTORES: igual al normal pero SIN los pasos
@@ -666,6 +667,7 @@ function hydrateServiceStateFromLocal(id) {
 
 function computeStepFromState() {
   if (!STEPS || !STEPS.length) return 0;
+  if (STEPS.length === 1) return 0; // ficha única (relevamiento): no hay a dónde saltar
   const idxOf = id => STEPS.findIndex(s => s.id === id);
   if (serviceState.horaCierreEfectivo) {
     const t = idxOf('fotos_despues');
@@ -862,16 +864,21 @@ function openPhotoViewerFor(fotoType, photoId) {
   const idx = arr.findIndex(p => p.id === photoId);
   openPhotoViewer(fotos, idx < 0 ? 0 : Math.min(idx, fotos.length - 1));
 }
-function renderPhotoUploader(fotoType, minPhotos) {
+function renderPhotoUploader(fotoType, minPhotos, opts = {}) {
   const photos = serviceState.photos?.[fotoType] || [];
   const doneCount = photos.filter(p => p.status === 'done').length;
   const queuedCount = photos.filter(p => p.status === 'queued').length;
   const minLabel = minPhotos ? ` (mínimo ${minPhotos})` : '';
   const queuedLabel = queuedCount ? ` · ${queuedCount} ⏳ ${t('photos.queued')}` : '';
+  // opts.gallery (relevamiento): segundo input SIN capture → el navegador ofrece la galería (subir fotos
+  // sacadas antes, sin estar en el lugar). El input con capture="environment" va directo a la cámara.
+  const galleryHtml = opts.gallery ? `
+      <input type="file" accept="image/*" multiple id="photo-input-${fotoType}-gal" onchange="handlePhotoSelect(this, '${fotoType}')" style="display:none">
+      <button type="button" class="photo-add-btn" style="margin-top:8px" onclick="document.getElementById('photo-input-${fotoType}-gal').click()">🖼️ ${t('photos.add.gallery')}</button>` : '';
   return `
     <div class="photo-uploader">
       <input type="file" accept="image/*" capture="environment" multiple id="photo-input-${fotoType}" onchange="handlePhotoSelect(this, '${fotoType}')" style="display:none">
-      <button type="button" class="photo-add-btn" onclick="document.getElementById('photo-input-${fotoType}').click()">📷 ${t('photos.add')}</button>
+      <button type="button" class="photo-add-btn" onclick="document.getElementById('photo-input-${fotoType}').click()">📷 ${t('photos.add')}</button>${galleryHtml}
       <div class="photo-count">${doneCount} ${doneCount === 1 ? t('photos.uploaded.one') : t('photos.uploaded.many')}${minLabel}${queuedLabel}</div>
       <div class="photo-grid">
         ${photos.map(p => `
@@ -3728,6 +3735,7 @@ function goBack() {
 
 function renderStepNav() {
   const nav = document.getElementById('step-nav');
+  if (STEPS.length === 1) { nav.innerHTML = ''; return; } // ficha única (relevamiento): sin barra de pasos
   nav.innerHTML = STEPS.map((s, i) => {
     let cls = '';
     if (i < currentStep) cls = 'done';
@@ -4101,14 +4109,31 @@ function renderStep() {
     `;
   }
 
-  // ── STEPS RELEVAMIENTO ──
-  else if (step.id === 'relev_datos') {
+  // ── FICHA DE RELEVAMIENTO (pantalla única, pedido Diego 16/07) ──
+  // No es servicio ni prueba: es una PLANILLA que se llena libre y con la que después se arma el
+  // presupuesto. Todo se auto-guarda (localStorage + Notion con debounce); puede salir y volver.
+  else if (step.id === 'ficha_relev') {
     const r = serviceState.relevamiento;
     const DIFICULTADES = ['🚧 Acceso restringido','💧 Sin agua disponible','⚡ Sin electricidad','⚠️ Riesgo eléctrico','🌬️ Vientos frecuentes','🏗️ Andamios necesarios','🪜 Altura significativa (>5 pisos)','🔒 Requiere coordinación especial'];
     const SUGERIDOS = ['🏢 Fachada','🪟 Vidrios','☀️ Paneles solares','🔄 Combinado'];
+    const fotosOk = (serviceState.photos?.relevamiento || []).filter(fotoTomada).length;
     content.innerHTML = `
-      <div class="step-title">${t('relev.step.datos.title')}</div>
-      <div class="step-sub">${t('relev.step.datos.sub')}</div>
+      <div class="step-title">🔍 ${t('relev.ficha.title')}</div>
+      <div class="step-sub">${esc(nombre)}${serviceState.clienteNombre ? ' · 🏢 ' + esc(serviceState.clienteNombre) : ''}</div>
+      <div class="hint hint-blue">${t('relev.ficha.autosave')}</div>
+
+      <div class="info-block" style="margin-bottom:14px">
+        <div class="info-row"><span class="info-label">${t('step.info.fecha')}</span><span class="info-val">${fechaFmt}</span></div>
+        ${lugar ? `<div class="info-row"><span class="info-label">${t('step.info.lugar')}</span><span class="info-val">${esc(lugar)}</span></div>` : ''}
+        <div class="info-row"><span class="info-label">${t('step.info.pais')}</span><span class="info-val">${esc(pais)}</span></div>
+      </div>
+
+      <div class="field-group">
+        <div class="form-label">📍 ${t('relev.ficha.ubicacion')}</div>
+        ${mapa ? `<a href="${mapa}" target="_blank" rel="noopener" class="btn-main btn-blue" style="display:block;text-align:center;text-decoration:none;margin-bottom:8px">🗺️ ${t('step.info.abrirmapa')}</a>` : ''}
+        <input type="url" id="relev-mapa-input" class="edit-date-input" placeholder="${t('relev.ficha.ubicacion.ph')}" value="${esc(currentService?.properties?.['Mapa']?.url || '')}"/>
+        <button type="button" class="btn-secondary" style="width:100%;margin-top:6px" onclick="fichaRelevGuardarMapa()">${t('relev.ficha.ubicacion.guardar')}</button>
+      </div>
 
       <div class="field-group">
         <div class="form-label">📐 ${t('relev.m2.label')}</div>
@@ -4133,42 +4158,29 @@ function renderStep() {
           ${SUGERIDOS.map(s => `<div class="radio-opt ${r.servicioSugerido.includes(s) ? 'selected' : ''}" onclick="relevToggleSugerido('${s.replace(/'/g,"\\'")}')">${s}</div>`).join('')}
         </div>
       </div>
-      <div style="height:20px"></div>
-    `;
-    bar.innerHTML = `
-      <button class="btn-secondary" onclick="goToStep(${currentStep - 1})">${t('btn.back')}</button>
-      <button class="btn-main btn-green" onclick="nextStep()">${t('btn.continue')}</button>
-    `;
-  }
 
-  else if (step.id === 'fotos_relevamiento') {
-    content.innerHTML = `
-      <div class="step-title">${t('relev.step.fotos.title')}</div>
-      <div class="step-sub">${t('relev.step.fotos.sub')}</div>
-      <div class="hint hint-amber">${t('relev.step.fotos.hint')}</div>
-      ${renderPhotoUploader('relevamiento', 3)}
-    `;
-    bar.innerHTML = `
-      <button class="btn-secondary" onclick="goToStep(${currentStep - 1})">${t('btn.back')}</button>
-      <button class="btn-main btn-green" onclick="nextStep()">${t('btn.continue')}</button>
-    `;
-  }
-
-  else if (step.id === 'relev_notas') {
-    content.innerHTML = `
-      <div class="step-title">${t('relev.step.notas.title')}</div>
-      <div class="step-sub">${t('relev.step.notas.sub')}</div>
-      <div class="hint hint-blue">${t('relev.step.notas.hint')}</div>
+      <div class="field-group">
+        <div class="form-label">📸 ${t('relev.step.fotos.title')}</div>
+        <div class="hint hint-amber">${t('relev.ficha.fotos.hint')}</div>
+        ${renderPhotoUploader('relevamiento', 0, { gallery: true })}
+      </div>
 
       <div class="field-group">
         <div class="form-label">📝 ${t('relev.notas.label')}</div>
-        <textarea rows="6" placeholder="${t('relev.notas.placeholder')}" oninput="serviceState.relevamiento.notasComercial=this.value; persistServiceStateToLocal();">${esc(serviceState.relevamiento.notasComercial || '')}</textarea>
+        <textarea rows="5" placeholder="${t('relev.notas.placeholder')}" oninput="serviceState.relevamiento.notasComercial=this.value; persistServiceStateToLocal();">${esc(serviceState.relevamiento.notasComercial || '')}</textarea>
+      </div>
+
+      <div class="summary-card" style="margin-top:6px">
+        <div class="summary-title">${t('relev.summary.title')}</div>
+        <div class="summary-row"><span class="summary-key">📐 ${t('relev.m2.label')}</span><span class="summary-val">${r.m2 ? r.m2 + ' m²' : '—'}</span></div>
+        <div class="summary-row"><span class="summary-key">${t('relev.altura.label')}</span><span class="summary-val">${r.altura || '—'}</span></div>
+        <div class="summary-row"><span class="summary-key">📸 ${t('relev.fotos.label')}</span><span class="summary-val">${fotosOk}</span></div>
+        <div class="summary-row"><span class="summary-key">📝 ${t('relev.notas.label')}</span><span class="summary-val">${r.notasComercial ? '✓' : '—'}</span></div>
       </div>
       <div style="height:20px"></div>
     `;
     bar.innerHTML = `
-      <button class="btn-secondary" onclick="goToStep(${currentStep - 1})">${t('btn.back')}</button>
-      <button class="btn-main btn-green" onclick="nextStep()">${t('btn.continue')}</button>
+      <button id="ficha-finalizar-btn" class="btn-main btn-green" onclick="cerrarServicio()">✅ ${t('relev.ficha.finalizar')}</button>
     `;
   }
 
@@ -4447,6 +4459,23 @@ function relevToggleDif(val) {
   renderStep();
 }
 
+// Ficha de relevamiento: guardar el link de Google Maps como property 'Mapa' del servicio (no hace falta
+// estar en el lugar — el operario/coordinador pega el link compartido). Va por la cola offline si no hay señal.
+async function fichaRelevGuardarMapa() {
+  const inp = document.getElementById('relev-mapa-input');
+  const link = (inp?.value || '').trim();
+  if (!link) { alert(t('relev.ficha.ubicacion.vacio')); return; }
+  if (!/^https?:\/\//i.test(link)) { alert(t('relev.ficha.ubicacion.invalido')); return; }
+  try {
+    await queueableUpdateServiceProps(currentService.id, { 'Mapa': { url: link } });
+    if (currentService?.properties) currentService.properties['Mapa'] = { url: link };
+    syncAfterWrite(currentService.id, 'servicios');
+    renderStep(); // re-pinta: aparece el botón "Abrir mapa" con el link nuevo
+  } catch (e) {
+    alert(t('relev.ficha.ubicacion.error') + ' ' + esc(e.message || ''));
+  }
+}
+
 function relevToggleSugerido(val) {
   const arr = serviceState.relevamiento.servicioSugerido;
   const idx = arr.indexOf(val);
@@ -4551,7 +4580,7 @@ async function _ejecutarCierre(modo) {
   const jornadaN = currentService?.properties?.['Jornada N°']?.number;
   const conSectores = servicioTieneSectores();
 
-  const btn = document.querySelector('.btn-red');
+  const btn = document.querySelector('.btn-red, #ficha-finalizar-btn');
   if (btn) { btn.textContent = t('btn.saving.notion'); btn.disabled = true; }
 
   const properties = {};
@@ -12115,6 +12144,7 @@ Object.assign(window, {
   equipoOverlayClick,
   esc,
   executeMerge,
+  fichaRelevGuardarMapa,
   filterContacts,
   finishAndGoBack,
   gastoOverlayClick,

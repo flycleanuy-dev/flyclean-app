@@ -174,7 +174,12 @@
 // CEO daba "Can't find variable"), y reporte.js tenía tipoServicioList sin importar desde v197 (habría
 // fallado el próximo PDF). + Test permanente tests/no-undef.test.mjs: ningún módulo puede deployar con
 // identificadores sin resolver.
-const CACHE = 'flyclean-v201';
+// v202: FICHA DE RELEVAMIENTO (pedido Diego 16/07) — el relevamiento deja de ser un wizard de 5 pasos y
+// pasa a UNA ficha/planilla que se llena libre: datos (m²/altura/dificultades/sugerido), fotos con opción
+// GALERÍA (subirlas después, sin estar en el lugar), notas, ubicación editable (pegar link de Google Maps →
+// property Mapa) y Finalizar. Sin clima/checklist/iniciar. Todo auto-guardado; mismas properties Notion y
+// mismo PDF. Estreno hoy: relevamientos de Francarlos (Salvador Livio + CAIF).
+const CACHE = 'flyclean-v202';
 const SHELL = [
   '/',
   '/index.html',
