@@ -203,7 +203,10 @@
 // v209: modularización — EQUIPOS/FLOTA (tab del coord: check mensual/km/horas/problemas, Mis equipos del
 // operario, equipos del servicio, alta) sale a src/equipos.js (patrón puente initEquipos). _activosCache y
 // _equiposDelServicio quedan en main (los usa renderStep/openEditSheet); el resto va con el módulo. Sin cambio funcional.
-const CACHE = 'flyclean-v209';
+// v210: modularización — MI HISTORIAL DE TRABAJOS (lista solo-lectura de servicios en que participó el
+// usuario + editar su nota) sale a src/historial.js (patrón puente initHistorial). currentUser + participaEn
+// (compartida con una card) quedan en main; amMisEquipos también. Sin cambio funcional. 13 módulos.
+const CACHE = 'flyclean-v210';
 const SHELL = [
   '/',
   '/index.html',
