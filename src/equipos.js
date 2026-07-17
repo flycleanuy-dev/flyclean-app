@@ -5,7 +5,7 @@
 // _activosCache y _equiposDelServicio quedan en main (los usan renderStep/openEditSheet) → vía M/initEquipos;
 // _coordAllActivos/_misEquipos/_eqInp son propios del módulo. Funcs de main que usa = alias.
 
-import { t } from './i18n.js';
+import { t, pedidoFmtFecha } from './i18n.js';
 import { esc } from './util.js';
 import { callNotion } from './api.js';
 
@@ -20,7 +20,6 @@ const MISEQ_PROB_TIPOS = ['⚠️ Anda mal', '🔧 Necesita mantenimiento', '�
 
 const esDireccion = (...a) => M.esDireccion(...a);
 const esVentas = (...a) => M.esVentas(...a);
-const pedidoFmtFecha = (...a) => M.pedidoFmtFecha(...a);
 const showSaving = (...a) => M.showSaving(...a);
 
 export async function fetchActivosDisponibles() {

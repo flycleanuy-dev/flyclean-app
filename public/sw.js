@@ -206,7 +206,11 @@
 // v210: modularización — MI HISTORIAL DE TRABAJOS (lista solo-lectura de servicios en que participó el
 // usuario + editar su nota) sale a src/historial.js (patrón puente initHistorial). currentUser + participaEn
 // (compartida con una card) quedan en main; amMisEquipos también. Sin cambio funcional. 13 módulos.
-const CACHE = 'flyclean-v210';
+// v211: modularización — PEDIDOS/COMPRAS de insumos (tab 📦 del coord + sheet "nuevo pedido" del operario/
+// coord + marcar Comprado/Recibido/Cancelado) sale a src/pedidos.js (patrón puente initPedidos). pedidoState
+// queda en main (handlers inline → accesor de gen-globals). pedidoFmtFecha se movió a i18n.js (la comparten
+// Equipos/Historial/Documentos → sale de sus puentes). Sin cambio funcional. 14 módulos.
+const CACHE = 'flyclean-v211';
 const SHELL = [
   '/',
   '/index.html',

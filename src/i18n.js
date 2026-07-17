@@ -21,6 +21,16 @@ export function setCurrentLang(lang) {
   return currentLang;
 }
 
+// Formatea una fecha ISO (yyyy-mm-dd) a texto corto localizado "día mes" (ej. "5 jul"). Depende de
+// currentLang → vive acá. Nombre heredado de cuando estaba en el cluster de Pedidos; la usan también
+// Equipos, Historial y el aviso de vencimiento de Documentos.
+export function pedidoFmtFecha(iso) {
+  if (!iso) return '';
+  try {
+    return new Date(iso + 'T00:00:00').toLocaleDateString(currentLang === 'pt-BR' ? 'pt-BR' : 'es', { day: 'numeric', month: 'short' });
+  } catch (_) { return iso; }
+}
+
 // ─────────────────────────────────────────────
 // i18n — Spanish (default) + Portuguese (Brasil)
 // ─────────────────────────────────────────────

@@ -4,7 +4,7 @@
 // Se abre desde el menú de cuenta (📋 Mi historial). Extraído de main.js el 2026-07-16 (patrón puente).
 // currentUser queda en main (vía M/initHistorial); participaEn y las demás funcs de main llegan como alias.
 
-import { t } from './i18n.js';
+import { t, pedidoFmtFecha } from './i18n.js';
 import { esc, msNames } from './util.js';
 import { esArchivado } from './calculos.js';
 import { callNotion } from './api.js';
@@ -16,7 +16,6 @@ const showSaving = (...a) => M.showSaving(...a);
 const closeAccountMenu = (...a) => M.closeAccountMenu(...a);
 const forceRelogin = (...a) => M.forceRelogin(...a);
 const getMyServices = (...a) => M.getMyServices(...a);
-const pedidoFmtFecha = (...a) => M.pedidoFmtFecha(...a);
 const participaEn = (...a) => M.participaEn(...a);
 
 let _histItems = null;
