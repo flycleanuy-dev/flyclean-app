@@ -229,7 +229,11 @@
 // sale a src/finanzas.js (patrón puente initFinanzas). ingresoState/cobroState/filtros quedan en main
 // (handlers inline → accesores gen-globals). Borrado _originalCargarMasCoord (código muerto). Sin cambio
 // funcional. 18 módulos.
-const CACHE = 'flyclean-v215';
+// v216: modularización — PROPUESTAS parte 2/2: el SHEET (crear/editar/borrar propuesta, selector de cliente,
+// crear servicio/prueba/relevamiento desde la propuesta, "Recontacté hoy") se suma a src/propuestas.js
+// (initPropuestas ampliado). propEditState/editingProp quedan en main (handlers inline → accesores).
+// Sin cambio funcional. El módulo propuestas queda COMPLETO (seguimiento + sheet). 18 módulos.
+const CACHE = 'flyclean-v216';
 const SHELL = [
   '/',
   '/index.html',
