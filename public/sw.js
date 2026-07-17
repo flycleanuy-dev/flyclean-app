@@ -200,7 +200,10 @@
 // v208: modularización — PROSPECCIÓN/VENTAS (lista de prospectos, tarjeta, sheet de alta, acciones) sale a
 // src/prospeccion.js (patrón puente initProspeccion). prospectoState y el resto del estado quedan en main;
 // el módulo los accede vía M. Sin cambio funcional.
-const CACHE = 'flyclean-v208';
+// v209: modularización — EQUIPOS/FLOTA (tab del coord: check mensual/km/horas/problemas, Mis equipos del
+// operario, equipos del servicio, alta) sale a src/equipos.js (patrón puente initEquipos). _activosCache y
+// _equiposDelServicio quedan en main (los usa renderStep/openEditSheet); el resto va con el módulo. Sin cambio funcional.
+const CACHE = 'flyclean-v209';
 const SHELL = [
   '/',
   '/index.html',
