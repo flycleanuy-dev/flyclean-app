@@ -210,7 +210,11 @@
 // coord + marcar Comprado/Recibido/Cancelado) sale a src/pedidos.js (patrón puente initPedidos). pedidoState
 // queda en main (handlers inline → accesor de gen-globals). pedidoFmtFecha se movió a i18n.js (la comparten
 // Equipos/Historial/Documentos → sale de sus puentes). Sin cambio funcional. 14 módulos.
-const CACHE = 'flyclean-v211';
+// v212: modularización — BANNER DE ALERTAS por rol (mantenimiento equipos, check mensual, servicios por
+// gestionar, propuestas a re-contactar, clientes de mantenimiento, pedidos pendientes, documentos por vencer)
+// sale a src/alertas.js (patrón puente initAlertas). Estado propio (_alertsByContainer, dismissed) se va con
+// él. Importa eqProblemaAbierto (equipos) y pedidoPaisDelUser (pedidos). Sin cambio funcional. 15 módulos.
+const CACHE = 'flyclean-v212';
 const SHELL = [
   '/',
   '/index.html',
