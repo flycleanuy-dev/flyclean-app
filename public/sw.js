@@ -244,7 +244,12 @@
 // (onclick="...") → tras el corte de equipos.js la función dejó de estar en window. Fix SISTÉMICO en
 // gen-globals (escanea ambos estilos) → publica openMisEquipos + openContactarHoy (el deep-link de la
 // alerta de propuestas, que fallaba en silencio por su guard). Gracias, Francarlos 🐞.
-const CACHE = 'flyclean-v218';
+// v219: modularización — CLIENTES/CRM (1º de los 3 cortes grandes): vista Clientes unificada
+// (coord/Finanzas/CEO), lista con buscador + secciones (mantenimiento 9m / a contactar / cartera), ficha 360
+// (sheet + sectores + intermediarios + historial), WhatsApp/recontacto 1-toque y el mapa id→nombre salen a
+// src/clientes.js (initClientes, ~970 líneas — el módulo más grande). El estado compartido (contactos,
+// editingContact/contactEditState, cachés) queda en main → puente. Sin cambio funcional. 19 módulos.
+const CACHE = 'flyclean-v219';
 const SHELL = [
   '/',
   '/index.html',
