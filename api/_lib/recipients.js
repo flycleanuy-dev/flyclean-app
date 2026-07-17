@@ -4,7 +4,7 @@
 // salir por una caída de KV). Esquema v1 = lista global por tipo; preparado para segmentar por país a futuro.
 import { kvCmd, kvConfigured } from './pins.js';
 
-export const RECIPIENT_TYPES = ['semanal', 'lunes', 'pipeline'];
+export const RECIPIENT_TYPES = ['semanal', 'lunes', 'pipeline', 'reportes']; // 'reportes' = avisos de errores de la app (api/reporte.js)
 const KV_KEY = 'email:recipients:v1';
 export const MAX_PER_TYPE = 10;
 

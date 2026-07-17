@@ -12,6 +12,29 @@
 <!-- jsPDF se aloja en /vendor/jspdf.umd.min.js y se carga on-demand (ensureJsPDF) al generar un PDF -->
 <title>FlyClean</title>
 <link rel="stylesheet" href="/styles.css"/>
+<script>
+// Mini-catcher de errores (Fase A Soporte): junta errores que pasen ANTES de que cargue el bundle
+// (incluido el peor caso: main.js no carga/parsea). src/errores.js los drena al iniciar y toma la posta
+// (__fcErrHooked). Si el bundle nunca llega, a los 6s manda lo juntado directo a /api/reporte (sin token).
+window.__fcErrQ = [];
+window.addEventListener('error', function (e) {
+  if (window.__fcErrHooked) return;
+  window.__fcErrQ.push({ m: (e && e.message) || 'error', s: (e && e.error && e.error.stack) || ((e && e.filename) ? e.filename + ':' + e.lineno : '') });
+});
+window.addEventListener('unhandledrejection', function (e) {
+  if (window.__fcErrHooked) return;
+  var r = e && e.reason;
+  window.__fcErrQ.push({ m: (r && r.message) || String(r || 'promesa rechazada'), s: (r && r.stack) || '' });
+});
+setTimeout(function () {
+  if (window.__fcErrHooked || !window.__fcErrQ.length) return;
+  try {
+    var it = window.__fcErrQ[0];
+    fetch('/api/reporte', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tipo: 'auto', mensaje: 'BOOT: ' + it.m, stack: (it.s || '').slice(0, 2000), pantalla: 'boot', online: navigator.onLine, ua: navigator.userAgent }) });
+  } catch (_) {}
+}, 6000);
+</script>
 </head>
 <body>
 

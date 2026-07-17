@@ -941,6 +941,10 @@ export const TRANSLATIONS = {
     'comms.sub':
       'El sistema de mensajería interno entre CEO, coordinadores y operarios está en desarrollo. Próximamente podrán comunicarse directamente desde la app.',
     'comms.badge': 'Próximamente',
+    'err.toast': 'Se detectó un error y se reportó automáticamente.',
+    'err.btn': 'Contar qué estabas haciendo',
+    'err.prompt': '¿Qué estabas haciendo cuando pasó? (opcional)',
+    'err.gracias': 'Gracias, enviado.',
     'comms.f1.title': 'Avisos del coordinador',
     'comms.f1.text':
       'Notificaciones a operarios sobre cambios de fecha, instrucciones o alertas de servicio.',
@@ -1992,6 +1996,10 @@ export const TRANSLATIONS = {
     'comms.sub':
       'O sistema de mensageria interna entre CEO, coordenadores e operários está em desenvolvimento. Em breve poderão se comunicar diretamente pelo app.',
     'comms.badge': 'Em breve',
+    'err.toast': 'Detectamos um erro e ele foi reportado automaticamente.',
+    'err.btn': 'Contar o que você estava fazendo',
+    'err.prompt': 'O que você estava fazendo quando aconteceu? (opcional)',
+    'err.gracias': 'Obrigado, enviado.',
     'comms.f1.title': 'Avisos do coordenador',
     'comms.f1.text': 'Notificações aos operários sobre mudanças de data, instruções ou alertas de serviço.',
     'comms.f2.title': 'Relatórios do operário',

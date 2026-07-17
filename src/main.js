@@ -85,6 +85,7 @@ import { // lógica de dinero (pura, testeada por tests/calculos.test.mjs) — v
 import { // asistente IA de ayuda — ver src/ayuda-bot.js (dependencias inyectadas con initAyudaBot)
   initAyudaBot, updateAyudaFab, resetAyudaBot, openAyudaBot, closeAyudaBot, ayudaOverlayClick, sendAyuda,
 } from './ayuda-bot.js';
+import { initErrores } from './errores.js'; // captura global de errores → /api/reporte (Fase A Soporte)
 import { // PDF de devolución (núcleo) — ver src/reporte.js (dependencias inyectadas con initReporte)
   initReporte, ensureJsPDF, ensureReportBrand, buildReportDoc, generateReportPDF,
 } from './reporte.js';
@@ -155,6 +156,15 @@ import { // dashboards CEO/Finanzas — ver src/dashboards.js (estado/consts que
   setCEOTab, setCeoRentaView, shiftCEOPeriod, toggleBajaPanel, toggleCeoAcc, toggleEditUser, toggleFinGroup,
   toggleNewUserForm,
 } from './dashboards.js';
+
+// Captura global de errores lo más TEMPRANO posible (así cubre incluso fallos del propio arranque de
+// main). Los getters del puente son perezosos → no hay problema de TDZ con lets declarados más abajo
+// (y errores.js envuelve todo acceso en try/catch).
+initErrores({
+  get APP_VERSION() { return APP_VERSION; },
+  get activeCoordTab() { return activeCoordTab; },
+  _activeScreenId: (...a) => _activeScreenId(...a),
+});
 
 // currentLang, t() y setCurrentLang viven en src/i18n.js (importados arriba). currentLang es un binding
 // vivo de solo lectura: para CAMBIARLO se llama setCurrentLang(). setLang() (abajo) es el cambio "rico".

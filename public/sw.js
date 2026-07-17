@@ -233,7 +233,12 @@
 // crear servicio/prueba/relevamiento desde la propuesta, "Recontacté hoy") se suma a src/propuestas.js
 // (initPropuestas ampliado). propEditState/editingProp quedan en main (handlers inline → accesores).
 // Sin cambio funcional. El módulo propuestas queda COMPLETO (seguimiento + sheet). 18 módulos.
-const CACHE = 'flyclean-v216';
+// v217: FASE A del sistema de Soporte — DETECTOR AUTOMÁTICO DE ERRORES. Captura global (window.onerror +
+// unhandledrejection vía src/errores.js + mini-catcher inline en <head> que cubre fallos de arranque del
+// bundle) → POST /api/reporte (nuevo): guarda en la tabla Supabase `reportes` + email a Dirección con dedup
+// (un aviso por error distinto por día; los "detalle" escritos por una persona avisan siempre). Toast
+// discreto con "contar qué estabas haciendo". Triple anti-spam (dedup sesión + rate limit KV + dedup email).
+const CACHE = 'flyclean-v217';
 const SHELL = [
   '/',
   '/index.html',
