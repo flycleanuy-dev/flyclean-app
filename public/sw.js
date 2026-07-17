@@ -238,7 +238,13 @@
 // bundle) → POST /api/reporte (nuevo): guarda en la tabla Supabase `reportes` + email a Dirección con dedup
 // (un aviso por error distinto por día; los "detalle" escritos por una persona avisan siempre). Toast
 // discreto con "contar qué estabas haciendo". Triple anti-spam (dedup sesión + rate limit KV + dedup email).
-const CACHE = 'flyclean-v217';
+// v218: FIX del primer bug cazado por el sistema de reportes (¡en su día 1!): "Can't find variable:
+// openMisEquipos" al tocar la alerta del viernes del operario (reportá tus equipos). Causa: las alertas
+// arman sus botones con estilo objeto (onclick: '...') y gen-globals solo escaneaba el estilo atributo
+// (onclick="...") → tras el corte de equipos.js la función dejó de estar en window. Fix SISTÉMICO en
+// gen-globals (escanea ambos estilos) → publica openMisEquipos + openContactarHoy (el deep-link de la
+// alerta de propuestas, que fallaba en silencio por su guard). Gracias, Francarlos 🐞.
+const CACHE = 'flyclean-v218';
 const SHELL = [
   '/',
   '/index.html',

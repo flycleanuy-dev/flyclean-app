@@ -8518,6 +8518,7 @@ Object.assign(window, {
   openGalleryViewer,
   openGastos,
   openHistoryItem,
+  openMisEquipos,
   openMoverEstado,
   openNewContactSheet,
   openNewPropSheet,

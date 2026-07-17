@@ -43,31 +43,38 @@ const limpio = main.includes(START) ? main.slice(0, main.indexOf(START)) : main;
 // ── 1) Identificadores usados desde CUALQUIER handler inline (HTML estático + HTML generado por el JS) ──
 // on[a-z]+ cubre TODO evento (onkeydown, onerror, lo que venga) — la lista fija anterior dejó afuera onkeydown.
 const reHandler = /\bon[a-z]+\s*=\s*(["'])((?:\\.|(?!\1)[^\\])*)\1/gi;
+// Estilo PROPIEDAD DE OBJETO: onclick: 'openMisEquipos()' — lo usan las ALERTAS (alertas.js arma
+// { onclick: '...' } y renderAlertsBanner lo inyecta como atributo en runtime). El regex de atributo no lo
+// ve porque en el fuente no hay `onclick="..."` literal. Bug real 17/07 (día 1 del sistema de reportes):
+// "Can't find variable: openMisEquipos" al tocar la alerta del viernes del operario.
+const reObjHandler = /\bon[a-z]+\s*:\s*(["'])((?:\\.|(?!\1)[^\\])*)\1/gi;
 
 // llamadas: foo(...)  ·  peladas: editState.x=…, serviceState.avance=… (el identificador raíz, sin llamar)
 const usadosCall = new Set();
 const usadosBare = new Set();
+function scanHandlerBody(raw) {
+  // NO se descartan las interpolaciones ${…}: hay handlers construidos enteros por una (p.ej. el paso
+  // Resultado del operario: onclick="${cond ? `selectResultadoPrueba(…)` : `selectResultado(…)`}") y sus
+  // llamadas SON runtime. Publicar de más (un identificador build-time) es inofensivo; de menos, fatal.
+  const body = raw
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&amp;/g, '&')
+    .replace(/'(?:\\.|[^'\\])*'/g, "''") // strings dentro del handler: no son identificadores
+    .replace(/"(?:\\.|[^"\\])*"/g, '""');
+  const reIdent = /[a-zA-Z_$][\w$]*/g;
+  let im;
+  while ((im = reIdent.exec(body))) {
+    const prev = body.slice(0, im.index).trimEnd().slice(-1);
+    if (prev === '.') continue; // propiedad (x.y) → no resuelve contra el global
+    const next = body.slice(im.index + im[0].length).trimStart()[0];
+    (next === '(' ? usadosCall : usadosBare).add(im[0]);
+  }
+}
 for (const src of [html, limpio, ...otros]) {
   let m;
-  while ((m = reHandler.exec(src))) {
-    // NO se descartan las interpolaciones ${…}: hay handlers construidos enteros por una (p.ej. el paso
-    // Resultado del operario: onclick="${cond ? `selectResultadoPrueba(…)` : `selectResultado(…)`}") y sus
-    // llamadas SON runtime. Publicar de más (un identificador build-time) es inofensivo; de menos, fatal.
-    const body = m[2]
-      .replace(/&quot;/g, '"')
-      .replace(/&#39;/g, "'")
-      .replace(/&amp;/g, '&')
-      .replace(/'(?:\\.|[^'\\])*'/g, "''") // strings dentro del handler: no son identificadores
-      .replace(/"(?:\\.|[^"\\])*"/g, '""');
-    const reIdent = /[a-zA-Z_$][\w$]*/g;
-    let im;
-    while ((im = reIdent.exec(body))) {
-      const prev = body.slice(0, im.index).trimEnd().slice(-1);
-      if (prev === '.') continue; // propiedad (x.y) → no resuelve contra el global
-      const next = body.slice(im.index + im[0].length).trimStart()[0];
-      (next === '(' ? usadosCall : usadosBare).add(im[0]);
-    }
-  }
+  while ((m = reHandler.exec(src))) scanHandlerBody(m[2]);
+  while ((m = reObjHandler.exec(src))) scanHandlerBody(m[2]);
 }
 
 // ── 2) Qué es cada nombre en el scope de main.js: function / let / var / const / import ──
