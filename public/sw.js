@@ -224,7 +224,12 @@
 // accesor gen-globals). La tab Finanzas (gastos+ingresos) queda en main para su propio corte. + Test no-undef
 // REFORZADO: ahora también falla ante errores de sintaxis (antes un parse error pasaba en silencio). Sin
 // cambio funcional. 17 módulos.
-const CACHE = 'flyclean-v214';
+// v215: modularización — FINANZAS operativa (tab Finanzas con listas Gastos/Ingresos + filtros + cargar más,
+// sheet ➕ nuevo ingreso manual país-aware, sheet editar cobro, Reportes PDF semanal/mensual/por servicio)
+// sale a src/finanzas.js (patrón puente initFinanzas). ingresoState/cobroState/filtros quedan en main
+// (handlers inline → accesores gen-globals). Borrado _originalCargarMasCoord (código muerto). Sin cambio
+// funcional. 18 módulos.
+const CACHE = 'flyclean-v215';
 const SHELL = [
   '/',
   '/index.html',
