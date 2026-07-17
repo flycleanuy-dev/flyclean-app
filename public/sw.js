@@ -214,7 +214,12 @@
 // gestionar, propuestas a re-contactar, clientes de mantenimiento, pedidos pendientes, documentos por vencer)
 // sale a src/alertas.js (patrón puente initAlertas). Estado propio (_alertsByContainer, dismissed) se va con
 // él. Importa eqProblemaAbierto (equipos) y pedidoPaisDelUser (pedidos). Sin cambio funcional. 15 módulos.
-const CACHE = 'flyclean-v212';
+// v213: modularización — PROPUESTAS parte 1/2: SEGUIMIENTO comercial (bloque "📞 A contactar hoy" con
+// reloj de vida, marcar "Contactado" 1-toque, WhatsApp asistido desde la propuesta) sale a src/propuestas.js
+// (patrón puente initPropuestas). El sheet de crear/editar propuesta queda en main para un corte dedicado
+// (parte 2). _coordAllProps/editingProp/renderCoordPropuestasList quedan en main → M. Sin cambio funcional.
+// 16 módulos.
+const CACHE = 'flyclean-v213';
 const SHELL = [
   '/',
   '/index.html',
