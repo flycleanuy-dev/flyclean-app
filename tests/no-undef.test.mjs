@@ -41,6 +41,12 @@ try {
         bad += lines.length;
         console.error(`❌ ${f}: ${lines.length} identificador(es) sin resolver:`);
         for (const l of [...new Set(lines)].slice(0, 10)) console.error('  ' + l.trim());
+      } else {
+        // eslint falló SIN reportar no-undef → error de PARSEO u otro fatal (ej. una llave sin cerrar
+        // tras un corte de modularización, incidente 17/07). Antes esto pasaba EN SILENCIO.
+        bad += 1;
+        console.error(`❌ ${f}: eslint falló sin reportar no-undef (¿error de sintaxis?):`);
+        for (const l of out.split('\n').filter(Boolean).slice(0, 6)) console.error('  ' + l.trim());
       }
     }
   }

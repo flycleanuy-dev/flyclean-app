@@ -219,7 +219,12 @@
 // (patrón puente initPropuestas). El sheet de crear/editar propuesta queda en main para un corte dedicado
 // (parte 2). _coordAllProps/editingProp/renderCoordPropuestasList quedan en main → M. Sin cambio funcional.
 // 16 módulos.
-const CACHE = 'flyclean-v213';
+// v214: modularización — GASTOS (pantalla 💸 + sheet de carga con foto de recibo y OCR IA + chips de gastos
+// del servicio) sale a src/gastos.js (patrón puente initGastos). gastoState queda en main (handlers inline →
+// accesor gen-globals). La tab Finanzas (gastos+ingresos) queda en main para su propio corte. + Test no-undef
+// REFORZADO: ahora también falla ante errores de sintaxis (antes un parse error pasaba en silencio). Sin
+// cambio funcional. 17 módulos.
+const CACHE = 'flyclean-v214';
 const SHELL = [
   '/',
   '/index.html',
