@@ -255,7 +255,14 @@
 // calendario), mover-estado, cards de servicio + agrupado de jornadas, fetch del mes y los renderers de
 // Inicio/Servicios/Pruebas/Relevamientos + cambiarEstadoServicio. setCoordTab (router), el sheet de edición
 // y el estado compartido quedan en main → puente. Sin cambio funcional. 20 módulos.
-const CACHE = 'flyclean-v220';
+// v221: modularización — MOTOR DEL OPERARIO (3º y ÚLTIMO corte grande → LA MODULARIZACIÓN DEL MONOLITO QUEDA
+// COMPLETA): todo el flujo de campo sale a src/operario.js (~1.900 líneas, 68 funcs — el módulo más grande):
+// lista del operario + agenda del piloto, openService con rehidratación Notion+local, el wizard completo
+// (renderStep + checklists + clima + método + resultado + ficha de relevamiento), GPS con consentimiento,
+// iniciar/cancelar/cierre con sectores y jornadas ("¿terminaste?"), persistencia local+Notion, pantalla
+// "listo", creación de jornada siguiente y overlays de sector. serviceState/currentService/currentStep/
+// jornadaState quedan en main (accesores) — cero cambio de comportamiento. 21 módulos. main.js ~4.700.
+const CACHE = 'flyclean-v221';
 const SHELL = [
   '/',
   '/index.html',
