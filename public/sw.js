@@ -284,7 +284,12 @@
 // con la foto del negocio del período/país que se está viendo (balance UY$/USD con delta vs período
 // anterior, indicadores, por país, pipeline con $ en juego, sin-cobro histórico), con la marca FlyClean —
 // para socios o el banco. Datos en vivo (espejo con fallback a Notion), jsPDF self-hosted.
-const CACHE = 'flyclean-v225';
+// v226: Fase CEO 2 COMPLETA — piezas 3 y 4: ⇄ COMPARATIVA DE PAÍSES (tabla ingresos/gastos/balance/
+// completados/en-curso lado a lado, desplegable bajo la fila de banderas del Inicio, cero fetch extra) +
+// 📤 PIPELINE NAVEGABLE (tocás la fila → la LISTA de propuestas abiertas con estado, días e importe,
+// las más frías primero). Con Soporte (v224) y el PDF ejecutivo (v225), los 4 entregables de la fase
+// quedan en producción.
+const CACHE = 'flyclean-v226';
 const SHELL = [
   '/',
   '/index.html',

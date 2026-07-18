@@ -709,6 +709,56 @@ function ceoiDelta(cur, prev, { pp = false } = {}) {
 
 const CEOI_TERMINALES = ['✅ Aceptada', '❌ Rechazada', '😶 Sin respuesta'];
 
+let _ceoiAgg = null;      // agregado por país del último render del Inicio (comparativa completa)
+let _ceoiProps = null;    // propuestas abiertas del último render (pipeline navegable)
+
+// ⇄ Comparativa completa de países (Fase CEO 2): tabla ingresos/gastos/balance/servicios lado a lado,
+// con los datos que el Inicio YA cargó (cero fetch extra).
+export function toggleCeoiPaises() {
+  const full = document.getElementById('ceoi-paises-full');
+  const chev = document.getElementById('ceoi-paises-chev');
+  if (!full || !_ceoiAgg) return;
+  const abrir = full.style.display === 'none';
+  if (chev) chev.textContent = abrir ? '▴' : '▾';
+  if (!abrir) { full.style.display = 'none'; return; }
+  const ORDEN = ['🇺🇾 UY', '🇧🇷 BR', '🇵🇦 PA', '🇬🇹 GT', '🇲🇽 MX'];
+  const keys = ORDEN.filter((k, i) => i < 3 || _ceoiAgg[k]);
+  const fm = (u, d) => { const p = []; if (u) p.push(fmtMoneda(u, true)); if (d) p.push(fmtMoneda(d, false)); return p.join('<br>') || '—'; };
+  const fila = (lab, fn, color) => '<tr><td>' + lab + '</td>' + keys.map(k => { const a = _ceoiAgg[k]; return '<td class="num"' + (color ? ' style="color:' + color + '"' : '') + '>' + (a ? fn(a) : '—') + '</td>'; }).join('') + '</tr>';
+  full.innerHTML = '<div class="ceoi-card" style="overflow-x:auto;margin-top:0"><table class="ceoi-table">' +
+    '<tr><th></th>' + keys.map(k => '<th>' + k.split(' ')[0] + '</th>').join('') + '</tr>' +
+    fila('Ingresos', a => fm(a.ingU, a.ingD), 'var(--green)') +
+    fila('Gastos', a => fm(a.gasU, a.gasD), '#ff8a8a') +
+    fila('Balance', a => { const p = []; if (a.uyu) p.push((a.uyu >= 0 ? '+' : '−') + fmtMoneda(Math.abs(a.uyu), true)); if (a.usd) p.push((a.usd >= 0 ? '+' : '−') + fmtMoneda(Math.abs(a.usd), false)); return p.join('<br>') || '—'; }) +
+    fila('Completados', a => a.comp || '—') +
+    fila('En curso', a => a.curso || '—') +
+    '</table></div>';
+  full.style.display = '';
+}
+
+// 📤 Pipeline navegable (Fase CEO 2): del número a LA LISTA — cada propuesta abierta con estado, días
+// sin respuesta e importe, ordenadas por las más frías primero. Datos ya cargados (cero fetch extra).
+export function toggleCeoiPipe() {
+  const full = document.getElementById('ceoi-pipe-full');
+  const chev = document.getElementById('ceoi-pipe-chev');
+  if (!full || !_ceoiProps) return;
+  const abrir = full.style.display === 'none';
+  if (chev) chev.textContent = abrir ? '▴' : '▾';
+  if (!abrir) { full.style.display = 'none'; return; }
+  const rows = _ceoiProps.slice().sort((a, b) => (b.properties?.['Días sin respuesta']?.formula?.number || 0) - (a.properties?.['Días sin respuesta']?.formula?.number || 0));
+  full.innerHTML = rows.slice(0, 20).map(p => {
+    const pr = p.properties || {};
+    const nom = pr['Nombre de propuesta']?.title?.[0]?.plain_text || '(propuesta)';
+    const est = pr['Estado pipeline']?.select?.name || '';
+    const dias = pr['Días sin respuesta']?.formula?.number;
+    const imp = pr['Importe estimado']?.number;
+    return '<div class="ceoi-item" style="font-size:12px">' + esc(nom) +
+      '<span style="color:var(--text3);margin-left:6px">' + esc(est) + (dias != null ? ' · ' + dias + 'd' : '') + '</span>' +
+      (imp ? '<span style="margin-left:auto;font-weight:700" class="num">$ ' + Math.round(imp).toLocaleString('es-UY') + '</span>' : '') + '</div>';
+  }).join('') + (rows.length > 20 ? '<div class="ceoi-item" style="color:var(--text3)">… y ' + (rows.length - 20) + ' más</div>' : '');
+  full.style.display = '';
+}
+
 export async function renderCEOInicio() {
   const content = document.getElementById(M._ceoContentId);
   if (!content) return;
@@ -829,11 +879,21 @@ export async function renderCEOInicio() {
       const acc = (results, kind) => (results || []).filter(kpiIncluido).forEach(r => {
         const pais = r.properties?.['País']?.select?.name || '🇺🇾 UY';
         const { esUY, monto } = montoOf(r.properties || {}, kind);
-        agg[pais] = agg[pais] || { uyu: 0, usd: 0 };
+        agg[pais] = agg[pais] || { uyu: 0, usd: 0, ingU: 0, ingD: 0, gasU: 0, gasD: 0, comp: 0, curso: 0 };
         const sign = kind === 'ingreso' ? 1 : -1;
         if (esUY) agg[pais].uyu += sign * monto; else agg[pais].usd += sign * monto;
+        if (kind === 'ingreso') { if (esUY) agg[pais].ingU += monto; else agg[pais].ingD += monto; }
+        else { if (esUY) agg[pais].gasU += monto; else agg[pais].gasD += monto; }
       });
       acc(ingData.results, 'ingreso'); acc(gasData.results, 'gasto');
+      // Servicios del período por país (completados + en curso) para la comparativa completa.
+      svcAll.forEach(s0 => {
+        const k = s0.properties?.['País']?.select?.name || '🇺🇾 UY';
+        agg[k] = agg[k] || { uyu: 0, usd: 0, ingU: 0, ingD: 0, gasU: 0, gasD: 0, comp: 0, curso: 0 };
+        if (estadoDe(s0).includes('Completado') && enPeriodo(s0)) agg[k].comp++;
+        if (estadoDe(s0).includes('En curso')) agg[k].curso++;
+      });
+      _ceoiAgg = agg; // para la comparativa completa (toggleCeoiPaises)
       const ORDEN = [['🇺🇾 UY', 'Uruguay'], ['🇧🇷 BR', 'Brasil'], ['🇵🇦 PA', 'Panamá'], ['🇬🇹 GT', 'Guatemala'], ['🇲🇽 MX', 'México']];
       // Los 3 países operativos SIEMPRE visibles (BR/PA apagados si aún no tienen datos — la estructura
       // lista para la expansión, decisión del diseño); GT/MX solo cuando tengan movimiento.
@@ -845,12 +905,15 @@ export async function renderCEOInicio() {
         const col = (a.uyu || a.usd) >= 0 ? 'style="color:var(--green)"' : 'style="color:#ff8a8a"';
         return '<div class="ceoi-pais" onclick="setCEOCountry(\'' + country + '\')"><span class="f">' + flag + '</span><div class="m" ' + col + '>' + (((a.uyu || a.usd) >= 0 ? '+' : '')) + m + '</div></div>';
       }).join('');
-      paisesHTML = '<div class="ceoi-paises">' + chips + '</div>';
+      paisesHTML = '<div class="ceoi-paises">' + chips + '</div>' +
+        '<div class="ceoi-item tap" style="margin:-4px 16px 10px;padding:6px 4px;font-size:12px;color:var(--text2)" onclick="toggleCeoiPaises()">⇄ Comparativa completa de países <span class="chev" id="ceoi-paises-chev">▾</span></div>' +
+        '<div id="ceoi-paises-full" style="display:none"></div>';
     }
 
     // ── Pipeline (informativo v1; navegable = Fase 2) ──
     const propAbiertas = (propAll || []).filter(r => { if (esArchivado(r)) return false; const e0 = r.properties?.['Estado pipeline']?.select?.name || ''; return e0 && !CEOI_TERMINALES.some(t0 => e0 === t0); });
     const propFrias = propAbiertas.filter(r => { const d = r.properties?.['Días sin respuesta']?.formula?.number; return d != null && d >= 15; }).length;
+    _ceoiProps = propAbiertas;
     const propValor = propAbiertas.reduce((s0, r) => s0 + (r.properties?.['Importe estimado']?.number || 0), 0);
 
     // ── Render ──
@@ -894,8 +957,9 @@ export async function renderCEOInicio() {
       paisesHTML +
       '<div class="ceoi-att' + (att.length ? '' : ' allok') + '"><div class="at">' + (att.length ? '⚠ ATENCIÓN (' + att.length + ')' : '✓ EN ORDEN') + '</div>' + attHTML + '</div>' +
       '<div class="ceoi-pipe"><div class="ceoi-lab">Pipeline</div>' +
-        '<div class="ceoi-item">📤 ' + propAbiertas.length + ' propuesta' + (propAbiertas.length === 1 ? '' : 's') + ' activa' + (propAbiertas.length === 1 ? '' : 's') + (propValor ? ' · $ ' + Math.round(propValor).toLocaleString('es-UY') + ' en juego' : '') + '</div>' +
+        '<div class="ceoi-item tap" onclick="toggleCeoiPipe()">📤 ' + propAbiertas.length + ' propuesta' + (propAbiertas.length === 1 ? '' : 's') + ' activa' + (propAbiertas.length === 1 ? '' : 's') + (propValor ? ' · $ ' + Math.round(propValor).toLocaleString('es-UY') + ' en juego' : '') + '<span class="chev" id="ceoi-pipe-chev">▾</span></div>' +
         (propFrias ? '<div class="ceoi-item">⏳ ' + propFrias + ' sin respuesta hace +15 días</div>' : '') +
+        '<div id="ceoi-pipe-full" style="display:none"></div>' +
       '</div>' +
       '<div class="ceoi-card tap" style="text-align:center;margin-bottom:18px" onclick="generateCEOExecPDF(this)">' +
         '<div style="font-weight:800;color:var(--green)">📄 Descargar resumen ejecutivo (PDF)</div>' +

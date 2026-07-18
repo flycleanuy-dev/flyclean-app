@@ -1190,3 +1190,8 @@ body::before {
 .ceoi-item.tap{cursor:pointer}
 .ceoi-item .chev{margin-left:auto;color:var(--text3)}
 .ceoi-pipe{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:11px 14px;margin:0 16px 14px}
+.ceoi-table{width:100%;border-collapse:collapse;font-size:11.5px}
+.ceoi-table th{font-size:10px;letter-spacing:.08em;color:var(--text3);text-transform:uppercase;font-weight:800;padding:4px 6px;text-align:right}
+.ceoi-table th:first-child{text-align:left}
+.ceoi-table td{padding:5px 6px;border-top:1px solid var(--border);text-align:right;font-variant-numeric:tabular-nums}
+.ceoi-table td:first-child{text-align:left;color:var(--text2)}
