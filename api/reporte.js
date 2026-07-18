@@ -66,12 +66,12 @@ const escHtml = s => String(s || '').replace(/[<>&"]/g, c => ({ '<': '&lt;', '>'
 export default async function handler(req, res) {
   const origin = req.headers.origin || '';
   res.setHeader('Access-Control-Allow-Origin', originAllowed(origin) ? origin : 'https://flyclean.app');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PATCH, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   res.setHeader('Vary', 'Origin');
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (origin && !originAllowed(origin)) return res.status(403).json({ error: 'origin' });
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  if (!['GET', 'POST', 'PATCH'].includes(req.method)) return res.status(405).json({ error: 'Method not allowed' });
 
   // Sesión OPCIONAL: con token válido, el server resuelve quién es (no se confía en el body).
   let usuario = null, rol = null, pais = null, who = null;
@@ -87,10 +87,53 @@ export default async function handler(req, res) {
     who = 'ip:' + (fwd || 'desconocida');
   }
 
+  // ── Fase B (bandeja 💬 Soporte, 2026-07-18) ────────────────────────────────
+  const ADMIN_DEFAULT = 'diego-laxalt,eduardo-cabral';
+  const esAdmin = !!(session && session.id && String(process.env.ADMIN_IDS || ADMIN_DEFAULT).split(',').map(x => x.trim()).includes(session.id));
+  const H = { apikey: SERVICE_KEY, Authorization: 'Bearer ' + SERVICE_KEY, 'Content-Type': 'application/json' };
+
+  if (req.method === 'GET') {
+    // Bandeja completa (solo admins) o "mis reportes" (cualquier logueado). Sin sesión → 401.
+    if (!session || !session.id) return res.status(401).json({ error: 'auth required' });
+    const mine = String(req.query?.mine || '') === '1' || !esAdmin;
+    let q = `${SUPABASE_URL}/rest/v1/reportes?order=creado.desc&limit=${mine ? 30 : 120}` +
+      '&select=id,creado,tipo,usuario,rol,pais,pantalla,version,mensaje,detalle,estado,err_hash';
+    if (mine) q += '&usuario=eq.' + encodeURIComponent(usuario || '~nadie~');
+    try {
+      const r = await fetch(q, { headers: H });
+      if (!r.ok) throw new Error('supabase ' + r.status);
+      const rows = await r.json();
+      return res.status(200).json({ ok: true, admin: esAdmin && !mine, rows });
+    } catch (e) {
+      console.error('[reporte] GET', e.message);
+      return res.status(502).json({ error: 'no se pudo leer' });
+    }
+  }
+
+  if (req.method === 'PATCH') {
+    // Marcar visto/resuelto — SOLO admins (Dirección).
+    if (!esAdmin) return res.status(403).json({ error: 'solo Dirección' });
+    const id = parseInt(req.body?.id, 10);
+    const estado = String(req.body?.estado || '');
+    if (!Number.isFinite(id) || !['nuevo', 'visto', 'resuelto'].includes(estado)) return res.status(400).json({ error: 'datos inválidos' });
+    try {
+      const r = await fetch(`${SUPABASE_URL}/rest/v1/reportes?id=eq.${id}`, {
+        method: 'PATCH', headers: { ...H, Prefer: 'return=minimal' }, body: JSON.stringify({ estado }),
+      });
+      if (!r.ok) throw new Error('supabase ' + r.status);
+      return res.status(200).json({ ok: true });
+    } catch (e) {
+      console.error('[reporte] PATCH', e.message);
+      return res.status(502).json({ error: 'no se pudo actualizar' });
+    }
+  }
+
   if (await rateLimited(who)) return res.status(429).json({ error: 'demasiados reportes' });
 
   const b = req.body || {};
-  const tipo = b.tipo === 'detalle' ? 'detalle' : 'auto';
+  const tipo = b.tipo === 'detalle' ? 'detalle' : (b.tipo === 'manual' ? 'manual' : 'auto');
+  // Un reporte MANUAL (escrito en 💬 Soporte) exige sesión: sabemos quién escribe y evitamos spam anónimo.
+  if (tipo === 'manual' && !usuario) return res.status(401).json({ error: 'auth required' });
   const mensaje = trunc(b.mensaje, 500).trim();
   if (!mensaje) return res.status(400).json({ error: 'mensaje requerido' });
   const stack = trunc(b.stack, 2000);
@@ -149,7 +192,7 @@ export default async function handler(req, res) {
     }
     if (mandar) {
       const to = (await getRecipients('reportes')) || [FALLBACK_TO];
-      const titulo = tipo === 'detalle' ? '📝 Detalle de un error (escrito por el equipo)' : '🐞 Error nuevo en la app';
+      const titulo = tipo === 'manual' ? '💬 Mensaje del equipo (Soporte)' : tipo === 'detalle' ? '📝 Detalle de un error (escrito por el equipo)' : '🐞 Error nuevo en la app';
       const cuerpo =
         `<p style="font-size:15px;color:#ffb4b4"><b>${escHtml(mensaje)}</b></p>` +
         (detalle ? `<p>📝 <b>Qué estaba haciendo:</b> ${escHtml(detalle)}</p>` : '') +

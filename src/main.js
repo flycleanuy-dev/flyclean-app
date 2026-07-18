@@ -86,6 +86,9 @@ import { // asistente IA de ayuda — ver src/ayuda-bot.js (dependencias inyecta
   initAyudaBot, updateAyudaFab, resetAyudaBot, openAyudaBot, closeAyudaBot, ayudaOverlayClick, sendAyuda,
 } from './ayuda-bot.js';
 import { initErrores } from './errores.js'; // captura global de errores → /api/reporte (Fase A Soporte)
+import { // bandeja 💬 Soporte (Fase B): reportar + mis reportes + bandeja Dirección — ver src/soporte.js
+  initSoporte, openSoporte, closeSoporte, renderSoporteInline, sopSetVista, sopEnviar, sopMarcar,
+} from './soporte.js';
 import { // PDF de devolución (núcleo) — ver src/reporte.js (dependencias inyectadas con initReporte)
   initReporte, ensureJsPDF, ensureReportBrand, buildReportDoc, generateReportPDF,
 } from './reporte.js';
@@ -3386,22 +3389,11 @@ function abrirWhatsAppProspecto(id) {
 // COMUNICACIONES (placeholder)
 // ─────────────────────────────────────────────
 function renderComunicaciones() {
-  if (esVentas()) return; // blindaje: Ventas no ve Mensajes, ni por un llamado directo
+  // Fase B Soporte (2026-07-18): la tab Mensajes deja de ser placeholder — es la bandeja 💬 Soporte
+  // (reportar problema + mis reportes; Dirección además ve la bandeja completa con visto/resuelto).
   const isCEO = currentUser?.role === '👔 CEO' || currentUser?.role === '🎯 Dirección';
-  const content = document.getElementById(isCEO ? 'ceo-content' : 'coord-content');
-  if (!content) return;
-  content.innerHTML =
-    '<div class="comms-placeholder">' +
-      '<div class="comms-icon">💬</div>' +
-      '<div class="comms-title">' + t('comms.title') + '</div>' +
-      '<div class="comms-sub">' + t('comms.sub') + '</div>' +
-      '<div class="comms-badge">' + t('comms.badge') + '</div>' +
-      '<div class="comms-features">' +
-        '<div class="comms-feature"><div class="comms-feature-icon">📣</div><div><div class="comms-feature-title">' + t('comms.f1.title') + '</div><div class="comms-feature-text">' + t('comms.f1.text') + '</div></div></div>' +
-        '<div class="comms-feature"><div class="comms-feature-icon">📊</div><div><div class="comms-feature-title">' + t('comms.f2.title') + '</div><div class="comms-feature-text">' + t('comms.f2.text') + '</div></div></div>' +
-        '<div class="comms-feature"><div class="comms-feature-icon">🏢</div><div><div class="comms-feature-title">' + t('comms.f3.title') + '</div><div class="comms-feature-text">' + t('comms.f3.text') + '</div></div></div>' +
-      '</div>' +
-    '</div>';
+  const contentId = isCEO && document.querySelector('#screen-ceo.active') ? 'ceo-content' : 'coord-content';
+  renderSoporteInline(contentId);
 }
 
 // ─────────────────────────────────────────────
@@ -3540,6 +3532,7 @@ function amConfig() {
   closeAccountMenu();
   openConfigSheet();
 }
+function amSoporte() { closeAccountMenu(); openSoporte(); }
 function amHelp() { closeAccountMenu(); openHelpSheet(); }
 
 // Manuales publicados (PDF servidos estáticos desde el repo). Hoy solo Ventas; operario/coord están en
@@ -3591,6 +3584,11 @@ initPedidos({
   get SOLICITUDES_DB_ID() { return SOLICITUDES_DB_ID; },
   get SOLICITUDES_DS_ID() { return SOLICITUDES_DS_ID; },
   esVentas, showSaving,
+});
+initSoporte({
+  get currentUser() { return currentUser; },
+  get APP_VERSION() { return APP_VERSION; },
+  isAppAdmin,
 });
 initAlertas({
   get currentUser() { return currentUser; },
@@ -4430,6 +4428,7 @@ Object.assign(window, {
   amMisEquipos,
   amPin,
   amRegion,
+  amSoporte,
   amUpdate,
   archivarServicioFinanzas,
   archiveService,
@@ -4480,6 +4479,7 @@ Object.assign(window, {
   closeProspectoSheet,
   closeReportStep,
   closeSectorOverlay,
+  closeSoporte,
   cobroOverlayClick,
   cobroSetServicio,
   configOverlayClick,
@@ -4689,6 +4689,9 @@ Object.assign(window, {
   showNewOperarioInput,
   showNewOperarioManualInput,
   showNewPilotoInput,
+  sopEnviar,
+  sopMarcar,
+  sopSetVista,
   submitCreateJornada,
   submitNewService,
   submitReportStep,

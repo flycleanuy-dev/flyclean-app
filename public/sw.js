@@ -274,7 +274,13 @@
 // en 💰 Por cobrar readonly ("lo que se debe DE ese período"; modo Todo = histórico = comportamiento de
 // siempre; la vista de Finanzas no cambia). Títulos con el período activo. Principio: un solo período
 // manda en todo el panel.
-const CACHE = 'flyclean-v223';
+// v224: Fase CEO 2, pieza 1 — 💬 SOPORTE (Fase B del sistema de reportes). La tab "Mensajes" deja de ser
+// placeholder: cualquier usuario escribe problemas/ideas desde el menú de cuenta (fila 💬 Soporte, todos los
+// roles) o la tab Mensajes, y ve SUS reportes con estado; Dirección además ve la BANDEJA completa (errores
+// automáticos 🐞 + mensajes 💬 + detalles 📝) y marca visto/resuelto. Backend /api/reporte crece: GET (míos/
+// bandeja admin), PATCH estado (solo admins), POST tipo 'manual' (exige sesión, email inmediato). El círculo
+// completo: la app avisa sola + el equipo escribe + Dirección gestiona — todo en un lugar.
+const CACHE = 'flyclean-v224';
 const SHELL = [
   '/',
   '/index.html',
