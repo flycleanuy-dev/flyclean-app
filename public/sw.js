@@ -249,7 +249,13 @@
 // (sheet + sectores + intermediarios + historial), WhatsApp/recontacto 1-toque y el mapa id→nombre salen a
 // src/clientes.js (initClientes, ~970 líneas — el módulo más grande). El estado compartido (contactos,
 // editingContact/contactEditState, cachés) queda en main → puente. Sin cambio funcional. 19 módulos.
-const CACHE = 'flyclean-v219';
+// v220: modularización — COORD-SERVICIOS (2º de los 3 cortes grandes): TODA la maquinaria de la pantalla del
+// coordinador sale a src/coord-servicios.js (~1.230 líneas, 59 funcs): filtros (panel/chips/buscador/sort/
+// fechas), toolbar, navegación de mes + week strip, las 3 vistas de Inicio (lista/Kanban drag&drop/
+// calendario), mover-estado, cards de servicio + agrupado de jornadas, fetch del mes y los renderers de
+// Inicio/Servicios/Pruebas/Relevamientos + cambiarEstadoServicio. setCoordTab (router), el sheet de edición
+// y el estado compartido quedan en main → puente. Sin cambio funcional. 20 módulos.
+const CACHE = 'flyclean-v220';
 const SHELL = [
   '/',
   '/index.html',
