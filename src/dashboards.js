@@ -76,7 +76,7 @@ export async function setCEOTab(tab) {
   if (globalTabs) globalTabs.style.display = (tab === 'inicio' || tab === 'metricas' || tab === 'porcobrar' || tab === 'clientes') ? 'none' : '';
   if (tab === 'inicio') { M._ceoRerender = renderCEOInicio; await renderCEOInicio(); }
   else if (tab === 'metricas') { M._ceoRerender = renderCEOMetricas; await renderCEOMetricas(); }
-  else if (tab === 'servicios') await renderCEOServicios();
+  else if (tab === 'servicios') { M._ceoRerender = renderCEOServicios; await renderCEOServicios(); }
   else if (tab === 'finanzas') { M._ceoRerender = renderCEOFinanzas; await renderCEOFinanzas(); }
   else if (tab === 'porcobrar') { M._ceoRerender = () => renderPorCobrar('ceo-content', { readonly: true }); await renderPorCobrar('ceo-content', { readonly: true }); }
   else if (tab === 'clientes') { M._ceoRerender = () => renderClientesView('ceo-content'); await renderClientesView('ceo-content'); }
@@ -592,11 +592,18 @@ export async function renderCEOServicios() {
   content.innerHTML = '<div style="text-align:center;padding:40px 0"><div class="spinner" style="margin:0 auto"></div></div>';
   try {
     const cf = getCEOFilter();
-    const now = new Date();
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
-    const dateFilter = { property: 'Fecha programada', date: { on_or_after: monthStart } };
+    // Fase CEO 1 (bloque 2): el selector de período MANDA también acá (antes: fijo "del mes en adelante").
+    // Los "En curso" se muestran SIEMPRE aunque su fecha caiga fuera del período (misma regla que el coord).
+    const { start, end, label } = getCEOPeriodRange();
+    const enRango = { and: [
+      { property: 'Fecha programada', date: { on_or_after: start } },
+      { property: 'Fecha programada', date: { on_or_before: end } },
+    ]};
+    const conEnCurso = { or: [enRango, { property: 'Estado', select: { equals: '✈️ En curso' } }] };
+    const dateFilter = M.ceoPeriod.mode === 'todo' ? null : conEnCurso;
+    const filtro = cf ? (dateFilter ? { and: [cf, dateFilter] } : cf) : dateFilter;
     const data = await callNotion(`databases/${M.DB_ID}/query`, 'POST', {
-      filter: cf ? { and: [cf, dateFilter] } : dateFilter,
+      ...(filtro ? { filter: filtro } : {}),
       sorts: [{ property: 'Fecha programada', direction: 'descending' }]
     });
     let results = data.results || [];
@@ -605,14 +612,26 @@ export async function renderCEOServicios() {
       results = results.filter(s => s.properties?.['País']?.select?.name === notionVal);
     }
     results = results.filter(s => !esArchivado(s));
-    if (!results.length) { content.innerHTML = `<div class="coord-empty">${t('ceo.empty.servicios')}</div>`; return; }
+    // Enforce del período TAMBIÉN client-side: la lectura de servicios entra por el backstop /api/db,
+    // que ignora los filtros estilo Notion del query → sin esto el selector no tendría efecto real.
+    if (M.ceoPeriod.mode !== 'todo') {
+      results = results.filter(s => {
+        const est = s.properties?.['Estado']?.select?.name || '';
+        if (est.includes('En curso')) return true; // en curso SIEMPRE visible (regla del coord)
+        const f = (s.properties?.['Fecha programada']?.date?.start || '').slice(0, 10);
+        return f && f >= start && f <= end;
+      });
+    }
+    results.sort((a, b) => ((b.properties?.['Fecha programada']?.date?.start) || '').localeCompare((a.properties?.['Fecha programada']?.date?.start) || ''));
+    if (!results.length) { content.innerHTML = renderCEOPeriodSelector() + `<div class="coord-empty">${t('ceo.empty.servicios')}</div>`; return; }
     const ESTADO_CLASS = { '✅ Completado': 'estado-completado', '✈️ En curso': 'estado-en-curso', '🔄 Asignado': 'estado-asignado' };
     const paiFlag = { '🇺🇾 Uruguay': '🇺🇾', '🇧🇷 Brasil': '🇧🇷', '🇵🇦 Panamá': '🇵🇦', '🇬🇹 Guatemala': '🇬🇹', '🇲🇽 México': '🇲🇽' };
     const dateLocaleCeo = currentLang === 'pt-BR' ? 'pt-BR' : 'es-UY';
     M._ceoServiciosCache = results;
     await ensureClienteNombres(); // el CEO ve 'all' → el mapa resuelve el cliente de cualquier país
     if (M.activeCEOTab !== 'servicios') return; // cambió de tab mientras cargaba → NO pisar
-    content.innerHTML = `<div class="ceo-section-title">${t('ceo.servicios.title')}</div>` + results.map(s => {
+    content.innerHTML = renderCEOPeriodSelector() +
+      `<div class="ceo-section-title">${t('ceo.servicios.title')} · ${esc(label)}</div>` + results.map(s => {
       const props = s.properties || {};
       const nombre = props['Nombre del servicio']?.title?.[0]?.plain_text || t('common.sinnombre');
       const estado = props['Estado']?.select?.name || '';
@@ -1264,6 +1283,15 @@ export async function renderPorCobrar(containerId, opts = {}) {
       if (/relevamiento|prueba|jornada/i.test(nm)) return false;
       return kpiIncluido(s); // por las dudas: no contar internos/financiamiento como cobrables
     });
+    // Fase CEO 1 (bloque 2): en la vista del CEO el selector de período TAMBIÉN manda — "lo que se debe
+    // de ese período". Modo 'todo' = histórico completo (el comportamiento de siempre; Finanzas no cambia).
+    let periodoLabel = '';
+    if (readonly && M.ceoPeriod && M.ceoPeriod.mode !== 'todo') {
+      const rango = getCEOPeriodRange();
+      periodoLabel = ' · ' + rango.label;
+      const dentro = s2 => { const f = s2.properties?.['Fecha programada']?.date?.start || ''; return f && f.slice(0, 10) >= rango.start && f.slice(0, 10) <= rango.end; };
+      for (let i = comp.length - 1; i >= 0; i--) if (!dentro(comp[i])) comp.splice(i, 1);
+    }
     const rows = comp.map(s => {
       const p = s.properties || {};
       const nombre = p['Nombre del servicio']?.title?.[0]?.plain_text || '(servicio)';
@@ -1424,9 +1452,10 @@ export async function renderPorCobrar(containerId, opts = {}) {
 
     content.innerHTML =
       (opts.headerless ? '' : ceoHeaderHTML('Por cobrar')) +
+      (readonly ? renderCEOPeriodSelector() : '') +
       '<div class="acct">' +
         '<div class="estado-cuenta">' +
-          '<div class="ec-title">💰 TOTAL POR COBRAR</div>' +
+          '<div class="ec-title">💰 TOTAL POR COBRAR' + esc(periodoLabel) + '</div>' +
           '<div class="ec-saldo"><span>Pendiente de cobro</span><span style="color:var(--red)">' + (splitStr(totalPC) || fU(0)) + '</span></div>' +
           '<div class="ec-counts">' + nCli + ' cliente(s) con saldo · ' + rows.length + ' visitas</div>' +
         '</div>' +

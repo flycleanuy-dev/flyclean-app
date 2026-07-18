@@ -268,7 +268,13 @@
 // operarios activos) + 4 KPIs con delta (ticket/servicios/margen/sin-cobro) + fila de países lado a lado
 // (BR/PA apagados listos para la expansión) + bloque ⚠ ATENCIÓN con excepciones TOCABLES (sin cobro →
 // Por cobrar, sin operario → Servicios, docs por vencer) + pipeline con $ en juego. Todo dato es una puerta.
-const CACHE = 'flyclean-v222';
+// v223: Fase CEO 1, bloque 2 — PERÍODO CONSISTENTE: el selector de período del CEO ahora también manda en
+// 📋 Servicios (con "En curso" SIEMPRE visible aunque su fecha caiga fuera — regla del coord; enforce
+// client-side porque la lectura entra por el backstop /api/db que ignora filtros Notion, cazado en test) y
+// en 💰 Por cobrar readonly ("lo que se debe DE ese período"; modo Todo = histórico = comportamiento de
+// siempre; la vista de Finanzas no cambia). Títulos con el período activo. Principio: un solo período
+// manda en todo el panel.
+const CACHE = 'flyclean-v223';
 const SHELL = [
   '/',
   '/index.html',
