@@ -1398,15 +1398,10 @@ async function loadCEO() {
   _ceoContentId = 'ceo-content';
   _ceoRerender = renderCEOMetricas;
   loadAlerts(currentUser.role, 'alerts-banner-ceo');
-  activeCEOTab = 'metricas';
-  ['metricas','servicios','finanzas','equipo'].forEach(t =>
-    document.getElementById('ceotab-' + t).classList.toggle('active', t === 'metricas')
-  );
   renderCEOCountryTabs();
-  // Métricas has its own sub-tabs — hide global tabs on load
-  const globalTabs = document.getElementById('ceo-country-tabs');
-  if (globalTabs) globalTabs.style.display = 'none';
-  await renderCEOMetricas();
+  // Fase CEO 1 (2026-07-18): el panel arranca en 🏠 Inicio (el puesto de mando). setCEOTab hace todo
+  // el toggle de tabs + ocultar los country-tabs globales (Inicio trae selector propio).
+  await setCEOTab('inicio');
 }
 
 // ── DASHBOARDS CEO/Finanzas — movidos a src/dashboards.js el 16/07. El estado y las consts quedan
@@ -1434,6 +1429,7 @@ initDashboards({
   get DB_ID() { return DB_ID; },
   get EQUIPO_DB_ID() { return EQUIPO_DB_ID; },
   get GASTOS_DB_ID() { return GASTOS_DB_ID; },
+  get DOCUMENTOS_DB_ID() { return DOCUMENTOS_DB_ID; },
   get INGRESOS_DB_ID() { return INGRESOS_DB_ID; },
   get PROPUESTAS_DB_ID() { return PROPUESTAS_DB_ID; },
   get USERS() { return USERS; },

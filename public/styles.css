@@ -1142,3 +1142,51 @@ body::before {
     .coord-tab:hover, .ceo-tab:hover { color: var(--text2); }
     .coord-view-toggle button:hover { border-color: var(--green); }
   }
+
+/* ── 🏠 INICIO ejecutivo del CEO (Fase CEO 1, 2026-07-18) ─────────────────── */
+.ceoi-band{display:flex;align-items:center;gap:8px;border-radius:12px;padding:9px 13px;font-size:13px;font-weight:700;margin:0 16px 10px}
+.ceoi-band.ok{background:rgba(53,214,164,.09);border:1px solid rgba(53,214,164,.3);color:#7fe7c3}
+.ceoi-band.warn{background:rgba(255,210,74,.08);border:1px solid rgba(255,210,74,.3);color:#ffd24a}
+.ceoi-band.bad{background:rgba(255,92,92,.08);border:1px solid rgba(255,92,92,.35);color:#ff8a8a}
+.ceoi-band .att{margin-left:auto;font-weight:600;font-size:11.5px;color:var(--text2)}
+.ceoi-card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:12px 14px;margin:0 16px 10px}
+.ceoi-card.tap{cursor:pointer}
+.ceoi-lab{font-size:10px;letter-spacing:.13em;font-weight:800;color:var(--text3);text-transform:uppercase}
+.ceoi-hero-row{display:flex;align-items:baseline;gap:8px;margin-top:6px}
+.ceoi-hero-row .cur{font-size:11.5px;color:var(--text2);width:36px;flex:none}
+.ceoi-hero-row .amt{font-size:22px;font-weight:800;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.ceoi-hero-row .amt.pos{color:var(--green)}.ceoi-hero-row .amt.neg{color:#ff7b7b}
+.ceoi-up{font-size:11.5px;font-weight:800;color:var(--green)}
+.ceoi-dn{font-size:11.5px;font-weight:800;color:#ff8a8a}
+.ceoi-eq{font-size:11.5px;font-weight:800;color:var(--text2)}
+.ceoi-vs{font-size:10.5px;color:var(--text3);margin-left:auto}
+.ceoi-live{background:linear-gradient(135deg,rgba(0,201,141,.13),rgba(0,201,141,.03));border:1px solid rgba(0,201,141,.32);border-radius:16px;padding:11px 14px;margin:0 16px 10px}
+.ceoi-live .lt{display:flex;align-items:center;gap:7px;font-size:10px;letter-spacing:.12em;font-weight:800;color:var(--green)}
+.ceoi-live .pulse{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green);animation:ceoiPulse 1.6s infinite}
+@keyframes ceoiPulse{0%,100%{opacity:1}50%{opacity:.35}}
+.ceoi-live .l1{font-size:13.5px;font-weight:700;margin-top:6px}
+.ceoi-live .l2{font-size:12px;color:var(--text2);margin-top:3px}
+.ceoi-live .row-tap{cursor:pointer;border-radius:9px;margin:4px -6px 0;padding:4px 6px}
+.ceoi-live .row-tap:active{background:rgba(0,201,141,.12)}
+.ceoi-live .bar{height:5px;background:rgba(0,0,0,.35);border-radius:99px;margin-top:7px;overflow:hidden}
+.ceoi-live .bar i{display:block;height:100%;background:var(--green);border-radius:99px}
+.ceoi-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin:0 16px 10px}
+.ceoi-kpi{background:var(--card);border:1px solid var(--border);border-radius:13px;padding:9px 6px 8px;text-align:center;cursor:pointer}
+.ceoi-kpi:active{border-color:var(--green)}
+.ceoi-kpi .v{font-size:14.5px;font-weight:800;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.ceoi-kpi .k{font-size:8.5px;letter-spacing:.07em;color:var(--text3);text-transform:uppercase;font-weight:800;margin-top:3px}
+.ceoi-kpi .d{font-size:10px;margin-top:2px;font-weight:800}
+.ceoi-paises{display:flex;gap:7px;margin:0 16px 10px}
+.ceoi-pais{flex:1;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:8px 10px;cursor:pointer}
+.ceoi-pais:active{border-color:var(--green)}
+.ceoi-pais.off{opacity:.45}
+.ceoi-pais .f{font-size:14px}
+.ceoi-pais .m{font-size:11px;font-weight:800;margin-top:2px;font-variant-numeric:tabular-nums}
+.ceoi-att{background:var(--card);border:1px solid rgba(255,210,74,.4);border-radius:16px;padding:11px 14px;margin:0 16px 10px}
+.ceoi-att.allok{border-color:rgba(53,214,164,.35)}
+.ceoi-att .at{font-size:10px;letter-spacing:.12em;font-weight:800;color:#ffd24a}
+.ceoi-att.allok .at{color:var(--green)}
+.ceoi-item{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--text);padding:7px 0 0}
+.ceoi-item.tap{cursor:pointer}
+.ceoi-item .chev{margin-left:auto;color:var(--text3)}
+.ceoi-pipe{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:11px 14px;margin:0 16px 14px}

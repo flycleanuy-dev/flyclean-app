@@ -68,13 +68,14 @@ export async function setCEOCountry(country) {
 export async function setCEOTab(tab) {
   M.activeCEOTab = tab;
   M._ceoContentId = 'ceo-content';
-  ['metricas','servicios','finanzas','porcobrar','clientes','equipo'].forEach(t =>
+  ['inicio','metricas','servicios','finanzas','porcobrar','clientes','equipo'].forEach(t =>
     document.getElementById('ceotab-' + t)?.classList.toggle('active', t === tab)
   );
-  // Global country tabs: hidden en Métricas (tiene sub-tabs propias), Por cobrar y Clientes (muestran todo).
+  // Global country tabs: hidden en Inicio/Métricas (tienen selector propio), Por cobrar y Clientes (muestran todo).
   const globalTabs = document.getElementById('ceo-country-tabs');
-  if (globalTabs) globalTabs.style.display = (tab === 'metricas' || tab === 'porcobrar' || tab === 'clientes') ? 'none' : '';
-  if (tab === 'metricas') { M._ceoRerender = renderCEOMetricas; await renderCEOMetricas(); }
+  if (globalTabs) globalTabs.style.display = (tab === 'inicio' || tab === 'metricas' || tab === 'porcobrar' || tab === 'clientes') ? 'none' : '';
+  if (tab === 'inicio') { M._ceoRerender = renderCEOInicio; await renderCEOInicio(); }
+  else if (tab === 'metricas') { M._ceoRerender = renderCEOMetricas; await renderCEOMetricas(); }
   else if (tab === 'servicios') await renderCEOServicios();
   else if (tab === 'finanzas') { M._ceoRerender = renderCEOFinanzas; await renderCEOFinanzas(); }
   else if (tab === 'porcobrar') { M._ceoRerender = () => renderPorCobrar('ceo-content', { readonly: true }); await renderPorCobrar('ceo-content', { readonly: true }); }
@@ -644,6 +645,244 @@ export async function renderCEOServicios() {
 }
 
 // Rango de fechas según el selector de período del CEO (mes / semana / año / rango / todo).
+// ─────────────────────────────────────────────
+// 🏠 INICIO ejecutivo (Fase CEO 1, 2026-07-18) — una pantalla, cinco respuestas: cómo venimos (hero con
+// delta vs período anterior EN TODOS LOS MODOS), qué pasa AHORA (en vivo desde el espejo), dónde está la
+// plata (KPIs), qué viene (pipeline) y qué pide atención (excepciones tocables). Principios del diseño:
+// todo número lleva delta · todo dato es una puerta · excepciones arriba. Ver artifact "Fase CEO".
+// ─────────────────────────────────────────────
+
+// Rango del período ANTERIOR equivalente al activo (para los deltas). null si no tiene sentido (todo).
+function getCEOPrevRange() {
+  const p = M.ceoPeriod;
+  const iso = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  const now = new Date();
+  if (p.mode === 'todo') return null;
+  if (p.mode === 'semana') {
+    const b = new Date(now); b.setHours(0, 0, 0, 0); b.setDate(b.getDate() + (p.off - 1) * 7);
+    const dow = (b.getDay() + 6) % 7; const mon = new Date(b); mon.setDate(b.getDate() - dow);
+    const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
+    return { start: iso(mon), end: iso(sun) };
+  }
+  if (p.mode === 'anio') { const y = now.getFullYear() + p.off - 1; return { start: y + '-01-01', end: y + '-12-31' }; }
+  if (p.mode === 'rango') {
+    if (!p.from || !p.to) return null;
+    const f = new Date(p.from + 'T00:00:00'), t0 = new Date(p.to + 'T00:00:00');
+    const days = Math.round((t0 - f) / 86400000) + 1;
+    const pf = new Date(f); pf.setDate(pf.getDate() - days);
+    const pt = new Date(f); pt.setDate(pt.getDate() - 1);
+    return { start: iso(pf), end: iso(pt) };
+  }
+  const base = new Date(now.getFullYear(), now.getMonth() + p.off - 1, 1);
+  return { start: iso(base), end: iso(new Date(base.getFullYear(), base.getMonth() + 1, 0)) };
+}
+
+// Delta ▲▼% (o pp para porcentajes). null → ''. Regla del diseño: todo número con contexto.
+function ceoiDelta(cur, prev, { pp = false } = {}) {
+  if (prev == null || cur == null) return '';
+  if (!pp && !prev) return '';
+  const d = pp ? Math.round(cur - prev) : Math.max(-999, Math.min(999, Math.round((cur - prev) / Math.abs(prev) * 100)));
+  if (!d) return '<span class="ceoi-eq">=</span>';
+  const cls = d > 0 ? 'ceoi-up' : 'ceoi-dn';
+  return '<span class="' + cls + '">' + (d > 0 ? '▲' : '▼') + Math.abs(d) + (pp ? 'pp' : '%') + '</span>';
+}
+
+const CEOI_TERMINALES = ['✅ Aceptada', '❌ Rechazada', '😶 Sin respuesta'];
+
+export async function renderCEOInicio() {
+  const content = document.getElementById(M._ceoContentId);
+  if (!content) return;
+  content.innerHTML = ceoHeaderHTML('🏠 Inicio') + renderCEOPeriodSelector() +
+    '<div style="text-align:center;padding:40px 0"><div class="spinner" style="margin:0 auto"></div></div>';
+  const myTab = 'inicio';
+  try {
+    const { start, end, label } = getCEOPeriodRange();
+    const prev = getCEOPrevRange();
+    const fcf = getCEOFinanceFilter();
+    const dFilter = (s0, e0) => { const f = { and: [{ property: 'Fecha', date: { on_or_after: s0 } }, { property: 'Fecha', date: { on_or_before: e0 } }] }; if (fcf) f.and.push(fcf); return f; };
+
+    // Servicios e ingresos FRESCOS del espejo (rápido y en tiempo real — el corazón del bloque HOY);
+    // finanzas del período por el camino probado de Métricas. Todo en paralelo.
+    const svcPromise = (async () => {
+      try { const r = await callDb('servicios'); return r.results || []; }
+      catch (e) {
+        if (M._ceoServiciosAll && M._ceoServiciosAll.length) return M._ceoServiciosAll;
+        try { const r2 = await callNotion(`databases/${M.DB_ID}/query`, 'POST', { page_size: 100 }); return r2.results || []; }
+        catch (e2) { return []; }
+      }
+    })();
+    const ingAllPromise = (async () => {
+      try { const r = await callDb('ingresos'); return r.results || []; }
+      catch (e) {
+        // Espejo vacío/caído → Notion (el cruce sin-cobro es demasiado importante para saltearlo en silencio).
+        try { const r2 = await callNotionAll(`databases/${M.INGRESOS_DB_ID}/query`, {}); return r2.results || []; }
+        catch (e2) { return null; }
+      }
+    })();
+    const propPromise = (async () => {
+      try { const r = await callDb('propuestas'); return r.results || []; }
+      catch (e) { try { const r2 = await callNotionAll(`databases/${M.PROPUESTAS_DB_ID}/query`, {}); return r2.results || []; } catch (e2) { return []; } }
+    })();
+    const docsPromise = (async () => {
+      if (!M.DOCUMENTOS_DB_ID) return [];
+      try { const r = await callNotion(`databases/${M.DOCUMENTOS_DB_ID}/query`, 'POST', { page_size: 100 }); return r.results || []; }
+      catch (e) { return []; }
+    })();
+    const [ingData, gasData, ingPrev, gasPrev, svcAll0, ingAll, propAll, docs] = await Promise.all([
+      callNotionAll(`databases/${M.INGRESOS_DB_ID}/query`, { filter: dFilter(start, end) }),
+      callNotionAll(`databases/${M.GASTOS_DB_ID}/query`, { filter: dFilter(start, end) }),
+      prev ? callNotionAll(`databases/${M.INGRESOS_DB_ID}/query`, { filter: dFilter(prev.start, prev.end) }) : Promise.resolve(null),
+      prev ? callNotionAll(`databases/${M.GASTOS_DB_ID}/query`, { filter: dFilter(prev.start, prev.end) }) : Promise.resolve(null),
+      svcPromise, ingAllPromise, propPromise, docsPromise,
+    ]);
+    if (M.activeCEOTab !== myTab) return;
+    _ceoDataTime = Date.now();
+
+    // País: mismo criterio que Métricas (el fallback del server ignora filtros → re-filtro cliente).
+    const notionVal = M.ceoViewCountry === 'all' ? null : M.COUNTRY_NOTION_MAP[M.ceoViewCountry];
+    const svcAll = (svcAll0 || []).filter(s0 => !esArchivado(s0) && (!notionVal || s0.properties?.['País']?.select?.name === notionVal));
+    const estadoDe = s0 => (s0.properties?.['Estado']?.select?.name) || '';
+    const tipoDe = s0 => (s0.properties?.['Tipo de registro']?.select?.name) || '';
+    const fechaDe = s0 => (s0.properties?.['Fecha programada']?.date?.start || '').slice(0, 10);
+
+    // ── Cómo venimos: balance con delta (en TODOS los modos) ──
+    const ingSplit = sumByMoneda(ingData.results, 'ingreso');
+    const gasSplit = sumByMoneda(gasData.results, 'gasto');
+    const bal = { uyu: ingSplit.uyu - gasSplit.uyu, usd: ingSplit.usd - gasSplit.usd };
+    let balPrev = null, ingPrevSplit = null;
+    if (ingPrev && gasPrev) {
+      ingPrevSplit = sumByMoneda(ingPrev.results, 'ingreso');
+      const gp = sumByMoneda(gasPrev.results, 'gasto');
+      balPrev = { uyu: ingPrevSplit.uyu - gp.uyu, usd: ingPrevSplit.usd - gp.usd };
+    }
+    const enPeriodo = s0 => { const f = fechaDe(s0); return f ? (f >= start && f <= end) : (M.ceoPeriod.mode === 'todo'); };
+    const enPrev = s0 => { const f = fechaDe(s0); return !!(prev && f && f >= prev.start && f <= prev.end); };
+    const esFacturable = s0 => { const tp = tipoDe(s0); return !tp.includes('Prueba') && !tp.includes('Relevamiento') && !tp.includes('Jornada'); };
+    const comp = svcAll.filter(s0 => estadoDe(s0).includes('Completado') && enPeriodo(s0));
+    const compPrev = svcAll.filter(s0 => estadoDe(s0).includes('Completado') && enPrev(s0));
+    const ticket = comp.length ? (ingSplit.uyu ? ingSplit.uyu / comp.length : ingSplit.usd / comp.length) : null;
+    const ticketEsUY = !!ingSplit.uyu;
+    const ticketPrev = (compPrev.length && ingPrevSplit) ? (ticketEsUY ? ingPrevSplit.uyu / compPrev.length : ingPrevSplit.usd / compPrev.length) : null;
+    const margen = ingSplit.uyu > 0 ? Math.round(bal.uyu / ingSplit.uyu * 100) : (ingSplit.usd > 0 ? Math.round(bal.usd / ingSplit.usd * 100) : null);
+    const margenPrev = (ingPrevSplit && balPrev) ? (ingPrevSplit.uyu > 0 ? Math.round(balPrev.uyu / ingPrevSplit.uyu * 100) : (ingPrevSplit.usd > 0 ? Math.round(balPrev.usd / ingPrevSplit.usd * 100) : null)) : null;
+
+    // ── Qué pasa AHORA ──
+    const hoyISO = new Date().toISOString().slice(0, 10);
+    const deHoy = svcAll.filter(s0 => fechaDe(s0) === hoyISO && !estadoDe(s0).includes('Cancelado'));
+    const enCurso = svcAll.filter(s0 => estadoDe(s0).includes('En curso'));
+    const opsActivos = new Set(enCurso.map(s0 => s0.properties?.['Operario App']?.select?.name).filter(Boolean));
+    const pendHoy = deHoy.filter(s0 => !estadoDe(s0).includes('Completado') && !estadoDe(s0).includes('En curso')).length;
+
+    // ── Qué pide atención (excepciones TOCABLES) ──
+    const att = [];
+    if (ingAll) { // sin cobro: completados facturables sin ingreso vinculado (histórico, como Por cobrar)
+      const conCobro = new Set();
+      (ingAll || []).forEach(r => {
+        const rel = (r.properties?.['Servicio vinculado']?.relation || []).concat(r.properties?.['Servicio']?.relation || []);
+        rel.forEach(x => conCobro.add((x.id || '').replace(/-/g, '')));
+      });
+      const sinCobro = svcAll.filter(s0 => estadoDe(s0).includes('Completado') && esFacturable(s0) && !conCobro.has((s0.id || '').replace(/-/g, ''))).length;
+      if (sinCobro) att.push({ icon: '💸', txt: sinCobro + ' servicio' + (sinCobro > 1 ? 's' : '') + ' completado' + (sinCobro > 1 ? 's' : '') + ' sin cobro', tap: "setCEOTab('porcobrar')" });
+    }
+    const sinGestionar = svcAll.filter(s0 => { const e0 = estadoDe(s0); return (e0.includes('Pendiente') || e0.includes('Asignado')) && (!s0.properties?.['Operario App']?.select?.name || !fechaDe(s0)); }).length;
+    if (sinGestionar) att.push({ icon: '📋', txt: sinGestionar + ' servicio' + (sinGestionar > 1 ? 's' : '') + ' sin operario o sin fecha', tap: "setCEOTab('servicios')" });
+    (docs || []).forEach(r => {
+      const p = r.properties || {};
+      const e0 = p['Estado']?.select?.name || '';
+      if (!(e0.includes('Vigente') || e0.includes('Por vencer') || e0.includes('Vencido'))) return;
+      const vence = p['Vence']?.date?.start || ''; if (!vence) return;
+      const umbral = (p['Días de aviso']?.number != null) ? p['Días de aviso'].number : 30;
+      const daysLeft = Math.round((new Date(vence) - new Date()) / 86400000);
+      if (daysLeft > umbral) return;
+      const nombre = p['Documento']?.title?.[0]?.plain_text || 'Documento';
+      att.push({ icon: '🧾', txt: daysLeft < 0 ? nombre + ' VENCIDO' : nombre + ' vence en ' + daysLeft + ' día' + (daysLeft === 1 ? '' : 's') });
+    });
+
+    // ── Semáforo ──
+    const neg = (bal.uyu < 0 ? 1 : 0) + (bal.usd < 0 ? 1 : 0);
+    const sem = neg === 0 ? { cls: 'ok', txt: '🟢 Negocio sano' } : neg === 1 ? { cls: 'warn', txt: '🟡 Una moneda en rojo' } : { cls: 'bad', txt: '🔴 Balance negativo' };
+
+    // ── Países lado a lado (solo con vista global) ──
+    let paisesHTML = '';
+    if (M.ceoViewCountry === 'all') {
+      const agg = {};
+      const acc = (results, kind) => (results || []).filter(kpiIncluido).forEach(r => {
+        const pais = r.properties?.['País']?.select?.name || '🇺🇾 UY';
+        const { esUY, monto } = montoOf(r.properties || {}, kind);
+        agg[pais] = agg[pais] || { uyu: 0, usd: 0 };
+        const sign = kind === 'ingreso' ? 1 : -1;
+        if (esUY) agg[pais].uyu += sign * monto; else agg[pais].usd += sign * monto;
+      });
+      acc(ingData.results, 'ingreso'); acc(gasData.results, 'gasto');
+      const ORDEN = [['🇺🇾 UY', 'Uruguay'], ['🇧🇷 BR', 'Brasil'], ['🇵🇦 PA', 'Panamá'], ['🇬🇹 GT', 'Guatemala'], ['🇲🇽 MX', 'México']];
+      // Los 3 países operativos SIEMPRE visibles (BR/PA apagados si aún no tienen datos — la estructura
+      // lista para la expansión, decisión del diseño); GT/MX solo cuando tengan movimiento.
+      const chips = ORDEN.filter(([k], i) => i < 3 || agg[k]).slice(0, 5).map(([k, country]) => {
+        const a = agg[k];
+        const flag = k.split(' ')[0];
+        if (!a || (!a.uyu && !a.usd)) return '<div class="ceoi-pais off" onclick="setCEOCountry(\'' + country + '\')"><span class="f">' + flag + '</span><div class="m">—</div></div>';
+        const m = a.uyu ? fmtMoneda(a.uyu, true) : fmtMoneda(a.usd, false);
+        const col = (a.uyu || a.usd) >= 0 ? 'style="color:var(--green)"' : 'style="color:#ff8a8a"';
+        return '<div class="ceoi-pais" onclick="setCEOCountry(\'' + country + '\')"><span class="f">' + flag + '</span><div class="m" ' + col + '>' + (((a.uyu || a.usd) >= 0 ? '+' : '')) + m + '</div></div>';
+      }).join('');
+      paisesHTML = '<div class="ceoi-paises">' + chips + '</div>';
+    }
+
+    // ── Pipeline (informativo v1; navegable = Fase 2) ──
+    const propAbiertas = (propAll || []).filter(r => { if (esArchivado(r)) return false; const e0 = r.properties?.['Estado pipeline']?.select?.name || ''; return e0 && !CEOI_TERMINALES.some(t0 => e0 === t0); });
+    const propFrias = propAbiertas.filter(r => { const d = r.properties?.['Días sin respuesta']?.formula?.number; return d != null && d >= 15; }).length;
+    const propValor = propAbiertas.reduce((s0, r) => s0 + (r.properties?.['Importe estimado']?.number || 0), 0);
+
+    // ── Render ──
+    const fmtBal = (v, esUY) => (v >= 0 ? '+' : '−') + fmtMoneda(Math.abs(v), esUY);
+    const heroRow = (cur, v, pv, esUY) =>
+      '<div class="ceoi-hero-row"><span class="cur">' + cur + '</span><span class="amt ' + (v >= 0 ? 'pos' : 'neg') + '">' + fmtBal(v, esUY) + '</span>' + ceoiDelta(v, pv) +
+      '<span class="ceoi-vs">' + (prev ? 'vs período anterior' : '') + '</span></div>';
+    const enCursoHTML = enCurso.slice(0, 3).map(s0 => {
+      const nom = s0.properties?.['Nombre del servicio']?.title?.[0]?.plain_text || '(servicio)';
+      const op = s0.properties?.['Operario App']?.select?.name || '';
+      const ini = s0.properties?.['Hora Inicio Efectivo']?.date?.start || '';
+      const hh = ini ? new Date(ini).toLocaleTimeString('es-UY', { hour: '2-digit', minute: '2-digit' }) : '';
+      const avance = s0.properties?.['% de avance']?.formula?.number ?? s0.properties?.['% de avance']?.number ?? null;
+      return '<div class="row-tap" onclick="openServicioQuickView(\'' + esc(s0.id) + '\')">' +
+        '<div class="l2">🚁 ' + esc(nom) + (op ? ' — ' + esc(op) : '') + (hh ? ' · desde ' + hh : '') + '</div>' +
+        (avance != null ? '<div class="bar"><i style="width:' + Math.max(4, Math.min(100, Math.round(avance))) + '%"></i></div>' : '') + '</div>';
+    }).join('');
+    const attHTML = att.length
+      ? att.map(a => '<div class="ceoi-item' + (a.tap ? ' tap' : '') + '"' + (a.tap ? ' onclick="' + a.tap + '"' : '') + '>' + a.icon + ' ' + esc(a.txt) + (a.tap ? '<span class="chev">›</span>' : '') + '</div>').join('')
+      : '<div class="ceoi-item">✓ Todo en orden — nada pide tu atención</div>';
+
+    content.innerHTML = ceoHeaderHTML('🏠 Inicio') + renderCEOPeriodSelector() +
+      '<div class="ceoi-band ' + sem.cls + '">' + sem.txt + '<span class="att">' + (att.length ? att.length + ' tema' + (att.length > 1 ? 's' : '') + ' pide' + (att.length > 1 ? 'n' : '') + ' tu atención ↓' : 'sin temas pendientes') + '</span></div>' +
+      '<div class="ceoi-card tap" onclick="setCEOTab(\'finanzas\')">' +
+        '<div class="ceoi-lab">Balance · ' + esc(label) + '</div>' +
+        heroRow('UY$', bal.uyu, balPrev ? balPrev.uyu : null, true) +
+        heroRow('USD', bal.usd, balPrev ? balPrev.usd : null, false) +
+      '</div>' +
+      '<div class="ceoi-live">' +
+        '<div class="lt"><span class="pulse"></span> HOY EN LA OPERACIÓN</div>' +
+        '<div class="l1">' + deHoy.length + ' servicio' + (deHoy.length === 1 ? '' : 's') + ' hoy · ' + enCurso.length + ' en curso</div>' +
+        enCursoHTML +
+        '<div class="l2" style="margin-top:5px">' + pendHoy + ' pendiente' + (pendHoy === 1 ? '' : 's') + ' hoy · ' + opsActivos.size + ' operario' + (opsActivos.size === 1 ? '' : 's') + ' activo' + (opsActivos.size === 1 ? '' : 's') + '</div>' +
+      '</div>' +
+      '<div class="ceoi-kpis">' +
+        '<div class="ceoi-kpi" onclick="setCEOTab(\'metricas\')"><div class="v">' + (ticket != null ? fmtMoneda(ticket, ticketEsUY) : '—') + '</div><div class="k">Ticket ' + (ticketEsUY ? 'UY$' : 'USD') + '</div><div class="d">' + ceoiDelta(ticket, ticketPrev) + '</div></div>' +
+        '<div class="ceoi-kpi" onclick="setCEOTab(\'servicios\')"><div class="v">' + comp.length + '</div><div class="k">Servicios</div><div class="d">' + (prev ? ceoiDelta(comp.length, compPrev.length || null) : '') + '</div></div>' +
+        '<div class="ceoi-kpi" onclick="setCEOTab(\'metricas\')"><div class="v">' + (margen != null ? margen + '%' : '—') + '</div><div class="k">Margen</div><div class="d">' + ceoiDelta(margen, margenPrev, { pp: true }) + '</div></div>' +
+        '<div class="ceoi-kpi" onclick="setCEOTab(\'porcobrar\')"><div class="v">' + (att.find(a => a.icon === '💸') ? att.find(a => a.icon === '💸').txt.split(' ')[0] : '0') + '</div><div class="k">Sin cobro</div><div class="d"></div></div>' +
+      '</div>' +
+      paisesHTML +
+      '<div class="ceoi-att' + (att.length ? '' : ' allok') + '"><div class="at">' + (att.length ? '⚠ ATENCIÓN (' + att.length + ')' : '✓ EN ORDEN') + '</div>' + attHTML + '</div>' +
+      '<div class="ceoi-pipe"><div class="ceoi-lab">Pipeline</div>' +
+        '<div class="ceoi-item">📤 ' + propAbiertas.length + ' propuesta' + (propAbiertas.length === 1 ? '' : 's') + ' activa' + (propAbiertas.length === 1 ? '' : 's') + (propValor ? ' · $ ' + Math.round(propValor).toLocaleString('es-UY') + ' en juego' : '') + '</div>' +
+        (propFrias ? '<div class="ceoi-item">⏳ ' + propFrias + ' sin respuesta hace +15 días</div>' : '') +
+      '</div>';
+  } catch (e) {
+    if (M.activeCEOTab !== myTab) return;
+    content.innerHTML = ceoHeaderHTML('🏠 Inicio') + '<div class="coord-empty">' + t('coord.error.load') + '<br><small>' + esc(e.message) + '</small></div>';
+  }
+}
+
 function getCEOPeriodRange() {
   const now = new Date();
   const loc = currentLang === 'pt-BR' ? 'pt-BR' : 'es-UY';

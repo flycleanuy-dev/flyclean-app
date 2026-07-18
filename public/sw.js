@@ -262,7 +262,13 @@
 // iniciar/cancelar/cierre con sectores y jornadas ("¿terminaste?"), persistencia local+Notion, pantalla
 // "listo", creación de jornada siguiente y overlays de sector. serviceState/currentService/currentStep/
 // jornadaState quedan en main (accesores) — cero cambio de comportamiento. 21 módulos. main.js ~4.700.
-const CACHE = 'flyclean-v221';
+// v222: FASE CEO 1, bloque 1 — 🏠 INICIO EJECUTIVO del CEO (el "puesto de mando" del artifact de visión):
+// tab nueva y default del panel CEO con semáforo de salud + balance con delta vs período anterior EN TODOS
+// los modos + "HOY EN LA OPERACIÓN" en vivo desde el espejo (servicios de hoy, en curso con operario y hora,
+// operarios activos) + 4 KPIs con delta (ticket/servicios/margen/sin-cobro) + fila de países lado a lado
+// (BR/PA apagados listos para la expansión) + bloque ⚠ ATENCIÓN con excepciones TOCABLES (sin cobro →
+// Por cobrar, sin operario → Servicios, docs por vencer) + pipeline con $ en juego. Todo dato es una puerta.
+const CACHE = 'flyclean-v222';
 const SHELL = [
   '/',
   '/index.html',
