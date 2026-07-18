@@ -17,6 +17,7 @@ import {
   tipoInterno, tipoServicioList, tipoServicioStr,
 } from './calculos.js';
 import { callDb, callNotion, callNotionAll, syncAfterWrite } from './api.js';
+import { ensureJsPDF } from './reporte.js';
 
 let M = {};
 export function initDashboards(bridge) { M = bridge; }
@@ -895,10 +896,124 @@ export async function renderCEOInicio() {
       '<div class="ceoi-pipe"><div class="ceoi-lab">Pipeline</div>' +
         '<div class="ceoi-item">📤 ' + propAbiertas.length + ' propuesta' + (propAbiertas.length === 1 ? '' : 's') + ' activa' + (propAbiertas.length === 1 ? '' : 's') + (propValor ? ' · $ ' + Math.round(propValor).toLocaleString('es-UY') + ' en juego' : '') + '</div>' +
         (propFrias ? '<div class="ceoi-item">⏳ ' + propFrias + ' sin respuesta hace +15 días</div>' : '') +
+      '</div>' +
+      '<div class="ceoi-card tap" style="text-align:center;margin-bottom:18px" onclick="generateCEOExecPDF(this)">' +
+        '<div style="font-weight:800;color:var(--green)">📄 Descargar resumen ejecutivo (PDF)</div>' +
+        '<div class="pedido-card-detail" style="margin-top:3px">La foto del negocio del período — para socios o el banco</div>' +
       '</div>';
   } catch (e) {
     if (M.activeCEOTab !== myTab) return;
     content.innerHTML = ceoHeaderHTML('🏠 Inicio') + '<div class="coord-empty">' + t('coord.error.load') + '<br><small>' + esc(e.message) + '</small></div>';
+  }
+}
+
+// 📄 RESUMEN EJECUTIVO en PDF (Fase CEO 2, 2026-07-18) — la foto del negocio del período/país que el CEO
+// está viendo, con la marca FlyClean (mismo estilo que el reporte financiero de la tab Reportes). Para
+// socios o el banco. Fetches propios (espejo con fallback), deliberadamente independiente del render del
+// Inicio: cero riesgo sobre la pantalla que ya funciona.
+export async function generateCEOExecPDF(btn) {
+  const orig = btn ? btn.style.opacity : null;
+  if (btn) { btn.style.opacity = '0.55'; btn.style.pointerEvents = 'none'; }
+  try {
+    const JS = await ensureJsPDF();
+    if (!JS) { alert(t('pdf.notloaded')); return; }
+    const { start, end, label } = getCEOPeriodRange();
+    const prev = getCEOPrevRange();
+    const fcf = getCEOFinanceFilter();
+    const dFilter = (s0, e0) => { const f = { and: [{ property: 'Fecha', date: { on_or_after: s0 } }, { property: 'Fecha', date: { on_or_before: e0 } }] }; if (fcf) f.and.push(fcf); return f; };
+    const svcPromise = (async () => { try { const r = await callDb('servicios'); return r.results || []; } catch (e) { try { const r2 = await callNotion(`databases/${M.DB_ID}/query`, 'POST', { page_size: 100 }); return r2.results || []; } catch (e2) { return []; } } })();
+    const ingAllPromise = (async () => { try { const r = await callDb('ingresos'); return r.results || []; } catch (e) { try { const r2 = await callNotionAll(`databases/${M.INGRESOS_DB_ID}/query`, {}); return r2.results || []; } catch (e2) { return null; } } })();
+    const propPromise = (async () => { try { const r = await callDb('propuestas'); return r.results || []; } catch (e) { try { const r2 = await callNotionAll(`databases/${M.PROPUESTAS_DB_ID}/query`, {}); return r2.results || []; } catch (e2) { return []; } } })();
+    const [ingData, gasData, ingPrev, gasPrev, svcAll0, ingAll, propAll] = await Promise.all([
+      callNotionAll(`databases/${M.INGRESOS_DB_ID}/query`, { filter: dFilter(start, end) }),
+      callNotionAll(`databases/${M.GASTOS_DB_ID}/query`, { filter: dFilter(start, end) }),
+      prev ? callNotionAll(`databases/${M.INGRESOS_DB_ID}/query`, { filter: dFilter(prev.start, prev.end) }) : Promise.resolve(null),
+      prev ? callNotionAll(`databases/${M.GASTOS_DB_ID}/query`, { filter: dFilter(prev.start, prev.end) }) : Promise.resolve(null),
+      svcPromise, ingAllPromise, propPromise,
+    ]);
+
+    const notionVal = M.ceoViewCountry === 'all' ? null : M.COUNTRY_NOTION_MAP[M.ceoViewCountry];
+    const svcAll = (svcAll0 || []).filter(s0 => !esArchivado(s0) && (!notionVal || s0.properties?.['País']?.select?.name === notionVal));
+    const estadoDe = s0 => (s0.properties?.['Estado']?.select?.name) || '';
+    const fechaDe = s0 => (s0.properties?.['Fecha programada']?.date?.start || '').slice(0, 10);
+    const enPeriodo = s0 => { const f = fechaDe(s0); return f ? (f >= start && f <= end) : (M.ceoPeriod.mode === 'todo'); };
+
+    const ingSplit = sumByMoneda(ingData.results, 'ingreso');
+    const gasSplit = sumByMoneda(gasData.results, 'gasto');
+    const bal = { uyu: ingSplit.uyu - gasSplit.uyu, usd: ingSplit.usd - gasSplit.usd };
+    let balPrev = null;
+    if (ingPrev && gasPrev) { const ip = sumByMoneda(ingPrev.results, 'ingreso'), gp = sumByMoneda(gasPrev.results, 'gasto'); balPrev = { uyu: ip.uyu - gp.uyu, usd: ip.usd - gp.usd }; }
+    const comp = svcAll.filter(s0 => estadoDe(s0).includes('Completado') && enPeriodo(s0));
+    const margen = ingSplit.uyu > 0 ? Math.round(bal.uyu / ingSplit.uyu * 100) : (ingSplit.usd > 0 ? Math.round(bal.usd / ingSplit.usd * 100) : null);
+    const ticket = comp.length ? (ingSplit.uyu ? ingSplit.uyu / comp.length : ingSplit.usd / comp.length) : null;
+    const ticketEsUY = !!ingSplit.uyu;
+
+    // Sin cobro (histórico, cruce forward ingreso→servicio)
+    let sinCobro = null;
+    if (ingAll) {
+      const conCobro = new Set();
+      (ingAll || []).forEach(r => { ((r.properties?.['Servicio vinculado']?.relation) || []).forEach(x => conCobro.add((x.id || '').replace(/-/g, ''))); });
+      const tipoDe = s0 => (s0.properties?.['Tipo de registro']?.select?.name) || '';
+      sinCobro = svcAll.filter(s0 => estadoDe(s0).includes('Completado') && !tipoDe(s0).includes('Prueba') && !tipoDe(s0).includes('Relevamiento') && !tipoDe(s0).includes('Jornada') && !conCobro.has((s0.id || '').replace(/-/g, ''))).length;
+    }
+    // Países (solo con vista global)
+    const agg = {};
+    if (!notionVal) {
+      const acc = (results, kind) => (results || []).filter(kpiIncluido).forEach(r => { const pais = r.properties?.['País']?.select?.name || '🇺🇾 UY'; const { esUY, monto } = montoOf(r.properties || {}, kind); agg[pais] = agg[pais] || { uyu: 0, usd: 0 }; const sg = kind === 'ingreso' ? 1 : -1; if (esUY) agg[pais].uyu += sg * monto; else agg[pais].usd += sg * monto; });
+      acc(ingData.results, 'ingreso'); acc(gasData.results, 'gasto');
+    }
+    // Pipeline
+    const TERM = ['✅ Aceptada', '❌ Rechazada', '😶 Sin respuesta'];
+    const propAb = (propAll || []).filter(r => { if (esArchivado(r)) return false; const e0 = r.properties?.['Estado pipeline']?.select?.name || ''; return e0 && !TERM.includes(e0); });
+    const propFr = propAb.filter(r => { const d = r.properties?.['Días sin respuesta']?.formula?.number; return d != null && d >= 15; }).length;
+    const propVal = propAb.reduce((s0, r) => s0 + (r.properties?.['Importe estimado']?.number || 0), 0);
+
+    // ── PDF (marca FlyClean, mismo lenguaje visual que el reporte financiero) ──
+    const clean = s0 => String(s0 || '').replace(/[\p{Extended_Pictographic}\u{1F1E6}-\u{1F1FF}️‍]/gu, '').replace(/\s+/g, ' ').trim();
+    const fB = (v, esUY) => (v >= 0 ? '+' : '-') + fmtMoneda(Math.abs(v), esUY).replace(/\u00a0/g, ' ');
+    const dTx = (c, p) => { if (p == null || !p) return ''; const d = Math.max(-999, Math.min(999, Math.round((c - p) / Math.abs(p) * 100))); return d ? '  (' + (d > 0 ? '+' : '') + d + '% vs anterior)' : '  (=)'; };
+    const doc = new JS({ unit: 'mm', format: 'a4' });
+    const PW = 210, MA = 14, BOT = 285; let y = 0;
+    const newPageIf = n => { if (y + n > BOT) { doc.addPage(); y = 18; } };
+    doc.setFillColor(0, 201, 141); doc.rect(0, 0, PW, 40, 'F');
+    doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold');
+    doc.setFontSize(26); doc.text('FlyClean', MA, 18);
+    doc.setFontSize(14); doc.text('Resumen ejecutivo', MA, 28);
+    doc.setFontSize(9); doc.setFont('helvetica', 'normal');
+    doc.text(clean(label), PW - MA, 14, { align: 'right' });
+    doc.text(M.ceoViewCountry === 'all' ? 'Todos los paises' : clean(M.ceoViewCountry), PW - MA, 19, { align: 'right' });
+    y = 50;
+    const section = tt => { newPageIf(12); doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(0, 165, 120); doc.text(tt.toUpperCase(), MA, y); doc.setDrawColor(179, 237, 217); doc.setLineWidth(0.3); doc.line(MA, y + 1.5, PW - MA, y + 1.5); y += 7; };
+    const row = (lab, val, opts = {}) => { if (val == null || val === '') return; newPageIf(8); doc.setFont('helvetica', 'normal'); doc.setFontSize(opts.big ? 12 : 10.5); const c = opts.color || [70, 107, 94]; doc.setTextColor(c[0], c[1], c[2]); doc.text(String(lab), MA, y); doc.setFont('helvetica', 'bold'); if (!opts.color) doc.setTextColor(20, 31, 25); doc.text(String(val), PW - MA, y, { align: 'right' }); y += opts.big ? 8.5 : 6; doc.setDrawColor(232, 240, 236); doc.setLineWidth(0.2); doc.line(MA, y - 2, PW - MA, y - 2); };
+
+    section('Balance · ' + clean(label));
+    row('UY$', fB(bal.uyu, true) + dTx(bal.uyu, balPrev && balPrev.uyu), { big: true, color: bal.uyu >= 0 ? [0, 150, 100] : [200, 60, 60] });
+    row('USD', fB(bal.usd, false) + dTx(bal.usd, balPrev && balPrev.usd), { big: true, color: bal.usd >= 0 ? [0, 150, 100] : [200, 60, 60] });
+    section('Indicadores del periodo');
+    row('Servicios completados', comp.length);
+    if (ticket != null) row('Ticket promedio', clean(fmtMoneda(ticket, ticketEsUY)));
+    if (margen != null) row('Margen', margen + '%');
+    if (sinCobro != null) row('Completados sin cobro registrado (historico)', sinCobro, sinCobro ? { color: [200, 120, 20] } : {});
+    if (!notionVal) {
+      const keys = Object.keys(agg);
+      if (keys.length) {
+        section('Por pais');
+        keys.forEach(k => { const a = agg[k]; const parts = []; if (a.uyu) parts.push(fB(a.uyu, true)); if (a.usd) parts.push(fB(a.usd, false)); row(clean(k) || 'UY', parts.join('   ') || '0'); });
+      }
+    }
+    section('Pipeline comercial');
+    row('Propuestas activas', propAb.length);
+    if (propVal) row('Valor en juego (importes estimados)', '$ ' + Math.round(propVal).toLocaleString('es-UY'));
+    if (propFr) row('Sin respuesta hace +15 dias', propFr, { color: [200, 120, 20] });
+    newPageIf(16); y += 6;
+    doc.setDrawColor(179, 237, 217); doc.line(MA, y, PW - MA, y); y += 6;
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(140, 150, 146);
+    doc.text('FlyClean · Generado el ' + new Date().toLocaleDateString('es-UY') + ' desde la app (datos en vivo) · UY$ y USD por separado, nunca se mezclan.', MA, y);
+    doc.save('FlyClean_Ejecutivo_' + end + '.pdf');
+  } catch (e) {
+    alert('No se pudo generar el resumen: ' + (e?.message || e));
+  } finally {
+    if (btn) { btn.style.opacity = orig || '1'; btn.style.pointerEvents = ''; }
   }
 }
 

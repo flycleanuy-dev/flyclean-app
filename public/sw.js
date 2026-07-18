@@ -280,7 +280,11 @@
 // automáticos 🐞 + mensajes 💬 + detalles 📝) y marca visto/resuelto. Backend /api/reporte crece: GET (míos/
 // bandeja admin), PATCH estado (solo admins), POST tipo 'manual' (exige sesión, email inmediato). El círculo
 // completo: la app avisa sola + el equipo escribe + Dirección gestiona — todo en un lugar.
-const CACHE = 'flyclean-v224';
+// v225: Fase CEO 2, pieza 2 — 📄 RESUMEN EJECUTIVO en PDF: botón al pie del 🏠 Inicio que baja UN documento
+// con la foto del negocio del período/país que se está viendo (balance UY$/USD con delta vs período
+// anterior, indicadores, por país, pipeline con $ en juego, sin-cobro histórico), con la marca FlyClean —
+// para socios o el banco. Datos en vivo (espejo con fallback a Notion), jsPDF self-hosted.
+const CACHE = 'flyclean-v225';
 const SHELL = [
   '/',
   '/index.html',
