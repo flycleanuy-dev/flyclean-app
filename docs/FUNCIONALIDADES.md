@@ -2,6 +2,9 @@
 
 > **FUENTE DE VERDAD** de *qué hace la app y qué función lo implementa.* Generado leyendo el código
 > real (2026-06-25, sw v72) con 5 agentes en paralelo; actualizado manualmente tras cada feature.
+> ⚠️ **DÓNDE VIVE CADA COSA (desde 2026-07-18):** el frontend ya NO es un monolito — son 23 módulos en
+> `src/` (mapa completo en `ARQUITECTURA.md`). Las funciones nombradas acá siguen existiendo con el mismo
+> nombre; para ubicarlas: `grep -rn "function NOMBRE" src/`.
 > **ANTES de construir/proponer algo: buscalo acá + grep del código. Reusar > reconstruir** (ya
 > duplicamos 2 veces: Clientes/Contactos y PINs). Mantenerlo: actualizar este archivo tras cada feature
 > (junto al bump de `sw.js`). Complementa a `ARQUITECTURA.md` (cómo está construido), `NOTION.md`
@@ -821,3 +824,34 @@ _Generado automáticamente del código (workflow `inventario-funcionalidades`). 
   "🔧 N equipos sin check mensual" (clickable) + estados reparación/mantenimiento alertan siempre + mapa
   país global en loadAlerts. Schema Notion +4 props (MCP) + inventario UY cargado (M400, 2×M350, 2 lanzas,
   H1, Changan Hunter, Trailer c/Ósmosis). Mi historial: sub-línea 🚁 dron · 💪 manual/lanzas.
+
+---
+
+## 2026-07-17 → 19 — v204 → v227 (la semana grande)
+
+- **Paquete auditoría operativa (v204-v206):** fix link de ubicación de la ficha de relevamiento · 🔴 fuga
+  de gastos del operario cerrada (filtro server-side `Cargado por`) + aislamiento Gastos por país + blindaje
+  saveServiceEdit · **Precio acordado + Moneda en trabajos sueltos** (alta + sheet edición; Por cobrar lo usa
+  de fallback sin propuesta). Verificado en vivo por Diego.
+- **Ficha de relevamiento** (v202-v204): el wizard de 5 pasos pasó a FICHA única (datos+fotos con galería+
+  notas+ubicación por link) con confirmación al finalizar + ventana de edición del mismo día. Estrenada en la
+  calle por Francarlos.
+- **🧩 MODULARIZACIÓN COMPLETA (v207-v221):** 13 cortes en 3 días — fotos, prospección, equipos, historial,
+  pedidos, alertas, propuestas (2 partes), gastos, finanzas, clientes, coord-servicios y el **motor del
+  operario**. main.js 17.400 → ~4.760 líneas; 23 módulos. Patrón puente + gen-globals + red no-undef
+  (reforzada: caza errores de sintaxis y puentes incompletos).
+- **🐞 Sistema de reportes de errores — Fase A (v217):** captura global (window.onerror + mini-catcher
+  inline pre-bundle) → `/api/reporte` → tabla Supabase `reportes` + email a Dirección con dedup por
+  error+día · toast "contar qué estabas haciendo". **Cazó su primer bug real el día del estreno** (alerta
+  del viernes → `openMisEquipos` sin publicar) → fix sistémico en gen-globals (v218).
+- **💬 Soporte — Fase B (v224):** fila en el menú de cuenta (todos los roles) + la tab Mensajes cobra vida:
+  reportar problema/idea (email inmediato), "Mis reportes" con estado, y bandeja completa para Dirección con
+  Visto/Resuelto. `/api/reporte` GET/PATCH/POST manual.
+- **👔 FASE CEO 1+2 (v222-v226):** tab **🏠 Inicio ejecutivo** (default): semáforo + balance con ▲▼ vs
+  período anterior EN TODOS los modos + **HOY en la operación** en vivo + 4 KPIs con delta + fila de países
+  (⇄ **comparativa completa** desplegable) + **⚠ atención tocable** + **pipeline navegable** (lista de
+  propuestas, frías primero). El selector de **período manda en todas las tabs** (Servicios con "En curso
+  siempre visible"; Por cobrar readonly). **📄 Resumen Ejecutivo en PDF** (botón al pie del Inicio) — la foto
+  del negocio para socios/banco. Documento de visión: artifact "Fase CEO".
+- **Forense del detector (v227):** los stacks incluyen siempre ` @ archivo:línea:col`; primer triage real
+  (#5 BOOT SyntaxError = probable bot con UA falsificado, regla de reevaluación anotada).

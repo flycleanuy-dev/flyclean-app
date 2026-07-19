@@ -209,3 +209,19 @@ Reglas (umbrales de días), checklist del operario y plantillas de WhatsApp son 
 `cron-pipeline` sus consts 15/45 — borrar la clave KV = volver al comportamiento histórico (rollback
 instantáneo sin deploy). El front carga la config al login (`loadAppConfig`, timeout 3s). Los cambios de
 reglas aplican al instante en la app y en la PRÓXIMA corrida del cron diario.
+
+## Sistema de reportes de errores / 💬 Soporte (desde v217/v224)
+
+- **Tabla:** Supabase `reportes` (RLS cerrado; solo service key server-side). Columnas clave: tipo
+  (`auto`=error JS · `manual`=mensaje del equipo · `detalle`=texto anexo a un error), usuario/rol/país
+  (resueltos SERVER-side del token), pantalla/tab/version, mensaje, stack (con ` @ archivo:línea:col`),
+  estado (`nuevo`→`visto`→`resuelto`), err_hash.
+- **Emails:** tipo 'reportes' en los destinatarios editables (⚙️ del admin); fallback al email del CEO.
+  `auto` dedupea por error+día (KV `err:<hash>:<yyyymmdd>`); `manual`/`detalle` avisan SIEMPRE.
+- **Bandeja:** menú de cuenta → 💬 Soporte (o tab Mensajes). Dirección (`ADMIN_IDS`) ve todo y marca
+  estados; el resto solo los suyos.
+- **Triage (regla operativa):** BOOT+UA moderno+madrugada+desktop = probable bot (ver caso #5, 19/07) →
+  visto. Si reaparece patrón con UA repetido o usuario logueado → considerar bajar `build.target` (Vite)
+  o pantalla "navegador no soportado".
+- **Consulta rápida (curl):** `GET $SUPABASE_URL/rest/v1/reportes?estado=eq.nuevo&order=creado.desc`
+  con headers apikey+Bearer del service key.
