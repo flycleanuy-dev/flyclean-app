@@ -1629,10 +1629,31 @@ export async function renderPorCobrar(containerId, opts = {}) {
 
     M._porCobrarData = { svc, prop, ing, clientesById, precioBy, ingBy, ingBySvc, comp, readonly };
 
+    // G2 (visión finanzas, 19/07): la AGENDA de cobranza — de la foto a la lista de trabajo.
+    // Los impagos/parciales MÁS VIEJOS primero (la antigüedad es la urgencia); cada fila abre el servicio.
+    let agendaHTML = '';
+    if (!readonly) {
+      const pend = rows.filter(r => (r.estado === 'acobrar' || r.estado === 'parcial') && r.fecha)
+        .sort((a, b) => a.fecha.localeCompare(b.fecha)).slice(0, 8);
+      if (pend.length) {
+        agendaHTML = '<div class="estado-cuenta" style="border:1px solid var(--green)">' +
+          '<div class="ec-title">💰 A COBRAAR ESTA SEMANA</div>'.replace('COBRAAR','COBRAR') +
+          '<div class="ec-counts" style="margin:0 0 6px">Los más viejos primero — tocá para abrir el servicio.</div>' +
+          pend.map(r => {
+            const cli = (clientesById[r.clienteId] || {}).nombre || '';
+            const falta = r.precio - (r.cobrado || 0);
+            return '<div class="ec-row" style="cursor:pointer" onclick="openEditSheetFromFinanzas(\'' + esc(r.id) + '\')">' +
+              '<span>' + fmtVisitaFecha(r.fecha) + ' · ' + esc(cli ? cli + ' — ' : '') + esc(r.nombre) +
+              (r.estado === 'parcial' ? ' <span style="color:var(--text3);font-size:11px">(parcial)</span>' : '') + '</span>' +
+              '<span style="color:var(--red);font-weight:700;white-space:nowrap">' + fMon(falta, r.esUY) + ' ›</span></div>';
+          }).join('') + '</div>';
+      }
+    }
     content.innerHTML =
       (opts.headerless ? '' : ceoHeaderHTML('Por cobrar')) +
       (readonly ? renderCEOPeriodSelector() : '') +
       '<div class="acct">' +
+        agendaHTML +
         '<div class="estado-cuenta">' +
           '<div class="ec-title">💰 TOTAL POR COBRAR' + esc(periodoLabel) + '</div>' +
           '<div class="ec-saldo"><span>Pendiente de cobro</span><span style="color:var(--red)">' + (splitStr(totalPC) || fU(0)) + '</span></div>' +

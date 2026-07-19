@@ -15,6 +15,7 @@ const GESTION_LUNES = ['ihodieego@gmail.com', 'federicomaciel939@gmail.com'];
 const SERVICIOS_DB = 'ccaf276c7f6a460caeb3d2800deab2e5';
 const PROPUESTAS_DB = '2c0a4257f4294941b994dfebc1098633';
 const ACTIVOS_DB = 'e75449eeb78143f1b74006a4796c1f95';
+const INGRESOS_DB = 'd1e15376e83a408a8a52f47da33c249a';
 const ESTADOS_ESPERANDO = ['📞 Contactado', '📤 Enviada al cliente', '🤝 Negociando'];
 const APP_URL = 'https://www.flyclean.app/';
 
@@ -190,6 +191,42 @@ export default async function handler(req, res) {
       }
     }
 
+    // 💰 A COBRAR (G2, visión finanzas 19/07) — solo lunes: completados facturables SIN cobro vinculado,
+    // los más viejos primero. Sin montos en v1 (el precio exige cruzar propuestas; la agenda con montos
+    // vive en la app → botón). fail-open honesto como el bloque de equipos.
+    let cobrarHtml = '';
+    if (tipo === 'lunes') {
+      let ingAll = null;
+      try { ingAll = await queryAll(INGRESOS_DB); } catch { ingAll = null; }
+      if (ingAll === null) {
+        cobrarHtml = section('💰 A cobrar') + empty('No se pudieron consultar los cobros esta vez.');
+      } else {
+        const conCobro = new Set();
+        ingAll.forEach(i => (i.properties?.['Servicio vinculado']?.relation || []).forEach(x => conCobro.add((x.id || '').replace(/-/g, ''))));
+        const tipoDe = s2 => s2.properties?.['Tipo de registro']?.select?.name || '';
+        const sinCobro = allSvc
+          .filter(s2 => (s2.properties?.['Estado']?.select?.name || '').includes('Completado'))
+          .filter(s2 => !/Prueba|Relevamiento|Jornada/.test(tipoDe(s2)))
+          .filter(s2 => !(s2.properties?.['Archivado']?.checkbox === true))
+          .filter(s2 => !conCobro.has((s2.id || '').replace(/-/g, '')))
+          .sort((a, b) => (a.properties?.['Fecha programada']?.date?.start || '').localeCompare(b.properties?.['Fecha programada']?.date?.start || ''));
+        const linea = s2 => {
+          const f = (s2.properties?.['Fecha programada']?.date?.start || '').slice(0, 10);
+          const dias = f ? Math.floor((Date.now() - new Date(f + 'T00:00:00').getTime()) / 86400000) : null;
+          return `<div style="padding:8px 0;border-bottom:1px solid #1d2a25">
+            <div style="font-weight:700;color:#ffffff">${esc(s2.properties?.['Nombre del servicio']?.title?.[0]?.plain_text || '(servicio)')}</div>
+            <div style="font-size:13px;color:#9fb5ac;margin-top:2px">completado ${f || '?'}${dias != null ? ` · hace ${dias} día${dias === 1 ? '' : 's'}` : ''}</div>
+          </div>`;
+        };
+        cobrarHtml =
+          section(`💰 A cobrar — completados sin cobro registrado (${sinCobro.length})`) +
+          (sinCobro.length
+            ? sinCobro.slice(0, 5).map(linea).join('') +
+              (sinCobro.length > 5 ? `<div style="padding:8px 0;color:#9fb5ac;font-size:13px">… y ${sinCobro.length - 5} más — la agenda completa con montos está en la app (Finanzas → Por cobrar).</div>` : '')
+            : empty('Todo cobrado o registrado ✅'));
+      }
+    }
+
     let subject, body;
     if (tipo === 'lunes') {
       subject = 'FlyClean · Lunes — pendientes de la semana';
@@ -199,6 +236,7 @@ export default async function handler(req, res) {
         (svcProximos.length
           ? svcProximos.map(s => svcCard(s)).join('')
           : empty('Sin servicios programados.')) +
+        cobrarHtml +
         section(`📋 Servicios sin operario asignado (${svcSinOp.length})`) +
         (svcSinOp.length ? svcSinOp.map(s => svcCard(s)).join('') : empty('Todos asignados ✅')) +
         section(`📞 Propuestas para re-contactar (${recontactar.length})`) +

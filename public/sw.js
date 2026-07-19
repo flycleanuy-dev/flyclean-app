@@ -300,7 +300,11 @@
 // asumía USD, con Por cobrar heredando el error). G3 = aviso SUAVE "estás creando SIN precio" al crear una
 // Orden facturable suelta o un servicio desde una propuesta sin importe (confirm — se puede seguir, pero
 // avisado; Relevamientos/Pruebas no molestan). Regla de oro naciendo: ningún servicio nace sin precio.
-const CACHE = 'flyclean-v228';
+// v229 — G2 agenda de cobranza: bloque "💰 A COBRAR ESTA SEMANA" arriba del Por cobrar de Finanzas
+// (impagos/parciales MÁS VIEJOS primero, tope 8, cada fila tocable abre el servicio y muestra lo que
+// FALTA cobrar) + sección nueva en el email del LUNES (cron-report): top 5 completados sin cobro con
+// "hace N días", montos solo en la app. Cierra el circuito registrar→ver→cobrar de la CAPA 1 (3 capas).
+const CACHE = 'flyclean-v229';
 const SHELL = [
   '/',
   '/index.html',
