@@ -289,7 +289,12 @@
 // 📤 PIPELINE NAVEGABLE (tocás la fila → la LISTA de propuestas abiertas con estado, días e importe,
 // las más frías primero). Con Soporte (v224) y el PDF ejecutivo (v225), los 4 entregables de la fase
 // quedan en producción.
-const CACHE = 'flyclean-v226';
+// v227: forense del detector de errores (post reporte #5, un BOOT SyntaxError de madrugada con UA
+// Chrome/122 falsificado = probable bot con motor JS limitado — triageado como visto, sin bajar el build
+// target por un fantasma): el catcher (inline de <head> y src/errores.js) ahora anexa SIEMPRE
+// " @ archivo:línea:col" al stack cuando el evento lo trae → si un arranque vuelve a fallar, sabremos QUÉ
+// archivo fue (¿bundle? ¿script externo? ¿sw sirviendo corrupto?) en un minuto, sin adivinar.
+const CACHE = 'flyclean-v227';
 const SHELL = [
   '/',
   '/index.html',

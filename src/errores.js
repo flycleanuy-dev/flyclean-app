@@ -15,7 +15,11 @@ export function initErrores(bridge) {
   try {
     window.addEventListener('error', e => {
       // e.error puede ser null (errores de recurso/script cross-origin) → cae al message pelado.
-      capturarError(e?.message || 'error', e?.error?.stack || (e?.filename ? `${e.filename}:${e.lineno}` : ''));
+      // Forense (post reporte #5): SIEMPRE anexar filename:lineno:col cuando exista — es la diferencia
+      // entre saber QUÉ archivo falló (¿bundle? ¿script externo? ¿sw sirviendo corrupto?) y adivinar.
+      const st = e?.error?.stack || '';
+      const loc = e?.filename ? ` @ ${e.filename}:${e.lineno}:${e.colno || 0}` : '';
+      capturarError(e?.message || 'error', st + loc);
     });
     window.addEventListener('unhandledrejection', e => {
       const r = e?.reason;

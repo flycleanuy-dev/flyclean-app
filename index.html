@@ -19,7 +19,9 @@
 window.__fcErrQ = [];
 window.addEventListener('error', function (e) {
   if (window.__fcErrHooked) return;
-  window.__fcErrQ.push({ m: (e && e.message) || 'error', s: (e && e.error && e.error.stack) || ((e && e.filename) ? e.filename + ':' + e.lineno : '') });
+  var st = (e && e.error && e.error.stack) || '';
+  var loc = (e && e.filename) ? (' @ ' + e.filename + ':' + e.lineno + ':' + (e.colno || 0)) : '';
+  window.__fcErrQ.push({ m: (e && e.message) || 'error', s: (st + loc).slice(0, 2000) });
 });
 window.addEventListener('unhandledrejection', function (e) {
   if (window.__fcErrHooked) return;
