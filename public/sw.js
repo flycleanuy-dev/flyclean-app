@@ -294,7 +294,13 @@
 // target por un fantasma): el catcher (inline de <head> y src/errores.js) ahora anexa SIEMPRE
 // " @ archivo:línea:col" al stack cuando el evento lo trae → si un arranque vuelve a fallar, sabremos QUÉ
 // archivo fue (¿bundle? ¿script externo? ¿sw sirviendo corrupto?) en un minuto, sin adivinar.
-const CACHE = 'flyclean-v227';
+// v228: VISIÓN FINANZAS — G1+G3 (los retoques que cierran el grifo de errores del circuito del dinero):
+// G1 = la MONEDA de la propuesta por fin editable (botones UY$/USD junto al importe en crear Y editar,
+// default por país, se guarda en la property que ya existía — antes la app nunca la mostraba y TODO se
+// asumía USD, con Por cobrar heredando el error). G3 = aviso SUAVE "estás creando SIN precio" al crear una
+// Orden facturable suelta o un servicio desde una propuesta sin importe (confirm — se puede seguir, pero
+// avisado; Relevamientos/Pruebas no molestan). Regla de oro naciendo: ningún servicio nace sin precio.
+const CACHE = 'flyclean-v228';
 const SHELL = [
   '/',
   '/index.html',

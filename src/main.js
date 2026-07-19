@@ -146,7 +146,7 @@ import { // propuestas — seguimiento (p1) + sheet crear/editar (p2) — ver sr
   propClienteInputsHTML, propClienteSectionHTML, verClienteDesdePropuesta, propClienteChanged,
   loadPropContactos, openNewPropSheet, openPropSheet, deletePropuesta, linkServicioEnPropuesta,
   propTieneServicio, createServicioFromPropuesta, createPruebaFromPropuesta, createRelevamientoFromPropuesta,
-  propSetField, updateCreateSvcBtnVisibility, propOverlayClick, closePropSheet, savePropEdit,
+  propSetField, propSetMoneda, updateCreateSvcBtnVisibility, propOverlayClick, closePropSheet, savePropEdit,
   recontacteHoyDesdeSheet,
 } from './propuestas.js';
 import { // pantalla Gastos + sheet de carga con OCR — ver src/gastos.js (patrón puente initGastos)
@@ -2948,6 +2948,9 @@ async function submitNewService() {
   if (!(s.nombre || '').trim()) { alert(t('sheet.newsvc.error.nombre')); return; }
   const clienteNuevoSinDatos = (s.clienteSel === '__new__') && !(s.nombreCliente || '').trim() && !s.tel && !s.email;
   if (clienteNuevoSinDatos) { alert(t('sheet.newsvc.error.cliente')); return; }
+  // G3 (visión finanzas): aviso SUAVE al crear una Orden facturable sin precio — corta el goteo de
+  // "completados sin precio" en el origen. Se puede seguir igual (confirm); Relevamientos/Pruebas no avisan.
+  if ((s.tipoRegistro || '').includes('Orden') && !(parseFloat(s.precioAcordado) > 0) && !confirm(t('newsvc.sinprecio.confirm'))) return;
   btn.textContent = t('btn.saving.notion'); btn.disabled = true;
   try {
     const clienteId = await resolveOrCreateClienteId(s);
@@ -4608,6 +4611,7 @@ Object.assign(window, {
   propClienteChanged,
   propOverlayClick,
   propSetField,
+  propSetMoneda,
   prospAccion,
   prospectoOverlayClick,
   prospectoSetOrigen,

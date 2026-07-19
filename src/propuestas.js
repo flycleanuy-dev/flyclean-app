@@ -262,7 +262,7 @@ export async function loadPropContactos() {
 export function openNewPropSheet(prefillContactId = null) {
   propSheetMode = 'create';
   M.editingProp = null;
-  M.propEditState = { nombre: '', estado: '🆕 Nuevo lead', pais: '🇺🇾 Uruguay', tipo: '', aprobacion: '⏳ Pendiente', importe: '', fechaEnvio: '', ultimaInt: new Date().toISOString().split('T')[0], obs: '', serviciosAnio: '', comision: '', clienteSel: prefillContactId || '__new__', nombreCliente: '', tel: '', email: '' };
+  M.propEditState = { nombre: '', estado: '🆕 Nuevo lead', pais: '🇺🇾 Uruguay', tipo: '', aprobacion: '⏳ Pendiente', importe: '', moneda: '🇺🇾 UY$', fechaEnvio: '', ultimaInt: new Date().toISOString().split('T')[0], obs: '', serviciosAnio: '', comision: '', clienteSel: prefillContactId || '__new__', nombreCliente: '', tel: '', email: '' };
 
   document.getElementById('prop-sheet-title').textContent = t('sheet.prop.title.nueva');
   document.getElementById('prop-sheet-sub').textContent = t('sheet.prop.subtitle.nueva');
@@ -289,6 +289,7 @@ export function openNewPropSheet(prefillContactId = null) {
     `<div class="edit-section"><div class="edit-section-label">${t('sheet.prop.section.importe')}</div>
       <div style="display:flex;gap:8px;align-items:center">
         <input type="number" id="prop-importe-input" class="edit-date-input" placeholder="${t('sheet.prop.importe.placeholder')}" step="100" style="flex:1" oninput="propEditState.importe=this.value"/>
+        ${['🇺🇾 UY$','🇺🇸 USD'].map(m => `<button type="button" class="estado-btn ${(M.propEditState.moneda||'🇺🇾 UY$')===m?'active':''}" style="flex:none;padding:9px 10px" onclick="propSetMoneda(this,'${m}')">${m}</button>`).join('')}
         <button type="button" onclick="calcularPrecioPropuesta()" title="${t('calc.title')}" style="flex:none;background:var(--card);border:1px solid var(--border2);border-radius:9px;color:var(--text2);font-size:13px;padding:9px 12px;cursor:pointer;font-family:'Exo 2',sans-serif">🧮</button>
       </div></div>` +
     `<div class="edit-section"><div class="edit-section-label">🔄 Contrato recurrente (si aplica)</div>
@@ -324,6 +325,9 @@ export function openPropSheet(pageId) {
   const tipo = props['Tipo']?.select?.name || '';
   const aprobacion = props['Aprobación interna']?.select?.name || '';
   const importe = props['Importe estimado']?.number ?? '';
+  // G1 (visión finanzas 19/07): la MONEDA de la propuesta por fin editable — el campo existía en la base
+  // pero la app nunca lo mostró y todo se asumía USD (Por cobrar heredaba el error). Default por país.
+  const monedaProp = props['Moneda']?.select?.name || (pais.includes('Uruguay') ? '🇺🇾 UY$' : '🇺🇸 USD');
   const fechaEnvio = props['Fecha de envío']?.date?.start || '';
   // Normalizamos a YYYY-MM-DD: automatizaciones/crons escriben datetime completo ("2026-07-02T09:00:00-03:00")
   // y eso rompía el <input type="date"> (quedaba vacío) y el render de la card ("Invalid Date").
@@ -339,13 +343,13 @@ export function openPropSheet(pageId) {
   const posponerExiste = ('Posponer aviso hasta' in props);
   const posponerHasta = (props['Posponer aviso hasta']?.date?.start || '').split('T')[0];
 
-  M.propEditState = { estado, pais, tipo, aprobacion, importe, fechaEnvio, ultimaInt, obs, serviciosAnio, comision, clienteSel, nombreCliente: '', tel: '', email: '', mapa: mapaProp, posponerHasta, _posponerHastaOrig: posponerHasta };
+  M.propEditState = { estado, pais, tipo, aprobacion, importe, moneda: monedaProp, fechaEnvio, ultimaInt, obs, serviciosAnio, comision, clienteSel, nombreCliente: '', tel: '', email: '', mapa: mapaProp, posponerHasta, _posponerHastaOrig: posponerHasta };
   // F1 (escribir SOLO lo cambiado): snapshot de originales → al guardar no se re-escribe un campo que el usuario no
   // tocó (evita el echo-back que pisaría datos cuando propuestas pase a Supabase-first). Números como String() para
   // comparar sin falsos "cambió" por number-vs-string del input.
   Object.assign(M.propEditState, {
     _estadoOrig: estado, _paisOrig: pais, _tipoOrig: tipo, _aprobacionOrig: aprobacion,
-    _importeOrig: String(importe ?? ''), _serviciosAnioOrig: String(serviciosAnio ?? ''), _comisionOrig: String(comision ?? ''),
+    _importeOrig: String(importe ?? ''), _monedaOrig: monedaProp, _serviciosAnioOrig: String(serviciosAnio ?? ''), _comisionOrig: String(comision ?? ''),
     _fechaEnvioOrig: fechaEnvio, _ultimaIntOrig: ultimaInt, _obsOrig: obs, _mapaOrig: mapaProp,
   });
 
@@ -376,6 +380,7 @@ export function openPropSheet(pageId) {
     `<div class="edit-section"><div class="edit-section-label">${t('sheet.prop.section.importe')}</div>
       <div style="display:flex;gap:8px;align-items:center">
         <input type="number" id="prop-importe-input" class="edit-date-input" value="${importe}" placeholder="${t('sheet.prop.importe.placeholder')}" step="100" style="flex:1" oninput="propEditState.importe=this.value"/>
+        ${['🇺🇾 UY$','🇺🇸 USD'].map(m => `<button type="button" class="estado-btn ${(M.propEditState.moneda||'🇺🇾 UY$')===m?'active':''}" style="flex:none;padding:9px 10px" onclick="propSetMoneda(this,'${m}')">${m}</button>`).join('')}
         <button type="button" onclick="calcularPrecioPropuesta()" title="${t('calc.title')}" style="flex:none;background:var(--card);border:1px solid var(--border2);border-radius:9px;color:var(--text2);font-size:13px;padding:9px 12px;cursor:pointer;font-family:'Exo 2',sans-serif">🧮</button>
       </div></div>` +
     `<div class="edit-section"><div class="edit-section-label">🔄 Contrato recurrente (si aplica)</div>
@@ -501,6 +506,10 @@ export async function createServicioFromPropuesta(propPageId) {
   const pais = pp['País']?.select?.name || '';
   const tipo = pp['Tipo']?.select?.name || '';
   const contactRel = pp['Contacto']?.relation?.[0]?.id;
+
+  // G3 (visión finanzas): aviso SUAVE si la propuesta no tiene importe — el servicio nacería sin precio
+  // y caería en Por cobrar como "sin precio". Se puede seguir igual (confirm), pero queda avisado.
+  if (!(pp['Importe estimado']?.number > 0) && !confirm(t('prop.create.sinprecio.confirm'))) return;
 
   const btn = document.getElementById('create-svc-btn');
   if (btn) { btn.textContent = '⏳ ' + t('sheet.prop.creating.svc'); btn.disabled = true; }
@@ -645,6 +654,12 @@ export async function createRelevamientoFromPropuesta(propPageId) {
     if (btn) { btn.textContent = '🔍 ' + t('sheet.prop.pedir.relev'); btn.disabled = false; }
     alert(t('sheet.prop.create.error') + ' ' + e.message);
   }
+}
+
+// G1: selector de moneda del importe (UY$/USD). La moneda es obligatoria — no se deselecciona.
+export function propSetMoneda(el, m) {
+  M.propEditState.moneda = m;
+  el.closest('div').querySelectorAll('.estado-btn').forEach(b => b.classList.toggle('active', b === el));
 }
 
 export function propSetField(key, el, val) {
@@ -798,6 +813,7 @@ export async function savePropEdit() {
       props['Tipo'] = { select: M.propEditState.tipo ? { name: M.propEditState.tipo } : null };
       props['Aprobación interna'] = { select: M.propEditState.aprobacion ? { name: M.propEditState.aprobacion } : null };
       props['Importe estimado'] = { number: parseFloat(M.propEditState.importe) || null };
+      if (M.propEditState.moneda) props['Moneda'] = { select: { name: M.propEditState.moneda } };
       props['Servicios por año'] = { number: parseFloat(M.propEditState.serviciosAnio) || null };
       props['Comisión %'] = { number: parseFloat(M.propEditState.comision) || null };
       if (M.propEditState.fechaEnvio) props['Fecha de envío'] = { date: { start: M.propEditState.fechaEnvio } };
@@ -826,6 +842,7 @@ export async function savePropEdit() {
       if (chg(p.tipo, p._tipoOrig)) props['Tipo'] = { select: p.tipo ? { name: p.tipo } : null };
       if (chg(p.aprobacion, p._aprobacionOrig)) props['Aprobación interna'] = { select: p.aprobacion ? { name: p.aprobacion } : null };
       if (chg(String(p.importe ?? ''), p._importeOrig)) props['Importe estimado'] = { number: parseFloat(p.importe) || null };
+      if (p.moneda && p.moneda !== p._monedaOrig) props['Moneda'] = { select: { name: p.moneda } };
       if (chg(String(p.serviciosAnio ?? ''), p._serviciosAnioOrig)) props['Servicios por año'] = { number: parseFloat(p.serviciosAnio) || null };
       if (chg(String(p.comision ?? ''), p._comisionOrig)) props['Comisión %'] = { number: parseFloat(p.comision) || null };
       // Fecha de envío: escribir si el usuario la cambió; o auto-estampar hoy al pasar a "Enviada" sin fecha previa
