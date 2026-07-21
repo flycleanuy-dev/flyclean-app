@@ -1,7 +1,7 @@
 import { verifySession, tokenFromReq, maybeRenewSession } from './_lib/session.js';
 import { resolveUser, esVentas, esGlobal, paisCoincide } from './_lib/users.js';
 import { checkPermiso } from './_lib/permisos.js';
-import { resourceFromPage, DBS } from './_lib/notion-map.js';
+import { resourceFromPage, DBS, mapRow } from './_lib/notion-map.js';
 import { mirrorPage, deleteRowByNotionId } from './_lib/mirror.js';
 import {
   mergeProps,
@@ -10,7 +10,11 @@ import {
   getMirrorRaw,
   getMirrorMeta,
   cancelOutboxForPage,
+  resolveLocalId,
+  createFallback,
+  normalizePatchForRaw,
 } from './_lib/supafirst.js';
+import crypto from 'node:crypto';
 
 // Fase 3a.1 — espejo garantizado: tras un PATCH/POST EXITOSO a Notion, reflejar esa página en Supabase desde
 // el proxy (cierra los huecos de syncAfterWrite: operario, gastos, drain offline, creates). await inline con
@@ -30,6 +34,20 @@ const SUPAFIRST_VERBOSE = process.env.SUPAFIRST_VERBOSE === '1'; // loguea tambi
 // → GET a Notion como siempre. Sin esto, con Notion caído los PATCH de tablas flipeadas también morían
 // (el GET meta fallaba ANTES de llegar al branch supafirst). Rollback = borrar el env.
 const MIRROR_META_FIRST = process.env.MIRROR_META_FIRST === '1';
+
+// Fase 3b — CREATE-FALLBACK por tabla (CSV). Si Notion no puede crear una página, la alta se registra local
+// (espejo uuid + id_map + outbox op:'create') y el worker la propaga. EFECTIVO = CREATE_FALLBACK ∩ SUPAFIRST
+// y SOLO si MIRROR_META_FIRST (condición M5 del review: sin meta-espejo, un PATCH a un id local no encuentra
+// permisos; fuera de SUPAFIRST no hay merge_props). Vacío hoy → todo el bloque de creates es INERTE.
+const CREATE_FALLBACK_RAW = new Set((process.env.CREATE_FALLBACK_TABLES || '').split(',').map(s => s.trim()).filter(Boolean));
+const CREATE_FALLBACK = new Set(
+  MIRROR_META_FIRST ? [...CREATE_FALLBACK_RAW].filter(t => SUPAFIRST.has(t)) : []
+);
+if (CREATE_FALLBACK_RAW.size && CREATE_FALLBACK.size !== CREATE_FALLBACK_RAW.size) {
+  console.warn('[create-fallback] IGNORADAS tablas fuera de SUPAFIRST o sin MIRROR_META_FIRST:',
+    [...CREATE_FALLBACK_RAW].filter(t => !CREATE_FALLBACK.has(t)).join(','));
+}
+const APP_UID_PROP = 'App UID'; // property rich_text (Diego la crea por tabla) — idempotencia del create-fallback
 // Drill "Notion caído" (solo previews/fixtures): notionFetch responde 503 sintético SIN salir a la red.
 // GUARDA DURA (fix review): en Production el flag se ignora — un env mal scopeado no puede tumbar el proxy.
 const NOTION_FAKE_DOWN = process.env.NOTION_FAKE_DOWN === '1' && process.env.VERCEL_ENV !== 'production';
@@ -171,7 +189,7 @@ export default async function handler(req, res) {
   if (!endpoint || typeof endpoint !== 'string' || endpoint.length > 200) {
     return res.status(400).json({ error: 'Invalid endpoint' });
   }
-  const endpointNorm = endpoint.trim().replace(/^\/+/, '');
+  let endpointNorm = endpoint.trim().replace(/^\/+/, '');
   if (!ALLOWED_ENDPOINTS.some(re => re.test(endpointNorm))) {
     return res.status(400).json({ error: 'Endpoint not allowed' });
   }
@@ -180,6 +198,20 @@ export default async function handler(req, res) {
   const httpMethod = String(method).toUpperCase();
   if (!ALLOWED_METHODS.includes(httpMethod)) {
     return res.status(400).json({ error: 'HTTP method not allowed' });
+  }
+
+  // Fase 3b — TRADUCCIÓN de id LOCAL→REAL en pages/{id}. El cliente guarda el uuid local de un create con
+  // fallback PARA SIEMPRE (localStorage, cola offline, memoria). Cuando ese create ya se propagó, el uuid
+  // dejó de existir en Notion y en el espejo (se renombró a su notion_id real) → toda operación sobre el uuid
+  // debe reescribirse al id real. Pendiente (aún sin propagar): se deja el uuid (el espejo lo tiene, el branch
+  // Supabase-first lo maneja). No-local: sin cambio. Solo corre con create-fallback EFECTIVO (inerte hoy).
+  if (CREATE_FALLBACK.size) {
+    const mLocal = endpointNorm.match(/^pages\/([a-f0-9-]{32,36})$/);
+    if (mLocal) {
+      const rl = await resolveLocalId(mLocal[1]);
+      if (rl.ok && rl.localRow && rl.localRow.notion_id) endpointNorm = 'pages/' + rl.localRow.notion_id;
+      // rl.ok=false (infra) → seguir con el uuid (degrada a Notion); pendiente → dejar el uuid.
+    }
   }
 
   // Backstop server-side del rol Ventas: restringe a la DB de Clientes/Contactos.
@@ -486,20 +518,74 @@ export default async function handler(req, res) {
     'Content-Type': 'application/json',
   };
 
+  const esCreate = httpMethod === 'POST' && endpointNorm === 'pages';
+
+  // Fase 3b — create-fallback: si esta alta es de una tabla con fallback EFECTIVO, generamos su uuid local
+  // y lo inyectamos como App UID en el body ANTES del POST primario. Así, si el POST timeoutea PERO Notion
+  // creó la página igual, esa página lleva el App UID → el worker la dedupea en vez de duplicar. El mismo
+  // uuid es el id local de la fila del espejo si hay que caer al fallback. (Inerte con el flag vacío.)
+  // Fuera del try para que el catch (error de red) también pueda caer al fallback.
+  let fbResource = null, fbUid = null;
+  if (esCreate && CREATE_FALLBACK.size && body && body.parent) {
+    const rr = resourceFromPage({ parent: body.parent });
+    if (rr && CREATE_FALLBACK.has(rr)) {
+      fbResource = rr;
+      fbUid = crypto.randomUUID();
+      body.properties = body.properties || {};
+      body.properties[APP_UID_PROP] = { rich_text: [{ text: { content: fbUid } }] };
+    }
+  }
+  // Registra la alta local (espejo + id_map + outbox) y devuelve la página sintética (o null si el registro
+  // atómico falló → el caller devuelve el error ORIGINAL de Notion, nunca un "medio fallback").
+  const doFallbackCreate = async () => {
+    const normProps = normalizePatchForRaw(body.properties || {});
+    const row = mapRow(fbResource, { id: fbUid, properties: normProps });
+    const payload = { parent: body.parent, properties: body.properties, reason: 'timeout' };
+    const fb = await createFallback(fbResource, fbUid, row, payload);
+    return fb.ok
+      ? { object: 'page', id: fbUid, parent: { type: 'database_id', database_id: DBS[fbResource] || null }, properties: normProps, _source: 'supabase-first-create' }
+      : null;
+  };
+
   try {
     // ⚠️ CREATES SIN REINTENTO (condición H1.3 del review adversarial 20/07): el retry automático ante un
     // 5xx "mentiroso" (Notion creó la página pero respondió error) generaba una página DUPLICADA. Un create
     // que falla se reporta al usuario y listo; los PATCH/GET siguen con retry como siempre (idempotentes).
-    const esCreate = httpMethod === 'POST' && endpointNorm === 'pages';
-    const response = await notionFetch(
-      `https://api.notion.com/v1/${endpointNorm}`,
-      {
-        method: httpMethod,
-        headers: notionHeaders,
-        body: body ? JSON.stringify(body) : undefined,
-      },
-      esCreate ? { retries: 0 } : {}
-    );
+    // El fetch va en su PROPIO try: el create-fallback ante error de RED debe dispararse SOLO si falla el
+    // fetch mismo, NUNCA por un throw posterior (ej. response.json de una respuesta 2xx malformada) — así un
+    // POST exitoso jamás cae al fallback (evitaría una alta local redundante; el ataque 7 del review).
+    let response;
+    try {
+      response = await notionFetch(
+        `https://api.notion.com/v1/${endpointNorm}`,
+        {
+          method: httpMethod,
+          headers: notionHeaders,
+          body: body ? JSON.stringify(body) : undefined,
+        },
+        esCreate ? { retries: 0 } : {}
+      );
+    } catch (fetchErr) {
+      // Error de RED/timeout en el POST: Notion inalcanzable → alta local + página sintética; el worker
+      // propaga cuando vuelva (dedup por App UID → sin duplicado). Cualquier otro caso re-lanza al outer catch.
+      if (fbResource) {
+        try {
+          const fbPage = await doFallbackCreate();
+          if (fbPage) return res.status(200).json(fbPage);
+        } catch (e) {
+          console.warn('[create-fallback] falló', String(e?.message || e).slice(0, 120));
+        }
+      }
+      throw fetchErr;
+    }
+
+    // Create-fallback ante 5xx/408/429: Notion respondió error transitorio (pudo o no crear la página) →
+    // registrar la alta local y devolver la página sintética; el worker propaga/dedupea. 4xx (validación) NO.
+    if (fbResource && !response.ok && (response.status === 408 || response.status === 429 || response.status >= 500)) {
+      const fbPage = await doFallbackCreate();
+      if (fbPage) return res.status(200).json(fbPage);
+      // registro atómico falló → seguir y devolver el error original de Notion (abajo).
+    }
 
     const data = await response.json();
 
@@ -645,6 +731,7 @@ export default async function handler(req, res) {
     return res.status(response.status).json(data);
   } catch (err) {
     const timedOut = err?.name === 'AbortError';
+    // El create-fallback ante error de red ya se maneja en el try del fetch (arriba); acá solo respondemos.
     return res.status(502).json({ error: timedOut ? 'Notion no respondió a tiempo' : 'Internal error' });
   }
 }

@@ -132,13 +132,65 @@ export async function idMapLookup(localIds) {
   }
 }
 
-// Marca un id_map como resuelto (back-fill del notion_id real tras crear la página en Notion).
-export async function idMapResolve(localId, realId) {
+// Traduce un id que PODRÍA ser local (uuid de un create con fallback). Devuelve { ok, localRow }:
+//   localRow = { notion_id } si el id está en id_map (notion_id=null → create aún pendiente),
+//   localRow = null        si el id NO es local (= id real de Notion, usar tal cual).
+// ok=false → error de infra (el caller degrada: seguir con el id tal cual). Tabla inexistente (pre-3b) → ok, null.
+export async function resolveLocalId(localId) {
+  if (!supafirstConfigured() || !localId) return { ok: true, localRow: null };
+  try {
+    const r = await fetch(
+      `${SUPABASE_URL}/rest/v1/id_map?local_id=eq.${encodeURIComponent(localId)}&select=notion_id&limit=1`,
+      { headers: _H() }
+    );
+    if (!r.ok) {
+      const t = await r.text().catch(() => '');
+      if (r.status === 404 || t.includes('PGRST205') || t.includes('does not exist')) return { ok: true, localRow: null };
+      return { ok: false, localRow: null };
+    }
+    const rows = await r.json().catch(() => null);
+    if (rows == null) return { ok: false, localRow: null };
+    return { ok: true, localRow: rows.length ? { notion_id: rows[0].notion_id || null } : null };
+  } catch (_) {
+    return { ok: false, localRow: null };
+  }
+}
+
+// Alta LOCAL cuando Notion no pudo crear la página (fallback de creates). (1) escribe la fila del espejo
+// (read-your-writes del cliente; best-effort — si falla, el sync la reconcilia); (2) registra id_map+outbox
+// ATÓMICAMENTE vía la RPC enqueue_create. Devuelve { ok }: ok=false si el registro atómico falló → el proxy
+// devuelve el error ORIGINAL de Notion (nunca un "medio fallback" que perdería el dato o duplicaría).
+export async function createFallback(resource, localId, row, payload) {
   if (!supafirstConfigured()) return { ok: false };
-  const r = await fetch(`${SUPABASE_URL}/rest/v1/id_map?local_id=eq.${encodeURIComponent(localId)}`, {
-    method: 'PATCH',
-    headers: { ..._H(), Prefer: 'return=minimal' },
-    body: JSON.stringify({ notion_id: realId, resolved_at: new Date().toISOString() }),
+  try {
+    await fetch(`${SUPABASE_URL}/rest/v1/${resource}?on_conflict=notion_id`, {
+      method: 'POST',
+      headers: { ..._H(), Prefer: 'resolution=ignore-duplicates,return=minimal' },
+      body: JSON.stringify([row]),
+    });
+  } catch (_) {
+    /* best-effort: el sync reconcilia la fila del espejo */
+  }
+  try {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/enqueue_create`, {
+      method: 'POST',
+      headers: _H(),
+      body: JSON.stringify({ p_local_id: localId, p_resource: resource, p_payload: payload }),
+    });
+    return { ok: r.ok };
+  } catch (_) {
+    return { ok: false };
+  }
+}
+
+// Marca un id_map como resuelto (back-fill del notion_id real tras crear la página en Notion). UPSERT: si
+// la fila no existiera (insert inicial perdido en una carrera de infra), la crea igual → self-heal.
+export async function idMapResolve(localId, realId, resource) {
+  if (!supafirstConfigured()) return { ok: false };
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/id_map?on_conflict=local_id`, {
+    method: 'POST',
+    headers: { ..._H(), Prefer: 'resolution=merge-duplicates,return=minimal' },
+    body: JSON.stringify([{ local_id: localId, resource: resource || 'unknown', notion_id: realId, resolved_at: new Date().toISOString() }]),
   });
   return { ok: r.ok, status: r.status };
 }

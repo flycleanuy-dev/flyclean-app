@@ -340,7 +340,7 @@ async function applyCreateGroup(rows) {
 
   // 4) Back-fill + resolve id_map + re-key del outbox pendiente + marcar el create done
   await backfillNotionId(resource, uid, realId, createdPage);
-  await idMapResolve(uid, realId);
+  await idMapResolve(uid, realId, resource);
   await rekeyOutbox(uid, realId, createRow.id);
   await sbPatch(`id=eq.${createRow.id}`, { status: 'done', last_error: null });
   let acc = { done: 1, errored: 0, retried: 0, deferred: 0 };
