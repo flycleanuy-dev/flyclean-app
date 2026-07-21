@@ -1407,8 +1407,25 @@ export async function renderCEOFinanzas() {
   }
 }
 
-// Vista "Por cobrar" (solo lectura): por cada servicio Completado cruza el PRECIO (de la propuesta
-// vinculada, Importe estimado) con lo COBRADO (suma de los cobros vinculados) → saldo y % cobrado.
+// REGLA DE PRECIO por servicio (20/07, Diego — caso Mon Brava): la propuesta manda por DEFECTO; si el
+// precio del servicio se cambió MANUALMENTE ('Precio acordado' solo se escribe a mano en el sheet de
+// edición o al crear un suelto — ningún camino lo copia de la propuesta), gana el manual. Borrar el
+// precio manual (campo vacío → null) vuelve al de la propuesta. Cubre propuestas compartidas por varios
+// servicios con precios propios (1 propuesta 2500 ÷ 3 torres de 830).
+function precioSvc(p, precioBy) {
+  const manual = p?.['Precio acordado']?.number;
+  if (manual != null && manual !== 0) {
+    const moneda = p['Moneda']?.select?.name || '🇺🇸 USD';
+    return { monto: manual, moneda, esUY: moneda === '🇺🇾 UY$' };
+  }
+  const propId = p?.['Propuesta']?.relation?.[0]?.id;
+  const pr = propId ? precioBy[(propId || '').replace(/-/g, '')] : null;
+  if (pr && pr.monto) return { monto: pr.monto, moneda: pr.moneda, esUY: pr.moneda === '🇺🇾 UY$' };
+  return null;
+}
+
+// Vista "Por cobrar" (solo lectura): por cada servicio Completado cruza el PRECIO (regla precioSvc:
+// manual del servicio > propuesta) con lo COBRADO (suma de los cobros vinculados) → saldo y % cobrado.
 // Cálculo en cliente (join servicios+propuestas+ingresos en memoria) → no toca el esquema de Servicios.
 // _porCobrarCtx/_porCobrarData/_porCobrarOnConfirm viven en MAIN (handlers las usan) — acceso vía M.
 export async function renderPorCobrar(containerId, opts = {}) {
@@ -1476,15 +1493,11 @@ export async function renderPorCobrar(containerId, opts = {}) {
       const nombre = p['Nombre del servicio']?.title?.[0]?.plain_text || '(servicio)';
       const clienteId = norm(p['Contacto']?.relation?.[0]?.id || '');
       const propId = p['Propuesta']?.relation?.[0]?.id;
-      const pr = propId ? precioBy[norm(propId)] : null;
-      // Precio: 1º el de la propuesta vinculada; si no hay (trabajo SUELTO), el "Precio acordado" del servicio
-      // (fix 16/07 — antes los sueltos quedaban SIEMPRE en "sin precio"). La moneda sale de la misma fuente.
+      // Precio: regla precioSvc (20/07) — el 'Precio acordado' manual del servicio pisa a la propuesta;
+      // sin manual, la propuesta; sueltos solo-manual siguen igual que el fix del 16/07.
+      const pv = precioSvc(p, precioBy);
       let precio = 0, esUY = false;
-      if (pr && pr.monto) { precio = pr.monto; esUY = pr.moneda === '🇺🇾 UY$'; }
-      else {
-        const svcPrecio = p['Precio acordado']?.number || 0;
-        if (svcPrecio) { precio = svcPrecio; esUY = (p['Moneda']?.select?.name || '') === '🇺🇾 UY$'; }
-      }
+      if (pv) { precio = pv.monto; esUY = pv.esUY; }
       let cobUSD = 0, cobUY = 0;
       (ingBySvc[norm(s.id)] || []).forEach(v => { cobUSD += v.usd; cobUY += v.uy; }); // forward (ver ingBySvc)
       const cobrado = esUY ? cobUY : cobUSD;               // cobrado EN LA MONEDA DEL PRECIO (no mezclar)
@@ -1707,11 +1720,10 @@ export async function asociarCobro(ingId) {
     if (D) {
       const nrm = x => (x || '').replace(/-/g, '');
       const sObj = (D.svc.results || []).find(x => x.id === svcId);
-      const propId = sObj?.properties?.['Propuesta']?.relation?.[0]?.id;
-      const pr = propId ? D.precioBy[nrm(propId)] : null;
+      const pr = sObj ? precioSvc(sObj.properties, D.precioBy) : null;
       const im = D.ingBy[nrm(ingId)] || { usd: 0, uy: 0 };
       if (pr) {
-        const precioEsUY = pr.moneda === '🇺🇾 UY$';
+        const precioEsUY = pr.esUY;
         const enPrecio = precioEsUY ? im.uy : im.usd;   // monto del cobro EN la moneda del precio
         const enOtra   = precioEsUY ? im.usd : im.uy;   // monto en la otra moneda
         if (!enPrecio && enOtra) {                       // pagado sólo en la otra moneda → reconciliar
@@ -1756,10 +1768,9 @@ export function cubrirServicio(ingId, svcId) {
   const s = (D.svc.results || []).find(x => x.id === svcId);
   const i = (D.ing.results || []).find(x => x.id === ingId);
   if (!s || !i) { alert('No encontré el servicio o el cobro (refrescá).'); return; }
-  const propId = s.properties?.['Propuesta']?.relation?.[0]?.id;
-  const pr = propId ? D.precioBy[norm(propId)] : null;
-  if (!pr || !pr.monto) { alert('Este servicio no tiene precio (propuesta). Asigná el precio primero.'); return; }
-  const precioEsUY = pr.moneda === '🇺🇾 UY$';
+  const pr = precioSvc(s.properties, D.precioBy);
+  if (!pr || !pr.monto) { alert('Este servicio no tiene precio (ni propuesta ni precio propio). Asignalo primero.'); return; }
+  const precioEsUY = pr.esUY;
   // Suma de cobros ya registrados en la moneda del PRECIO para este servicio.
   // Desde el índice FORWARD (ingBySvc): la inversa 'Ingresos' del servicio está congelada bajo el flip.
   let cobEnPrecio = 0;
@@ -1798,10 +1809,9 @@ async function confirmCubrirServicio(ingId, svcId, cubierto) {
   const D = M._porCobrarData; if (!D) return;
   const norm = s => (s || '').replace(/-/g, '');
   const s = (D.svc.results || []).find(x => x.id === svcId);
-  const propId = s?.properties?.['Propuesta']?.relation?.[0]?.id;
-  const pr = propId ? D.precioBy[norm(propId)] : null;
+  const pr = s ? precioSvc(s.properties, D.precioBy) : null;
   if (!pr) { alert('Sin precio vinculado.'); return; }
-  const precioEsUY = pr.moneda === '🇺🇾 UY$';
+  const precioEsUY = pr.esUY;
   const im = D.ingBy[norm(ingId)] || { usd: 0, uy: 0 };
   const montoOtra = precioEsUY ? im.usd : im.uy;   // monto real en la moneda OPUESTA al precio
   const props = {};

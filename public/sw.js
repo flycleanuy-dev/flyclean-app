@@ -304,7 +304,11 @@
 // (impagos/parciales MÁS VIEJOS primero, tope 8, cada fila tocable abre el servicio y muestra lo que
 // FALTA cobrar) + sección nueva en el email del LUNES (cron-report): top 5 completados sin cobro con
 // "hace N días", montos solo en la app. Cierra el circuito registrar→ver→cobrar de la CAPA 1 (3 capas).
-const CACHE = 'flyclean-v229';
+// v230 — REGLA DE PRECIO (caso Mon Brava, reporte de Diego): en Por cobrar (y en asociar/cubrir cobros)
+// la propuesta manda por DEFECTO, pero si el precio del servicio se cambió a MANO ('Precio acordado',
+// que solo se escribe manualmente) gana el manual. Cubre 1 propuesta compartida por N servicios con
+// precios propios (2500 ÷ 3 torres de 830). Borrar el precio manual → vuelve el de la propuesta.
+const CACHE = 'flyclean-v230';
 const SHELL = [
   '/',
   '/index.html',
