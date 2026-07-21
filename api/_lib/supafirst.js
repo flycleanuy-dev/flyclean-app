@@ -105,6 +105,40 @@ export async function getMirrorRaw(tables, notionId) {
   return null;
 }
 
+// ETAPA 0 (2026-07-21) — meta ESPEJO-FIRST. El proxy necesita el "meta" (parent + properties) de una página
+// para los checks de permisos ANTES de cada PATCH; hasta hoy lo pedía a Notion con un GET → con Notion caído
+// los PATCH de tablas flipeadas también morían (hallazgo crítico del plan de cierre de migración).
+// Este helper busca la página en las tablas flipeadas del espejo, EN PARALELO, con presupuesto TOTAL de
+// tiempo y errores tragados (condiciones H1/M2/M4 del review adversarial): cualquier fallo/timeout devuelve
+// null y el caller cae al GET de Notion como siempre — el espejo jamás puede EMPEORAR el camino actual.
+export async function getMirrorMeta(tables, notionId, { budgetMs = 2000 } = {}) {
+  if (!supafirstConfigured() || !notionId || !tables || !tables.length) return null;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), budgetMs);
+  try {
+    const results = await Promise.all(
+      tables.map(async t => {
+        try {
+          const r = await fetch(
+            `${SUPABASE_URL}/rest/v1/${t}?notion_id=eq.${encodeURIComponent(notionId)}&select=raw&limit=1`,
+            { headers: _H(), signal: controller.signal }
+          );
+          if (!r.ok) return null;
+          const rows = await r.json().catch(() => []);
+          return Array.isArray(rows) && rows.length && rows[0].raw ? { resource: t, raw: rows[0].raw } : null;
+        } catch (_) {
+          return null; // timeout/red/parse: esta tabla no responde → cuenta como miss
+        }
+      })
+    );
+    return results.find(Boolean) || null;
+  } catch (_) {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 // Cancela las filas pendientes del outbox de una página (fix review #3: la página se mandó a la papelera →
 // propagar sus patches viejos a Notion fallaría con 400 y quedarían envenenadas; mejor cancelarlas).
 export async function cancelOutboxForPage(notionId) {

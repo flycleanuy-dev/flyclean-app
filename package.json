@@ -12,7 +12,7 @@
     "lint:fix": "eslint api scripts tests --fix",
     "format": "prettier --write \"api/**/*.js\" \"scripts/**/*.{js,cjs,mjs}\" \"tests/**/*.mjs\" \"*.json\"",
     "format:check": "prettier --check \"api/**/*.js\" \"scripts/**/*.{js,cjs,mjs}\" \"tests/**/*.mjs\" \"*.json\"",
-    "test": "node tests/globals.test.mjs && node tests/no-undef.test.mjs && node tests/calculos.test.mjs && node tests/smoke.mjs && node tests/permisos.mjs",
+    "test": "node tests/globals.test.mjs && node tests/no-undef.test.mjs && node tests/calculos.test.mjs && node tests/etapa0.test.mjs && node tests/smoke.mjs && node tests/permisos.mjs",
     "check": "node tests/check-html.mjs",
     "audit": "npm audit --audit-level=high",
     "dev": "vite",

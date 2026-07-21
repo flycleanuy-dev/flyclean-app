@@ -8,6 +8,7 @@ import {
   enqueueOutbox,
   supafirstSet,
   getMirrorRaw,
+  getMirrorMeta,
   cancelOutboxForPage,
 } from './_lib/supafirst.js';
 
@@ -23,6 +24,15 @@ const MIRROR_TIMEOUT_MS = 2500;
 // sacar la tabla del cron-db-sync. Rollback = sacar la tabla del CSV.
 const SUPAFIRST = supafirstSet();
 const SUPAFIRST_VERBOSE = process.env.SUPAFIRST_VERBOSE === '1'; // loguea también los OK (verificar el rollout)
+
+// ETAPA 0 (cierre de migración, 2026-07-21) — meta ESPEJO-FIRST. El meta (parent+properties) que necesitan
+// los checks de permisos antes de cada PATCH se busca PRIMERO en el espejo (tablas flipeadas); miss o fallo
+// → GET a Notion como siempre. Sin esto, con Notion caído los PATCH de tablas flipeadas también morían
+// (el GET meta fallaba ANTES de llegar al branch supafirst). Rollback = borrar el env.
+const MIRROR_META_FIRST = process.env.MIRROR_META_FIRST === '1';
+// Drill "Notion caído" (solo previews/fixtures): notionFetch responde 503 sintético SIN salir a la red.
+// GUARDA DURA (fix review): en Production el flag se ignora — un env mal scopeado no puede tumbar el proxy.
+const NOTION_FAKE_DOWN = process.env.NOTION_FAKE_DOWN === '1' && process.env.VERCEL_ENV !== 'production';
 
 // Auth del proxy (#1). MONITOR (false): valida el token y lo reporta en X-Auth, pero NO rechaza.
 // ENFORCE (true): rechaza con 401 los pedidos sin token válido → CIERRA el agujero.
@@ -77,6 +87,12 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 // fallback de la DB Servicios), y sin esto el proxy devolvía vacío/error → el usuario veía
 // "no se conecta con Notion" y la app quedaba lenta/colgada.
 async function notionFetch(url, options, { retries = 1, timeoutMs = 9000 } = {}) {
+  // Drill: simular Notion caído sin tocar la red (503 sintético, sin reintentos — el drill no debe ser lento).
+  if (NOTION_FAKE_DOWN)
+    return new Response(
+      JSON.stringify({ object: 'error', status: 503, code: 'service_unavailable', message: 'NOTION_FAKE_DOWN (drill)' }),
+      { status: 503, headers: { 'Content-Type': 'application/json' } }
+    );
   let lastErr;
   for (let attempt = 0; attempt <= retries; attempt++) {
     const controller = new AbortController();
@@ -102,6 +118,24 @@ async function notionFetch(url, options, { retries = 1, timeoutMs = 9000 } = {})
     }
   }
   throw lastErr || new Error('notion fetch failed');
+}
+
+// ETAPA 0 — arma el meta de una página desde el ESPEJO con la MISMA forma que consume el resto del proxy
+// (parent.database_id + properties). null = miss o fallo → el caller hace el GET a Notion como siempre.
+// Los errores del espejo se tragan SIEMPRE acá (condición M4 del review: un fallo de Supabase no puede
+// caer al catch→403 del backstop de Ventas ni tumbar el camino actual).
+// ⚠️ El meta sintetizado NO trae los top-level de Notion (id/object/archived/in_trash/url) — hoy ningún
+// consumidor de patchMeta los lee; si un check futuro necesita `archived`, debe contemplar este camino.
+async function mirrorMetaFor(pageId) {
+  if (!MIRROR_META_FIRST || !SUPAFIRST.size) return null;
+  try {
+    const hit = await getMirrorMeta([...SUPAFIRST], pageId);
+    if (hit && DBS[hit.resource])
+      return { parent: { database_id: DBS[hit.resource] }, properties: hit.raw || {}, _source: 'mirror-meta' };
+  } catch (_) {
+    /* nunca burbujear */
+  }
+  return null;
 }
 
 export default async function handler(req, res) {
@@ -179,11 +213,15 @@ export default async function handler(req, res) {
       // 'Última interacción' (marcarPropContactada) — cualquier otra key (properties ajenas,
       // in_trash, archived, icon...) se rechaza.
       try {
-        const metaRes = await notionFetch(`https://api.notion.com/v1/pages/${mPage[1]}`, {
-          method: 'GET',
-          headers: { Authorization: `Bearer ${token}`, 'Notion-Version': '2022-06-28' },
-        });
-        const meta = await metaRes.json();
+        // ETAPA 0: meta espejo-first (clientes/propuestas están flipeadas → Ventas sobrevive a Notion caído).
+        let meta = await mirrorMetaFor(mPage[1]);
+        if (!meta) {
+          const metaRes = await notionFetch(`https://api.notion.com/v1/pages/${mPage[1]}`, {
+            method: 'GET',
+            headers: { Authorization: `Bearer ${token}`, 'Notion-Version': '2022-06-28' },
+          });
+          meta = await metaRes.json();
+        }
         patchMeta = meta;
         const parentNorm = norm(meta?.parent?.database_id);
         if (parentNorm === CONTACTOS_NORM) {
@@ -227,11 +265,15 @@ export default async function handler(req, res) {
       const mPagePatch = endpointNorm.match(/^pages\/([a-f0-9-]{32,36})$/);
       if (mPagePatch) {
         try {
-          const metaRes = await notionFetch(`https://api.notion.com/v1/pages/${mPagePatch[1]}`, {
-            method: 'GET',
-            headers: { Authorization: `Bearer ${token}`, 'Notion-Version': '2022-06-28' },
-          });
-          const meta = await metaRes.json();
+          // ETAPA 0: meta espejo-first — el PATCH de una tabla flipeada no depende de Notion para permisos.
+          let meta = await mirrorMetaFor(mPagePatch[1]);
+          if (!meta) {
+            const metaRes = await notionFetch(`https://api.notion.com/v1/pages/${mPagePatch[1]}`, {
+              method: 'GET',
+              headers: { Authorization: `Bearer ${token}`, 'Notion-Version': '2022-06-28' },
+            });
+            meta = await metaRes.json();
+          }
           patchMeta = meta;
           const parentDb = norm(meta?.parent?.database_id);
           if (parentDb) {
@@ -445,11 +487,19 @@ export default async function handler(req, res) {
   };
 
   try {
-    const response = await notionFetch(`https://api.notion.com/v1/${endpointNorm}`, {
-      method: httpMethod,
-      headers: notionHeaders,
-      body: body ? JSON.stringify(body) : undefined,
-    });
+    // ⚠️ CREATES SIN REINTENTO (condición H1.3 del review adversarial 20/07): el retry automático ante un
+    // 5xx "mentiroso" (Notion creó la página pero respondió error) generaba una página DUPLICADA. Un create
+    // que falla se reporta al usuario y listo; los PATCH/GET siguen con retry como siempre (idempotentes).
+    const esCreate = httpMethod === 'POST' && endpointNorm === 'pages';
+    const response = await notionFetch(
+      `https://api.notion.com/v1/${endpointNorm}`,
+      {
+        method: httpMethod,
+        headers: notionHeaders,
+        body: body ? JSON.stringify(body) : undefined,
+      },
+      esCreate ? { retries: 0 } : {}
+    );
 
     const data = await response.json();
 
