@@ -74,12 +74,71 @@ export async function mergeProps(table, notionId, patch) {
 }
 
 // Encola la propagación a Notion (outbox durable). Best-effort: el caller decide qué hacer si falla.
-export async function enqueueOutbox(notionId, resource, patch) {
+// op: 'patch' (default, edición) o 'create' (Fase 3b: alta que se propaga a Notion desde el espejo).
+export async function enqueueOutbox(notionId, resource, patch, op = 'patch') {
   if (!supafirstConfigured()) return { ok: false };
   const r = await fetch(`${SUPABASE_URL}/rest/v1/outbox_notion`, {
     method: 'POST',
     headers: { ..._H(), Prefer: 'return=minimal' },
-    body: JSON.stringify([{ notion_id: notionId, resource, op: 'patch', payload: patch }]),
+    body: JSON.stringify([{ notion_id: notionId, resource, op, payload: patch }]),
+  });
+  return { ok: r.ok, status: r.status };
+}
+
+// ── Fase 3b: id_map (ids LOCALES de creates con fallback → notion_id real) ──
+// Resuelve un lote de ids: devuelve { ok, map:Map<localId,{ notion_id, errored }> }. Un id que NO está en el
+// mapa NO es local (= id real de Notion). notion_id=null → create aún pendiente. `errored` = su create ya está
+// envenenado (para romper deadlocks). ⚠️ `ok` DISTINGUE (MEDIUM-3 del review): tabla inexistente (pre-3b) o
+// sin matches → ok:true (seguro tratar como "no local"); un ERROR real de Supabase → ok:false → el caller
+// DIFIERE (no envenena ni crea a ciegas basándose en una resolución que falló por un blip de infra).
+export async function idMapLookup(localIds) {
+  const out = new Map();
+  if (!supafirstConfigured() || !localIds || !localIds.length) return { ok: true, map: out };
+  const uniq = [...new Set(localIds.filter(Boolean))];
+  if (!uniq.length) return { ok: true, map: out };
+  const inList = uniq.map(encodeURIComponent).join(',');
+  try {
+    const r = await fetch(
+      `${SUPABASE_URL}/rest/v1/id_map?local_id=in.(${inList})&select=local_id,notion_id`,
+      { headers: _H() }
+    );
+    if (!r.ok) {
+      const t = await r.text().catch(() => '');
+      // Tabla no provisionada (migración 3b sin correr) → no hay ids locales → ok:true, mapa vacío.
+      if (r.status === 404 || t.includes('PGRST205') || t.includes('does not exist')) return { ok: true, map: out };
+      return { ok: false, map: out }; // error real → el caller difiere
+    }
+    const rows = await r.json().catch(() => null);
+    if (rows == null) return { ok: false, map: out };
+    if (!rows.length) return { ok: true, map: out };
+    // ¿cuáles de los pendientes (notion_id null) tienen su create ENVENENADO? (para romper deadlocks)
+    const pendientes = rows.filter(x => !x.notion_id).map(x => x.local_id);
+    let errored = new Set();
+    if (pendientes.length) {
+      const el = pendientes.map(encodeURIComponent).join(',');
+      const er = await fetch(
+        `${SUPABASE_URL}/rest/v1/outbox_notion?op=eq.create&status=eq.error&notion_id=in.(${el})&select=notion_id`,
+        { headers: _H() }
+      );
+      if (!er.ok) return { ok: false, map: out }; // no pudimos saber si hay envenenados → diferir
+      const erows = await er.json().catch(() => null);
+      if (erows == null) return { ok: false, map: out };
+      errored = new Set(erows.map(x => x.notion_id));
+    }
+    for (const x of rows) out.set(x.local_id, { notion_id: x.notion_id || null, errored: errored.has(x.local_id) });
+    return { ok: true, map: out };
+  } catch (_) {
+    return { ok: false, map: out }; // red/parse → diferir
+  }
+}
+
+// Marca un id_map como resuelto (back-fill del notion_id real tras crear la página en Notion).
+export async function idMapResolve(localId, realId) {
+  if (!supafirstConfigured()) return { ok: false };
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/id_map?local_id=eq.${encodeURIComponent(localId)}`, {
+    method: 'PATCH',
+    headers: { ..._H(), Prefer: 'return=minimal' },
+    body: JSON.stringify({ notion_id: realId, resolved_at: new Date().toISOString() }),
   });
   return { ok: r.ok, status: r.status };
 }

@@ -69,7 +69,11 @@ async function searchByParent(dbId) {
   return results;
 }
 
-async function upsert(table, rows) {
+// resolution: 'merge-duplicates' (default, sync completo: refresca las filas existentes con Notion) o
+// 'ignore-duplicates' (altas-only: NO pisar filas existentes — condición H4 de Fase 3b: en la carrera del
+// back-fill uuid→realId, la fila real recién nombrada podría no estar en el snapshot previo y un
+// merge-duplicates le pisaría el raw parcheado con la versión vieja de Notion; insert-only lo evita).
+async function upsert(table, rows, resolution = 'merge-duplicates') {
   if (!rows.length) return 0;
   const SUPABASE_URL = (process.env.SUPABASE_URL || '').replace(/\/$/, '');
   const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY;
@@ -82,7 +86,7 @@ async function upsert(table, rows) {
         apikey: SUPABASE_KEY,
         Authorization: `Bearer ${SUPABASE_KEY}`,
         'Content-Type': 'application/json',
-        Prefer: 'resolution=merge-duplicates,return=minimal',
+        Prefer: `resolution=${resolution},return=minimal`,
       },
       body: JSON.stringify(chunk),
     });
@@ -117,6 +121,39 @@ async function fetchMirrorIds(table) {
     offset += PAGE;
   }
   return ids;
+}
+
+// Fase 3b — filas que reconcileDeletes NO debe borrar aunque falten en Notion: los ids LOCALES de creates
+// aún no propagados (su notion_id es un uuid que vive solo en el espejo) y los recién resueltos (resolved_at
+// < 1h: el back-fill puso el notion_id real PERO el snapshot de queryAll de esta corrida pudo tomarse ANTES
+// de que Notion lo indexara → aparecería como stale). Devuelve { ok, keep:Set(normId) }. FAIL-CLOSED: si la
+// consulta a id_map falla por algo que NO sea "tabla inexistente" (pre-migración), ok=false → reconcile aborta.
+async function fetchIdMapKeep(resource) {
+  const SUPABASE_URL = (process.env.SUPABASE_URL || '').replace(/\/$/, '');
+  const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY;
+  const norm = s => String(s || '').replace(/-/g, '').toLowerCase();
+  const keep = new Set();
+  const cutoff = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+  try {
+    const r = await fetch(
+      `${SUPABASE_URL}/rest/v1/id_map?resource=eq.${encodeURIComponent(resource)}&or=(notion_id.is.null,resolved_at.gt.${encodeURIComponent(cutoff)})&select=local_id,notion_id`,
+      { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } }
+    );
+    if (!r.ok) {
+      const t = await r.text().catch(() => '');
+      // Tabla no provisionada (migración 3b sin correr) → no hay ids locales → keep vacío es CORRECTO.
+      if (r.status === 404 || t.includes('PGRST205') || t.includes('does not exist')) return { ok: true, keep };
+      return { ok: false, keep }; // error real → fail-closed
+    }
+    const rows = await r.json().catch(() => []);
+    for (const x of rows || []) {
+      if (!x.notion_id) keep.add(norm(x.local_id)); // pendiente: la fila del espejo usa el uuid como notion_id
+      else keep.add(norm(x.notion_id)); // recién resuelto: la fila ya tiene el notion_id real
+    }
+    return { ok: true, keep };
+  } catch (_) {
+    return { ok: false, keep }; // red/parse → fail-closed
+  }
 }
 
 // Borra filas del espejo por notion_id, en lotes de <=50 (URL-encoded, PostgREST `in.(...)`).
@@ -162,9 +199,13 @@ async function reconcileDeletes(table, fetchedActiveIds) {
       .replace(/-/g, '')
       .toLowerCase();
   if (!fetchedActiveIds.length) return { deleted: 0 };
+  // Fase 3b: no borrar filas locales pendientes ni recién resueltas (ver fetchIdMapKeep). FAIL-CLOSED: si
+  // id_map no responde (error real), abortar el reconcile — mejor dejar fantasmas que borrar un create local.
+  const guard = await fetchIdMapKeep(table);
+  if (!guard.ok) return { deleted: 0, skippedDelete: 'id_map no disponible (fail-closed)' };
   const mirrorIds = await fetchMirrorIds(table);
   const activeSet = new Set(fetchedActiveIds.map(norm));
-  const stale = mirrorIds.filter(id => !activeSet.has(norm(id)));
+  const stale = mirrorIds.filter(id => !activeSet.has(norm(id)) && !guard.keep.has(norm(id)));
   if (!stale.length) return { deleted: 0 };
   const HARD_CAP = 20;
   if (stale.length > HARD_CAP) return { deleted: 0, skippedDelete: stale.length };
@@ -202,7 +243,8 @@ export async function syncTables(tables, { dry = false, altasOnly = new Set() } 
         const mirror = new Set((await fetchMirrorIds(tabla)).map(norm));
         rows = rows.filter(r => !mirror.has(norm(r.notion_id)));
       }
-      const n = dry ? rows.length : await upsert(tabla, rows);
+      // altas-only usa insert-only (ignore-duplicates) para no pisar filas ya editadas por la app (H4).
+      const n = dry ? rows.length : await upsert(tabla, rows, altasOnly.has(tabla) ? 'ignore-duplicates' : 'merge-duplicates');
       perTable[tabla] = { ok: n, err: 0 };
       if (altasOnly.has(tabla)) perTable[tabla].mode = 'altas-only';
       totalOk += n;
