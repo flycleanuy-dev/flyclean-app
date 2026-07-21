@@ -3,6 +3,7 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import crypto from 'crypto';
 import { verifySession, tokenFromReq } from './_lib/session.js';
 import { userById, esGlobal, esVentas, paisCoincide } from './_lib/users.js';
+import { getMirrorRaw } from './_lib/supafirst.js';
 
 // Auth de sesión (#1/#4). MONITOR (false): valida + reporta en X-Auth, no rechaza. ENFORCE (true):
 // rechaza con 401 las subidas sin token válido. Verificado: el endpoint acepta el token (200 +
@@ -71,27 +72,10 @@ async function notionGetPage(pageId) {
   }
 }
 
-// Devuelve null si OK; si no, { status, error } para responder.
-// Fail-closed: si Notion no responde, 503 (mismo criterio que los crons).
-async function checkServiceOwnership(serviceId, userId) {
-  const u = userById(userId);
-  if (!u) return { status: 403, error: 'usuario desconocido' };
-  if (esVentas(u)) return { status: 403, error: 'rol sin subida de fotos de servicio' };
-
-  const cacheKey = `${serviceId}:${userId}`;
-  const hit = _ownCache.get(cacheKey);
-  if (hit && Date.now() - hit < OWN_CACHE_MS) return null;
-
-  let page;
-  try {
-    page = await notionGetPage(serviceId);
-  } catch (_) {
-    return { status: 503, error: 'no se pudo verificar el servicio, reintentá' };
-  }
-  if (page.notFound || page.object !== 'page') return { status: 403, error: 'servicio inexistente' };
-  const p = page.properties || {};
+// Evalúa el ownership contra las properties de un servicio (de Notion o del espejo). Devuelve null si OK,
+// o { status, error }. Aislada para poder correrla con cualquiera de las dos fuentes.
+function evalOwnership(p, u) {
   if (p['🗄️ Archivado']?.checkbox === true) return { status: 403, error: 'servicio archivado' };
-
   const rol = String(u.rol || '');
   if (rol.includes('Operario')) {
     // El operario debe figurar en alguno de los 4 roles del servicio.
@@ -112,6 +96,53 @@ async function checkServiceOwnership(serviceId, userId) {
     const match = paisSvc ? paisCoincide(paisSvc, u.pais) : u.pais === 'Uruguay';
     if (!match) return { status: 403, error: 'servicio de otro país' };
   }
+  return null;
+}
+
+// Devuelve null si OK; si no, { status, error } para responder.
+// Fuente PRIMARIA = Notion; si Notion no responde O la página aún no existe ahí (servicio recién creado
+// bajo el fallback de creates), FALLBACK al ESPEJO de servicios (siempre espejado). Sin esto, una caída de
+// Notion hacía descartar la foto tras 5 reintentos (bug H5) — con Etapa 0 el GET/PATCH del servicio ya
+// sobreviven por el espejo, así que el ownership debe hacer lo mismo. El espejo puede estar levemente
+// atrasado para reasignaciones hechas A MANO en Notion; aceptable (coherente con "la app es la verdad" +
+// subir fotos es append, no destructivo).
+async function checkServiceOwnership(serviceId, userId) {
+  const u = userById(userId);
+  if (!u) return { status: 403, error: 'usuario desconocido' };
+  if (esVentas(u)) return { status: 403, error: 'rol sin subida de fotos de servicio' };
+
+  const cacheKey = `${serviceId}:${userId}`;
+  const hit = _ownCache.get(cacheKey);
+  if (hit && Date.now() - hit < OWN_CACHE_MS) return null;
+
+  let props = null;
+  let notionThrew = false;
+  try {
+    const page = await notionGetPage(serviceId);
+    if (!page.notFound && page.object === 'page') props = page.properties || {};
+  } catch (_) {
+    notionThrew = true;
+  }
+  // Fallback al espejo si Notion no respondió o no tenía la página.
+  if (!props) {
+    let mirror = null;
+    try {
+      mirror = await getMirrorRaw(['servicios'], serviceId);
+    } catch (_) {
+      mirror = null;
+    }
+    if (mirror && mirror.raw) props = mirror.raw;
+  }
+  if (!props) {
+    // Ni Notion ni el espejo: si Notion se cayó, es transitorio (503, reintentá); si Notion dijo
+    // "no existe" y el espejo tampoco la tiene, el servicio realmente no existe (403).
+    return notionThrew
+      ? { status: 503, error: 'no se pudo verificar el servicio, reintentá' }
+      : { status: 403, error: 'servicio inexistente' };
+  }
+
+  const deny = evalOwnership(props, u);
+  if (deny) return deny;
 
   _ownCache.set(cacheKey, Date.now()); // solo se cachean los OK (un recién asignado no queda bloqueado)
   return null;

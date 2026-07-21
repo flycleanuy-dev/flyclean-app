@@ -20,6 +20,18 @@ let _finalizePhotoUpload = () => {};
 let _updateServiceProps = () => Promise.reject(new Error('offline-queue: updateServiceProps no inyectado'));
 let _isNetworkError = () => false;
 
+// Status TRANSITORIOS (reintentar sin gastar reintentos): timeout/rate-limit/servidor no disponible.
+// Reconoce tanto e.status (lo adjunta putPhotoToR2) como el código embebido en el mensaje de callNotion
+// ("API error 503: ...", "Backend 429"). Un 400/401/403/404 NO es transitorio (validación/permiso real).
+const _TRANSIENT = new Set([408, 425, 429, 500, 502, 503, 504]);
+function _isTransientStatus(e) {
+  if (e && _TRANSIENT.has(e.status)) return true;
+  // Solo el código en la POSICIÓN del status ("API error 503: ...", "Backend 429") — NO cualquier número
+  // que aparezca en el texto del motivo (un "API error 400: ... 503 ..." NO es transitorio).
+  const m = String(e?.message || '').match(/(?:error|backend)\s+(\d{3})/i);
+  return !!m && _TRANSIENT.has(Number(m[1]));
+}
+
 // main.js llama esto UNA vez al arrancar. Setea las deps Y arranca el auto-drenado (listeners + intervalo).
 export function initOfflineQueue(deps = {}) {
   if (deps.callNotion) _callNotion = deps.callNotion;
@@ -154,10 +166,14 @@ export async function enqueueCreate(dsId, properties, dedup) {
 // Orden last_edited_time desc: la página recién creada/editada entra en la primera página (mitiga el tope 100).
 async function jornadaYaExiste(dedup) {
   if (!dedup || !dedup.rootId || dedup.jornadaN == null) return false;
+  // _nocache: el SW cachea las lecturas databases/{id}/query por el CUERPO (stale-while-revalidate); como
+  // el cuerpo del dedup es idéntico cada vez, podía devolver el pool VIEJO (pre-create) → falso-negativo →
+  // J+1 DUPLICADA. El marcador (a) con el SW viejo varía la clave de caché → fuerza red; (b) con el SW nuevo
+  // lo excluye del caché. NO se reenvía a Notion (el proxy solo pasa {endpoint, method, body}).
   const resp = await fetch('/api/notion', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (localStorage.getItem('fc_token') || '') },
-    body: JSON.stringify({ endpoint: `databases/${_DB_ID}/query`, method: 'POST', body: { page_size: 100, sorts: [{ timestamp: 'last_edited_time', direction: 'descending' }] } })
+    body: JSON.stringify({ endpoint: `databases/${_DB_ID}/query`, method: 'POST', _nocache: Date.now(), body: { page_size: 100, sorts: [{ timestamp: 'last_edited_time', direction: 'descending' }] } })
   });
   if (!resp.ok) throw new Error('API error ' + resp.status); // red/servidor → reintentar, no crear a ciegas
   const d = await resp.json();
@@ -329,7 +345,11 @@ export async function processPhotoQueue() {
         _finalizePhotoUpload(it.serviceId, it.fotoType, it.id, { status: 'done', publicUrl }); // refresca la vista si el servicio está abierto
         await updatePhotoQueueItem(it.id, { publicUrl });           // persistir la URL: no re-subir en el reintento
       } catch (e) {
-        if (_isNetworkError(e)) break;                               // se cayó la señal → reintentar en la próxima
+        // TRANSITORIOS no gastan reintentos ni descartan la foto: sin señal (red), o el presign devolvió
+        // 503/429/408 (ownership no verificable = Notion+espejo caídos, o rate-limit). Solo un 4xx REAL
+        // (validación/permiso: 400/403/404) es permanente → cuenta reintento y descarta a los 5 (bug H5:
+        // antes un 503 por Notion caído descartaba fotos válidas del operario).
+        if (_isNetworkError(e) || _isTransientStatus(e)) break;      // reintentar en la próxima corrida
         const r = (it.retries || 0) + 1;                           // error permanente (4xx/validación)
         if (r > 5) { _finalizePhotoUpload(it.serviceId, it.fotoType, it.id, { status: 'error', error: 'No se pudo subir' }); await removePhotoQueueItem(it.id); }
         else await updatePhotoQueueItem(it.id, { retries: r });
@@ -345,7 +365,7 @@ export async function processPhotoQueue() {
         await appendPhotosToNotion(sid, its.map(it => ({ fotoType: it.fotoType, filename: it.filename, sectorId: it.sectorId || null, publicUrl: it.publicUrl })));
         for (const it of its) await removePhotoQueueItem(it.id);    // recién ahora: Notion confirmó
       } catch (e) {
-        if (_isNetworkError(e)) continue;                           // sin señal → reintentar sin gastar reintentos
+        if (_isNetworkError(e) || _isTransientStatus(e)) continue;  // sin señal / 5xx/429 → reintentar sin gastar reintentos
         for (const it of its) {                                    // Notion rechaza persistentemente (¿página borrada?)
           const r = (it.retries || 0) + 1;
           if (r > 8) { _finalizePhotoUpload(it.serviceId, it.fotoType, it.id, { status: 'error', error: 'No se pudo adjuntar' }); await removePhotoQueueItem(it.id); }

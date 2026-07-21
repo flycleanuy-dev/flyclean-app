@@ -308,7 +308,11 @@
 // la propuesta manda por DEFECTO, pero si el precio del servicio se cambió a MANO ('Precio acordado',
 // que solo se escribe manualmente) gana el manual. Cubre 1 propuesta compartida por N servicios con
 // precios propios (2500 ÷ 3 torres de 830). Borrar el precio manual → vuelve el de la propuesta.
-const CACHE = 'flyclean-v230';
+// v231 — 2 bugs VIGENTES del operario (cierre migración, día 21): (H3) el dedup de jornada J+1 podía leer
+// el pool CACHEADO por el sw (pre-create) → ficha duplicada; ahora la query lleva _nocache (fuerza red /
+// se excluye del caché). (H5) una caída de Notion hacía que la foto del operario se DESCARTARA a los 5
+// reintentos: ahora el ownership del presign cae al espejo y la cola trata 503/429 como transitorio.
+const CACHE = 'flyclean-v231';
 const SHELL = [
   '/',
   '/index.html',
@@ -347,6 +351,9 @@ function isCacheableNotionRead(request, bodyText) {
   if (!bodyText) return false;
   try {
     const body = JSON.parse(bodyText);
+    // _nocache: el llamador pide EXPLÍCITAMENTE red (ej. el dedup de jornada J+1, que no puede leer un pool
+    // cacheado pre-create o duplicaría la ficha). Nunca se cachea.
+    if (body._nocache != null) return false;
     const ep = body.endpoint || '';
     const method = (body.method || 'GET').toUpperCase();
     if (method !== 'POST' && method !== 'GET') return false;

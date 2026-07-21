@@ -32,10 +32,10 @@ export async function putPhotoToR2(serviceId, fotoType, blob, mime, filename) {
     headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (localStorage.getItem('fc_token') || '') },
     body: JSON.stringify({ serviceId, fotoType, filename, contentType: mime, contentLength: blob.size })
   });
-  if (!resp.ok) { const data = await resp.json().catch(() => ({})); throw new Error(data.error || ('Backend ' + resp.status)); }
+  if (!resp.ok) { const data = await resp.json().catch(() => ({})); const err = new Error(data.error || ('Backend ' + resp.status)); err.status = resp.status; throw err; }
   const { uploadUrl, publicUrl } = await resp.json();
   const putResp = await fetch(uploadUrl, { method: 'PUT', headers: { 'Content-Type': mime }, body: blob });
-  if (!putResp.ok) throw new Error('Upload ' + putResp.status);
+  if (!putResp.ok) { const err = new Error('Upload ' + putResp.status); err.status = putResp.status; throw err; } // status → la cola trata 5xx de R2 como transitorio (no descarta la foto)
   return publicUrl;
 }
 
