@@ -66,7 +66,7 @@ function _migResource(endpoint) {
 // kpifecha (Día 26): rutea los KPIs de ingresos/gastos con filtro SOLO-fecha (+país) al espejo (/api/db con
 // fecha_desde/hasta) → el tablero del CEO/Finanzas sobrevive una caída de Notion. Inerte por defecto hasta
 // verificar; el operario (filtro 'Cargado por') NUNCA se rutea (parseKpiFilter lo descarta). Fallback a Notion.
-const DB_FLAGS = { clientes: true, servicios: true, propuestas: true, ingresos: true, writesync: true, kpifecha: false };
+const DB_FLAGS = { clientes: true, servicios: true, propuestas: true, ingresos: true, writesync: true, kpifecha: true };
 export function dbFlag(name) {
   const ls = localStorage.getItem('fc_db_' + name);
   if (ls === '1') return true;

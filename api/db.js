@@ -8,6 +8,7 @@
 import { verifySession, tokenFromReq, maybeRenewSession } from './_lib/session.js';
 import { resolveUser, esGlobal, esVentas } from './_lib/users.js';
 import { checkPermiso, DB } from './_lib/permisos.js';
+import { paisBare } from './_lib/notion-map.js';
 import crypto from 'node:crypto';
 
 const ALLOWED_ORIGINS = [
@@ -76,6 +77,15 @@ function paisQuery(u) {
 function operarioFilterServicios(u, resource) {
   if (resource !== 'servicios' || !(u.rol || '').includes('Operario')) return '';
   return '&operario_app=eq.' + encodeURIComponent(u.nombre);
+}
+
+// Gastos NO tiene RLS por 'cargado_por' (solo por país) → un operario que llamara /api/db?resource=gastos
+// directo recibía TODOS los gastos de su país (sueldos incluidos). Server-side: el operario solo los SUYOS
+// (espejo del filtro 'Cargado por' de la pantalla Gastos). Cierra H2 del review. Aplica a TODOS los caminos
+// (no hay RLS que lo cubra, a diferencia de servicios). Otros roles: sin filtro (ven los de su país).
+function operarioFilterGastos(u, resource) {
+  if (resource !== 'gastos' || !(u.rol || '').includes('Operario')) return '';
+  return '&cargado_por=eq.' + encodeURIComponent(u.nombre);
 }
 
 // PostgREST cappea las respuestas sin Range explícito (típicamente 1000 filas) → truncado silencioso
@@ -165,11 +175,15 @@ export default async function handler(req, res) {
     const q = req.query || {};
     const fDesde = /^\d{4}-\d{2}-\d{2}$/.test(String(q.fecha_desde || '').slice(0, 10)) ? String(q.fecha_desde).slice(0, 10) : '';
     const fHasta = /^\d{4}-\d{2}-\d{2}$/.test(String(q.fecha_hasta || '').slice(0, 10)) ? String(q.fecha_hasta).slice(0, 10) : '';
-    const paisReq = typeof q.pais === 'string' && q.pais.length > 0 && q.pais.length < 40 ? q.pais : '';
+    // El cliente manda el país en CÓDIGO CORTO ('🇵🇦 PA') pero la columna está BARE ('Panamá') → normalizar
+    // (fix H1). paisBare('all'/vacío) → null → sin filtro (vista global; el filtro de rol igual acota).
+    const paisReq = typeof q.pais === 'string' && q.pais.length > 0 && q.pais.length < 40 ? paisBare(q.pais) : '';
     if (fDesde) extra += '&fecha=gte.' + encodeURIComponent(fDesde);
     if (fHasta) extra += '&fecha=lte.' + encodeURIComponent(fHasta);
     if (paisReq) extra += '&pais=eq.' + encodeURIComponent(paisReq);
   }
+  // Filtro de seguridad del operario en gastos (independiente del flag/params; cierra H2). '' para otros.
+  const opGastos = operarioFilterGastos(u, resource);
 
   try {
     let rows, authPath;
@@ -181,7 +195,7 @@ export default async function handler(req, res) {
       try {
         authPath = 'jwt-rls';
         const jwt = mintUserJWT(u, session.id);
-        rows = await fetchPaged(`${SUPABASE_URL}/rest/v1/${table}?select=notion_id,raw${extra}`, {
+        rows = await fetchPaged(`${SUPABASE_URL}/rest/v1/${table}?select=notion_id,raw${extra}${opGastos}`, {
           apikey: ANON_KEY,
           Authorization: 'Bearer ' + jwt,
         });
@@ -189,7 +203,7 @@ export default async function handler(req, res) {
         console.error('[db] jwt-rls falló (' + String(e.message || e).slice(0, 60) + ') → service fallback');
         authPath = 'service-fallback';
         rows = await fetchPaged(
-          `${SUPABASE_URL}/rest/v1/${table}?select=notion_id,raw${paisQuery(u)}${operarioFilterServicios(u, resource)}${extra}`,
+          `${SUPABASE_URL}/rest/v1/${table}?select=notion_id,raw${paisQuery(u)}${operarioFilterServicios(u, resource)}${extra}${opGastos}`,
           {
             apikey: SERVICE_KEY,
             Authorization: 'Bearer ' + SERVICE_KEY,
@@ -200,7 +214,7 @@ export default async function handler(req, res) {
       // Usuario global (o sin JWT config): service_role + filtro país + (si operario) filtro por operario.
       authPath = 'service';
       rows = await fetchPaged(
-        `${SUPABASE_URL}/rest/v1/${table}?select=notion_id,raw${paisQuery(u)}${operarioFilterServicios(u, resource)}${extra}`,
+        `${SUPABASE_URL}/rest/v1/${table}?select=notion_id,raw${paisQuery(u)}${operarioFilterServicios(u, resource)}${extra}${opGastos}`,
         {
           apikey: SERVICE_KEY,
           Authorization: 'Bearer ' + SERVICE_KEY,

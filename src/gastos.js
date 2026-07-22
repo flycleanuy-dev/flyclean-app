@@ -27,7 +27,8 @@ const showSaving = (...a) => M.showSaving(...a);
 const showScreen = (...a) => M.showScreen(...a);
 
 // (no en ceoViewCountry, que es el selector del CEO). Global (Dirección / CEO Uruguay) = null (ve todos).
-// Gastos NO está en el espejo → sin este filtro, la query trae los gastos de TODOS los países (fuga).
+// El filtro por país va SERVER-SIDE (Notion o el espejo vía /api/db) — sin él la query traería los gastos de
+// TODOS los países (fuga). (Gastos SÍ se espeja vía cron-db-sync; sus lecturas por fecha pueden ir al espejo.)
 export function gastosUserPaisFilter() {
   const isGlobal = M.currentUser?.role?.includes('Dirección') ||
                    (M.currentUser?.role?.includes('CEO') && M.currentUser?.country === 'Uruguay');
@@ -246,7 +247,10 @@ export async function renderGastosScreen(skipFetch) {
         sorts: [{ property: 'Fecha', direction: 'descending' }],
         page_size: 100,
       });
-      _gastosScreenCache = data.results || [];
+      // Re-ordena por Fecha desc en cliente: el espejo (cuando kpifecha rutea este read) ignora `sorts`, así
+      // que no confiamos en el orden del server (fix L2). Notion ya venía ordenado; re-ordenar es idempotente.
+      _gastosScreenCache = (data.results || []).slice().sort((a, b) =>
+        (b.properties?.['Fecha']?.date?.start || '').localeCompare(a.properties?.['Fecha']?.date?.start || ''));
     } catch (e) {
       content.innerHTML = `<div class="coord-empty">${t('gastos.error')}<br><small>${esc(e.message)}</small></div>`;
       return;

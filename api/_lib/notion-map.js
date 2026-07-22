@@ -40,14 +40,17 @@ const relId = (p, n) => P(p, n)?.relation?.[0]?.id ?? null;
 // paisCoincide de users.js (2026-07-12).
 const PAISES = ['Uruguay', 'Brasil', 'Panamá', 'Guatemala', 'México'];
 const PAIS_CODE = { UY: 'Uruguay', BR: 'Brasil', PA: 'Panamá', GT: 'Guatemala', MX: 'México' };
-const pais = (p, n = 'País') => {
-  const v = sel(p, n);
+// Normaliza CUALQUIER forma de país ('🇵🇦 PA', '🇵🇦 Panamá', 'Panamá') → nombre BARE ('Panamá'). Usada por
+// mapRow (para poblar la columna plana `pais`) y por /api/db (para que el filtro por país del cliente, que
+// viene en código corto, matchee la columna bare — fix H1 del review Día 26 parte B).
+export function paisBare(v) {
   if (!v) return null;
   const porNombre = PAISES.find(c => v.includes(c));
   if (porNombre) return porNombre;
-  const m = v.match(/\b(UY|BR|PA|GT|MX)\b/);
+  const m = String(v).match(/\b(UY|BR|PA|GT|MX)\b/);
   return m ? PAIS_CODE[m[1]] : null;
-};
+}
+const pais = (p, n = 'País') => paisBare(sel(p, n));
 
 // Mapeo por tabla (props de Notion + page → fila Postgres). Cada fila guarda `raw` (lossless).
 export const MAP = {

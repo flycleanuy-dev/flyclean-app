@@ -9,6 +9,17 @@ globalThis.localStorage ??= { getItem: () => null, setItem: () => {}, removeItem
 globalThis.window ??= globalThis;
 
 const { parseKpiFilter } = await import('../src/api.js');
+const { paisBare } = await import('../api/_lib/notion-map.js');
+
+test('paisBare: código corto/completo → nombre BARE (fix H1, matchea la columna del espejo)', () => {
+  assert.equal(paisBare('🇵🇦 PA'), 'Panamá');
+  assert.equal(paisBare('🇺🇾 Uruguay'), 'Uruguay');
+  assert.equal(paisBare('🇧🇷 BR'), 'Brasil');
+  assert.equal(paisBare('Panamá'), 'Panamá');
+  assert.equal(paisBare('all'), null);   // vista global → sin filtro
+  assert.equal(paisBare(''), null);
+  assert.equal(paisBare(null), null);
+});
 
 test('KPI CEO/Finanzas {and:[país, Fecha>=, Fecha<=]} → ruteable con los 3 datos', () => {
   const body = { filter: { and: [
