@@ -156,6 +156,28 @@ export async function resolveLocalId(localId) {
   }
 }
 
+// Recolecta los ids de relación de un objeto de properties de Notion (para resolverlos contra id_map).
+export function collectRelationIds(properties) {
+  const ids = [];
+  for (const v of Object.values(properties || {})) {
+    if (v && Array.isArray(v.relation)) for (const rel of v.relation) if (rel?.id) ids.push(rel.id);
+  }
+  return ids;
+}
+
+// Sustituye en las relaciones los ids LOCALES por su notion_id real (según el mapa resuelto). Devuelve una
+// COPIA (no muta el original). Solo toca los ids presentes en `resolved` (Map<local, realId>).
+export function substituteRelationIds(properties, resolved) {
+  if (!resolved.size) return properties;
+  const out = {};
+  for (const [k, v] of Object.entries(properties || {})) {
+    if (v && Array.isArray(v.relation)) {
+      out[k] = { ...v, relation: v.relation.map(rel => (rel?.id && resolved.has(rel.id) ? { ...rel, id: resolved.get(rel.id) } : rel)) };
+    } else out[k] = v;
+  }
+  return out;
+}
+
 // Alta LOCAL cuando Notion no pudo crear la página (fallback de creates). (1) escribe la fila del espejo
 // (read-your-writes del cliente; best-effort — si falla, el sync la reconcilia); (2) registra id_map+outbox
 // ATÓMICAMENTE vía la RPC enqueue_create. Devuelve { ok }: ok=false si el registro atómico falló → el proxy

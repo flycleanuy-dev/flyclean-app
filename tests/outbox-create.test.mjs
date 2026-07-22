@@ -9,7 +9,7 @@ process.env.SUPABASE_SERVICE_KEY = 'sk';
 process.env.NOTION_TOKEN = 'ntn';
 process.env.CRON_SECRET = 'cs';
 
-const { collectRelationIds, substituteRelationIds } = await import('../api/cron-outbox.js');
+const { collectRelationIds, substituteRelationIds } = await import('../api/_lib/supafirst.js');
 
 test('collectRelationIds: junta todos los ids de todas las relaciones', () => {
   const props = {

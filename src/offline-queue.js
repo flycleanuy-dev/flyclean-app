@@ -158,36 +158,43 @@ export async function enqueueCreate(dsId, properties, dedup) {
 }
 
 // Dedup client-side de una jornada J+1 antes de crearla. Devuelve true si ya existe una ficha con esa
-// Orden madre + Jornada N°. LANZA si la query falla → processQueue reintenta (nunca crea a ciegas).
-// ⚠️ CRÍTICO: pegamos DIRECTO al proxy Notion (la FUENTE), NO por callNotion — callNotion rutea las
-// lecturas de Servicios al espejo Supabase, que se sincroniza cada ~10 min y por ende NUNCA reflejaría la
-// J+1 recién creada dentro de la ventana de reintentos (30s) → daría false-negative → ficha DUPLICADA en el
-// caso "POST OK pero respuesta perdida". El índice de Notion tiene lag de segundos (<< 30s) → sí la ve.
-// Orden last_edited_time desc: la página recién creada/editada entra en la primera página (mitiga el tope 100).
+// Orden madre + Jornada N°. LANZA si NO se pudo concluir → processQueue reintenta (nunca crea a ciegas).
+// Consulta DOS fuentes (fix MEDIUM-1 del review de servicios):
+//   (1) ESPEJO Supabase (/api/db) — una J+1 creada por create-fallback (Notion caído) vive SOLO acá + outbox
+//       hasta que el worker la propaga (~1min). Sin esto el dedup no la ve → re-POST → J+1 DUPLICADA.
+//   (2) NOTION directo (la FUENTE, índice de segundos) — cubre las J+1 creadas Notion-first. _nocache evita
+//       el caché stale-while-revalidate del SW (mismo cuerpo → misma clave → devolvía el pool pre-create).
+// Hit en cualquiera → existe. Ninguna la encuentra Y ambas respondieron → no existe (crear). Si alguna falló
+// sin hit → no sabemos → reintentar.
 async function jornadaYaExiste(dedup) {
   if (!dedup || !dedup.rootId || dedup.jornadaN == null) return false;
-  // _nocache: el SW cachea las lecturas databases/{id}/query por el CUERPO (stale-while-revalidate); como
-  // el cuerpo del dedup es idéntico cada vez, podía devolver el pool VIEJO (pre-create) → falso-negativo →
-  // J+1 DUPLICADA. El marcador (a) con el SW viejo varía la clave de caché → fuerza red; (b) con el SW nuevo
-  // lo excluye del caché. NO se reenvía a Notion (el proxy solo pasa {endpoint, method, body}).
-  const resp = await fetch('/api/notion', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (localStorage.getItem('fc_token') || '') },
-    body: JSON.stringify({ endpoint: `databases/${_DB_ID}/query`, method: 'POST', _nocache: Date.now(), body: { page_size: 100, sorts: [{ timestamp: 'last_edited_time', direction: 'descending' }] } })
-  });
-  if (!resp.ok) throw new Error('API error ' + resp.status); // red/servidor → reintentar, no crear a ciegas
-  const d = await resp.json();
-  const pool = d.results || [];
-  // Un pool VACÍO = "no sé" (el search-fallback puede devolver [] bajo carga/rate-limit), NO "no existe":
-  // Servicios nunca está legítimamente vacío. Tratarlo como "no existe" crearía a ciegas → duplicado.
-  if (!pool.length) throw new Error('pool vacío — reintentar');
   const nrm = id => (id || '').replace(/-/g, '');
   const root = nrm(dedup.rootId);
-  return pool.some(s => {
+  const auth = { 'Authorization': 'Bearer ' + (localStorage.getItem('fc_token') || '') };
+  const match = pool => (pool || []).some(s => {
     const om = s.properties?.['Orden madre']?.relation?.[0]?.id;
     const jn = s.properties?.['Jornada N°']?.number;
     return om && nrm(om) === root && jn === dedup.jornadaN;
   });
+  // (1) Espejo
+  let espejoOk = false;
+  try {
+    const r = await fetch('/api/db?resource=servicios', { headers: auth });
+    if (r.ok) { const d = await r.json(); espejoOk = true; if (match(d.results)) return true; }
+  } catch (_) { /* espejo no disponible */ }
+  // (2) Notion (la fuente)
+  let notionOk = false;
+  try {
+    const resp = await fetch('/api/notion', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...auth },
+      body: JSON.stringify({ endpoint: `databases/${_DB_ID}/query`, method: 'POST', _nocache: Date.now(), body: { page_size: 100, sorts: [{ timestamp: 'last_edited_time', direction: 'descending' }] } })
+    });
+    if (resp.ok) { const d = await resp.json(); const pool = d.results || []; if (pool.length) { notionOk = true; if (match(pool)) return true; } }
+    // pool vacío (search-fallback bajo carga) = "no sé" → notionOk queda false → se reintenta abajo.
+  } catch (_) { /* Notion no disponible */ }
+  if (espejoOk && notionOk) return false;                 // ambas respondieron y ninguna la tiene → crear
+  throw new Error('dedup no concluyente (espejo/Notion) — reintentar'); // no crear a ciegas
 }
 
 async function getQueueItems() {

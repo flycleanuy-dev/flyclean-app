@@ -315,7 +315,11 @@
 // v232 — Propuestas (pedido de Diego): campo nuevo "📝 Notas internas" (property Notion nueva, NO sale en el
 // PDF al cliente, separado de Observaciones que sí va) + la etiqueta del importe pasa de "IMPORTE ESTIMADO
 // (USD)" a "PRECIO PROPUESTO" (le saco el USD fijo: la moneda ya se elige con los botones UY$/USD al lado).
-const CACHE = 'flyclean-v232';
+// v233 — Guardas pre-flip de SERVICIOS (fixes del review de activación): (MEDIUM-1) jornadaYaExiste ahora
+// consulta el ESPEJO además de Notion → no duplica una J+1 creada por create-fallback (que vive solo en el
+// espejo hasta propagarse). (MEDIUM-2, backend) el proxy resuelve/encola los ids de relación locales del body
+// de un create (ej. J+1 → Orden madre local) → no se pierde la jornada.
+const CACHE = 'flyclean-v233';
 const SHELL = [
   '/',
   '/index.html',

@@ -13,6 +13,9 @@ import {
   resolveLocalId,
   createFallback,
   normalizePatchForRaw,
+  idMapLookup,
+  collectRelationIds,
+  substituteRelationIds,
 } from './_lib/supafirst.js';
 import crypto from 'node:crypto';
 
@@ -535,6 +538,27 @@ export default async function handler(req, res) {
       body.properties[APP_UID_PROP] = { rich_text: [{ text: { content: fbUid } }] };
     }
   }
+  // Fase 3b — resolver ids de relación LOCALES del body ANTES del POST primario (fix MEDIUM-2 del review de
+  // servicios): un create que referencia un id local (ej. jornada J+1 → 'Orden madre' = servicio padre creado
+  // por fallback) NO puede ir a Notion con el uuid crudo (Notion 400 → la cola offline lo descartaría =
+  // pérdida silenciosa de la jornada). Resueltos → se sustituyen por el notion_id real (destraba un create
+  // ONLINE tras la recuperación); si queda alguno PENDIENTE y esta tabla es fallback → se fuerza el fallback
+  // (alta local; el worker encadena cuando el padre propague). Solo creates de tablas flipeadas.
+  let forceFallback = false;
+  if (esCreate && CREATE_FALLBACK.size && body?.properties) {
+    const relIds = collectRelationIds(body.properties);
+    if (relIds.length) {
+      const { ok, map } = await idMapLookup(relIds);
+      if (ok && map.size) {
+        const resolved = new Map();
+        let pending = false;
+        for (const [lid, e] of map) { if (e.notion_id) resolved.set(lid, e.notion_id); else pending = true; }
+        if (resolved.size) body.properties = substituteRelationIds(body.properties, resolved);
+        if (pending && fbResource) forceFallback = true; // no mandar a Notion un id local pendiente
+      }
+      // ok=false (id_map no responde) → no forzar; seguir normal (si había un local pendiente, Notion 400 y reintento).
+    }
+  }
   // Registra la alta local (espejo + id_map + outbox) y devuelve la página sintética (o null si el registro
   // atómico falló → el caller devuelve el error ORIGINAL de Notion, nunca un "medio fallback").
   const doFallbackCreate = async () => {
@@ -551,6 +575,14 @@ export default async function handler(req, res) {
     // ⚠️ CREATES SIN REINTENTO (condición H1.3 del review adversarial 20/07): el retry automático ante un
     // 5xx "mentiroso" (Notion creó la página pero respondió error) generaba una página DUPLICADA. Un create
     // que falla se reporta al usuario y listo; los PATCH/GET siguen con retry como siempre (idempotentes).
+    // forceFallback (MEDIUM-2): el body referencia un id local PENDIENTE → no tiene sentido mandarlo a Notion
+    // (400); se registra directo como alta local y el worker lo encadena. Si el registro atómico fallara,
+    // seguimos al POST normal (mejor intentar que perder).
+    if (forceFallback) {
+      const fbPage = await doFallbackCreate();
+      if (fbPage) return res.status(200).json(fbPage);
+    }
+
     // El fetch va en su PROPIO try: el create-fallback ante error de RED debe dispararse SOLO si falla el
     // fetch mismo, NUNCA por un throw posterior (ej. response.json de una respuesta 2xx malformada) — así un
     // POST exitoso jamás cae al fallback (evitaría una alta local redundante; el ataque 7 del review).

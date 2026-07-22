@@ -8,7 +8,7 @@
 import { sendEmail, emailLayout } from './_lib/email.js';
 import { getRecipients } from './_lib/recipients.js';
 import { mirrorPage, deleteRowByNotionId } from './_lib/mirror.js';
-import { idMapLookup, idMapResolve } from './_lib/supafirst.js';
+import { idMapLookup, idMapResolve, collectRelationIds, substituteRelationIds } from './_lib/supafirst.js';
 import { DBS } from './_lib/notion-map.js';
 
 const SUPABASE_URL = (process.env.SUPABASE_URL || '').replace(/\/$/, '');
@@ -168,27 +168,6 @@ async function findByAppUid(resource, uid) {
   return last; // tras los reintentos con delay sigue sin aparecer → tratar como no existe (crear)
 }
 
-// Recolecta los ids de relación de un objeto de properties de Notion (para resolverlos contra id_map).
-export function collectRelationIds(properties) {
-  const ids = [];
-  for (const v of Object.values(properties || {})) {
-    if (v && Array.isArray(v.relation)) for (const rel of v.relation) if (rel?.id) ids.push(rel.id);
-  }
-  return ids;
-}
-
-// Sustituye en las relaciones los ids LOCALES por su notion_id real (según el mapa resuelto). Devuelve una
-// COPIA (no muta el payload original). Solo toca los ids presentes en `resolved` (Map<local, realId>).
-export function substituteRelationIds(properties, resolved) {
-  if (!resolved.size) return properties;
-  const out = {};
-  for (const [k, v] of Object.entries(properties || {})) {
-    if (v && Array.isArray(v.relation)) {
-      out[k] = { ...v, relation: v.relation.map(rel => (rel?.id && resolved.has(rel.id) ? { ...rel, id: resolved.get(rel.id) } : rel)) };
-    } else out[k] = v;
-  }
-  return out;
-}
 
 // Difiere un grupo entero (vuelve a pending con next_attempt_at futuro, SIN gastar attempts) → claim_outbox v2
 // no lo reclama hasta entonces (y su guarda 'processing'/'pending diferido' bloquea el grupo completo).
