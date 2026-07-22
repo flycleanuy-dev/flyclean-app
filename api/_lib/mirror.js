@@ -43,6 +43,35 @@ export async function mirrorPage(resource, page) {
   return upsertRow(resource, row);
 }
 
+// Lee TODAS las páginas de una tabla espejo en formato Notion ({ id: notion_id, properties: raw }). Paginado
+// por Range (PostgREST cappea sin Range). Usado por los crons para leer del espejo en vez de Notion (así el
+// email semanal / el pipeline sobreviven una caída de Notion). ⚠️ El `raw` NO trae `created_time` (es un
+// top-level de Notion, no una property) → un cron que dependa de created_time debe contemplar su ausencia; y
+// las FÓRMULAS del raw quedan CONGELADAS al último write → recomputar desde sus dates (ej. días desde
+// 'Última interacción'), nunca leer `.formula.number` del espejo.
+export async function queryMirrorPages(resource) {
+  if (!mirrorConfigured()) throw new Error('espejo no configurado');
+  const PAGE = 1000;
+  let out = [],
+    offset = 0;
+  for (;;) {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/${resource}?select=notion_id,raw`, {
+      headers: {
+        apikey: SERVICE_KEY,
+        Authorization: 'Bearer ' + SERVICE_KEY,
+        'Range-Unit': 'items',
+        Range: `${offset}-${offset + PAGE - 1}`,
+      },
+    });
+    if (!r.ok) throw new Error(`espejo ${resource}: ${r.status} ${await r.text().catch(() => '')}`.slice(0, 200));
+    const page = await r.json();
+    out.push(...page.filter(x => x.raw).map(x => ({ id: x.notion_id, properties: x.raw })));
+    if (page.length < PAGE) break;
+    offset += PAGE;
+  }
+  return out;
+}
+
 // Borra la fila del espejo (para páginas mandadas a la papelera/archivadas: el espejo no debe re-servirlas).
 export async function deleteRowByNotionId(table, notionId) {
   if (!mirrorConfigured() || !table || !notionId) return { ok: false, status: 0 };

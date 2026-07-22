@@ -4,8 +4,20 @@
 // Email "autosuficiente": lo leés y solo entrás a la app si hay algo para hacer.
 // Test manual: ?tipo=viernes|lunes  ·  ?to=<email> (override, gated por CRON_SECRET)
 import { queryAll } from './_lib/notion.js';
+import { queryMirrorPages } from './_lib/mirror.js';
 import { sendEmail, emailLayout } from './_lib/email.js';
 import { getRecipients } from './_lib/recipients.js';
+
+// Día 26: leer del ESPEJO Supabase en vez de Notion (así el email sobrevive una caída de Notion). Flag
+// reversible; con espejo caído/no-config cae a Notion. Servicios/Propuestas/Ingresos tienen espejo; Activos
+// NO → sigue en Notion. ⚠️ El raw del espejo tiene FÓRMULAS congeladas → 'Días sin respuesta' se RECOMPUTA.
+const REPORT_FROM_MIRROR = process.env.REPORT_FROM_MIRROR === '1';
+async function readMirrorOr(resource, notionFallbackFn) {
+  if (REPORT_FROM_MIRROR) {
+    try { return await queryMirrorPages(resource); } catch (_) { /* cae a Notion */ }
+  }
+  return notionFallbackFn();
+}
 
 // Fallback histórico si la lista editable (⚙️ Configuración → 📬 Destinatarios) está vacía o KV caído.
 const CEO_EMAIL = 'ihodieego@gmail.com';
@@ -27,7 +39,13 @@ const esc = s =>
 
 // Propuestas
 const propTitle = p => p?.['Nombre de propuesta']?.title?.[0]?.plain_text || '(sin nombre)';
-const propDias = p => p?.['Días sin respuesta']?.formula?.number ?? null;
+// RECOMPUTA los días desde 'Última interacción' (misma lógica que el propDias del front) — NO lee
+// '.formula.number', que queda CONGELADO en el espejo. Fallback a la fórmula solo si falta la fecha.
+const propDias = p => {
+  const ui = (p?.['Última interacción']?.date?.start || '').split('T')[0];
+  if (ui) { const d = Math.floor((Date.now() - new Date(ui + 'T00:00:00').getTime()) / 86400000); return d >= 0 ? d : 0; }
+  return p?.['Días sin respuesta']?.formula?.number ?? null;
+};
 
 // Servicios
 const svcNombre = s => s.properties?.['Nombre del servicio']?.title?.[0]?.plain_text || '(sin nombre)';
@@ -100,7 +118,8 @@ export default async function handler(req, res) {
     const in7 = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
 
     // Servicios: DB con múltiples data sources → queryAll cae al search (trae todo) y filtramos acá.
-    const allSvc = await queryAll(SERVICIOS_DB).catch(() => []);
+    // Espejo-first (flag): el espejo ya trae todo sin el problema multi-source.
+    const allSvc = await readMirrorOr('servicios', () => queryAll(SERVICIOS_DB).catch(() => []));
     const svcDone = allSvc
       .filter(s => svcEstado(s) === '✅ Completado' && svcFecha(s) >= weekAgo)
       .sort((a, b) => svcFecha(b).localeCompare(svcFecha(a)));
@@ -121,9 +140,14 @@ export default async function handler(req, res) {
       .sort((a, b) => svcFecha(a).localeCompare(svcFecha(b)));
 
     // Propuestas para re-contactar (esperando respuesta, +15 días)
-    const propsEsp = await queryAll(PROPUESTAS_DB, {
-      filter: { or: ESTADOS_ESPERANDO.map(s => ({ property: 'Estado pipeline', select: { equals: s } })) },
-    }).catch(() => []);
+    // Espejo-first (flag): trae todas y filtra por estado en cliente (el espejo no aplica el filtro Notion);
+    // para el path Notion el filtro ya viene aplicado y el .filter de abajo es no-op.
+    const propsRaw = await readMirrorOr('propuestas', () =>
+      queryAll(PROPUESTAS_DB, {
+        filter: { or: ESTADOS_ESPERANDO.map(s => ({ property: 'Estado pipeline', select: { equals: s } })) },
+      }).catch(() => [])
+    );
+    const propsEsp = propsRaw.filter(p => ESTADOS_ESPERANDO.includes(p.properties?.['Estado pipeline']?.select?.name));
     const recontactar = propsEsp
       .filter(p => {
         // Snooze por registro ('Posponer aviso hasta' futuro): pausada → no aparece en el email tampoco.
@@ -197,7 +221,7 @@ export default async function handler(req, res) {
     let cobrarHtml = '';
     if (tipo === 'lunes') {
       let ingAll = null;
-      try { ingAll = await queryAll(INGRESOS_DB); } catch { ingAll = null; }
+      try { ingAll = await readMirrorOr('ingresos', () => queryAll(INGRESOS_DB)); } catch { ingAll = null; }
       if (ingAll === null) {
         cobrarHtml = section('💰 A cobrar') + empty('No se pudieron consultar los cobros esta vez.');
       } else {

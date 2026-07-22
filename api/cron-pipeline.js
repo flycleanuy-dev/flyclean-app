@@ -15,7 +15,17 @@ import { sendEmail, emailLayout } from './_lib/email.js';
 import { getRecipients } from './_lib/recipients.js';
 import { getReglas } from './_lib/appconfig.js';
 import { supafirstSet, mergeProps, enqueueOutbox } from './_lib/supafirst.js';
-import { mirrorPage } from './_lib/mirror.js';
+import { mirrorPage, queryMirrorPages } from './_lib/mirror.js';
+
+// Día 26: leer las propuestas del ESPEJO en vez de Notion (flag) → el cron puede decidir + escribir (vía
+// outbox, ya espejo-aware) aunque Notion esté caído. Con espejo caído/no-config cae a Notion.
+const PIPELINE_FROM_MIRROR = process.env.PIPELINE_FROM_MIRROR === '1';
+async function readMirrorOr(resource, notionFallbackFn) {
+  if (PIPELINE_FROM_MIRROR) {
+    try { return await queryMirrorPages(resource); } catch (_) { /* cae a Notion */ }
+  }
+  return notionFallbackFn();
+}
 
 // Escribe una propuesta respetando el flip Supabase-first (pre-flip de PROPUESTAS, 2026-07-15).
 // Con 'propuestas' en SUPAFIRST_TABLES, cron-db-sync solo INSERTA altas (no re-sincroniza ediciones) → si este cron escribiera
@@ -62,10 +72,18 @@ const NEGOCIANDO = '🤝 Negociando';
 const MS_DIA = 86400000;
 
 const titleOf = p => p?.['Nombre de propuesta']?.title?.[0]?.plain_text || '(sin nombre)';
-const diasOf = p => p?.['Días sin respuesta']?.formula?.number ?? null; // misma fórmula que usa el in-app (reloj de SEGUIMIENTO)
+// Reloj de SEGUIMIENTO. RECOMPUTA desde 'Última interacción' (misma lógica que el front) — NO lee
+// '.formula.number', que queda CONGELADO en el espejo. Fallback a la fórmula solo si falta la fecha.
+const diasOf = p => {
+  const ui = (p?.['Última interacción']?.date?.start || '').split('T')[0];
+  if (ui) { const d = Math.floor((Date.now() - new Date(ui + 'T00:00:00').getTime()) / MS_DIA); return d >= 0 ? d : 0; }
+  return p?.['Días sin respuesta']?.formula?.number ?? null;
+};
 
-// Reloj de VIDA: días desde 'Fecha de envío' (fallback: created_time de la página). Solo se usa para
-// el auto-move de Contactado/Enviada — Negociando sigue con diasOf() de siempre.
+// Reloj de VIDA: días desde 'Fecha de envío'. Fallback a page.created_time SOLO cuando viene de Notion; el
+// espejo NO trae created_time (top-level, no property) → sin 'Fecha de envío' devuelve null = NO auto-mueve
+// (trampa #2 del plan: nunca usar created_at del espejo, que es la fecha del backfill). Aceptado: una
+// propuesta sin 'Fecha de envío' no se auto-mueve leyendo del espejo (raro; se auto-estampa al pasar a Enviada).
 function diasDeVida(page, props) {
   const fechaEnvio = props?.['Fecha de envío']?.date?.start || page.created_time;
   if (!fechaEnvio) return null;
@@ -94,9 +112,14 @@ export default async function handler(req, res) {
       Number.isInteger(reglas?.pipelineSinRespuesta) && reglas.pipelineSinRespuesta >= 1
         ? reglas.pipelineSinRespuesta
         : DIAS_AUTOMOVE;
-    const propuestas = await queryAll(PROPUESTAS_DB, {
-      filter: { or: ESTADOS_ESPERANDO.map(s => ({ property: 'Estado pipeline', select: { equals: s } })) },
-    });
+    // Espejo-first (flag): trae todas y filtra por estado en cliente (el espejo no aplica el filtro Notion);
+    // por Notion el filtro ya viene aplicado → el .filter de abajo es no-op.
+    const propuestasRaw = await readMirrorOr('propuestas', () =>
+      queryAll(PROPUESTAS_DB, {
+        filter: { or: ESTADOS_ESPERANDO.map(s => ({ property: 'Estado pipeline', select: { equals: s } })) },
+      })
+    );
+    const propuestas = propuestasRaw.filter(p => ESTADOS_ESPERANDO.includes(p.properties?.['Estado pipeline']?.select?.name));
     const today = new Date().toISOString().slice(0, 10);
     const movidas = [],
       nuevasRecontacto = [];
