@@ -312,7 +312,10 @@
 // el pool CACHEADO por el sw (pre-create) → ficha duplicada; ahora la query lleva _nocache (fuerza red /
 // se excluye del caché). (H5) una caída de Notion hacía que la foto del operario se DESCARTARA a los 5
 // reintentos: ahora el ownership del presign cae al espejo y la cola trata 503/429 como transitorio.
-const CACHE = 'flyclean-v231';
+// v232 — Propuestas (pedido de Diego): campo nuevo "📝 Notas internas" (property Notion nueva, NO sale en el
+// PDF al cliente, separado de Observaciones que sí va) + la etiqueta del importe pasa de "IMPORTE ESTIMADO
+// (USD)" a "PRECIO PROPUESTO" (le saco el USD fijo: la moneda ya se elige con los botones UY$/USD al lado).
+const CACHE = 'flyclean-v232';
 const SHELL = [
   '/',
   '/index.html',

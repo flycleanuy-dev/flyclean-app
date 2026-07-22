@@ -262,7 +262,7 @@ export async function loadPropContactos() {
 export function openNewPropSheet(prefillContactId = null) {
   propSheetMode = 'create';
   M.editingProp = null;
-  M.propEditState = { nombre: '', estado: '🆕 Nuevo lead', pais: '🇺🇾 Uruguay', tipo: '', aprobacion: '⏳ Pendiente', importe: '', moneda: '🇺🇾 UY$', fechaEnvio: '', ultimaInt: new Date().toISOString().split('T')[0], obs: '', serviciosAnio: '', comision: '', clienteSel: prefillContactId || '__new__', nombreCliente: '', tel: '', email: '' };
+  M.propEditState = { nombre: '', estado: '🆕 Nuevo lead', pais: '🇺🇾 Uruguay', tipo: '', aprobacion: '⏳ Pendiente', importe: '', moneda: '🇺🇾 UY$', fechaEnvio: '', ultimaInt: new Date().toISOString().split('T')[0], obs: '', notasInt: '', serviciosAnio: '', comision: '', clienteSel: prefillContactId || '__new__', nombreCliente: '', tel: '', email: '' };
 
   document.getElementById('prop-sheet-title').textContent = t('sheet.prop.title.nueva');
   document.getElementById('prop-sheet-sub').textContent = t('sheet.prop.subtitle.nueva');
@@ -299,8 +299,10 @@ export function openNewPropSheet(prefillContactId = null) {
       <input type="date" class="edit-date-input" onchange="propEditState.fechaEnvio=this.value"/></div>` +
     `<div class="edit-section"><div class="edit-section-label">${t('sheet.prop.section.ultimaint')}</div>
       <input type="date" class="edit-date-input" value="${M.propEditState.ultimaInt}" onchange="propEditState.ultimaInt=this.value"/></div>` +
-    `<div class="edit-section" style="padding-bottom:0"><div class="edit-section-label">${t('sheet.prop.section.obs')}</div>
-      <textarea class="edit-date-input" rows="3" style="resize:none;height:80px" placeholder="${t('sheet.prop.obs.placeholder')}" oninput="propEditState.obs=this.value"></textarea></div>`;
+    `<div class="edit-section"><div class="edit-section-label">${t('sheet.prop.section.obs')}</div>
+      <textarea class="edit-date-input" rows="3" style="resize:none;height:80px" placeholder="${t('sheet.prop.obs.placeholder')}" oninput="propEditState.obs=this.value"></textarea></div>` +
+    `<div class="edit-section" style="padding-bottom:0"><div class="edit-section-label">${t('sheet.prop.section.notasint')}</div>
+      <textarea class="edit-date-input" rows="3" style="resize:none;height:80px" placeholder="${t('sheet.prop.notasint.placeholder')}" oninput="propEditState.notasInt=this.value"></textarea></div>`;
 
   const btn = document.getElementById('prop-save-btn');
   btn.textContent = t('btn.create.notion');
@@ -333,6 +335,7 @@ export function openPropSheet(pageId) {
   // y eso rompía el <input type="date"> (quedaba vacío) y el render de la card ("Invalid Date").
   const ultimaInt = (props['Última interacción']?.date?.start || '').split('T')[0];
   const obs = props['Observaciones']?.rich_text?.[0]?.plain_text || '';
+  const notasInt = props['Notas internas']?.rich_text?.[0]?.plain_text || '';
   const serviciosAnio = props['Servicios por año']?.number ?? '';
   const comision = props['Comisión %']?.number ?? '';
   const clienteSel = props['Contacto']?.relation?.[0]?.id || '__new__';
@@ -343,14 +346,14 @@ export function openPropSheet(pageId) {
   const posponerExiste = ('Posponer aviso hasta' in props);
   const posponerHasta = (props['Posponer aviso hasta']?.date?.start || '').split('T')[0];
 
-  M.propEditState = { estado, pais, tipo, aprobacion, importe, moneda: monedaProp, fechaEnvio, ultimaInt, obs, serviciosAnio, comision, clienteSel, nombreCliente: '', tel: '', email: '', mapa: mapaProp, posponerHasta, _posponerHastaOrig: posponerHasta };
+  M.propEditState = { estado, pais, tipo, aprobacion, importe, moneda: monedaProp, fechaEnvio, ultimaInt, obs, notasInt, serviciosAnio, comision, clienteSel, nombreCliente: '', tel: '', email: '', mapa: mapaProp, posponerHasta, _posponerHastaOrig: posponerHasta };
   // F1 (escribir SOLO lo cambiado): snapshot de originales → al guardar no se re-escribe un campo que el usuario no
   // tocó (evita el echo-back que pisaría datos cuando propuestas pase a Supabase-first). Números como String() para
   // comparar sin falsos "cambió" por number-vs-string del input.
   Object.assign(M.propEditState, {
     _estadoOrig: estado, _paisOrig: pais, _tipoOrig: tipo, _aprobacionOrig: aprobacion,
     _importeOrig: String(importe ?? ''), _monedaOrig: monedaProp, _serviciosAnioOrig: String(serviciosAnio ?? ''), _comisionOrig: String(comision ?? ''),
-    _fechaEnvioOrig: fechaEnvio, _ultimaIntOrig: ultimaInt, _obsOrig: obs, _mapaOrig: mapaProp,
+    _fechaEnvioOrig: fechaEnvio, _ultimaIntOrig: ultimaInt, _obsOrig: obs, _notasIntOrig: notasInt, _mapaOrig: mapaProp,
   });
 
   document.getElementById('prop-sheet-title').textContent = nombre;
@@ -395,6 +398,8 @@ export function openPropSheet(pageId) {
       <input type="date" class="edit-date-input" value="${posponerHasta}" onchange="propEditState.posponerHasta=this.value"/></div>` : '') +
     `<div class="edit-section"><div class="edit-section-label">${t('sheet.prop.section.obs')}</div>
       <textarea class="edit-date-input" rows="3" style="resize:none;height:80px" placeholder="${t('sheet.prop.obs.placeholder')}" oninput="propEditState.obs=this.value">${esc(obs || '')}</textarea></div>` +
+    `<div class="edit-section"><div class="edit-section-label">${t('sheet.prop.section.notasint')}</div>
+      <textarea class="edit-date-input" rows="3" style="resize:none;height:80px" placeholder="${t('sheet.prop.notasint.placeholder')}" oninput="propEditState.notasInt=this.value">${esc(notasInt || '')}</textarea></div>` +
     `<div class="edit-section" id="prop-ubicacion-override-box" data-override="${mapaProp ? '1' : '0'}">
       <button type="button" onclick="togglePropUbicacionOverride()" style="background:none;border:none;color:var(--text3);font-size:11px;text-decoration:underline;cursor:pointer;padding:2px 0">${t('sheet.prop.ubicacion.override')}</button>
       ${mapaProp ? `<div class="prop-override-content"><div class="edit-section-label" style="margin-top:8px">${t('sheet.prop.ubicacion.override.label')}</div>
@@ -826,6 +831,7 @@ export async function savePropEdit() {
       }
       if (M.propEditState.ultimaInt) props['Última interacción'] = { date: { start: M.propEditState.ultimaInt } };
       if (M.propEditState.obs) props['Observaciones'] = { rich_text: [{ text: { content: M.propEditState.obs } }] };
+      if (M.propEditState.notasInt) props['Notas internas'] = { rich_text: [{ text: { content: M.propEditState.notasInt } }] };
       if (clienteId) props['Contacto'] = { relation: [{ id: clienteId }] };
       const _nuevaProp = await callNotion('pages', 'POST', { parent: { database_id: M.PROPUESTAS_DB_ID }, properties: props });
       // Espejar la propuesta nueva al mirror Supabase (las secciones de Clientes lo leen) para que el
@@ -858,6 +864,7 @@ export async function savePropEdit() {
       if (p.posponerHasta !== p._posponerHastaOrig)
         props['Posponer aviso hasta'] = p.posponerHasta ? { date: { start: p.posponerHasta } } : { date: null };
       if (chg(p.obs, p._obsOrig)) props['Observaciones'] = { rich_text: p.obs ? [{ text: { content: p.obs } }] : [] };
+      if (chg(p.notasInt, p._notasIntOrig)) props['Notas internas'] = { rich_text: p.notasInt ? [{ text: { content: p.notasInt } }] : [] };
       if (chg(p.mapa, p._mapaOrig)) props['Mapa'] = { url: (p.mapa && p.mapa.trim()) ? p.mapa.trim() : null };
       // Contacto: linkear si hay clienteId y DIFIERE del vínculo actual. Comparar contra el vínculo real (no
       // clienteSel): en un alta inline/dedup, clienteSel queda en '__new__' aunque clienteId ya se resolvió a un id
