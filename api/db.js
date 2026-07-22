@@ -156,6 +156,21 @@ export default async function handler(req, res) {
 
   if (!SUPABASE_URL || !SERVICE_KEY) return res.status(500).json({ error: 'db no configurada' });
 
+  // Día 26 (KPIs CEO/Finanzas): filtros OPCIONALES de rango de fecha + país sobre la columna plana `fecha`
+  // (solo ingresos/gastos la tienen). Se aplican COMO AND sobre el filtro de ROL (paisQuery/RLS) → NUNCA
+  // amplían el acceso: un no-global que pasara otro país queda con intersección VACÍA, no con fuga. `fecha`
+  // es date-only "YYYY-MM-DD" (el write siempre guarda date) → gte/lte lexicográfico es exacto.
+  let extra = '';
+  if (resource === 'ingresos' || resource === 'gastos') {
+    const q = req.query || {};
+    const fDesde = /^\d{4}-\d{2}-\d{2}$/.test(String(q.fecha_desde || '').slice(0, 10)) ? String(q.fecha_desde).slice(0, 10) : '';
+    const fHasta = /^\d{4}-\d{2}-\d{2}$/.test(String(q.fecha_hasta || '').slice(0, 10)) ? String(q.fecha_hasta).slice(0, 10) : '';
+    const paisReq = typeof q.pais === 'string' && q.pais.length > 0 && q.pais.length < 40 ? q.pais : '';
+    if (fDesde) extra += '&fecha=gte.' + encodeURIComponent(fDesde);
+    if (fHasta) extra += '&fecha=lte.' + encodeURIComponent(fHasta);
+    if (paisReq) extra += '&pais=eq.' + encodeURIComponent(paisReq);
+  }
+
   try {
     let rows, authPath;
     if (JWT_SECRET && ANON_KEY && !esGlobal(u)) {
@@ -166,7 +181,7 @@ export default async function handler(req, res) {
       try {
         authPath = 'jwt-rls';
         const jwt = mintUserJWT(u, session.id);
-        rows = await fetchPaged(`${SUPABASE_URL}/rest/v1/${table}?select=notion_id,raw`, {
+        rows = await fetchPaged(`${SUPABASE_URL}/rest/v1/${table}?select=notion_id,raw${extra}`, {
           apikey: ANON_KEY,
           Authorization: 'Bearer ' + jwt,
         });
@@ -174,7 +189,7 @@ export default async function handler(req, res) {
         console.error('[db] jwt-rls falló (' + String(e.message || e).slice(0, 60) + ') → service fallback');
         authPath = 'service-fallback';
         rows = await fetchPaged(
-          `${SUPABASE_URL}/rest/v1/${table}?select=notion_id,raw${paisQuery(u)}${operarioFilterServicios(u, resource)}`,
+          `${SUPABASE_URL}/rest/v1/${table}?select=notion_id,raw${paisQuery(u)}${operarioFilterServicios(u, resource)}${extra}`,
           {
             apikey: SERVICE_KEY,
             Authorization: 'Bearer ' + SERVICE_KEY,
@@ -185,7 +200,7 @@ export default async function handler(req, res) {
       // Usuario global (o sin JWT config): service_role + filtro país + (si operario) filtro por operario.
       authPath = 'service';
       rows = await fetchPaged(
-        `${SUPABASE_URL}/rest/v1/${table}?select=notion_id,raw${paisQuery(u)}${operarioFilterServicios(u, resource)}`,
+        `${SUPABASE_URL}/rest/v1/${table}?select=notion_id,raw${paisQuery(u)}${operarioFilterServicios(u, resource)}${extra}`,
         {
           apikey: SERVICE_KEY,
           Authorization: 'Bearer ' + SERVICE_KEY,

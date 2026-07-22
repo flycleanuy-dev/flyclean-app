@@ -319,7 +319,11 @@
 // consulta el ESPEJO además de Notion → no duplica una J+1 creada por create-fallback (que vive solo en el
 // espejo hasta propagarse). (MEDIUM-2, backend) el proxy resuelve/encola los ids de relación locales del body
 // de un create (ej. J+1 → Orden madre local) → no se pierde la jornada.
-const CACHE = 'flyclean-v233';
+// v234 — Día 26 parte B (KPIs fecha→espejo, INERTE hasta el flag kpifecha): callNotion rutea los reads de
+// ingresos/gastos con filtro SOLO-fecha(+país) al espejo (/api/db con fecha_desde/hasta/pais) → el tablero del
+// CEO/Finanzas sobrevive una caída de Notion. El read del OPERARIO (filtro 'Cargado por') NUNCA se rutea
+// (parseKpiFilter lo descarta = seguridad). Fallback a Notion ante error.
+const CACHE = 'flyclean-v234';
 const SHELL = [
   '/',
   '/index.html',

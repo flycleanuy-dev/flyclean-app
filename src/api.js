@@ -63,7 +63,10 @@ function _migResource(endpoint) {
 // read-your-writes al editar cobros bajo Supabase-first. Las CON filtro de fecha (KPIs CEO/Finanzas) siguen
 // en Notion hasta migrarlas con su filtro (lag ≤60s vía outbox, tolerable en dashboards). gastos queda
 // afuera a propósito: la app no edita gastos (create-only) — flipearlo era todo riesgo sin beneficio.
-const DB_FLAGS = { clientes: true, servicios: true, propuestas: true, ingresos: true, writesync: true };
+// kpifecha (Día 26): rutea los KPIs de ingresos/gastos con filtro SOLO-fecha (+país) al espejo (/api/db con
+// fecha_desde/hasta) → el tablero del CEO/Finanzas sobrevive una caída de Notion. Inerte por defecto hasta
+// verificar; el operario (filtro 'Cargado por') NUNCA se rutea (parseKpiFilter lo descarta). Fallback a Notion.
+const DB_FLAGS = { clientes: true, servicios: true, propuestas: true, ingresos: true, writesync: true, kpifecha: false };
 export function dbFlag(name) {
   const ls = localStorage.getItem('fc_db_' + name);
   if (ls === '1') return true;
@@ -99,9 +102,51 @@ export function captureRenewedToken(response) {
 // vinculaba el servicio/propuesta a un cliente ARBITRARIO y saveContactEdit bloqueaba toda alta con
 // "ya existe un cliente...". Read-your-writes de clientes NO necesita esa excepción: las listas se leen sin
 // filtro (ya van al espejo) y cada write hace syncAfterWrite del registro.
+// Día 26 — detecta un filtro "solo fecha (+país)" de un KPI de ingresos/gastos → ruteable al espejo con
+// params. Cualquier OTRA condición (ej. 'Cargado por' del operario, o un 'or') → null = NO ruteable (se
+// queda en el proxy, que aplica ese filtro server-side). Devuelve { fechaDesde, fechaHasta, pais } o null.
+export function parseKpiFilter(body) {
+  const f = body && body.filter;
+  if (!f) return null;
+  const conds = Array.isArray(f.and) ? f.and : (f.and || f.or) ? null : [f];
+  if (!conds) return null;
+  let fechaDesde, fechaHasta, pais;
+  for (const c of conds) {
+    if (c && c.property === 'Fecha' && c.date?.on_or_after) fechaDesde = c.date.on_or_after;
+    else if (c && c.property === 'Fecha' && c.date?.on_or_before) fechaHasta = c.date.on_or_before;
+    else if (c && c.property === 'País' && c.select?.equals) pais = c.select.equals;
+    else return null; // condición no soportada por el espejo → no rutear
+  }
+  if (!fechaDesde && !fechaHasta) return null; // sin rango de fecha no es un KPI ruteable
+  return { fechaDesde, fechaHasta, pais };
+}
+
+// Como callDb pero con params de filtro (fecha/país) y SIN el guard "vacío→throw": un KPI filtrado por un
+// período puede volver legítimamente vacío (un mes sin gastos). Cae a Notion solo ante ERROR (red/500), no ante [].
+async function callDbFiltered(resource, { fechaDesde, fechaHasta, pais }) {
+  const qs = new URLSearchParams({ resource });
+  if (fechaDesde) qs.set('fecha_desde', String(fechaDesde).slice(0, 10));
+  if (fechaHasta) qs.set('fecha_hasta', String(fechaHasta).slice(0, 10));
+  if (pais) qs.set('pais', pais);
+  const response = await fetch('/api/db?' + qs.toString(), {
+    headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('fc_token') || '') },
+  });
+  if (response.status === 401) { _forceRelogin(); throw new Error('Sesión expirada'); }
+  if (!response.ok) throw new Error('DB error ' + response.status);
+  captureRenewedToken(response);
+  const j = await response.json();
+  if (!j || !Array.isArray(j.results)) throw new Error('DB respuesta inválida');
+  return j; // [] es legítimo para un filtro por período
+}
+
 export async function callNotion(endpoint, method = 'GET', body = null) {
   if (method === 'POST') {
     const resource = _migResource(endpoint);
+    // KPI de ingresos/gastos con filtro solo-fecha (+país) → espejo con params (Día 26, gated por kpifecha).
+    if ((resource === 'ingresos' || resource === 'gastos') && dbFlag('kpifecha') && body?.filter) {
+      const kpi = parseKpiFilter(body);
+      if (kpi) { try { return await callDbFiltered(resource, kpi); } catch (_) { /* fallback a Notion abajo */ } }
+    }
     if (resource && dbFlag(resource) && (resource === 'servicios' || !body || !body.filter)) {
       try { return await callDb(resource); } catch (e) { /* fallback a Notion abajo */ }
     }
