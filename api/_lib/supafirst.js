@@ -178,6 +178,24 @@ export function substituteRelationIds(properties, resolved) {
   return out;
 }
 
+// Separa un grupo de outbox que EMPIEZA con un create en sus partes (LOW-1). enqueue_create no lleva
+// on-conflict → si commitea pero el HTTP reporta fallo (blip de infra post-commit), el forceFallback
+// reintenta y deja una 2ª fila op:'create' con el MISMO uid. Como el uid es un UUID fresco por alta, dos
+// filas op:'create' con el mismo notion_id son SIEMPRE ese duplicado. Devuelve:
+//   - createRow: la fila-create canónica (la 1ª; el grupo llega ordenado por created_at),
+//   - dupCreates: las demás filas op:'create' (a colapsar → done; NO re-crear ni tratar como patch, que
+//     mandaría {parent,properties} a un pages PATCH → 400 → veneno + email espurios; ni dejarlas colgadas,
+//     que en una corrida futura re-crearía una PÁGINA nueva = duplicado real),
+//   - patchRows: los patches reales (op!=='create'),
+//   - group: canónica + patches, el set a procesar/poisonear/diferir (sin los duplicados ya colapsados).
+export function splitCreateGroup(rows) {
+  const createRow = rows[0];
+  const rest = rows.slice(1);
+  const dupCreates = rest.filter(r => r.op === 'create');
+  const patchRows = rest.filter(r => r.op !== 'create');
+  return { createRow, dupCreates, patchRows, group: [createRow, ...patchRows] };
+}
+
 // Alta LOCAL cuando Notion no pudo crear la página (fallback de creates). (1) escribe la fila del espejo
 // (read-your-writes del cliente; best-effort — si falla, el sync la reconcilia); (2) registra id_map+outbox
 // ATÓMICAMENTE vía la RPC enqueue_create. Devuelve { ok }: ok=false si el registro atómico falló → el proxy

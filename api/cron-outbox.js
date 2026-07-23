@@ -8,7 +8,7 @@
 import { sendEmail, emailLayout } from './_lib/email.js';
 import { getRecipients } from './_lib/recipients.js';
 import { mirrorPage, deleteRowByNotionId } from './_lib/mirror.js';
-import { idMapLookup, idMapResolve, collectRelationIds, substituteRelationIds } from './_lib/supafirst.js';
+import { idMapLookup, idMapResolve, collectRelationIds, substituteRelationIds, splitCreateGroup } from './_lib/supafirst.js';
 import { DBS } from './_lib/notion-map.js';
 
 const SUPABASE_URL = (process.env.SUPABASE_URL || '').replace(/\/$/, '');
@@ -261,22 +261,27 @@ async function applyPatchGroup(notionId, rows) {
 // Grupo que EMPIEZA con un create (op:'create'). Resuelve relaciones locales → dedup por App UID → crea en
 // Notion (o reusa si el dedup la encontró) → back-fill + resolve id_map + re-key → aplica los patches restantes.
 async function applyCreateGroup(rows) {
-  const createRow = rows[0];
-  const patchRows = rows.slice(1);
+  // LOW-1: colapsar filas op:'create' DUPLICADAS del mismo uid (doble enqueue por blip de infra) → done, sin
+  // re-crear ni tratarlas como patch. `group` = create canónica + patches reales (lo que se procesa/poisonea/
+  // difiere). Ver splitCreateGroup en supafirst.js.
+  const { createRow, dupCreates, patchRows, group } = splitCreateGroup(rows);
+  if (dupCreates.length) {
+    await sbPatch(`id=in.(${dupCreates.map(r => r.id).join(',')})`, { status: 'done', last_error: 'create duplicado colapsado (LOW-1)' });
+  }
   const uid = createRow.notion_id;
   const resource = createRow.resource;
   const payload = createRow.payload || {};
   const parent = payload.parent;
   const properties = payload.properties || {};
   if (!parent || !properties || !Object.keys(properties).length) {
-    await poisonGroup(rows, 'create sin parent/properties');
-    return { done: 0, errored: rows.length, retried: 0, deferred: 0 };
+    await poisonGroup(group, 'create sin parent/properties');
+    return { done: 0, errored: group.length, retried: 0, deferred: 0 };
   }
 
   // 1) Resolver relaciones locales
   const relIds = collectRelationIds(properties);
   const { ok: idmapOk, map: idmap } = await idMapLookup(relIds);
-  if (!idmapOk) { await deferGroup(rows, 30 * 1000, 'id_map no disponible — reintentar'); return { done: 0, errored: 0, retried: 0, deferred: rows.length }; }
+  if (!idmapOk) { await deferGroup(group, 30 * 1000, 'id_map no disponible — reintentar'); return { done: 0, errored: 0, retried: 0, deferred: group.length }; }
   const resolved = new Map();
   let pendingErrored = 0, pendingOpen = 0;
   for (const id of relIds) {
@@ -286,8 +291,8 @@ async function applyCreateGroup(rows) {
     else if (e.errored) pendingErrored++;
     else pendingOpen++;
   }
-  if (pendingErrored) { await poisonGroup(rows, 'relación local depende de un create envenenado'); return { done: 0, errored: rows.length, retried: 0, deferred: 0 }; }
-  if (pendingOpen) { await deferGroup(rows, 30 * 1000, 'esperando relación local sin propagar'); return { done: 0, errored: 0, retried: 0, deferred: rows.length }; }
+  if (pendingErrored) { await poisonGroup(group, 'relación local depende de un create envenenado'); return { done: 0, errored: group.length, retried: 0, deferred: 0 }; }
+  if (pendingOpen) { await deferGroup(group, 30 * 1000, 'esperando relación local sin propagar'); return { done: 0, errored: 0, retried: 0, deferred: group.length }; }
 
   // 2) Dedup por App UID — SOLO si un POST previo PUDO haber creado la página: el POST primario del proxy
   // timeouteó (reason='timeout'), o el worker ya intentó antes (attempts>0). Si el primario falló limpio
@@ -297,7 +302,7 @@ async function applyCreateGroup(rows) {
   let realId = null, createdPage = null;
   if (mustDedup) {
     const dd = await findByAppUid(resource, uid);
-    if (dd.unknown) { await deferGroup(rows, 60 * 1000, 'dedup App UID no concluyente'); return { done: 0, errored: 0, retried: 0, deferred: rows.length }; }
+    if (dd.unknown) { await deferGroup(group, 60 * 1000, 'dedup App UID no concluyente'); return { done: 0, errored: 0, retried: 0, deferred: group.length }; }
     if (dd.found) realId = dd.id;
   }
 
@@ -305,11 +310,11 @@ async function applyCreateGroup(rows) {
   if (!realId) {
     const cr = await notionCreate(parent, substituteRelationIds(properties, resolved));
     if (cr.ok && cr.id) { realId = cr.id; createdPage = cr.page; }
-    else if (cr.permanent) { await poisonGroup(rows, `notion create ${cr.status}: ${cr.detail || ''}`); return { done: 0, errored: rows.length, retried: 0, deferred: 0 }; }
+    else if (cr.permanent) { await poisonGroup(group, `notion create ${cr.status}: ${cr.detail || ''}`); return { done: 0, errored: group.length, retried: 0, deferred: 0 }; }
     else {
       // transitorio → reintentar el create; los patches se difieren con él (no gastan attempts)
       const att = (createRow.attempts || 0) + 1;
-      if (att >= MAX_ATTEMPTS_CREATE) { await poisonGroup(rows, `notion create ${cr.status} (agotado)`); return { done: 0, errored: rows.length, retried: 0, deferred: 0 }; }
+      if (att >= MAX_ATTEMPTS_CREATE) { await poisonGroup(group, `notion create ${cr.status} (agotado)`); return { done: 0, errored: group.length, retried: 0, deferred: 0 }; }
       const next = new Date(Date.now() + Math.min(30 * 1000 * Math.pow(2, att), 30 * 60 * 1000)).toISOString();
       await sbPatch(`id=eq.${createRow.id}`, { status: 'pending', attempts: att, next_attempt_at: next, last_error: `notion create ${cr.status}` });
       if (patchRows.length) await sbPatch(`id=in.(${patchRows.map(r => r.id).join(',')})`, { status: 'pending', next_attempt_at: next });

@@ -9,7 +9,7 @@ process.env.SUPABASE_SERVICE_KEY = 'sk';
 process.env.NOTION_TOKEN = 'ntn';
 process.env.CRON_SECRET = 'cs';
 
-const { collectRelationIds, substituteRelationIds } = await import('../api/_lib/supafirst.js');
+const { collectRelationIds, substituteRelationIds, splitCreateGroup } = await import('../api/_lib/supafirst.js');
 
 test('collectRelationIds: junta todos los ids de todas las relaciones', () => {
   const props = {
@@ -46,4 +46,50 @@ test('substituteRelationIds: reemplaza SOLO los ids resueltos, sin mutar el orig
 test('substituteRelationIds: mapa vacío → devuelve el mismo objeto (sin trabajo)', () => {
   const props = { Contacto: { relation: [{ id: 'x' }] } };
   assert.strictEqual(substituteRelationIds(props, new Map()), props);
+});
+
+// LOW-1: separación del grupo que empieza con un create.
+test('splitCreateGroup: grupo normal [create, patch, patch] → sin duplicados', () => {
+  const rows = [
+    { id: 1, op: 'create', notion_id: 'uid-1' },
+    { id: 2, op: 'patch', notion_id: 'uid-1' },
+    { id: 3, op: 'patch', notion_id: 'uid-1' },
+  ];
+  const { createRow, dupCreates, patchRows, group } = splitCreateGroup(rows);
+  assert.equal(createRow.id, 1);
+  assert.deepEqual(dupCreates, []);
+  assert.deepEqual(patchRows.map(r => r.id), [2, 3]);
+  assert.deepEqual(group.map(r => r.id), [1, 2, 3]); // sin duplicados, group === grupo entero
+});
+
+test('splitCreateGroup: doble create del mismo uid (LOW-1) → el 2º va a dupCreates, NO a patches', () => {
+  const rows = [
+    { id: 1, op: 'create', notion_id: 'uid-1' },
+    { id: 2, op: 'create', notion_id: 'uid-1' }, // duplicado por blip de infra
+  ];
+  const { createRow, dupCreates, patchRows, group } = splitCreateGroup(rows);
+  assert.equal(createRow.id, 1);
+  assert.deepEqual(dupCreates.map(r => r.id), [2]); // se colapsa a done, no se re-crea ni se patchea
+  assert.deepEqual(patchRows, []);
+  assert.deepEqual(group.map(r => r.id), [1]); // el duplicado NO entra al set de trabajo
+});
+
+test('splitCreateGroup: mixto [create, create-dup, patch] → separa las tres clases', () => {
+  const rows = [
+    { id: 1, op: 'create', notion_id: 'uid-1' },
+    { id: 2, op: 'create', notion_id: 'uid-1' },
+    { id: 3, op: 'patch', notion_id: 'uid-1' },
+  ];
+  const { dupCreates, patchRows, group } = splitCreateGroup(rows);
+  assert.deepEqual(dupCreates.map(r => r.id), [2]);
+  assert.deepEqual(patchRows.map(r => r.id), [3]);
+  assert.deepEqual(group.map(r => r.id), [1, 3]);
+});
+
+test('splitCreateGroup: create solo → group = [create]', () => {
+  const rows = [{ id: 1, op: 'create', notion_id: 'uid-1' }];
+  const { dupCreates, patchRows, group } = splitCreateGroup(rows);
+  assert.deepEqual(dupCreates, []);
+  assert.deepEqual(patchRows, []);
+  assert.deepEqual(group.map(r => r.id), [1]);
 });
