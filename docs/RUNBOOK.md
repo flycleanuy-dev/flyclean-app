@@ -134,7 +134,7 @@ casos por rol). Los casos autenticados necesitan la clave de firma real:
 
 ---
 
-## Supabase-first (Fase 3a — VIVO en `servicios` desde 2026-07-11)
+## Supabase-first (Fases 3a PATCH + 3b creates — flujo diario resiliente a Notion, 2026-07-22)
 
 **Qué es:** las EDICIONES (PATCH) de las tablas listadas en el env `SUPAFIRST_TABLES` (CSV) guardan PRIMERO en
 el espejo Supabase (RPC `merge_props`, merge atómico `raw||patch` normalizado) y la propagación a Notion es
@@ -143,9 +143,18 @@ retry con backoff, veneno a los 8 intentos → `status='error'`). Las lecturas `
 también se sirven del espejo. Los creates siguen Notion-first + mirror (hasta 3b). Notion queda DOWNSTREAM:
 puede caerse o romperse sin frenar a la app.
 
-**Estado actual (2026-07-15):** `SUPAFIRST_TABLES=servicios,clientes,propuestas,ingresos` (~70% de la
-migración; los 4 flips verificados en vivo) · `MIRROR_ON_WRITE=1` (espejo garantizado para el resto) ·
-`SUPAFIRST_VERBOSE=1` (log `[supafirst] ok` por guardado — quitar cuando termine la convivencia).
+**Estado actual (2026-07-22 — flujo diario resiliente COMPLETO):**
+- PATCH espejo-first: `SUPAFIRST_TABLES=servicios,clientes,propuestas,ingresos` (los 4 flips verificados en vivo).
+- Creates con fallback (Fase 3b): `CREATE_FALLBACK_TABLES=clientes,servicios,propuestas` — las ALTAS aguantan
+  una caída de Notion (ver «Notion caído — playbook» abajo).
+- Meta espejo-first (Etapa 0): `MIRROR_META_FIRST=1` — los PATCH de tablas flipeadas ya NO piden meta a Notion
+  para validar permisos (antes eso mataba las ediciones con Notion caído).
+- Crons y KPIs desde el espejo: `REPORT_FROM_MIRROR=1` + `PIPELINE_FROM_MIRROR=1` (emails y auto-move 45d/aviso
+  15d leen propuestas/servicios/ingresos del espejo) + `DB_FLAGS.kpifecha` (tableros CEO/Finanzas con filtro de
+  fecha leen el espejo).
+- `MIRROR_ON_WRITE=1` (espejo garantizado para lo no-flipeado) · `SUPAFIRST_VERBOSE=1` (log `[supafirst] ok`).
+- **GASTOS sigue create-only Notion-first** (canal del cowork; la app no edita gastos) — fuera del fallback v1.
+- Rollback de cualquier pieza = borrar SU env + redeploy (todo por-flag, reversible). NUNCA con outbox pendiente.
 
 **GASTOS no se flipea** (decisión 15/07, no es solo el contrato del cowork): la app **no edita gastos** —
 son create-only desde el front (cero PATCH) → flipearlo agrega superficie sin ningún beneficio.
@@ -168,13 +177,43 @@ vercel -Q ~/.config/vercel-flyclean logs <deploy-prod> --json | grep -E '\[supaf
 2) quitar la tabla del env `SUPAFIRST_TABLES` + redeploy → vuelve Notion-first+mirror y `cron-db-sync` re-incluye
 la tabla automáticamente (mismo env). NUNCA rollback con outbox pendiente (se perdería lo no propagado).
 
-**Antes de flipear la PRÓXIMA tabla (clientes → propuestas):**
-1. Aplicar el patrón F1 ("escribir solo lo que cambió") a `saveContactEdit`/`savePropEdit` — el echo-back de
-   fallbacks existe ahí y hoy es inocuo solo porque van Notion-first.
-2. Construir la reconciliación segura (M1): job que solo INSERTA filas faltantes / repara por
-   `last_edited_time`, jamás pisa `raw` fresco.
-3. Review adversarial del delta + verificación en vivo como se hizo con servicios.
-4. Gastos/Ingresos NO se flipean (canal del cowork en Notion) hasta renegociar CONTRATO-NOTION (3b).
+**Creates con fallback (Fase 3b) — cómo funciona:** un POST de alta va Notion-first (timeout ~6,5s, sin retry).
+Si Notion falla (red/timeout/5xx/429 — NO un 4xx de validación) → se inserta la fila en el espejo con un **UUID
+local** (misma forma que un id de Notion → pasa allow-list/regex/caché sin tocar el front) + `id_map(local→null)`
++ una fila `op:'create'` en `outbox_notion`, TODO atómico (RPC `enqueue_create`). El worker (`cron-outbox`, 1
+min) crea la página real en Notion, dedup por `App UID` (property rich_text en cada DB flipeada, inyectada por el
+proxy), back-fillea el `notion_id` real (uuid→real) y re-keyea el outbox pendiente. El cliente guarda el uuid para
+siempre → el proxy traduce uuid→real en TODOS los verbos.
+
+### Notion caído — playbook (qué sigue funcionando, qué revisar, cómo verificar la recuperación)
+
+**Con Notion caído, la app sigue operando:** el operario agenda/inicia/foto/cierra; el coord crea clientes,
+servicios (desde propuesta o sueltos) y edita; Ventas/CRM edita contactos y propuestas; Finanzas registra cobros;
+el CEO ve sus tableros; los emails/crons corren desde el espejo. Todo se guarda en Supabase y se propaga a Notion
+cuando vuelve. Lo ÚNICO que aún necesita Notion: borrar/archivar (trash) y GASTOS (create-only Notion-first).
+
+**Qué revisar durante/después de un apagón de Notion (SQL editor de Supabase):**
+```sql
+-- Altas locales aún sin propagar (deberían drenar a 0 cuando Notion vuelve):
+select resource, count(*) from id_map where notion_id is null group by resource;
+-- Outbox: creates/patches pendientes y ENVENENADOS (lo que hay que mirar):
+select op, status, count(*) from outbox_notion group by op, status;
+select notion_id, op, attempts, last_error from outbox_notion where status='error';
+```
+El worker manda **un email** cuando hay `status='error'` (veneno). `id_map` con `notion_id=null` = altas que viven
+solo en el espejo hasta que el worker cree la página en Notion.
+
+**Verificación de recuperación (cuando Notion vuelve, ≤5 min):** cada registro aparece UNA vez en Notion, las
+relaciones quedan bien, `id_map` sin pendientes (`notion_id is null` → 0), `outbox_notion` sin `pending`/`error`,
+y el sync siguiente NO duplica ni borra. Si algo quedó en `error`, ver `last_error` y (si es transitorio) volver
+a encolar el grupo bajando su `status` a `pending`; si es un 4xx real de Notion, corregir el dato y reintentar.
+
+**Simulacro (drill):** `NOTION_FAKE_DOWN=1` fuerza un 503 sintético — **guardado a NO-producción** (solo preview/
+local). Para correrlo hay que firmar un token de sesión con el `CRON_SECRET` real contra un preview. Por eso el
+drill NO se corre desde prod: la garantía de cada etapa fue el review adversarial + los tests in-process en CI.
+
+**Regla de oro:** NUNCA hacer rollback de un flag (SUPAFIRST/CREATE_FALLBACK) con outbox pendiente — se perdería
+lo no propagado. Primero drenar (`outbox_notion` sin `pending` de esa tabla), después sacar el env + redeploy.
 
 **Lección del incidente 2026-07-11 (formato write vs read):** el front escribe `title/rich_text` SIN
 `plain_text`; el espejo debe normalizar SIEMPRE (`normalizePatchForRaw` en `api/_lib/supafirst.js`). Si una
