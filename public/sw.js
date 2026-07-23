@@ -323,9 +323,11 @@
 // ingresos/gastos con filtro SOLO-fecha(+país) al espejo (/api/db con fecha_desde/hasta/pais) → el tablero del
 // CEO/Finanzas sobrevive una caída de Notion. El read del OPERARIO (filtro 'Cargado por') NUNCA se rutea
 // (parseKpiFilter lo descarta = seguridad). Fallback a Notion ante error.
-// v237 — Manual del Coordinador regenerado (propuesta: "PRECIO PROPUESTO" + campo "Notas internas (solo
-// el equipo)" vs "Observaciones para el cliente" que va al PDF). Bump para que el PDF nuevo no se sirva
-// stale desde la caché. (También: texto del bot de ayuda actualizado — api/_lib/ayuda/knowledge.js.)
+// v237 — LOTE 2026-07-23 (3 cosas): (1) Manual+bot del Coordinador (propuesta "PRECIO PROPUESTO" + campo
+// "Notas internas (solo el equipo)" vs "Observaciones para el cliente" que va al PDF). (2) CONTACTO DE ACCESO
+// del operario: campo nuevo en el servicio (nombre + teléfono de quién le abre) que el operario ve al llegar
+// con botones 📞 Llamar y 💬 WhatsApp de un toque. (3) FIX SCROLL 1-dedo (Redmi/MIUI): las 6 pantallas con
+// lista larga scrollean por dentro (height:100dvh + min-height:0) en vez de por el body.
 const CACHE = 'flyclean-v237';
 const SHELL = [
   '/',
