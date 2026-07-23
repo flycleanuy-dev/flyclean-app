@@ -717,6 +717,8 @@ export function renderStep() {
   const operarioManualNombre = props['Operario manual']?.select?.name || '';
   const ayudantesNombres = (props['Operarios participantes']?.multi_select || []).map(o => o.name).join(', ');
   const notasPre = props['Notas pre-servicio']?.rich_text?.[0]?.plain_text || '';
+  const contactoLugar = props['Contacto en el lugar']?.rich_text?.[0]?.plain_text || '';
+  const telLugar = props['Teléfono en el lugar']?.phone_number || '';
   const m2 = props['m² aproximados']?.number || '';
   const dateLocale = currentLang === 'pt-BR' ? 'pt-BR' : 'es-UY';
   const fechaFmt = fecha ? new Date(fecha + 'T00:00:00').toLocaleDateString(dateLocale, { weekday: 'long', day: 'numeric', month: 'long' }) : t('step.info.nofecha');
@@ -745,6 +747,7 @@ export function renderStep() {
         ${ayudantesNombres ? `<div class="info-row"><span class="info-label">${t('step.info.ayudantes')}</span><span class="info-val">${esc(ayudantesNombres)}</span></div>` : ''}
       </div>
       ${(notasPre && !tipoReg.includes('Relevamiento')) ? `<div class="hint hint-amber" style="white-space:pre-wrap;margin-top:10px"><strong>${t('step.info.notaspre')}</strong><br>${esc(notasPre)}</div>` : ''}
+      ${telLugar ? (() => { const wa = (M.telToWa && M.telToWa(telLugar, pais)) || ''; return `<div class="hint hint-blue" style="margin-top:10px"><strong>${t('step.info.contacto')}</strong>${contactoLugar ? '<br>' + esc(contactoLugar) : ''}<div style="display:flex;gap:8px;margin-top:8px"><a href="tel:${esc(telLugar)}" style="flex:1;text-align:center;text-decoration:none;padding:10px 8px;background:var(--green,#00C98D);color:#03231a;border-radius:10px;font-weight:700">📞 ${t('step.info.llamar')}</a>${wa ? `<a href="https://wa.me/${wa}" target="_blank" rel="noopener" style="flex:1;text-align:center;text-decoration:none;padding:10px 8px;background:#25D366;color:#fff;border-radius:10px;font-weight:700">💬 ${t('step.info.whatsapp')}</a>` : ''}</div></div>`; })() : ''}
       ${mapa ? `<a href="${mapa}" target="_blank" rel="noopener" class="btn-main btn-blue" style="display:block;text-align:center;text-decoration:none;margin:12px 0">🗺️ ${t('step.info.abrirmapa')}</a>` : ''}
       ${M.serviceState.horaInicio ? `<div class="ts-recorded"><div class="ts-label">${t('step.inicio.recorded')}</div><div class="ts-value">${M.serviceState.horaInicio}</div></div>` : ''}
       <div id="op-equipos-section" style="margin-top:14px"></div>

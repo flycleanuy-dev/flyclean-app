@@ -1733,13 +1733,17 @@ async function openEditSheet(pageId) {
     _sectoresClienteDirty: false, _sectoresClienteLoaded: false,
     tipoServicios: tipoServicioList(props), // multi: un servicio puede ser Fachada + Vidrios (+ Paneles)
     notasPreServicio: props['Notas pre-servicio']?.rich_text?.[0]?.plain_text || '',
-    observacionCliente: props['Observación cliente']?.rich_text?.[0]?.plain_text || '' };
+    observacionCliente: props['Observación cliente']?.rich_text?.[0]?.plain_text || '',
+    contactoLugar: props['Contacto en el lugar']?.rich_text?.[0]?.plain_text || '',
+    telLugar: props['Teléfono en el lugar']?.phone_number || '' };
   // Originales (fix F1): los campos de texto/sectores se ESCRIBEN solo si cambiaron — así una lectura rota
   // (raw sin plain_text) jamás puede pisar el dato bueno al guardar otra cosa (ej. asignar piloto).
   editState._nombreOrig = nombre;
   editState._lugarOrig = editState.lugar || '';
   editState._notasPreOrig = editState.notasPreServicio || '';
   editState._obsCliOrig = editState.observacionCliente || '';
+  editState._contactoLugarOrig = editState.contactoLugar || '';
+  editState._telLugarOrig = editState.telLugar || '';
   editState._sectoresOrigJson = JSON.stringify((editState.sectores || []).map(x => ({ id: x.id, nombre: String(x.nombre || '').trim(), estado: x.estado || 'pendiente' })).filter(x => x.nombre));
   // Fix F1 (extendido, auditoría 16/07): tipo de servicio y piloto/operarios TAMBIÉN se escriben solo si
   // cambiaron — antes se escribían siempre, así que abrir un servicio con el raw incompleto (lectura del
@@ -1772,6 +1776,8 @@ async function openEditSheet(pageId) {
   renderEditMonedaBtns();
   const npEl = document.getElementById('edit-notaspre'); if (npEl) npEl.value = editState.notasPreServicio || '';
   const ocEl = document.getElementById('edit-obscliente'); if (ocEl) ocEl.value = editState.observacionCliente || '';
+  const clEl = document.getElementById('edit-contactolugar'); if (clEl) clEl.value = editState.contactoLugar || '';
+  const tlEl = document.getElementById('edit-tellugar'); if (tlEl) tlEl.value = editState.telLugar || '';
   const nombreInput = document.getElementById('edit-nombre'); if (nombreInput) { nombreInput.value = nombre; nombreInput.placeholder = t('common.sinnombre'); }
   document.getElementById('edit-save-btn').textContent = t('btn.save.notion');
   document.getElementById('edit-save-btn').disabled = false;
@@ -2289,6 +2295,10 @@ async function saveServiceEdit() {
       props['Notas pre-servicio'] = editState.notasPreServicio ? { rich_text: [{ text: { content: editState.notasPreServicio } }] } : { rich_text: [] };
     if ((editState.observacionCliente || '') !== editState._obsCliOrig) // fix F1: solo si cambió
       props['Observación cliente'] = editState.observacionCliente ? { rich_text: [{ text: { content: editState.observacionCliente } }] } : { rich_text: [] };
+    if ((editState.contactoLugar || '') !== editState._contactoLugarOrig) // fix F1: solo si cambió
+      props['Contacto en el lugar'] = editState.contactoLugar ? { rich_text: [{ text: { content: editState.contactoLugar } }] } : { rich_text: [] };
+    if ((editState.telLugar || '') !== editState._telLugarOrig) // fix F1: solo si cambió
+      props['Teléfono en el lugar'] = editState.telLugar ? { phone_number: editState.telLugar } : { phone_number: null };
     // Cliente (R2): si se cambió desde el selector, resolver/crear y setear la relación Contacto del servicio.
     // Si resolveOrCreateClienteId devuelve null (nada ingresado), NO tocamos Contacto → no borra el existente.
     let _assignedCid = null;
@@ -3668,7 +3678,7 @@ initOperario({
   get CHECKLIST_PRE() { return CHECKLIST_PRE; },
   get CHECKLIST_POST() { return CHECKLIST_POST; },
   showScreen, showSaving, markUserActive, escAttrEdit, closeEditSheet, participaEn, getMyServices,
-  operariosDePais, resolveMapsUrl, resetServiceState, crearJornadaSiguiente, _ckAligned,
+  operariosDePais, resolveMapsUrl, resetServiceState, crearJornadaSiguiente, _ckAligned, telToWa,
 });
 initPropuestas({
   get _coordAllProps() { return _coordAllProps; }, set _coordAllProps(v) { _coordAllProps = v; },

@@ -307,6 +307,9 @@ export const TRANSLATIONS = {
     'step.info.fecha': '📅 Fecha',
     'step.info.lugar': '📍 Lugar',
     'step.info.abrirmapa': 'Abrir mapa',
+    'step.info.contacto': '📞 Contacto en el lugar',
+    'step.info.llamar': 'Llamar',
+    'step.info.whatsapp': 'WhatsApp',
     'step.iniciado.a.las': 'Iniciado a las',
     'btn.cancelar.inicio': 'Cancelar inicio',
     'cancelar.inicio.confirm':
@@ -756,6 +759,7 @@ export const TRANSLATIONS = {
     'sheet.edit.section.fecha': 'FECHA PROGRAMADA',
     'sheet.edit.section.hora': 'HORA DE INICIO PROGRAMADA',
     'sheet.edit.section.lugar': 'LUGAR',
+    'sheet.edit.section.contactolugar': '👤 CONTACTO EN EL LUGAR (quién te da acceso)',
     'sheet.edit.section.mapa': 'LINK GOOGLE MAPS',
     'sheet.edit.section.mapa.hint':
       "Pegá el link de Google Maps (botón 'Compartir' → 'Copiar link'). El operario abre Maps/Waze directo.",
@@ -1388,6 +1392,9 @@ export const TRANSLATIONS = {
     'step.info.fecha': '📅 Data',
     'step.info.lugar': '📍 Local',
     'step.info.abrirmapa': 'Abrir mapa',
+    'step.info.contacto': '📞 Contato no local',
+    'step.info.llamar': 'Ligar',
+    'step.info.whatsapp': 'WhatsApp',
     'step.iniciado.a.las': 'Iniciado às',
     'btn.cancelar.inicio': 'Cancelar início',
     'cancelar.inicio.confirm':
@@ -1837,6 +1844,7 @@ export const TRANSLATIONS = {
     'sheet.edit.section.fecha': 'DATA PROGRAMADA',
     'sheet.edit.section.hora': 'HORÁRIO DE INÍCIO PROGRAMADO',
     'sheet.edit.section.lugar': 'LOCAL',
+    'sheet.edit.section.contactolugar': '👤 CONTATO NO LOCAL (quem te dá acesso)',
     'sheet.edit.section.mapa': 'LINK GOOGLE MAPS',
     'sheet.edit.section.mapa.hint':
       "Cole o link do Google Maps (botão 'Compartilhar' → 'Copiar link'). O operário abre Maps/Waze direto.",

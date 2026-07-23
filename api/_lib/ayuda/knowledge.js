@@ -24,7 +24,7 @@ Ves SOLO los trabajos asignados a vos, agrupados por día (Hoy arriba). Pestaña
 Si te toca ir como PILOTO, operario manual o ayudante (pero el encargado es otro), aparece en el bloque azul arriba de "Mis servicios": cuándo, dónde (🗺️ mapa) y quién es el encargado. Es solo informativo — el checklist lo hace el encargado.
 
 ## El flujo de una orden de trabajo, paso a paso
-1. ▶ INICIAR: ves los datos, las notas del coordinador, el botón 🗺️ Abrir en Maps y los equipos asignados. Tocás "▶ INICIAR SERVICIO" cuando llegás (registra la hora; te pide permiso de ubicación, opcional).
+1. ▶ INICIAR: ves los datos, las notas del coordinador, el 📞 Contacto en el lugar (quién te da acceso: nombre + botones "📞 Llamar" y "💬 WhatsApp" de un toque, si el coordinador lo cargó), el botón 🗺️ Abrir en Maps y los equipos asignados. Tocás "▶ INICIAR SERVICIO" cuando llegás (registra la hora; te pide permiso de ubicación, opcional).
 2. ✅ Checklist PRE-vuelo: 16 puntos obligatorios (baterías, satélites, etc.). "Continuar →".
 3. 📸 Fotos ANTES del trabajo (mínimo 2).
 4. 🕐 Inicio Efectivo: marcás la 🌤️ CONDICIÓN CLIMÁTICA y el 🛠️ MÉTODO DE TRABAJO — 🚁 Dron y/o 💪 Manual (podés marcar los dos); si es Manual, elegís las herramientas (Lanzas / Manguera / Hidrolavadora / Otro). Tocás "🕐 REGISTRAR INICIO EFECTIVO".
@@ -83,7 +83,7 @@ Dentro de la ficha del cliente, sección 📜 HISTORIAL DEL CLIENTE: propuestas,
 
 ## SERVICIOS — crear y editar
 - Crear suelto: 📋 Servicios → "＋ Nuevo servicio" → TIPO (🏢 Servicio / 🔍 Relevamiento / 🧪 Prueba) + cliente (o ➕ Nuevo cliente ahí mismo) + NOMBRE DEL TRABAJO + TIPO DE SERVICIO + FECHA → "✨ Crear" (te abre la ficha para asignar gente).
-- Editar: tocá la card del servicio → la ficha tiene: NOMBRE · ESTADO (📋 Pendiente / 🔄 Asignado / ✈️ En curso / ✅ Completado / ❌ Cancelado) · ENCARGADO DEL SERVICIO (quien hace el checklist y lo ve en su app) · PILOTO (del dron) · OPERARIO MANUAL · AYUDANTES (cada uno suma 1 jornal) · 🏢 SECTORES · FECHA + HORA DE INICIO PROGRAMADA + LUGAR · TIPO DE SERVICIO · bloque CLIENTE (tocás el nombre → su ficha 360; "✏️ Cambiar cliente"; "📄 Ver propuesta"; 📍 Ubicación) · 📝 NOTAS PARA EL OPERARIO + 🗒️ OBSERVACIÓN PARA EL CLIENTE (va en el PDF) · 🚁 EQUIPOS ASIGNADOS (+ Agregar equipo) · 💸 GASTOS VINCULADOS (+ Agregar gasto). Al pie: 🗑️ Eliminar · "📄 Generar reporte" (si está Completado) · "💾 Guardar".
+- Editar: tocá la card del servicio → la ficha tiene: NOMBRE · ESTADO (📋 Pendiente / 🔄 Asignado / ✈️ En curso / ✅ Completado / ❌ Cancelado) · ENCARGADO DEL SERVICIO (quien hace el checklist y lo ve en su app) · PILOTO (del dron) · OPERARIO MANUAL · AYUDANTES (cada uno suma 1 jornal) · 🏢 SECTORES · FECHA + HORA DE INICIO PROGRAMADA + LUGAR · 👤 CONTACTO EN EL LUGAR (nombre + teléfono de quien le da acceso al operario; el operario lo ve con botones para Llamar y WhatsApp) · TIPO DE SERVICIO · bloque CLIENTE (tocás el nombre → su ficha 360; "✏️ Cambiar cliente"; "📄 Ver propuesta"; 📍 Ubicación) · 📝 NOTAS PARA EL OPERARIO + 🗒️ OBSERVACIÓN PARA EL CLIENTE (va en el PDF) · 🚁 EQUIPOS ASIGNADOS (+ Agregar equipo) · 💸 GASTOS VINCULADOS (+ Agregar gasto). Al pie: 🗑️ Eliminar · "📄 Generar reporte" (si está Completado) · "💾 Guardar".
 
 ## PDF de devolución al cliente
 En un servicio ✅ Completado (o relevamiento/prueba): abrí su ficha → "📄 Generar reporte" → escribí la observación para el cliente (y el monto si es prueba/relevamiento) → "📄 Generar PDF". Sale con fotos antes/después y marca FlyClean.

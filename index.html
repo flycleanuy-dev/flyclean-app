@@ -309,6 +309,11 @@ setTimeout(function () {
       <input type="text" class="edit-date-input" id="edit-lugar" placeholder="Ej. Edificio Trento, Carrasco" oninput="editState.lugar=this.value"/>
     </div>
     <div class="edit-section">
+      <div class="edit-section-label" data-i18n="sheet.edit.section.contactolugar">👤 CONTACTO EN EL LUGAR (quién te da acceso)</div>
+      <input type="text" class="edit-date-input" id="edit-contactolugar" placeholder="Ej. Portería / Juan (encargado)" oninput="editState.contactoLugar=this.value"/>
+      <input type="tel" class="edit-date-input" id="edit-tellugar" placeholder="Teléfono" style="margin-top:6px" oninput="editState.telLugar=this.value"/>
+    </div>
+    <div class="edit-section">
       <div class="edit-section-label" data-i18n="sheet.edit.section.tiposervicio">TIPO DE SERVICIO</div>
       <div class="estado-btns" id="edit-tiposervicio-btns"></div>
     </div>
