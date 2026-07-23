@@ -328,7 +328,9 @@
 // del operario: campo nuevo en el servicio (nombre + teléfono de quién le abre) que el operario ve al llegar
 // con botones 📞 Llamar y 💬 WhatsApp de un toque. (3) FIX SCROLL 1-dedo (Redmi/MIUI): las 6 pantallas con
 // lista larga scrollean por dentro (height:100dvh + min-height:0) en vez de por el body.
-const CACHE = 'flyclean-v237';
+// v238 — Manuales Coordinador + Operario regenerados contra la app en vivo (suman el contacto de acceso).
+// Bump para que los PDF nuevos no se sirvan stale desde la caché.
+const CACHE = 'flyclean-v238';
 const SHELL = [
   '/',
   '/index.html',

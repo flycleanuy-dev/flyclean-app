@@ -85,6 +85,8 @@ const SERVICIOS = [
       'Notas pre-servicio': txt(
         'Coordinar con el portero (interno 102). Cortar el agua de la terraza antes de volar.'
       ),
+      'Contacto en el lugar': txt('Portería — Rosana'),
+      'Teléfono en el lugar': { phone_number: '099 123 456' },
       'Estado sectores': txt(SECTORES_JSON),
       'Método de trabajo': sel('🚁 Dron'),
       '% de avance': num(33),
@@ -862,12 +864,19 @@ async function buildOperario(browser) {
   sections.push({
     title: 'La ficha del servicio — todo antes de empezar',
     intro:
-      'Al abrir un servicio ves la información que te dejó el coordinador: fecha, hora, lugar (con 🗺️ mapa), el cliente y sus notas. Desde acá tocás ▶ INICIAR cuando llegás.',
+      'Al abrir un servicio ves la información que te dejó el coordinador: fecha, hora, lugar (con 🗺️ mapa), el cliente, sus notas y —si el coordinador lo cargó— el 📞 contacto de quién te da acceso. Desde acá tocás ▶ INICIAR cuando llegás.',
     steps: [
       {
         title: 'Leé las notas del coordinador ANTES de iniciar',
         description:
           'Si el trabajo tiene sectores (ej. Fachada norte / este / vidrios lobby) los ves acá con su estado. Al iniciar, la app te puede pedir tu ubicación (es solo el punto de inicio del trabajo).',
+        image: imgFicha,
+        wide: true,
+      },
+      {
+        title: '📞 Contacto en el lugar — a quién llamar para que te abran',
+        description:
+          'Si el coordinador lo cargó, ves el nombre de quién te da acceso al edificio + botones "📞 Llamar" y "💬 WhatsApp" de un toque. No hace falta buscar el teléfono en ningún lado.',
         image: imgFicha,
         wide: true,
       },
@@ -1123,6 +1132,12 @@ async function buildCoordinador(browser) {
         title: '✏️ Editar: roles, sectores y notas',
         description:
           'PILOTO (dron) u Operario manual + AYUDANTES: cada persona asignada suma 1 jornal ese día. Los sectores le ordenan el trabajo al operario y calculan el % de avance.',
+        image: imgEditar,
+      },
+      {
+        title: '👤 Contacto en el lugar (quién le abre al operario)',
+        description:
+          'Debajo de LUGAR cargás el nombre + teléfono de quién le da acceso al operario en la obra (portería, un encargado). El operario lo ve al llegar con botones para Llamar o WhatsApp — así no depende de que esté escrito en las notas.',
         image: imgEditar,
       },
     ],
