@@ -323,11 +323,10 @@
 // ingresos/gastos con filtro SOLO-fecha(+país) al espejo (/api/db con fecha_desde/hasta/pais) → el tablero del
 // CEO/Finanzas sobrevive una caída de Notion. El read del OPERARIO (filtro 'Cargado por') NUNCA se rutea
 // (parseKpiFilter lo descarta = seguridad). Fallback a Notion ante error.
-// v235 — KPIs fecha→espejo ACTIVADO (kpifecha:true) + fixes del review: (H1) /api/db normaliza el país del
-// cliente ('🇵🇦 PA'→'Panamá') para matchear la columna bare del espejo → las vistas por país no dan 0. (H2)
-// /api/db filtra gastos por 'cargado_por' para operarios (cierra la lectura directa de todos los gastos del
-// país). (L2) la lista de gastos se re-ordena por fecha en cliente (el espejo ignora sorts).
-const CACHE = 'flyclean-v235';
+// v236 — al setear/crear PIN de un usuario, el cartel de éxito recuerda el paso del país
+// (salí a "Cambiar país" → elegí <país> → recién ahí nombre + PIN). Evita la confusión de intentar
+// entrar como un usuario de otro país estando parado en Uruguay. Solo texto de alert; sin cambio de lógica.
+const CACHE = 'flyclean-v236';
 const SHELL = [
   '/',
   '/index.html',

@@ -1948,8 +1948,11 @@ export async function adminSetPin(targetId) {
       body: JSON.stringify({ targetId, newPin: newPin.trim() })
     });
     const j = await r.json().catch(() => ({}));
-    if (j.ok) alert('✅ PIN actualizado para ' + nombre + '.');
-    else alert('❌ No se pudo: ' + (j.error || ('error ' + r.status)));
+    if (j.ok) {
+      const pais = M.USERS.find(u => u.id === targetId)?.country || '';
+      alert('✅ PIN actualizado para ' + nombre + '.' +
+        (pais ? '\n\nPara probarlo: salí a "Cambiar país", elegí ' + pais + ' y recién ahí escribí el nombre y el PIN.' : ''));
+    } else alert('❌ No se pudo: ' + (j.error || ('error ' + r.status)));
   } catch (e) { alert('❌ Error: ' + e.message); }
 }
 
@@ -1995,7 +1998,7 @@ export async function adminNewUser() {
       });
       const jp = await rp.json().catch(() => ({}));
       if (!jp.ok) alert('⚠️ Usuario creado, pero el PIN falló (' + (jp.error || rp.status) + '). Ponelo con el botón 🔑.');
-      else alert('✅ Listo. ' + nombre + ' ya puede entrar (aparece en el login con el modo base activo).');
+      else alert('✅ Listo. ' + nombre + ' ya puede entrar.\n\nPara probarlo: salí a "Cambiar país", elegí ' + pais + ' y recién ahí escribí el nombre y el PIN.');
     } else {
       alert('⚠️ Usuario creado SIN PIN. No puede entrar hasta que le pongas uno con el botón 🔑.');
     }
