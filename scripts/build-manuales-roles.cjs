@@ -263,6 +263,7 @@ const PROPUESTAS = [
       'Fecha de envío': date(D(-25)),
       Contacto: rel('cli-1'),
       Observaciones: txt('Incluye fachada norte y este. Acceso por azotea.'),
+      'Notas internas': txt('El admin pide factura. Coordinar acceso directo con él, no con portería.'),
     },
   },
   {
@@ -1131,6 +1132,7 @@ async function buildCoordinador(browser) {
   await tab('propuestas');
   const imgProp = await snap(page, { wait: 800 });
   let imgPropSheet = null;
+  let imgPropNotas = null;
   try {
     await page.evaluate(() => {
       try {
@@ -1138,6 +1140,15 @@ async function buildCoordinador(browser) {
       } catch (_) {}
     });
     imgPropSheet = await snap(page, { wait: 1000, fullPage: false });
+    // Segunda toma scrolleada a PRECIO PROPUESTO → muestra el precio + los dos campos de notas
+    // (Observaciones para el cliente / Notas internas) que son lo nuevo a documentar.
+    await page.evaluate(() => {
+      try {
+        document.getElementById('prop-importe-input')?.scrollIntoView({ block: 'start' });
+      } catch (_) {}
+    });
+    await page.waitForTimeout(400);
+    imgPropNotas = await snap(page, { wait: 400, fullPage: false });
     await page.evaluate(() => {
       try {
         closePropSheet();
@@ -1161,9 +1172,15 @@ async function buildCoordinador(browser) {
         image: imgProp,
       },
       {
+        title: 'Precio y notas de la propuesta',
+        description:
+          'En la ficha editás PRECIO PROPUESTO (lo que le cotizás al cliente; cuando se acepta y creás el servicio, ahí pasa a "Precio acordado"). Hay DOS campos de notas distintos: "Observaciones para el cliente" va DENTRO del PDF que recibe el cliente; "📝 Notas internas (solo el equipo)" son privadas — el cliente nunca las ve.',
+        image: imgPropNotas || imgPropSheet,
+      },
+      {
         title: '📄 Generar propuesta PDF',
         description:
-          'Dentro de la propuesta: botón "📄 Generar propuesta PDF" → PDF con marca FlyClean (cliente, inversión, condiciones) listo para mandar. Y el 🧮 junto al importe te sugiere el precio por m².',
+          'Dentro de la propuesta: botón "📄 Generar propuesta PDF" → PDF con marca FlyClean (cliente, inversión, condiciones) listo para mandar. Y el 🧮 junto a PRECIO PROPUESTO te sugiere el precio por m².',
         image: imgPropSheet,
       },
     ],

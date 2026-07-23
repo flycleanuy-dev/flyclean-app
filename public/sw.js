@@ -323,10 +323,10 @@
 // ingresos/gastos con filtro SOLO-fecha(+país) al espejo (/api/db con fecha_desde/hasta/pais) → el tablero del
 // CEO/Finanzas sobrevive una caída de Notion. El read del OPERARIO (filtro 'Cargado por') NUNCA se rutea
 // (parseKpiFilter lo descarta = seguridad). Fallback a Notion ante error.
-// v236 — al setear/crear PIN de un usuario, el cartel de éxito recuerda el paso del país
-// (salí a "Cambiar país" → elegí <país> → recién ahí nombre + PIN). Evita la confusión de intentar
-// entrar como un usuario de otro país estando parado en Uruguay. Solo texto de alert; sin cambio de lógica.
-const CACHE = 'flyclean-v236';
+// v237 — Manual del Coordinador regenerado (propuesta: "PRECIO PROPUESTO" + campo "Notas internas (solo
+// el equipo)" vs "Observaciones para el cliente" que va al PDF). Bump para que el PDF nuevo no se sirva
+// stale desde la caché. (También: texto del bot de ayuda actualizado — api/_lib/ayuda/knowledge.js.)
+const CACHE = 'flyclean-v237';
 const SHELL = [
   '/',
   '/index.html',

@@ -77,7 +77,7 @@ Dentro de la ficha del cliente, sección 📜 HISTORIAL DEL CLIENTE: propuestas,
 ## PROPUESTAS — seguimiento y estados
 - Pestaña 💼 Propuestas. Arriba, el bloque "📞 A contactar hoy" te marca a quién seguir; cada fila tiene botón "📞 Contactado".
 - "+ Nueva Propuesta" para crear una.
-- Tocá una propuesta → su ficha: botones "💬 Abrir WhatsApp" y "📞 Recontacté hoy"; el ESTADO PIPELINE se cambia tocando el chip del estado (🆕 Nuevo lead → 📞 Contactado → 🔍 Relevamiento → ⏳ En preparación → ✅ Aprobada internamente → 📤 Enviada al cliente → 🤝 Negociando → ✅ Aceptada / ❌ Rechazada / 😶 Sin respuesta / 🔄 Reactivo). También editás IMPORTE ESTIMADO (con calculadora 🧮), TIPO (📌 Puntual / 🔄 Recurrente), fechas y OBSERVACIONES. "💾 Guardar".
+- Tocá una propuesta → su ficha: botones "💬 Abrir WhatsApp" y "📞 Recontacté hoy"; el ESTADO PIPELINE se cambia tocando el chip del estado (🆕 Nuevo lead → 📞 Contactado → 🔍 Relevamiento → ⏳ En preparación → ✅ Aprobada internamente → 📤 Enviada al cliente → 🤝 Negociando → ✅ Aceptada / ❌ Rechazada / 😶 Sin respuesta / 🔄 Reactivo). También editás PRECIO PROPUESTO (el precio que le cotizás al cliente; con calculadora 🧮 de precio por m²), TIPO (📌 Puntual / 🔄 Recurrente), fechas y DOS campos de notas distintos: OBSERVACIONES PARA EL CLIENTE (van dentro del PDF que recibe el cliente) y 📝 NOTAS INTERNAS (solo el equipo — el cliente NUNCA las ve). "💾 Guardar". Cuando la propuesta se acepta y creás el servicio, ahí el precio pasa a llamarse "Precio acordado".
 - Botones de conversión según el estado: "🔍 Pedir relevamiento previo" · "🧪 Hacer prueba demo" · y cuando está ✅ Aceptada: "→ Crear servicio desde esta propuesta".
 - "📄 Generar propuesta PDF" (si tiene importe) para mandársela al cliente.
 
