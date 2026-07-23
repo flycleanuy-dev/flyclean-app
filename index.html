@@ -179,6 +179,9 @@ setTimeout(function () {
     <div class="tab-btn" id="tab-pruebas" data-i18n="services.tab.pruebas" onclick="setTab('pruebas')">🧪 Pruebas</div>
     <div class="tab-btn" id="tab-relevamientos" data-i18n="services.tab.relevamientos" onclick="setTab('relevamientos')">🔍 Relevamientos</div>
   </div>
+  <!-- services-scroll: contenedor de scroll interno (fix scroll 1-dedo MIUI). El header + tab-bar quedan
+       fijos arriba; todo lo de abajo scrollea DENTRO de este div (no en el body). -->
+  <div class="services-scroll">
   <div id="alerts-banner-services"></div>
   <!-- Agenda del piloto (Fase 2A): servicios donde participa SIN ser encargado (piloto/manual/ayudante).
        Read-only estricto: las cards no abren la ficha (el flujo de ejecución es solo del encargado). -->
@@ -195,6 +198,7 @@ setTimeout(function () {
       <div class="spinner" style="margin:0 auto"></div>
     </div>
   </div>
+  </div><!-- /services-scroll -->
 </div>
 
 <!-- SERVICE DETAIL -->

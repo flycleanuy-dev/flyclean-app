@@ -82,6 +82,18 @@ body::before {
   .screen { display: none; flex-direction: column; min-height: 100vh; }
   .screen.active { display: flex; position: relative; z-index: 1; }
 
+  /* Scroll de 1 dedo (fix Redmi/MIUI 2026-07-23): las pantallas con lista larga se ACOTAN al alto visible
+     (100dvh) y su scroll vive DENTRO del contenedor scrolleable (flex:1 + min-height:0 + overflow), en vez de
+     delegarse al body — que en MIUI exigía dos dedos para deslizar. NO se tocan las pantallas cortas centradas
+     (login/PIN/país/done): esas dependen de crecer/scrollear con el body y se romperían con height fija. */
+  #screen-services, #screen-coordinator, #screen-ceo, #screen-finanzas, #screen-gastos, #screen-detail {
+    min-height: 0; height: 100vh; height: 100dvh;
+  }
+  .coord-content, .ceo-content, .steps-container, .services-scroll { min-height: 0; }
+  .services-scroll { flex: 1; overflow-y: auto; }
+  /* Los encabezados/tabs fijos NO se comprimen cuando el scroller pide espacio (pantallas muy bajas). */
+  .header, .tab-bar, .coord-header, .coord-tab-bar, .coord-toolbar, .ceo-header, .ceo-country-tabs, .ceo-tab-bar, .historial-filters, .detail-header, .progress-bar, .step-nav { flex-shrink: 0; }
+
   /* ── LANG TOGGLE (Brasil only) ── */
   #lang-toggle { position: fixed; top: 10px; right: 12px; z-index: 50; align-items: center; gap: 2px; background: var(--card); border: 1px solid var(--border2); border-radius: 999px; padding: 3px 6px; font-family: 'Exo 2', sans-serif; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
   #lang-toggle button { background: none; border: none; padding: 4px 9px; border-radius: 999px; font-size: 11px; font-weight: 700; color: var(--text3); cursor: pointer; font-family: inherit; letter-spacing: 0.4px; }
