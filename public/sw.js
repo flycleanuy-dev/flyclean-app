@@ -330,7 +330,11 @@
 // lista larga scrollean por dentro (height:100dvh + min-height:0) en vez de por el body.
 // v238 — Manuales Coordinador + Operario regenerados contra la app en vivo (suman el contacto de acceso).
 // Bump para que los PDF nuevos no se sirvan stale desde la caché.
-const CACHE = 'flyclean-v238';
+// v239 — Fix reporte #6 (IndexedDB): 4 funciones de la cola offline (enqueueWrite/getQueueItems/
+// removeQueueItem/updateQueueItem) hacían `return new Promise` sin `await` → un error de timing de IndexedDB
+// escapaba del try/catch como rechazo no manejado (auto-reportado). Ahora `return await` → cae al catch y
+// degrada con gracia (null/[]/false + reintento), igual que sus gemelas ya robustas.
+const CACHE = 'flyclean-v239';
 const SHELL = [
   '/',
   '/index.html',

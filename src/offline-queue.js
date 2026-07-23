@@ -127,7 +127,7 @@ async function updatePhotoQueueItem(id, patch) {
 async function enqueueWrite(pageId, properties) {
   try {
     const db = await openOfflineDB();
-    return new Promise((resolve, reject) => {
+    return await new Promise((resolve, reject) => {
       const tx = db.transaction(OFFLINE_STORE, 'readwrite');
       const store = tx.objectStore(OFFLINE_STORE);
       const item = { pageId, properties, queuedAt: Date.now(), retries: 0 };
@@ -200,7 +200,7 @@ async function jornadaYaExiste(dedup) {
 async function getQueueItems() {
   try {
     const db = await openOfflineDB();
-    return new Promise((resolve, reject) => {
+    return await new Promise((resolve, reject) => {
       const tx = db.transaction(OFFLINE_STORE, 'readonly');
       const store = tx.objectStore(OFFLINE_STORE);
       const req = store.getAll();
@@ -213,7 +213,7 @@ async function getQueueItems() {
 async function removeQueueItem(id) {
   try {
     const db = await openOfflineDB();
-    return new Promise((resolve, reject) => {
+    return await new Promise((resolve, reject) => {
       const tx = db.transaction(OFFLINE_STORE, 'readwrite');
       const store = tx.objectStore(OFFLINE_STORE);
       const req = store.delete(id);
@@ -226,7 +226,7 @@ async function removeQueueItem(id) {
 async function updateQueueItem(id, patch) {
   try {
     const db = await openOfflineDB();
-    return new Promise((resolve, reject) => {
+    return await new Promise((resolve, reject) => {
       const tx = db.transaction(OFFLINE_STORE, 'readwrite');
       const store = tx.objectStore(OFFLINE_STORE);
       const getReq = store.get(id);
