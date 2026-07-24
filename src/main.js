@@ -1769,7 +1769,7 @@ async function openEditSheet(pageId) {
   document.getElementById('edit-fecha').value = fecha;
   document.getElementById('edit-hora').value = hora;
   document.getElementById('edit-lugar').value = lugar;
-  const TIPOS_SVC_EDIT = ['🏢 Fachada', '🪟 Vidrios', '☀️ Paneles solares'];
+  const TIPOS_SVC_EDIT = ['🏢 Fachada', '🪟 Vidrios', '☀️ Paneles solares', '🏠 Techos/Tejas', '🌴 Ducha a palmeras'];
   const tsEl = document.getElementById('edit-tiposervicio-btns');
   if (tsEl) tsEl.innerHTML = TIPOS_SVC_EDIT.map(o => `<button class="estado-btn ${editState.tipoServicios.includes(o) ? 'active' : ''}" onclick="selectEditTipoServicio('${o.replace(/'/g,"\\'")}')">${o}</button>`).join('');
   const precioEl = document.getElementById('edit-precio'); if (precioEl) precioEl.value = editState.precioAcordado || '';
@@ -2904,7 +2904,7 @@ function openNewServiceSheet(prefillContactId = null) {
     { label: '🔍 Relevamiento', val: '🔍 Relevamiento' },
     { label: '🧪 Prueba', val: '🧪 Prueba' },
   ];
-  const TIPOS_SVC = ['🏢 Fachada', '🪟 Vidrios', '☀️ Paneles solares'];
+  const TIPOS_SVC = ['🏢 Fachada', '🪟 Vidrios', '☀️ Paneles solares', '🏠 Techos/Tejas', '🌴 Ducha a palmeras'];
   const tipoRegBtns = TIPOS_REG.map(o => `<button class="estado-btn ${newSvcState.tipoRegistro === o.val ? 'active' : ''}" onclick="newSvcSetTipoReg(this,'${o.val.replace(/'/g,"\\'")}')">${o.label}</button>`).join('');
   const tipoSvcBtns = TIPOS_SVC.map(o => `<button class="estado-btn ${newSvcState.tipoServicios.includes(o) ? 'active' : ''}" onclick="newSvcSetTipoSvc(this,'${o.replace(/'/g,"\\'")}')">${o}</button>`).join('');
   const monedaBtns = ['🇺🇾 UY$', '🇺🇸 USD'].map(m => `<button class="estado-btn ${newSvcState.moneda === m ? 'active' : ''}" onclick="newSvcSetMoneda(this,'${m}')">${m}</button>`).join('');

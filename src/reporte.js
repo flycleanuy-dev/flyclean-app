@@ -135,8 +135,8 @@ export async function buildReportDoc(svc, extra = {}) {
   const fileEntries = (k) => (p[k]?.files || []).map(f => ({ url: f.external?.url || f.file?.url, name: f.name || '' })).filter(e => e.url);
   const jsonProp = (k) => { try { const v = JSON.parse(rtxt(k) || '[]'); return Array.isArray(v) ? v : []; } catch (_) { return []; } };
   const TIPO_DESC = ptLang
-    ? { 'Vidrios': 'Limpeza de vidros', 'Fachada': 'Limpeza de fachada', 'Paneles solares': 'Limpeza de painéis solares' }
-    : { 'Vidrios': 'Limpieza de vidrios', 'Fachada': 'Limpieza de fachada', 'Paneles solares': 'Limpieza de paneles solares' };
+    ? { 'Vidrios': 'Limpeza de vidros', 'Fachada': 'Limpeza de fachada', 'Paneles solares': 'Limpeza de painéis solares', 'Techos/Tejas': 'Limpeza de telhados', 'Ducha a palmeras': 'Ducha em palmeiras' }
+    : { 'Vidrios': 'Limpieza de vidrios', 'Fachada': 'Limpieza de fachada', 'Paneles solares': 'Limpieza de paneles solares', 'Techos/Tejas': 'Limpieza de techos', 'Ducha a palmeras': 'Ducha de palmeras' };
 
   // multi_select: 1..3 tipos → "Limpieza de fachada + Limpieza de vidrios" (cleanLabel saca el emoji
   // para matchear las claves de TIPO_DESC y porque el PDF no dibuja emojis).

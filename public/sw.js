@@ -334,7 +334,10 @@
 // removeQueueItem/updateQueueItem) hacían `return new Promise` sin `await` → un error de timing de IndexedDB
 // escapaba del try/catch como rechazo no manejado (auto-reportado). Ahora `return await` → cae al catch y
 // degrada con gracia (null/[]/false + reintento), igual que sus gemelas ya robustas.
-const CACHE = 'flyclean-v239';
+// v240 — 2 tipos de servicio nuevos en el selector (editar + nuevo servicio): 🏠 Techos/Tejas y
+// 🌴 Ducha a palmeras (+ descripción en el PDF del reporte). Opciones agregadas en Notion (aditivo, ids
+// existentes preservados; el espejo respaldó). Los 3 de siempre (Fachada/Vidrios/Paneles) quedan igual.
+const CACHE = 'flyclean-v240';
 const SHELL = [
   '/',
   '/index.html',
