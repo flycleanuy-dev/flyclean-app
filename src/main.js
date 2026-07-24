@@ -906,7 +906,7 @@ let cobroState = null;
 // Si en el futuro se refactoriza, mantener nombres canónicos.
 const GASTOS_DS_ID = '58fd9475-9baf-4d0e-9128-486185bf7ed8';
 const INGRESOS_DS_ID = '6bb3da36-1865-4668-9d43-cc6bb9966784'; // data source de Ingresos (para crear cobros a mano)
-const INGRESO_TIPOS = ['🏢 Fachada', '🪟 Vidrio', '📋 Relevamiento', '🔧 Otro'];
+const INGRESO_TIPOS = ['🏢 Fachada', '🪟 Vidrio', '🏠 Techos/Tejas', '🌴 Ducha a palmeras', '📋 Relevamiento', '🔧 Otro'];
 const SOLICITUDES_DB_ID = NOTION_DBS.solicitudes;
 const SOLICITUDES_DS_ID = '0d49d612-1fea-40d7-8b94-d2b0dcae1b12';
 const DOCUMENTOS_DB_ID = NOTION_DBS.documentos;

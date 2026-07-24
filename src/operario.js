@@ -1038,7 +1038,7 @@ export function renderStep() {
   else if (step.id === 'ficha_relev') {
     const r = M.serviceState.relevamiento;
     const DIFICULTADES = ['🚧 Acceso restringido','💧 Sin agua disponible','⚡ Sin electricidad','⚠️ Riesgo eléctrico','🌬️ Vientos frecuentes','🏗️ Andamios necesarios','🪜 Altura significativa (>5 pisos)','🔒 Requiere coordinación especial'];
-    const SUGERIDOS = ['🏢 Fachada','🪟 Vidrios','☀️ Paneles solares','🔄 Combinado'];
+    const SUGERIDOS = ['🏢 Fachada','🪟 Vidrios','☀️ Paneles solares','🏠 Techos/Tejas','🌴 Ducha a palmeras','🔄 Combinado'];
     const fotosOk = (M.serviceState.photos?.relevamiento || []).filter(fotoTomada).length;
     content.innerHTML = `
       <div class="step-title">🔍 ${t('relev.ficha.title')}</div>

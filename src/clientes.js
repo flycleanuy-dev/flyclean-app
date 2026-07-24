@@ -418,7 +418,7 @@ function buildContactSheetBody(mode) {
   const TIPOS = ['🏢 Administración', '🏗️ Constructora', '🏠 Particular'];
   const PAISES = ['🇺🇾 Uruguay', '🇧🇷 Brasil', '🇵🇦 Panamá', '🇬🇹 Guatemala', '🇲🇽 México'];
   const CANALES = ['💬 WhatsApp', '📱 Redes sociales', '🤝 Recomendación', '🚶 Captación proactiva', '📧 Email'];
-  const SERVICIOS = ['🏢 Fachada', '🪟 Vidrios', '☀️ Paneles solares'];
+  const SERVICIOS = ['🏢 Fachada', '🪟 Vidrios', '☀️ Paneles solares', '🏠 Techos/Tejas', '🌴 Ducha a palmeras'];
 
   function btnGroup(label, key, options) {
     return `<div class="edit-section"><div class="edit-section-label">${label}</div><div class="estado-btns">${

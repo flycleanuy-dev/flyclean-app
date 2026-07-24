@@ -34,7 +34,7 @@ const renderPorCobrar = (...a) => M.renderPorCobrar(...a);
 let _gastosCache = null;
 let _ingresosCache = null;
 
-const INGRESO_TIPOS = ['🏢 Fachada', '🪟 Vidrio', '📋 Relevamiento', '🔧 Otro'];
+const INGRESO_TIPOS = ['🏢 Fachada', '🪟 Vidrio', '🏠 Techos/Tejas', '🌴 Ducha a palmeras', '📋 Relevamiento', '🔧 Otro'];
 
 export async function fetchGastosForMonth() {
   // Pagina TODO (antes se cortaba en 100 → faltaban gastos cuando hay >100).

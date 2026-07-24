@@ -337,7 +337,11 @@
 // v240 — 2 tipos de servicio nuevos en el selector (editar + nuevo servicio): 🏠 Techos/Tejas y
 // 🌴 Ducha a palmeras (+ descripción en el PDF del reporte). Opciones agregadas en Notion (aditivo, ids
 // existentes preservados; el espejo respaldó). Los 3 de siempre (Fachada/Vidrios/Paneles) quedan igual.
-const CACHE = 'flyclean-v240';
+// v241 — los 2 tipos nuevos en TODAS las listas restantes: interés del prospecto (Ventas), servicio de
+// interés del cliente, servicio sugerido tras prueba (operario), y tipo de ingreso (Finanzas). Notion:
+// 'Servicio sugerido' pre-creada (aditivo, ids preservados); Interés/Servicio de interés/Tipo se auto-crean
+// al primer uso (la app es Supabase-first).
+const CACHE = 'flyclean-v241';
 const SHELL = [
   '/',
   '/index.html',

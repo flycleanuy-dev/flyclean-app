@@ -14,7 +14,7 @@ let M = {};
 export function initProspeccion(bridge) { M = bridge; }
 
 const ORIGEN_LEAD_OPTIONS = ['🧲 Vendedor', '🤝 Referido', '🌐 Web/Redes', '📞 Entrante', '🚶 Puerta fría'];
-const INTERES_OPTIONS = ['🏢 Fachada', '🪟 Vidrios', '☀️ Paneles solares'];
+const INTERES_OPTIONS = ['🏢 Fachada', '🪟 Vidrios', '☀️ Paneles solares', '🏠 Techos/Tejas', '🌴 Ducha a palmeras'];
 
 // HTML del sheet de alta de prospecto. Los handlers oninput="prospectoState.x=…" resuelven por window
 // (prospectoState vive en main y se publica como accesor); el resto del estado se accede vía M.
