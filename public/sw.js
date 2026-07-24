@@ -341,7 +341,9 @@
 // interés del cliente, servicio sugerido tras prueba (operario), y tipo de ingreso (Finanzas). Notion:
 // 'Servicio sugerido' pre-creada (aditivo, ids preservados); Interés/Servicio de interés/Tipo se auto-crean
 // al primer uso (la app es Supabase-first).
-const CACHE = 'flyclean-v241';
+// v242 — Manuales Operario + Coordinador regenerados contra la app en vivo (Operario incluye la sección de
+// método múltiple dron+manual + contacto de acceso; Coordinador refresca el selector con los 5 tipos).
+const CACHE = 'flyclean-v242';
 const SHELL = [
   '/',
   '/index.html',
