@@ -1121,7 +1121,7 @@ async function buildCoordinador(browser) {
   sections.push({
     title: '＋ Nuevo trabajo y ✏️ editar servicio',
     intro:
-      'Creás un trabajo desde cero (con o sin propuesta) y editás todo: cliente, PILOTO + ayudantes, fecha/hora, lugar + mapa, tipo (fachada/vidrios/paneles), sectores y notas para el operario.',
+      'Creás un trabajo desde cero (con o sin propuesta) y editás todo: cliente, PILOTO + ayudantes, fecha/hora, lugar + mapa, tipo de servicio, sectores y notas para el operario.',
     steps: [
       {
         title: '＋ Nuevo trabajo',
