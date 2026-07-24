@@ -799,26 +799,16 @@ async function buildOperario(browser) {
     await page.waitForSelector('#screen-detail.active', { timeout: 12000 });
     imgFicha = await snap(page, { wait: 1200, fullPage: false });
     // Paso MÉTODO DE TRABAJO (inicio efectivo): mostramos que se pueden marcar Dron Y Manual a la vez +
-    // varias herramientas (feature 2026-07-12). Seteamos el paso DIRECTO y renderizamos (goToStep tiene
-    // guard de secuencia). serviceState.horaInicio simula que ya inició (client-side puro, sin escribir).
+    // varias herramientas (feature 2026-07-12). Navegamos con manualPreviewStep (helper de operario.js
+    // expuesto a window para el generador: setea serviceState y re-renderiza el paso por id, respetando el
+    // STEPS activo). No seteamos horaInicio para no mostrar el banner de "cancelar inicio" — queremos los toggles.
     await page.evaluate(() => {
       try {
-        serviceState.horaInicio = new Date().toISOString();
-        serviceState.metodoTrabajo = ['🚁 Dron', '💪 Manual'];
-        serviceState.herramientaManual = ['Lanzas', 'Manguera'];
-        // Usar el array ACTIVO (STEPS): para servicios con sectores es STEPS_SECTORES, donde el índice de
-        // inicio_efectivo difiere de STEPS_SERVICIO. renderStep lee STEPS[currentStep].
-        const steps =
-          typeof STEPS !== 'undefined' && STEPS
-            ? STEPS
-            : typeof STEPS_SERVICIO !== 'undefined'
-              ? STEPS_SERVICIO
-              : [];
-        const idx = steps.findIndex(s => s.id === 'inicio_efectivo');
-        if (idx >= 0) {
-          currentStep = idx;
-          if (typeof renderStepNav === 'function') renderStepNav();
-          if (typeof renderStep === 'function') renderStep();
+        if (typeof manualPreviewStep === 'function') {
+          manualPreviewStep('inicio_efectivo', {
+            metodoTrabajo: ['🚁 Dron', '💪 Manual'],
+            herramientaManual: ['Lanzas', 'Manguera'],
+          });
         }
       } catch (e) {
         console.warn('step metodo', e);
@@ -833,18 +823,7 @@ async function buildOperario(browser) {
     // Paso checklist pre-vuelo.
     await page.evaluate(() => {
       try {
-        const steps =
-          typeof STEPS !== 'undefined' && STEPS
-            ? STEPS
-            : typeof STEPS_SERVICIO !== 'undefined'
-              ? STEPS_SERVICIO
-              : [];
-        const idx = steps.findIndex(s => s.id === 'checklist_pre');
-        if (idx >= 0) {
-          currentStep = idx;
-          if (typeof renderStepNav === 'function') renderStepNav();
-          if (typeof renderStep === 'function') renderStep();
-        }
+        if (typeof manualPreviewStep === 'function') manualPreviewStep('checklist_pre');
       } catch (e) {
         console.warn('step nav', e);
       }

@@ -343,7 +343,11 @@
 // al primer uso (la app es Supabase-first).
 // v242 — Manuales Operario + Coordinador regenerados contra la app en vivo (Operario incluye la sección de
 // método múltiple dron+manual + contacto de acceso; Coordinador refresca el selector con los 5 tipos).
-const CACHE = 'flyclean-v242';
+// v243 — pulido de la captura del método en el manual Operario: helper manualPreviewStep() en operario.js
+// (expuesto a window, sin efecto en runtime) que navega el generador al paso 'inicio_efectivo' → la captura
+// ahora muestra los toggles Dron/Manual + herramientas (antes salía la pantalla de llegada porque
+// renderStep/STEPS no eran accesibles en page.evaluate tras la modularización). Manuales re-regenerados.
+const CACHE = 'flyclean-v243';
 const SHELL = [
   '/',
   '/index.html',

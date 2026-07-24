@@ -671,6 +671,22 @@ export function goToStep(idx) {
   if (idx <= M.currentStep) { M.currentStep = idx; renderStepNav(); renderStep(); }
 }
 
+// Helper EXCLUSIVO del generador de manuales (scripts/build-manuales-roles.cjs). Navega a un paso por id e
+// inyecta overrides de demo en serviceState, re-renderizando. La app en runtime NO lo usa (los onclick reales
+// van por goToStep/nextStep, que guardan la secuencia); existe porque el generador corre en page.evaluate y,
+// tras la modularización, no tiene acceso a STEPS/renderStep. Sin efectos secundarios: solo cambia la vista
+// del propio servicio en pantalla (no escribe nada). Expuesto a window como otros hooks (window._services…).
+export function manualPreviewStep(stepId, stateOverrides) {
+  if (stateOverrides && M.serviceState) Object.assign(M.serviceState, stateOverrides);
+  const i = STEPS.findIndex(s => s.id === stepId);
+  if (i < 0) return -1;
+  M.currentStep = i;
+  renderStepNav();
+  renderStep();
+  return i;
+}
+if (typeof window !== 'undefined') window.manualPreviewStep = manualPreviewStep;
+
 export function nextStep() {
   if (M.currentStep < STEPS.length - 1) {
     M.currentStep++;
